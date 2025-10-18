@@ -218,4 +218,17 @@ html {
     .sr-spacing > * + * {
         margin-top: 0.5rem;
     }
+
+    /* Layered z-index tokens so layout + modals stay in sync */
+    .z-stack-nav {
+        z-index: 60;
+    }
+
+    .z-stack-backdrop {
+        z-index: 70;
+    }
+
+    .z-stack-modal {
+        z-index: 80;
+    }
 }
