@@ -10,7 +10,7 @@
 @if ($logs->count() > 0 || !$hasReadingToday)
     {{-- Reading Log Timeline with Flowbite --}}
     <ol id="log-list"
-        class="relative border-s border-gray-200 dark:border-gray-700 ps-0"
+        class="relative list-none border-s border-gray-200 dark:border-gray-700 ps-0"
         hx-trigger="readingLogAdded from:body"
         hx-get="{{ route('logs.index') }}?refresh=1"
         hx-target="this"
@@ -25,6 +25,7 @@
     @include('partials.reading-log-modals', [
         'logs' => $logs,
         'modalsOutOfBand' => request()->header('HX-Request') !== null,
+        'swapMethod' => request()->get('page', 1) > 1 ? 'beforeend' : 'outerHTML',
     ])
 @else
     {{-- Empty State --}}

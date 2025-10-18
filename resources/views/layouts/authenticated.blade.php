@@ -77,6 +77,9 @@
         <x-navigation.mobile-bottom-bar class="lg:hidden" />
     </div>
 
+    {{-- Global container for HTMX out-of-band modal swaps --}}
+    <div id="reading-log-modals"></div>
+
     <!-- HTMX History Configuration -->
     <script>
         document.body.addEventListener('htmx:historyRestore', function(evt) {

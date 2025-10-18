@@ -1,7 +1,7 @@
 {{-- Infinite Scroll Sentinel Partial --}}
 {{-- This partial renders the intersection observer element for infinite scroll --}}
 <li id="infinite-scroll-sentinel"
-    class="list-none ms-6 py-4 flex justify-center items-center"
+    class="list-none ms-6 ps-6 py-4 flex justify-center items-center"
     hx-get="{{ $logs->nextPageUrl() }}"
     hx-trigger="intersect once"
     hx-target="this"
