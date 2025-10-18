@@ -15,89 +15,17 @@
         hx-get="{{ route('logs.index') }}?refresh=1"
         hx-target="this"
         hx-swap="outerHTML">
-
-        {{-- Empty State for Today if No Readings --}}
-        @if (!$hasReadingToday)
-            <li class="mb-10 ms-6">
-                {{-- Timeline Dot Indicator (gray for empty state) --}}
-                <div class="absolute w-3 h-3 bg-gray-300 dark:bg-gray-600 rounded-full mt-1.5 -start-1.5 border-2 border-white dark:border-gray-900"></div>
-
-                {{-- Date Header --}}
-                <div class="flex items-center gap-2 mb-4">
-                    <time class="text-sm font-semibold text-gray-900 dark:text-white">
-                        {{ today()->format('M j, Y') }}
-                    </time>
-                    <span class="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                        Today
-                    </span>
-                </div>
-
-                {{-- Empty State Card --}}
-                <div class="p-6 bg-gray-50 border border-gray-200 border-dashed rounded-lg dark:bg-gray-800/50 dark:border-gray-700 text-center">
-                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        No readings logged today
-                    </p>
-                    <x-ui.button
-                        variant="primary"
-                        size="sm"
-                        hx-get="{{ route('logs.create') }}"
-                        hx-target="#reading-log-modal-content"
-                        hx-swap="innerHTML"
-                        hx-indicator="#modal-loading"
-                        @click="modalOpen = true"
-                    >
-                        Log Your First Reading Today
-                    </x-ui.button>
-                </div>
-            </li>
-        @endif
-
-        @foreach ($logs as $date => $logsForDay)
-            <li class="mb-10 ms-6">
-                {{-- Timeline Dot Indicator --}}
-                <div class="absolute w-3 h-3 bg-primary-500 rounded-full mt-1.5 -start-1.5 border-2 border-white dark:border-gray-900"></div>
-
-                {{-- Date Header with Reading Count Badge --}}
-                <div class="flex items-center gap-2 mb-4">
-                    <time class="text-sm font-semibold text-gray-900 dark:text-white">
-                        {{ \Carbon\Carbon::parse($date)->format('M j, Y') }}
-                    </time>
-                    @if ($logsForDay->count() > 1)
-                        <span class="bg-primary-100 text-primary-800 dark:bg-primary-800 dark:text-primary-200 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                            {{ $logsForDay->count() }} reading{{ $logsForDay->count() > 1 ? 's' : '' }}
-                        </span>
-                    @endif
-                </div>
-
-                {{-- Individual Reading Cards for This Day --}}
-                <div class="space-y-3">
-                    @foreach ($logsForDay as $log)
-                        <x-bible.reading-log-card :log="$log" />
-                    @endforeach
-                </div>
-            </li>
-        @endforeach
-
-        {{-- Intersection Observer Sentinel for Infinite Scroll --}}
-        @if ($logs->hasMorePages())
-            @include('partials.infinite-scroll-sentinel', compact('logs'))
-        @endif
+        @include('partials.reading-log-items', [
+            'logs' => $logs,
+            'includeEmptyToday' => ! $hasReadingToday,
+        ])
     </ol>
 
     {{-- Render all delete modals at document level to avoid z-index issues --}}
-    @foreach ($logs as $logsForDay)
-        @foreach ($logsForDay as $log)
-            @php
-                $allLogs = $log->all_logs ?? collect([$log]);
-                $isMultiChapter = $allLogs->count() > 1;
-            @endphp
-            @if($isMultiChapter)
-                <x-modals.delete-chapter-selection :log="$log" />
-            @else
-                <x-modals.delete-reading-confirmation :log="$log" />
-            @endif
-        @endforeach
-    @endforeach
+    @include('partials.reading-log-modals', [
+        'logs' => $logs,
+        'modalsOutOfBand' => request()->header('HX-Request') !== null,
+    ])
 @else
     {{-- Empty State --}}
     <div class="text-center py-12 pb-20 lg:pb-12">

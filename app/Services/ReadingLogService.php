@@ -433,29 +433,14 @@ class ReadingLogService
      */
     public function renderReadingLogCardsHtml($logs): string
     {
-        $cardsHtml = '';
-
-        foreach ($logs as $logsForDay) {
-            if ($logsForDay->count() === 1) {
-                // Single reading: use individual card
-                $cardsHtml .= view('components.bible.reading-log-card', [
-                    'log' => $logsForDay->first(),
-                ])->render();
-            } else {
-                // Multiple readings: use daily grouped card
-                $cardsHtml .= view('components.bible.daily-reading-card', [
-                    'logsForDay' => $logsForDay,
-                ])->render();
-            }
-        }
-
-        // Add infinite scroll sentinel if there are more pages
-        if ($logs->hasMorePages()) {
-            $cardsHtml .= view('partials.infinite-scroll-sentinel', [
-                'logs' => $logs,
-            ])->render();
-        }
-
-        return $cardsHtml;
+        return view('partials.reading-log-items', [
+            'logs' => $logs,
+            'includeEmptyToday' => false,
+        ])->render()
+        . view('partials.reading-log-modals', [
+            'logs' => $logs,
+            'modalsOutOfBand' => true,
+            'swapMethod' => 'beforeend',
+        ])->render();
     }
 }
