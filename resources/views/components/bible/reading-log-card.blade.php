@@ -13,6 +13,11 @@ $cardClasses .= ' p-3';
 } else {
 $cardClasses .= ' p-4';
 }
+
+// Determine if this is a multi-chapter entry
+$allLogs = $log->all_logs ?? collect([$log]);
+$isMultiChapter = $allLogs->count() > 1;
+$modalId = $isMultiChapter ? "delete-chapters-{$log->id}" : "delete-confirmation-{$log->id}";
 @endphp
 
 <div {{ $attributes->merge(['class' => $cardClasses]) }}>
@@ -65,6 +70,17 @@ $cardClasses .= ' p-4';
 
         {{-- Right Side Indicators --}}
         <div class="ml-4 flex flex-col items-end space-y-2">
+            {{-- Delete Button --}}
+            <button type="button"
+                data-modal-target="{{ $modalId }}"
+                data-modal-toggle="{{ $modalId }}"
+                class="text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400 transition-colors cursor-pointer z-10 relative"
+                title="Delete reading">
+                <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+            </button>
+
             {{-- Streak Contribution Indicator --}}
             @if($contributedToStreak)
             <div class="flex items-center space-x-1 text-xs text-success-600 bg-success-50 px-2 py-1 rounded-full">

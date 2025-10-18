@@ -26,6 +26,21 @@
             @include('partials.infinite-scroll-sentinel', compact('logs'))
         @endif
     </div>
+
+    {{-- Render all delete modals at the end to avoid z-index issues --}}
+    @foreach ($logs as $logsForDay)
+        @foreach ($logsForDay as $log)
+            @php
+                $allLogs = $log->all_logs ?? collect([$log]);
+                $isMultiChapter = $allLogs->count() > 1;
+            @endphp
+            @if($isMultiChapter)
+                <x-modals.delete-chapter-selection :log="$log" />
+            @else
+                <x-modals.delete-reading-confirmation :log="$log" />
+            @endif
+        @endforeach
+    @endforeach
 @else
     {{-- Empty State --}}
     <div class="text-center py-12 pb-20 lg:pb-12">
