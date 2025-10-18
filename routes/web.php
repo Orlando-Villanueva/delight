@@ -61,6 +61,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/logs', [ReadingLogController::class, 'index'])->name('logs.index');
     Route::get('/logs/create', [ReadingLogController::class, 'create'])->name('logs.create');
     Route::post('/logs', [ReadingLogController::class, 'store'])->name('logs.store');
+    Route::delete('/logs/{readingLog}', [ReadingLogController::class, 'destroy'])->name('logs.destroy');
 
     // User Preferences
     Route::post('/preferences/testament', function (Request $request) {

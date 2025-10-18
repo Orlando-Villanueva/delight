@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ReadingLog;
 use App\Services\BibleReferenceService;
 use App\Services\ReadingFormService;
 use App\Services\ReadingLogService;
@@ -203,7 +204,11 @@ class ReadingLogController extends Controller
                     return $log->passage_text.'|'.$log->date_read.'|'.$log->created_at->format('Y-m-d H:i:s');
                 })
                     ->map(function ($group) {
-                        return $group->first(); // Take the first entry from each group
+                        // Keep all logs in the group for deletion purposes
+                        $displayLog = $group->first(); // Take the first entry for display
+                        $displayLog->all_logs = $group; // Attach all logs for deletion modal
+
+                        return $displayLog;
                     })
                     ->values();
 
@@ -256,5 +261,81 @@ class ReadingLogController extends Controller
 
         // Return full page for direct access (browser URL)
         return view('logs.index', compact('logs'));
+    }
+
+    /**
+     * Delete a reading log entry.
+     */
+    public function destroy(Request $request, ReadingLog $readingLog)
+    {
+        // Authorize the deletion
+        if ($request->user()->id !== $readingLog->user_id) {
+            abort(403, 'Unauthorized to delete this reading log.');
+        }
+
+        // Store the date for re-fetching logs after deletion
+        $dateRead = $readingLog->date_read->format('Y-m-d');
+
+        // Delete the reading log (service handles book progress update)
+        $this->readingLogService->deleteReadingLog($readingLog);
+
+        // For HTMX requests, refresh the entire log list
+        if ($request->header('HX-Request')) {
+            $user = $request->user();
+
+            // Get all logs grouped by date (same logic as index)
+            $allLogs = $user->readingLogs()->recentFirst();
+
+            $groupedLogs = $allLogs->get()
+                ->groupBy(function ($log) {
+                    return $log->date_read->format('Y-m-d');
+                })
+                ->map(function ($logsForDay) {
+                    $deduplicated = $logsForDay->groupBy(function ($log) {
+                        return $log->passage_text.'|'.$log->date_read.'|'.$log->created_at->format('Y-m-d H:i:s');
+                    })
+                        ->map(function ($group) {
+                            // Keep all logs in the group for deletion purposes
+                            $displayLog = $group->first();
+                            $displayLog->all_logs = $group; // Attach all logs for deletion modal
+
+                            return $displayLog;
+                        })
+                        ->values();
+
+                    return $deduplicated->map(function ($log) {
+                        $log->time_ago = $this->userStatisticsService->calculateSmartTimeAgo($log);
+                        $log->logged_time_ago = $this->userStatisticsService->formatTimeAgo($log->created_at);
+
+                        return $log;
+                    })->sortByDesc('created_at')->values();
+                })
+                ->sortByDesc(function ($logsForDay, $date) {
+                    return $date;
+                });
+
+            // Manual pagination
+            $perPage = 8;
+            $currentPage = $request->get('page', 1);
+            $offset = ($currentPage - 1) * $perPage;
+
+            $paginatedDays = $groupedLogs->slice($offset, $perPage);
+            $logs = new \Illuminate\Pagination\LengthAwarePaginator(
+                $paginatedDays,
+                $groupedLogs->count(),
+                $perPage,
+                $currentPage,
+                ['path' => $request->url(), 'pageName' => 'page']
+            );
+            $logs->withQueryString();
+
+            // Return the entire log list with success message
+            return response()
+                ->view('partials.reading-log-list', compact('logs'))
+                ->header('HX-Trigger', 'readingLogDeleted');
+        }
+
+        // For non-HTMX requests, redirect back
+        return redirect()->route('logs.index')->with('success', 'Reading log deleted successfully.');
     }
 }

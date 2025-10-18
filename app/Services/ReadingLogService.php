@@ -317,6 +317,35 @@ class ReadingLogService
     }
 
     /**
+     * Update book progress after deleting a chapter.
+     */
+    private function updateBookProgressAfterDeletion(User $user, int $bookId, int $chapter): void
+    {
+        $bookProgress = $user->bookProgress()->where('book_id', $bookId)->first();
+
+        if (! $bookProgress) {
+            return;
+        }
+
+        // Get current chapters read
+        $chaptersRead = $bookProgress->chapters_read ?? [];
+
+        // Remove the deleted chapter
+        $chaptersRead = array_values(array_filter($chaptersRead, fn ($ch) => $ch !== $chapter));
+
+        // Get book information for recalculation
+        $book = $this->bibleService->getBibleBook($bookId);
+
+        // Update book progress
+        $bookProgress->chapters_read = $chaptersRead;
+        $bookProgress->completion_percent = count($chaptersRead) > 0
+            ? round((count($chaptersRead) / $book['chapters']) * 100, 2)
+            : 0;
+        $bookProgress->is_completed = count($chaptersRead) >= $book['chapters'];
+        $bookProgress->save();
+    }
+
+    /**
      * Invalidate user statistics cache when reading logs change.
      * Uses smart invalidation to minimize expensive recalculations.
      */
@@ -365,9 +394,15 @@ class ReadingLogService
     public function deleteReadingLog(ReadingLog $readingLog): bool
     {
         $user = $readingLog->user;
+        $bookId = $readingLog->book_id;
+        $chapter = $readingLog->chapter;
+
         $deleted = $readingLog->delete();
 
         if ($deleted) {
+            // Update book progress to remove the deleted chapter
+            $this->updateBookProgressAfterDeletion($user, $bookId, $chapter);
+
             // For deletions, we can't easily determine if this was the only reading of the day
             // so we invalidate all caches to be safe
             $this->invalidateUserStatisticsCache($user, true);
