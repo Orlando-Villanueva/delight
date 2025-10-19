@@ -9,7 +9,6 @@ use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\MessageBag;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -188,58 +187,7 @@ class ReadingLogController extends Controller
      */
     public function index(Request $request)
     {
-        $user = $request->user();
-
-        // Get reading logs - all records, chronologically ordered
-        $allLogs = $user->readingLogs()->recentFirst();
-
-        // Group by date_read to show all readings for each day
-        $groupedLogs = $allLogs->get()
-            ->groupBy(function ($log) {
-                return $log->date_read->format('Y-m-d'); // Group by date only
-            })
-            ->map(function ($logsForDay) {
-                // Deduplicate readings within each day by passage + date + created_at (same session)
-                $deduplicated = $logsForDay->groupBy(function ($log) {
-                    return $log->passage_text.'|'.$log->date_read.'|'.$log->created_at->format('Y-m-d H:i:s');
-                })
-                    ->map(function ($group) {
-                        // Keep all logs in the group for deletion purposes
-                        $displayLog = $group->first(); // Take the first entry for display
-                        $displayLog->all_logs = $group; // Attach all logs for deletion modal
-
-                        return $displayLog;
-                    })
-                    ->values();
-
-                // Add time_ago to each log and sort readings within each day by created_at (newest first)
-                return $deduplicated->map(function ($log) {
-                    // Use the service's smart time calculation for consistent display across all components
-                    $log->time_ago = $this->userStatisticsService->calculateSmartTimeAgo($log);
-                    $log->logged_time_ago = $this->userStatisticsService->formatTimeAgo($log->created_at);
-
-                    return $log;
-                })->sortByDesc('created_at')->values();
-            })
-            ->sortByDesc(function ($logsForDay, $date) {
-                return $date; // Sort days by date (newest first)
-            });
-
-        // Manual pagination by days (not individual logs)
-        $perPage = 8; // Number of days to show per page
-        $currentPage = $request->get('page', 1);
-        $offset = ($currentPage - 1) * $perPage;
-
-        // Paginate the day groups
-        $paginatedDays = $groupedLogs->slice($offset, $perPage);
-        $logs = new LengthAwarePaginator(
-            $paginatedDays,
-            $groupedLogs->count(),
-            $perPage,
-            $currentPage,
-            ['path' => $request->url(), 'pageName' => 'page']
-        );
-        $logs->withQueryString();
+        $logs = $this->readingLogService->getPaginatedDayGroupsFor($request, $this->userStatisticsService);
 
         // Return appropriate view based on request type
         if ($request->header('HX-Request')) {
@@ -273,63 +221,13 @@ class ReadingLogController extends Controller
             abort(403, 'Unauthorized to delete this reading log.');
         }
 
-        // Store the date for re-fetching logs after deletion
-        $dateRead = $readingLog->date_read->format('Y-m-d');
-
         // Delete the reading log (service handles book progress update)
         $this->readingLogService->deleteReadingLog($readingLog);
 
         // For HTMX requests, refresh the entire log list
         if ($request->header('HX-Request')) {
-            $user = $request->user();
+            $logs = $this->readingLogService->getPaginatedDayGroupsFor($request, $this->userStatisticsService);
 
-            // Get all logs grouped by date (same logic as index)
-            $allLogs = $user->readingLogs()->recentFirst();
-
-            $groupedLogs = $allLogs->get()
-                ->groupBy(function ($log) {
-                    return $log->date_read->format('Y-m-d');
-                })
-                ->map(function ($logsForDay) {
-                    $deduplicated = $logsForDay->groupBy(function ($log) {
-                        return $log->passage_text.'|'.$log->date_read.'|'.$log->created_at->format('Y-m-d H:i:s');
-                    })
-                        ->map(function ($group) {
-                            // Keep all logs in the group for deletion purposes
-                            $displayLog = $group->first();
-                            $displayLog->all_logs = $group; // Attach all logs for deletion modal
-
-                            return $displayLog;
-                        })
-                        ->values();
-
-                    return $deduplicated->map(function ($log) {
-                        $log->time_ago = $this->userStatisticsService->calculateSmartTimeAgo($log);
-                        $log->logged_time_ago = $this->userStatisticsService->formatTimeAgo($log->created_at);
-
-                        return $log;
-                    })->sortByDesc('created_at')->values();
-                })
-                ->sortByDesc(function ($logsForDay, $date) {
-                    return $date;
-                });
-
-            // Manual pagination
-            $perPage = 8;
-            $currentPage = $request->get('page', 1);
-            $offset = ($currentPage - 1) * $perPage;
-
-            $paginatedDays = $groupedLogs->slice($offset, $perPage);
-            $logs = new \Illuminate\Pagination\LengthAwarePaginator(
-                $paginatedDays,
-                $groupedLogs->count(),
-                $perPage,
-                $currentPage,
-                ['path' => $request->url(), 'pageName' => 'page']
-            );
-            $logs->withQueryString();
-
-            // Return the entire log list with success message
             return response()
                 ->view('partials.reading-log-list', compact('logs'))
                 ->header('HX-Trigger', 'readingLogDeleted');
@@ -337,5 +235,41 @@ class ReadingLogController extends Controller
 
         // For non-HTMX requests, redirect back
         return redirect()->route('logs.index')->with('success', 'Reading log deleted successfully.');
+    }
+
+    /**
+     * Delete multiple reading logs in a single request.
+     */
+    public function batchDestroy(Request $request)
+    {
+        $ids = collect($request->input('ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique();
+
+        if ($ids->isEmpty()) {
+            return response()->json([
+                'message' => 'Select at least one reading to delete.',
+            ], 422);
+        }
+
+        $user = $request->user();
+
+        $logs = ReadingLog::where('user_id', $user->id)
+            ->whereIn('id', $ids)
+            ->get();
+
+        foreach ($logs as $log) {
+            $this->readingLogService->deleteReadingLog($log);
+        }
+
+        if ($request->header('HX-Request')) {
+            $logs = $this->readingLogService->getPaginatedDayGroupsFor($request, $this->userStatisticsService);
+
+            return response()
+                ->view('partials.reading-log-list', compact('logs'))
+                ->header('HX-Trigger', 'readingLogDeleted');
+        }
+        return redirect()->route('logs.index')->with('success', 'Selected readings deleted successfully.');
     }
 }

@@ -4,7 +4,10 @@ namespace App\Services;
 
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\UserStatisticsService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
@@ -442,5 +445,122 @@ class ReadingLogService
             'modalsOutOfBand' => true,
             'swapMethod' => 'beforeend',
         ])->render();
+    }
+
+    public function getPaginatedDayGroupsFor(Request $request, UserStatisticsService $statisticsService, int $perPage = 8): LengthAwarePaginator
+    {
+        $groupedLogs = $this->buildGroupedLogsForUser($request->user(), $statisticsService);
+
+        $currentPage = max(1, (int) $request->get('page', 1));
+        $paginator = $this->paginateGroupedLogs($groupedLogs, $currentPage, $perPage, $request->url());
+        $paginator->appends($request->query());
+
+        return $paginator;
+    }
+
+    public function buildGroupedLogsForUser(User $user, UserStatisticsService $statisticsService): Collection
+    {
+        return $user->readingLogs()->recentFirst()
+            ->get()
+            ->groupBy(fn ($log) => $log->date_read->format('Y-m-d'))
+            ->map(fn ($logsForDay) => $this->prepareDisplayLogs($logsForDay, $statisticsService))
+            ->sortByDesc(fn ($logsForDay, $date) => $date);
+    }
+
+    public function paginateGroupedLogs(Collection $groupedLogs, int $currentPage, int $perPage, string $path): LengthAwarePaginator
+    {
+        $currentPage = max(1, $currentPage);
+        $offset = ($currentPage - 1) * $perPage;
+        $paginatedDays = $groupedLogs->slice($offset, $perPage);
+
+        return new LengthAwarePaginator(
+            $paginatedDays,
+            $groupedLogs->count(),
+            $perPage,
+            $currentPage,
+            ['path' => $path, 'pageName' => 'page']
+        );
+    }
+
+    /**
+     * Partition a collection of reading logs into contiguous chapter segments.
+     */
+    public function segmentReadingLogs(Collection $logs): Collection
+    {
+        if ($logs->isEmpty()) {
+            return collect();
+        }
+
+        $sorted = $logs->sortBy('chapter')->values();
+
+        $segments = collect();
+        $currentSegment = collect([$sorted->first()]);
+
+        for ($i = 1; $i < $sorted->count(); $i++) {
+            $previous = $sorted[$i - 1];
+            $current = $sorted[$i];
+
+            if ($current->chapter === $previous->chapter + 1) {
+                $currentSegment->push($current);
+                continue;
+            }
+
+            $segments->push($currentSegment);
+            $currentSegment = collect([$current]);
+        }
+
+        $segments->push($currentSegment);
+
+        return $segments;
+    }
+
+    /**
+     * Generate a human-readable passage label for a reading log segment.
+     */
+    public function formatSegmentPassage(Collection $segment, ?string $locale = null): string
+    {
+        if ($segment->isEmpty()) {
+            throw new InvalidArgumentException('Segment cannot be empty.');
+        }
+
+        $bookId = $segment->first()->book_id;
+        $chapters = $segment->pluck('chapter')->all();
+
+        return $this->bibleService->formatBibleChapterList($bookId, $chapters, $locale);
+    }
+
+    private function prepareDisplayLogs(Collection $logsForDay, UserStatisticsService $statisticsService): Collection
+    {
+        $sessions = $logsForDay->groupBy(function ($log) {
+            return implode('|', [
+                $log->user_id,
+                $log->book_id,
+                $log->date_read->format('Y-m-d'),
+                $log->created_at->format('Y-m-d H:i:s'),
+            ]);
+        });
+
+        $displayLogs = $sessions->flatMap(function (Collection $sessionLogs) {
+            $segments = $this->segmentReadingLogs($sessionLogs);
+
+            return $segments->map(function (Collection $segment) {
+                $displayLog = $segment->first();
+                $displayLog->all_logs = $segment->values();
+                $displayLog->display_passage_text = $this->formatSegmentPassage($segment);
+                $displayLog->chapters_count = $segment->count();
+
+                return $displayLog;
+            });
+        });
+
+        return $displayLogs
+            ->map(function ($log) use ($statisticsService) {
+                $log->time_ago = $statisticsService->calculateSmartTimeAgo($log);
+                $log->logged_time_ago = $statisticsService->formatTimeAgo($log->created_at);
+
+                return $log;
+            })
+            ->sortByDesc('created_at')
+            ->values();
     }
 }

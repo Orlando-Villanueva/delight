@@ -121,6 +121,37 @@ class BibleReferenceService
     }
 
     /**
+     * Format an arbitrary list of chapters (may include multiple contiguous ranges).
+     */
+    public function formatBibleChapterList(int $bookId, array $chapters, ?string $locale = null): string
+    {
+        $locale = $locale ?? $this->defaultLocale;
+
+        if (! $this->validateBookId($bookId)) {
+            throw new InvalidArgumentException("Invalid book ID: {$bookId}");
+        }
+
+        $normalized = $this->normalizeChapters($chapters);
+
+        if (empty($normalized)) {
+            throw new InvalidArgumentException('Chapter list cannot be empty.');
+        }
+
+        $bookName = $this->getLocalizedBookName($bookId, $locale);
+        $segments = $this->condenseChapterSegments($normalized);
+
+        $formattedSegments = array_map(function (array $segment) {
+            if ($segment['start'] === $segment['end']) {
+                return (string) $segment['start'];
+            }
+
+            return $segment['start'].'-'.$segment['end'];
+        }, $segments);
+
+        return $bookName.' '.implode(', ', $formattedSegments);
+    }
+
+    /**
      * Validate chapter range for a specific book
      */
     public function validateChapterRange(int $bookId, int $startChapter, int $endChapter): bool
@@ -318,6 +349,53 @@ class BibleReferenceService
         ];
 
         return $translations[$locale][$bookId] ?? $translations[$this->defaultLocale][$bookId] ?? "Book {$bookId}";
+    }
+
+    /**
+     * Sort and deduplicate a chapter list.
+     */
+    private function normalizeChapters(array $chapters): array
+    {
+        $chapters = array_map('intval', $chapters);
+        $chapters = array_values(array_unique($chapters));
+        sort($chapters);
+
+        return $chapters;
+    }
+
+    /**
+     * Convert a chapter list into contiguous segment metadata.
+     *
+     * @return array<int, array{start:int,end:int}>
+     */
+    private function condenseChapterSegments(array $chapters): array
+    {
+        if (empty($chapters)) {
+            return [];
+        }
+
+        $segments = [];
+        $segmentStart = $chapters[0];
+        $segmentEnd = $chapters[0];
+
+        $total = count($chapters);
+
+        for ($i = 1; $i < $total; $i++) {
+            $current = $chapters[$i];
+
+            if ($current === $segmentEnd + 1) {
+                $segmentEnd = $current;
+                continue;
+            }
+
+            $segments[] = ['start' => $segmentStart, 'end' => $segmentEnd];
+            $segmentStart = $current;
+            $segmentEnd = $current;
+        }
+
+        $segments[] = ['start' => $segmentStart, 'end' => $segmentEnd];
+
+        return $segments;
     }
 
     /**

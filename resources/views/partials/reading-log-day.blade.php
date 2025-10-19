@@ -1,5 +1,9 @@
 @props(['date', 'logsForDay'])
 
+@php
+    $dayChapterCount = $logsForDay->sum(fn ($log) => $log->chapters_count ?? ($log->all_logs?->count() ?? 1));
+@endphp
+
 <li class="mb-10 ms-6">
     {{-- Timeline Dot Indicator --}}
     <div
@@ -11,10 +15,10 @@
         <time class="text-sm font-semibold text-gray-900 dark:text-white">
             {{ \Carbon\Carbon::parse($date)->format('M j, Y') }}
         </time>
-        @if ($logsForDay->count() > 0)
+        @if ($dayChapterCount > 0)
             <span
                 class="bg-primary-100 text-primary-800 dark:bg-primary-800 dark:text-primary-200 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                {{ $logsForDay->count() }} reading{{ $logsForDay->count() > 1 ? 's' : '' }}
+                {{ $dayChapterCount }} chapter{{ $dayChapterCount > 1 ? 's' : '' }}
             </span>
         @endif
     </div>

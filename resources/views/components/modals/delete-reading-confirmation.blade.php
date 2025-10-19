@@ -25,7 +25,7 @@
                     Are you sure you want to delete this reading?
                 </h3>
                 <p class="mb-5 text-sm text-gray-600 dark:text-gray-300">
-                    <strong>{{ $log->passage_text }}</strong><br>
+                    <strong>{{ $log->display_passage_text ?? $log->passage_text }}</strong><br>
                     {{ $log->date_read->format('M j, Y') }}
                 </p>
 

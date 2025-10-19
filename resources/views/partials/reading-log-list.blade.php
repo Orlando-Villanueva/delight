@@ -15,7 +15,7 @@
 @if ($hasAnyLogs)
     {{-- Reading Log Timeline with Flowbite --}}
     <ol id="log-list" class="relative list-none border-s border-gray-200 dark:border-gray-700 ps-0"
-        hx-trigger="readingLogAdded from:body" hx-get="{{ route('logs.index') }}?refresh=1" hx-target="this"
+        hx-trigger="readingLogAdded from:body, readingLogDeleted from:body" hx-get="{{ route('logs.index') }}?refresh=1" hx-target="this"
         hx-swap="outerHTML">
         @include('partials.reading-log-items', [
             'logs' => $logs,

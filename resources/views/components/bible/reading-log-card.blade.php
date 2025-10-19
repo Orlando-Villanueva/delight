@@ -13,7 +13,7 @@ $modalId = $isMultiChapter ? "delete-chapters-{$log->id}" : "delete-confirmation
         {{-- Passage and Time Info --}}
         <div class="flex-1 min-w-0">
             <h3 class="text-base font-semibold text-gray-900 dark:text-white leading-tight mb-1">
-                {{ $log->passage_text }}
+                {{ $log->display_passage_text ?? $log->passage_text }}
             </h3>
             <div class="text-xs text-gray-500 dark:text-gray-400">
                 Logged at {{ $log->created_at->format('g:i A') }}
