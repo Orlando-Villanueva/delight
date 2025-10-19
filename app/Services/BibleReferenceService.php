@@ -385,6 +385,7 @@ class BibleReferenceService
 
             if ($current === $segmentEnd + 1) {
                 $segmentEnd = $current;
+
                 continue;
             }
 

@@ -22,7 +22,7 @@ class ReadingLogHistoryInfiniteScrollTest extends TestCase
                 'user_id' => $user->id,
                 'book_id' => 1,
                 'chapter' => $offset + 1,
-                'passage_text' => "Genesis ".($offset + 1),
+                'passage_text' => 'Genesis '.($offset + 1),
                 'date_read' => Carbon::today()->subDays($offset)->toDateString(),
                 'created_at' => Carbon::today()->subDays($offset)->setTime(8, 0),
                 'updated_at' => Carbon::today()->subDays($offset)->setTime(8, 0),
@@ -34,7 +34,8 @@ class ReadingLogHistoryInfiniteScrollTest extends TestCase
             ->get(route('logs.index', ['page' => 2]));
 
         $response->assertOk();
-        $response->assertSee('<li class="mb-10 ms-6">', false);
+        $response->assertSee('id="reading-day-', false);
+        $response->assertSee('class="mb-10 ms-6"', false);
         $response->assertSee('id="infinite-scroll-sentinel"', false);
         $response->assertSee('hx-target="this"', false);
         $response->assertSee('hx-swap="outerHTML"', false);

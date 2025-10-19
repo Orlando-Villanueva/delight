@@ -9,6 +9,8 @@
             <span class="ml-3 text-gray-600 dark:text-gray-400">Loading readings...</span>
         </div>
 
-        @include('partials.reading-log-list', compact('logs'))
+        <div id="reading-log-list-container">
+            @include('partials.reading-log-list', compact('logs'))
+        </div>
     </div>
 </div>

@@ -221,16 +221,28 @@ class ReadingLogController extends Controller
             abort(403, 'Unauthorized to delete this reading log.');
         }
 
+        $user = $request->user();
+        $date = $readingLog->date_read->format('Y-m-d');
+
         // Delete the reading log (service handles book progress update)
         $this->readingLogService->deleteReadingLog($readingLog);
 
-        // For HTMX requests, refresh the entire log list
+        // For HTMX requests, return targeted day + modal updates
         if ($request->header('HX-Request')) {
-            $logs = $this->readingLogService->getPaginatedDayGroupsFor($request, $this->userStatisticsService);
+            $dayResponses = $this->readingLogService->getPreparedLogsForDates(
+                $user,
+                [$date],
+                $this->userStatisticsService
+            );
 
-            return response()
-                ->view('partials.reading-log-list', compact('logs'))
-                ->header('HX-Trigger', 'readingLogDeleted');
+            // Ensure the response array contains the primary date key even when empty
+            $dayResponses = [$date => $dayResponses[$date] ?? null];
+
+            return view('partials.reading-log-update-response', [
+                'primaryDate' => $date,
+                'dayResponses' => $dayResponses,
+                'userHasLogs' => $this->readingLogService->userHasAnyLogs($user),
+            ]);
         }
 
         // For non-HTMX requests, redirect back
@@ -259,17 +271,28 @@ class ReadingLogController extends Controller
             ->whereIn('id', $ids)
             ->get();
 
+        $dates = $logs->map(fn ($log) => $log->date_read->format('Y-m-d'))->unique()->values();
+
         foreach ($logs as $log) {
             $this->readingLogService->deleteReadingLog($log);
         }
 
         if ($request->header('HX-Request')) {
-            $logs = $this->readingLogService->getPaginatedDayGroupsFor($request, $this->userStatisticsService);
+            $dayResponses = $this->readingLogService->getPreparedLogsForDates(
+                $user,
+                $dates->all(),
+                $this->userStatisticsService
+            );
 
-            return response()
-                ->view('partials.reading-log-list', compact('logs'))
-                ->header('HX-Trigger', 'readingLogDeleted');
+            $orderedResponses = $dates->mapWithKeys(fn ($date) => [$date => $dayResponses[$date] ?? null])->toArray();
+
+            return view('partials.reading-log-update-response', [
+                'primaryDate' => $dates->first(),
+                'dayResponses' => $orderedResponses,
+                'userHasLogs' => $this->readingLogService->userHasAnyLogs($user),
+            ]);
         }
+
         return redirect()->route('logs.index')->with('success', 'Selected readings deleted successfully.');
     }
 }

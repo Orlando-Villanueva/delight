@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\ReadingLog;
 use App\Models\User;
-use App\Services\UserStatisticsService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -440,7 +439,7 @@ class ReadingLogService
             'logs' => $logs,
             'includeEmptyToday' => false,
         ])->render()
-        . view('partials.reading-log-modals', [
+        .view('partials.reading-log-modals', [
             'logs' => $logs,
             'modalsOutOfBand' => true,
             'swapMethod' => 'beforeend',
@@ -452,10 +451,53 @@ class ReadingLogService
         $groupedLogs = $this->buildGroupedLogsForUser($request->user(), $statisticsService);
 
         $currentPage = max(1, (int) $request->get('page', 1));
-        $paginator = $this->paginateGroupedLogs($groupedLogs, $currentPage, $perPage, $request->url());
+        $basePath = $request->routeIs('logs.index') ? $request->url() : route('logs.index');
+        $paginator = $this->paginateGroupedLogs($groupedLogs, $currentPage, $perPage, $basePath);
         $paginator->appends($request->query());
 
         return $paginator;
+    }
+
+    public function getPreparedLogsForDate(User $user, string $date, UserStatisticsService $statisticsService): ?Collection
+    {
+        $logsForDay = $user->readingLogs()
+            ->whereDate('date_read', $date)
+            ->get();
+
+        if ($logsForDay->isEmpty()) {
+            return null;
+        }
+
+        return $this->prepareDisplayLogs($logsForDay, $statisticsService);
+    }
+
+    public function getPreparedLogsForDates(User $user, array $dates, UserStatisticsService $statisticsService): array
+    {
+        $uniqueDates = collect($dates)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($uniqueDates->isEmpty()) {
+            return [];
+        }
+
+        return $uniqueDates->mapWithKeys(function ($date) use ($user, $statisticsService) {
+            $logsForDay = $user->readingLogs()
+                ->whereDate('date_read', $date)
+                ->get();
+
+            if ($logsForDay->isEmpty()) {
+                return [$date => null];
+            }
+
+            return [$date => $this->prepareDisplayLogs($logsForDay, $statisticsService)];
+        })->all();
+    }
+
+    public function userHasAnyLogs(User $user): bool
+    {
+        return $user->readingLogs()->exists();
     }
 
     public function buildGroupedLogsForUser(User $user, UserStatisticsService $statisticsService): Collection
@@ -502,6 +544,7 @@ class ReadingLogService
 
             if ($current->chapter === $previous->chapter + 1) {
                 $currentSegment->push($current);
+
                 continue;
             }
 

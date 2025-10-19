@@ -141,8 +141,13 @@ class DeleteReadingLogTest extends TestCase
             ->delete(route('logs.destroy', $log));
 
         $response->assertSuccessful();
-        $response->assertViewIs('partials.reading-log-list');
-        $response->assertHeader('HX-Trigger', 'readingLogDeleted');
+        $response->assertViewIs('partials.reading-log-update-response');
+        $response->assertViewHas('primaryDate', today()->format('Y-m-d'));
+        $this->assertSame(
+            [today()->format('Y-m-d') => null],
+            $response->viewData('dayResponses')
+        );
+        $response->assertViewHas('userHasLogs', false);
     }
 
     /**

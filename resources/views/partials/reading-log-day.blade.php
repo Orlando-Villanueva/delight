@@ -1,10 +1,14 @@
-@props(['date', 'logsForDay'])
+@props([
+    'date',
+    'logsForDay',
+    'swapMethod' => null,
+])
 
 @php
     $dayChapterCount = $logsForDay->sum(fn ($log) => $log->chapters_count ?? ($log->all_logs?->count() ?? 1));
 @endphp
 
-<li class="mb-10 ms-6">
+<li id="reading-day-{{ $date }}" class="mb-10 ms-6" @if($swapMethod) hx-swap-oob="{{ $swapMethod }}" @endif>
     {{-- Timeline Dot Indicator --}}
     <div
         class="absolute w-3 h-3 bg-primary-500 rounded-full mt-1.5 -start-1.5 border-2 border-white dark:border-gray-900">
