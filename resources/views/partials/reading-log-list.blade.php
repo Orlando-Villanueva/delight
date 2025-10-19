@@ -2,22 +2,24 @@
 {{-- This partial is loaded via HTMX for seamless filtering --}}
 
 @php
-    // Check if today has any readings logged
+    // Extract useful state about the logs and whether the user has any history yet
     $today = today()->format('Y-m-d');
-    $hasReadingToday = $logs->count() > 0 && $logs->keys()->contains($today);
+    $logItems = $logs instanceof \Illuminate\Pagination\AbstractPaginator ? collect($logs->items()) : collect($logs);
+
+    $totalLoggedDays = method_exists($logs, 'total') ? $logs->total() : $logItems->count();
+
+    $hasAnyLogs = $totalLoggedDays > 0;
+    $hasReadingToday = $hasAnyLogs && $logItems->keys()->contains($today);
 @endphp
 
-@if ($logs->count() > 0 || !$hasReadingToday)
+@if ($hasAnyLogs)
     {{-- Reading Log Timeline with Flowbite --}}
-    <ol id="log-list"
-        class="relative list-none border-s border-gray-200 dark:border-gray-700 ps-0"
-        hx-trigger="readingLogAdded from:body"
-        hx-get="{{ route('logs.index') }}?refresh=1"
-        hx-target="this"
+    <ol id="log-list" class="relative list-none border-s border-gray-200 dark:border-gray-700 ps-0"
+        hx-trigger="readingLogAdded from:body" hx-get="{{ route('logs.index') }}?refresh=1" hx-target="this"
         hx-swap="outerHTML">
         @include('partials.reading-log-items', [
             'logs' => $logs,
-            'includeEmptyToday' => ! $hasReadingToday,
+            'includeEmptyToday' => $hasAnyLogs && !$hasReadingToday,
         ])
     </ol>
 
@@ -41,16 +43,10 @@
         <h3 class="text-lg font-medium text-gray-900 mb-2">No reading logs found</h3>
 
         <p class="text-gray-600 mb-6">You haven't logged any Bible readings yet. Start building your reading habit!</p>
-        <x-ui.button 
-            variant="primary"
-            size="default"
-            hx-get="{{ route('logs.create') }}" 
-            hx-target="#reading-log-modal-content"
-            hx-swap="innerHTML" 
-            hx-indicator="#modal-loading" 
-            @click="modalOpen = true"
-        >
+        <button type="button" hx-get="{{ route('logs.create') }}" hx-target="#page-container" hx-swap="innerHTML"
+            hx-push-url="true"
+            class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-accent-600 focus:outline-none focus:ring-4 focus:ring-accent-300 dark:bg-accent-600 dark:hover:bg-accent-700 dark:focus:ring-accent-800">
             📖 Log Your First Reading
-        </x-ui.button>
+        </button>
     </div>
 @endif
