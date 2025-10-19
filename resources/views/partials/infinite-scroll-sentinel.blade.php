@@ -1,6 +1,6 @@
 {{-- Infinite Scroll Sentinel Partial --}}
 {{-- This partial renders the intersection observer element for infinite scroll --}}
-<li id="infinite-scroll-sentinel" class="list-none ms-6 ps-6 py-4 flex justify-center items-center min-h-[6rem]"
+<li id="infinite-scroll-sentinel" class="list-none w-full py-3 flex justify-center items-center min-h-[4rem]"
     hx-get="{{ $logs->nextPageUrl() }}" hx-trigger="intersect once threshold:1.0" hx-target="this" hx-swap="outerHTML">
     {{-- Loading indicator that shows during fetch --}}
     <div class="htmx-indicator" role="status">
