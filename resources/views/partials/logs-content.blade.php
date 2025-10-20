@@ -1,4 +1,4 @@
-<div class="max-w-4xl mx-auto pb-20 md:pb-4">
+<div class="max-w-4xl mx-auto pb-10 md:pb-4">
     {{-- Reading Log Content Container --}}
     <div id="reading-content" class="relative">
         {{-- Loading Indicator - Only covers the logs area --}}
