@@ -33,6 +33,14 @@
                 </div>
             @endforeach
         </div>
+    @elseif ($swapMethod === 'outerHTML')
+        <div id="reading-log-modals" hx-swap-oob="outerHTML">
+            @foreach ($modalGroups as $date => $logsForDay)
+                <div id="reading-log-modals-{{ $date }}">
+                    @include('partials.reading-log-modals-day', compact('logsForDay'))
+                </div>
+            @endforeach
+        </div>
     @else
         @foreach ($modalGroups as $date => $logsForDay)
             <div id="reading-log-modals-{{ $date }}" hx-swap-oob="{{ $swapMethod }}">
