@@ -6,7 +6,9 @@
 @endphp
 
 {{-- Chapter Selection Modal (for multi-chapter ranges) --}}
-<div id="delete-chapters-{{ $log->id }}" tabindex="-1" data-modal-backdrop="static"
+<div id="delete-chapters-{{ $log->id }}" tabindex="-1" data-modal-backdrop="static" role="alertdialog"
+    aria-modal="true" aria-labelledby="delete-chapters-title-{{ $log->id }}"
+    aria-describedby="delete-chapters-desc-{{ $log->id }}"
     class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-stack-modal justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full"
     x-data="{
         allChapterIds: {{ $allLogs->pluck('id')->map(fn($id) => (string) $id)->toJson() }},
@@ -44,13 +46,16 @@
 
             <form class="flex flex-col h-full" hx-delete="{{ route('logs.batchDestroy') }}"
                 hx-target="#reading-day-{{ $log->date_read->format('Y-m-d') }}" hx-swap="outerHTML"
-                hx-headers='{"X-CSRF-TOKEN": "{{ csrf_token() }}"}'>
+                hx-headers='{"X-CSRF-TOKEN": "{{ csrf_token() }}"}'
+                hx-disabled-elt=".js-delete-actions-{{ $log->id }} button">
                 {{-- Modal header --}}
                 <div class="p-4 md:p-5 border-b rounded-t dark:border-gray-600">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    <h3 id="delete-chapters-title-{{ $log->id }}"
+                        class="text-lg font-semibold text-gray-900 dark:text-white">
                         Select Chapters to Delete
                     </h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    <p id="delete-chapters-desc-{{ $log->id }}"
+                        class="text-sm text-gray-500 dark:text-gray-400 mt-1">
                         {{ $log->display_passage_text ?? $log->passage_text }} • {{ $log->date_read->format('M j, Y') }}
                     </p>
                 </div>
@@ -92,15 +97,17 @@
                 </div>
 
                 {{-- Modal footer --}}
-                <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600 gap-3">
+                <div
+                    class="js-delete-actions-{{ $log->id }} flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
+                    <button data-modal-hide="delete-chapters-{{ $log->id }}" type="button" @click="deselectAll()"
+                        autofocus
+                        class="w-full sm:w-auto py-2.5 px-5 text-sm font-medium text-gray-900 focus-visible:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus-visible:z-10 focus-visible:ring-4 focus-visible:ring-gray-100 dark:focus-visible:ring-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        Cancel
+                    </button>
                     <button type="submit" data-modal-hide="delete-chapters-{{ $log->id }}"
                         :disabled="selectedChapters.length === 0"
-                        class="inline-flex items-center justify-center text-white bg-red-600 hover:bg-red-800 disabled:bg-red-300 disabled:cursor-not-allowed focus:ring-4 focus:outline-none focus:ring-red-300 dark:focus:ring-red-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
+                        class="w-full sm:w-auto inline-flex items-center justify-center text-white bg-red-600 hover:bg-red-500 dark:hover:bg-red-500 disabled:bg-red-200 dark:disabled:bg-red-500/40 disabled:text-white/70 dark:disabled:text-white/60 disabled:cursor-not-allowed focus-visible:ring-4 focus-visible:outline-none focus-visible:ring-red-300 dark:focus-visible:ring-red-700 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
                         <span x-text="buttonLabel()"></span>
-                    </button>
-                    <button data-modal-hide="delete-chapters-{{ $log->id }}" type="button" @click="deselectAll()"
-                        class="py-2.5 px-5 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
-                        Cancel
                     </button>
                 </div>
             </form>
