@@ -28,10 +28,10 @@
             </button>
         </div>
 
-        <!-- History Button (Right) -->
+        <!-- Reading History Button (Right) -->
         <x-navigation.nav-link
             route="logs.index"
-            label="History"
+            label="Reading History"
             variant="mobile"
             class="rounded-e-full">
             <x-slot:icon>

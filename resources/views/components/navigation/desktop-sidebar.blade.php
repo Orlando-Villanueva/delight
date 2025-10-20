@@ -31,7 +31,7 @@
             <li>
                 <x-navigation.nav-link
                     route="logs.index"
-                    label="History"
+                    label="Reading History"
                     variant="sidebar">
                     <x-slot:icon>
                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
