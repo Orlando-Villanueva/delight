@@ -225,6 +225,94 @@ class DeleteReadingLogTest extends TestCase
     }
 
     /**
+     * Test HTMX batch deletion updates the rendered day fragment.
+     */
+    public function test_htmx_batch_delete_updates_day_fragment(): void
+    {
+        $user = User::factory()->create();
+        $readingLogService = app(\App\Services\ReadingLogService::class);
+
+        $readingLogService->logReading($user, [
+            'book_id' => 1,
+            'chapters' => [1, 2, 3],
+            'passage_text' => 'Genesis 1-3',
+            'date_read' => today()->toDateString(),
+        ]);
+
+        $allLogs = $user->readingLogs()->get();
+        $idsToDelete = $allLogs->pluck('id')->all();
+
+        $response = $this->actingAs($user)
+            ->withHeaders(['HX-Request' => 'true'])
+            ->delete(route('logs.batchDestroy'), [
+                'ids' => $idsToDelete,
+            ]);
+
+        $response->assertSuccessful();
+        $response->assertViewIs('partials.reading-log-update-response');
+        $response->assertDontSee('Genesis 1-3');
+    }
+
+    /**
+     * Ensure rendered reading log items use date-based IDs for HTMX targeting.
+     */
+    public function test_reading_log_items_use_date_ids(): void
+    {
+        $user = User::factory()->create();
+        $readingLogService = app(\App\Services\ReadingLogService::class);
+        $statisticsService = app(\App\Services\UserStatisticsService::class);
+
+        $readingLogService->logReading($user, [
+            'book_id' => 1,
+            'chapters' => [1, 2],
+            'passage_text' => 'Genesis 1-2',
+            'date_read' => today()->toDateString(),
+        ]);
+
+        $request = \Illuminate\Http\Request::create('/logs', 'GET');
+        $request->setUserResolver(fn () => $user);
+
+        $paginatedLogs = $readingLogService->getPaginatedDayGroupsFor($request, $statisticsService);
+
+        $html = view('partials.reading-log-items', [
+            'logs' => $paginatedLogs,
+            'includeEmptyToday' => false,
+        ])->render();
+
+        $this->assertStringContainsString('id="reading-day-'.today()->format('Y-m-d').'"', $html);
+    }
+
+    /**
+     * Test HTMX batch deletion updates remaining multi-chapter card.
+     */
+    public function test_htmx_batch_delete_updates_multi_chapter_card(): void
+    {
+        $user = User::factory()->create();
+        $readingLogService = app(\App\Services\ReadingLogService::class);
+
+        $readingLogService->logReading($user, [
+            'book_id' => 1,
+            'chapters' => [1, 2, 3],
+            'passage_text' => 'Genesis 1-3',
+            'date_read' => today()->toDateString(),
+        ]);
+
+        $allLogs = $user->readingLogs()->orderBy('chapter')->get();
+        $firstLogId = $allLogs->first()->id;
+
+        $response = $this->actingAs($user)
+            ->withHeaders(['HX-Request' => 'true'])
+            ->delete(route('logs.batchDestroy'), [
+                'ids' => [$firstLogId],
+            ]);
+
+        $response->assertSuccessful();
+        $response->assertViewIs('partials.reading-log-update-response');
+        $response->assertDontSee('Genesis 1-3');
+        $response->assertSee('Genesis 2-3');
+    }
+
+    /**
      * Test dashboard loads successfully after deletion (cache invalidation)
      */
     public function test_dashboard_loads_after_deletion(): void

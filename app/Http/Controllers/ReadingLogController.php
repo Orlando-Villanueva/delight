@@ -284,7 +284,9 @@ class ReadingLogController extends Controller
                 $this->userStatisticsService
             );
 
-            $orderedResponses = $dates->mapWithKeys(fn ($date) => [$date => $dayResponses[$date] ?? null])->toArray();
+            $orderedResponses = $dates
+                ->mapWithKeys(fn ($date) => [$date => $dayResponses[$date] ?? null])
+                ->all();
 
             return view('partials.reading-log-update-response', [
                 'primaryDate' => $dates->first(),
