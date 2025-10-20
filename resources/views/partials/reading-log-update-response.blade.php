@@ -27,11 +27,9 @@
 
 @foreach ($dayResponses as $date => $logsForDay)
     @if ($logsForDay && $logsForDay->isNotEmpty())
-        @include('partials.reading-log-modals', [
-            'logs' => collect([$date => $logsForDay]),
-            'modalsOutOfBand' => true,
-            'swapMethod' => 'outerHTML',
-        ])
+        <div id="reading-log-modals-{{ $date }}" hx-swap-oob="outerHTML">
+            @include('partials.reading-log-modals-day', ['logsForDay' => $logsForDay])
+        </div>
     @else
         <div id="reading-log-modals-{{ $date }}" hx-swap-oob="outerHTML"></div>
     @endif
