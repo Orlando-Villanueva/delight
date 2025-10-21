@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\ReadingLog;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
@@ -317,6 +319,44 @@ class ReadingLogService
     }
 
     /**
+     * Update book progress after deleting a chapter.
+     */
+    private function updateBookProgressAfterDeletion(User $user, int $bookId, int $chapter): void
+    {
+        $bookProgress = $user->bookProgress()->where('book_id', $bookId)->first();
+
+        if (! $bookProgress) {
+            return;
+        }
+
+        $hasRemainingLogs = $user->readingLogs()
+            ->where('book_id', $bookId)
+            ->where('chapter', $chapter)
+            ->exists();
+
+        if ($hasRemainingLogs) {
+            return;
+        }
+
+        // Get current chapters read
+        $chaptersRead = $bookProgress->chapters_read ?? [];
+
+        // Remove the deleted chapter
+        $chaptersRead = array_values(array_filter($chaptersRead, fn ($ch) => $ch !== $chapter));
+
+        // Get book information for recalculation
+        $book = $this->bibleService->getBibleBook($bookId);
+
+        // Update book progress
+        $bookProgress->chapters_read = $chaptersRead;
+        $bookProgress->completion_percent = count($chaptersRead) > 0
+            ? round((count($chaptersRead) / $book['chapters']) * 100, 2)
+            : 0;
+        $bookProgress->is_completed = count($chaptersRead) >= $book['chapters'];
+        $bookProgress->save();
+    }
+
+    /**
      * Invalidate user statistics cache when reading logs change.
      * Uses smart invalidation to minimize expensive recalculations.
      */
@@ -365,9 +405,15 @@ class ReadingLogService
     public function deleteReadingLog(ReadingLog $readingLog): bool
     {
         $user = $readingLog->user;
+        $bookId = $readingLog->book_id;
+        $chapter = $readingLog->chapter;
+
         $deleted = $readingLog->delete();
 
         if ($deleted) {
+            // Update book progress to remove the deleted chapter
+            $this->updateBookProgressAfterDeletion($user, $bookId, $chapter);
+
             // For deletions, we can't easily determine if this was the only reading of the day
             // so we invalidate all caches to be safe
             $this->invalidateUserStatisticsCache($user, true);
@@ -398,29 +444,175 @@ class ReadingLogService
      */
     public function renderReadingLogCardsHtml($logs): string
     {
-        $cardsHtml = '';
+        return view('partials.reading-log-items', [
+            'logs' => $logs,
+            'includeEmptyToday' => false,
+        ])->render()
+        .view('partials.reading-log-modals', [
+            'logs' => $logs,
+            'modalsOutOfBand' => true,
+            'swapMethod' => 'beforeend',
+        ])->render();
+    }
 
-        foreach ($logs as $logsForDay) {
-            if ($logsForDay->count() === 1) {
-                // Single reading: use individual card
-                $cardsHtml .= view('components.bible.reading-log-card', [
-                    'log' => $logsForDay->first(),
-                ])->render();
-            } else {
-                // Multiple readings: use daily grouped card
-                $cardsHtml .= view('components.bible.daily-reading-card', [
-                    'logsForDay' => $logsForDay,
-                ])->render();
+    public function getPaginatedDayGroupsFor(Request $request, UserStatisticsService $statisticsService, int $perPage = 8): LengthAwarePaginator
+    {
+        $groupedLogs = $this->buildGroupedLogsForUser($request->user(), $statisticsService);
+
+        $currentPage = max(1, (int) $request->get('page', 1));
+        $basePath = $request->routeIs('logs.index') ? $request->url() : route('logs.index');
+        $paginator = $this->paginateGroupedLogs($groupedLogs, $currentPage, $perPage, $basePath);
+        $paginator->appends($request->query());
+
+        return $paginator;
+    }
+
+    public function getPreparedLogsForDate(User $user, string $date, UserStatisticsService $statisticsService): ?Collection
+    {
+        $logsForDay = $user->readingLogs()
+            ->whereDate('date_read', $date)
+            ->get();
+
+        if ($logsForDay->isEmpty()) {
+            return null;
+        }
+
+        return $this->prepareDisplayLogs($logsForDay, $statisticsService);
+    }
+
+    public function getPreparedLogsForDates(User $user, array $dates, UserStatisticsService $statisticsService): array
+    {
+        $uniqueDates = collect($dates)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($uniqueDates->isEmpty()) {
+            return [];
+        }
+
+        return $uniqueDates->mapWithKeys(function ($date) use ($user, $statisticsService) {
+            $logsForDay = $user->readingLogs()
+                ->whereDate('date_read', $date)
+                ->get();
+
+            if ($logsForDay->isEmpty()) {
+                return [$date => null];
             }
+
+            return [$date => $this->prepareDisplayLogs($logsForDay, $statisticsService)];
+        })->all();
+    }
+
+    public function userHasAnyLogs(User $user): bool
+    {
+        return $user->readingLogs()->exists();
+    }
+
+    public function buildGroupedLogsForUser(User $user, UserStatisticsService $statisticsService): Collection
+    {
+        return $user->readingLogs()->recentFirst()
+            ->get()
+            ->groupBy(fn ($log) => $log->date_read->format('Y-m-d'))
+            ->map(fn ($logsForDay) => $this->prepareDisplayLogs($logsForDay, $statisticsService))
+            ->sortByDesc(fn ($logsForDay, $date) => $date);
+    }
+
+    public function paginateGroupedLogs(Collection $groupedLogs, int $currentPage, int $perPage, string $path): LengthAwarePaginator
+    {
+        $currentPage = max(1, $currentPage);
+        $offset = ($currentPage - 1) * $perPage;
+        $paginatedDays = $groupedLogs->slice($offset, $perPage);
+
+        return new LengthAwarePaginator(
+            $paginatedDays,
+            $groupedLogs->count(),
+            $perPage,
+            $currentPage,
+            ['path' => $path, 'pageName' => 'page']
+        );
+    }
+
+    /**
+     * Partition a collection of reading logs into contiguous chapter segments.
+     */
+    public function segmentReadingLogs(Collection $logs): Collection
+    {
+        if ($logs->isEmpty()) {
+            return collect();
         }
 
-        // Add infinite scroll sentinel if there are more pages
-        if ($logs->hasMorePages()) {
-            $cardsHtml .= view('partials.infinite-scroll-sentinel', [
-                'logs' => $logs,
-            ])->render();
+        $sorted = $logs->sortBy('chapter')->values();
+
+        $segments = collect();
+        $currentSegment = collect([$sorted->first()]);
+
+        for ($i = 1; $i < $sorted->count(); $i++) {
+            $previous = $sorted[$i - 1];
+            $current = $sorted[$i];
+
+            if ($current->chapter === $previous->chapter + 1) {
+                $currentSegment->push($current);
+
+                continue;
+            }
+
+            $segments->push($currentSegment);
+            $currentSegment = collect([$current]);
         }
 
-        return $cardsHtml;
+        $segments->push($currentSegment);
+
+        return $segments;
+    }
+
+    /**
+     * Generate a human-readable passage label for a reading log segment.
+     */
+    public function formatSegmentPassage(Collection $segment, ?string $locale = null): string
+    {
+        if ($segment->isEmpty()) {
+            throw new InvalidArgumentException('Segment cannot be empty.');
+        }
+
+        $bookId = $segment->first()->book_id;
+        $chapters = $segment->pluck('chapter')->all();
+
+        return $this->bibleService->formatBibleChapterList($bookId, $chapters, $locale);
+    }
+
+    private function prepareDisplayLogs(Collection $logsForDay, UserStatisticsService $statisticsService): Collection
+    {
+        $sessions = $logsForDay->groupBy(function ($log) {
+            return implode('|', [
+                $log->user_id,
+                $log->book_id,
+                $log->date_read->format('Y-m-d'),
+                $log->created_at->format('Y-m-d H:i:s'),
+            ]);
+        });
+
+        $displayLogs = $sessions->flatMap(function (Collection $sessionLogs) {
+            $segments = $this->segmentReadingLogs($sessionLogs);
+
+            return $segments->map(function (Collection $segment) {
+                $displayLog = $segment->first();
+                $displayLog->all_logs = $segment->values();
+                $displayLog->display_passage_text = $this->formatSegmentPassage($segment);
+                $displayLog->chapters_count = $segment->count();
+
+                return $displayLog;
+            });
+        });
+
+        return $displayLogs
+            ->map(function ($log) use ($statisticsService) {
+                $log->time_ago = $statisticsService->calculateSmartTimeAgo($log);
+                $log->logged_time_ago = $statisticsService->formatTimeAgo($log->created_at);
+
+                return $log;
+            })
+            ->sortByDesc('created_at')
+            ->values();
     }
 }

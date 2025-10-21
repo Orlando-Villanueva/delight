@@ -40,7 +40,7 @@
     <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
 
     <!-- Flowbite CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
 
     <!-- Styles / Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -76,6 +76,9 @@
         <!-- Mobile: Bottom Bar -->
         <x-navigation.mobile-bottom-bar class="lg:hidden" />
     </div>
+
+    {{-- Global container for HTMX out-of-band modal swaps --}}
+    <div id="reading-log-modals"></div>
 
     <!-- HTMX History Configuration -->
     <script>
