@@ -7,7 +7,8 @@ use App\Models\User;
 class ReadingFormService
 {
     public function __construct(
-        private ReadingLogService $readingLogService
+        private ReadingLogService $readingLogService,
+        private BibleReferenceService $bibleReferenceService
     ) {}
 
     /**
@@ -24,7 +25,7 @@ class ReadingFormService
      * Get yesterday availability logic and user reading status for the form.
      * This determines if the "yesterday" option should be available based on streak preservation.
      */
-    public function getFormContextData(User $user): array
+    public function getFormContextData(User $user, ?string $locale = null): array
     {
         $hasReadToday = $this->hasReadToday($user);
 
@@ -49,6 +50,40 @@ class ReadingFormService
             'hasReadToday' => $hasReadToday,
             'hasReadYesterday' => $hasReadYesterday,
             'currentStreak' => $currentStreak,
+            'recentBooks' => $this->getRecentBooks($user, $locale),
         ];
+    }
+
+    /**
+     * Build a quick-pick list of the user's most recently logged books.
+     */
+    public function getRecentBooks(User $user, ?string $locale = null, int $limit = 5): array
+    {
+        $recentBooks = $this->readingLogService->getRecentBooks($user, $limit);
+
+        if ($recentBooks->isEmpty()) {
+            return [];
+        }
+
+        $localizedBooks = collect($this->bibleReferenceService->listBibleBooks(null, $locale))->keyBy('id');
+
+        return $recentBooks
+            ->filter(fn (array $book) => $localizedBooks->has($book['book_id']))
+            ->map(function (array $book) use ($localizedBooks) {
+                $bookMeta = $localizedBooks->get($book['book_id']);
+                $lastReadAt = $book['last_read_at'];
+
+                return [
+                    'id' => $bookMeta['id'],
+                    'name' => $bookMeta['name'],
+                    'testament' => $bookMeta['testament'],
+                    'chapters' => $bookMeta['chapters'],
+                    'last_read_at' => $lastReadAt->toDateString(),
+                    'last_read_label' => $lastReadAt->format('M d, Y'),
+                    'last_read_for_humans' => $lastReadAt->diffForHumans(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

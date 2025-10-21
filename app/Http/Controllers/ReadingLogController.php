@@ -37,7 +37,7 @@ class ReadingLogController extends Controller
         $errors = new MessageBag;
 
         // Get form context data (yesterday logic, streak info)
-        $formContext = $this->readingFormService->getFormContextData($request->user());
+        $formContext = $this->readingFormService->getFormContextData($request->user(), $locale);
 
         $data = array_merge(compact('books', 'errors'), $formContext);
 
@@ -104,7 +104,7 @@ class ReadingLogController extends Controller
                 // Get fresh form data for page display
                 $books = $this->bibleReferenceService->listBibleBooks(null, 'en');
                 $errors = new MessageBag;
-                $formContext = $this->readingFormService->getFormContextData($request->user());
+                $formContext = $this->readingFormService->getFormContextData($request->user(), 'en');
 
                 // Set success message
                 session()->flash('success', "{$log->passage_text} recorded for {$log->date_read->format('M d, Y')}");
@@ -129,7 +129,7 @@ class ReadingLogController extends Controller
             $errors = new MessageBag($e->errors());
 
             // Get form context data (yesterday logic, streak info)
-            $formContext = $this->readingFormService->getFormContextData($request->user());
+            $formContext = $this->readingFormService->getFormContextData($request->user(), 'en');
 
             // Return appropriate partial based on request type
             $partial = $request->header('HX-Request') ? 'partials.reading-log-form' : 'logs.create';
@@ -146,7 +146,7 @@ class ReadingLogController extends Controller
             $errors = new MessageBag(['chapter_input' => [$e->getMessage()]]);
 
             // Get form context data (yesterday logic, streak info)
-            $formContext = $this->readingFormService->getFormContextData($request->user());
+            $formContext = $this->readingFormService->getFormContextData($request->user(), 'en');
 
             // Return appropriate partial based on request type
             $partial = $request->header('HX-Request') ? 'partials.reading-log-form' : 'logs.create';
@@ -165,7 +165,7 @@ class ReadingLogController extends Controller
                 $errors = new MessageBag(['chapter_input' => ['You have already logged one or more of these chapters for today.']]);
 
                 // Get form context data (yesterday logic, streak info)
-                $formContext = $this->readingFormService->getFormContextData($request->user());
+                $formContext = $this->readingFormService->getFormContextData($request->user(), 'en');
 
                 // Return appropriate partial based on request type
                 $partial = $request->header('HX-Request') ? 'partials.reading-log-create-page' : 'logs.create';

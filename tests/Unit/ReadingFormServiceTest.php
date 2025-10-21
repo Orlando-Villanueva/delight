@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\BibleReferenceService;
 use App\Services\ReadingFormService;
 use App\Services\ReadingLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,7 +23,8 @@ class ReadingFormServiceTest extends TestCase
         parent::setUp();
 
         $readingLogService = $this->app->make(ReadingLogService::class);
-        $this->service = new ReadingFormService($readingLogService);
+        $bibleReferenceService = $this->app->make(BibleReferenceService::class);
+        $this->service = new ReadingFormService($readingLogService, $bibleReferenceService);
         $this->user = User::factory()->create();
     }
 
@@ -159,5 +161,51 @@ class ReadingFormServiceTest extends TestCase
             $this->service->hasReadToday($this->user),
             $contextData['hasReadToday']
         );
+
+        $this->assertArrayHasKey('recentBooks', $contextData);
+    }
+
+    public function test_get_recent_books_returns_most_recent_unique_books(): void
+    {
+        // Two entries for Psalms with different dates to ensure latest is used
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 19,
+            'chapter' => 1,
+            'date_read' => today()->subDays(2)->toDateString(),
+        ]);
+
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 19,
+            'chapter' => 2,
+            'date_read' => today()->toDateString(),
+        ]);
+
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 43,
+            'chapter' => 1,
+            'date_read' => today()->subDay()->toDateString(),
+        ]);
+
+        $recentBooks = $this->service->getRecentBooks($this->user, 'en', 5);
+
+        $this->assertCount(2, $recentBooks);
+        $this->assertSame(19, $recentBooks[0]['id']);
+        $this->assertSame('Psalms', $recentBooks[0]['name']);
+        $this->assertSame(today()->toDateString(), $recentBooks[0]['last_read_at']);
+
+        $this->assertSame(43, $recentBooks[1]['id']);
+        $this->assertSame('John', $recentBooks[1]['name']);
+        $this->assertSame(today()->subDay()->toDateString(), $recentBooks[1]['last_read_at']);
+    }
+
+    public function test_get_recent_books_returns_empty_array_when_no_logs_exist(): void
+    {
+        $recentBooks = $this->service->getRecentBooks($this->user);
+
+        $this->assertIsArray($recentBooks);
+        $this->assertEmpty($recentBooks);
     }
 }

@@ -116,6 +116,28 @@ class ReadingLogService
     }
 
     /**
+     * Get a collection of the most recently read unique books for a user.
+     *
+     * @return Collection<int, array{book_id:int,last_read_at:Carbon}>
+     */
+    public function getRecentBooks(User $user, int $limit = 5): Collection
+    {
+        return $user->readingLogs()
+            ->select('book_id')
+            ->selectRaw('MAX(date_read) as last_read_at')
+            ->groupBy('book_id')
+            ->orderByDesc('last_read_at')
+            ->limit($limit)
+            ->get()
+            ->map(function ($log) {
+                return [
+                    'book_id' => (int) $log->book_id,
+                    'last_read_at' => Carbon::parse($log->last_read_at)->startOfDay(),
+                ];
+            });
+    }
+
+    /**
      * Get reading history for a user with optional filtering.
      */
     public function getReadingHistory(User $user, ?int $limit = null, ?string $startDate = null, ?string $endDate = null): Collection

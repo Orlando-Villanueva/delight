@@ -6,7 +6,7 @@
 @php
     $oldTestament = collect($books)->where('testament', 'old')->values();
     $newTestament = collect($books)->where('testament', 'new')->values();
-    
+
     $initialTestament = 'old';
     $oldBookId = old('book_id');
 
@@ -16,6 +16,8 @@
             $initialTestament = 'new';
         }
     }
+
+    $recentBooks = $recentBooks ?? [];
 @endphp
 
 <form hx-post="{{ route('logs.store') }}" 
@@ -28,7 +30,8 @@
         books: {
             old: {{ $oldTestament->toJson() }},
             new: {{ $newTestament->toJson() }}
-        }
+        },
+        recentBooks: @json($recentBooks)
     })" x-init="init()">
     @csrf
 
@@ -143,6 +146,33 @@
         @endif
     </div>
 
+    @if(!empty($recentBooks))
+        <div class="mt-4 space-y-3">
+            <div>
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Most Recent Books</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Quick picks from your latest logs</p>
+            </div>
+            <div class="flex flex-wrap gap-2" role="list">
+                <template x-for="book in recentBooks" :key="`recent-book-${book.id}`">
+                    <button
+                        type="button"
+                        class="px-3 py-2 rounded-lg border text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-800"
+                        :class="selectedBook == book.id
+                            ? 'bg-primary-50 border-primary-500 text-primary-700 dark:bg-primary-900/40 dark:border-primary-400'
+                            : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-primary-400 hover:text-primary-700'"
+                        @click="selectRecentBook(book)"
+                        :aria-pressed="selectedBook == book.id"
+                        :title="`Last logged ${book.last_read_label}`"
+                        role="listitem"
+                    >
+                        <span class="block" x-text="book.name"></span>
+                        <span class="block text-[11px] text-gray-500 dark:text-gray-400" x-text="book.last_read_for_humans"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+    @endif
+
     <!-- Chapter Input -->
     <x-ui.input 
         name="chapter_input" 
@@ -219,6 +249,7 @@
             books: config.books,
             selectedBook: config.initialBookId,
             chapterPlaceholder: 'e.g., 3 or 1-5',
+            recentBooks: config.recentBooks || [],
 
             init() {
                 this.updateChapterPlaceholder(this.selectedBook);
@@ -245,6 +276,20 @@
                 this.testamentLabel = newTestament === 'old' ? '📜 Old Testament' : '✝️ New Testament';
                 // Close the dropdown by simulating a click on the button that controls it
                 document.getElementById('testament-button').click();
+            },
+
+            selectRecentBook(book) {
+                if (!book) {
+                    return;
+                }
+
+                if (book.testament && this.testament !== book.testament) {
+                    this.testament = book.testament;
+                    this.testamentLabel = book.testament === 'old' ? '📜 Old Testament' : '✝️ New Testament';
+                }
+
+                this.selectedBook = String(book.id);
+                this.updateChapterPlaceholder(book.id);
             }
         }
     }

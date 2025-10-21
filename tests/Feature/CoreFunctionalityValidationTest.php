@@ -186,6 +186,32 @@ class CoreFunctionalityValidationTest extends TestCase
         $this->assertEquals(today()->toDateString(), $readingLog->date_read->toDateString());
     }
 
+    public function test_reading_log_form_includes_recent_books_quick_picks(): void
+    {
+        $user = User::factory()->create();
+
+        ReadingLog::factory()->create([
+            'user_id' => $user->id,
+            'book_id' => 19, // Psalms
+            'chapter' => 1,
+            'date_read' => today()->toDateString(),
+        ]);
+
+        ReadingLog::factory()->create([
+            'user_id' => $user->id,
+            'book_id' => 43, // John
+            'chapter' => 1,
+            'date_read' => today()->subDay()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)->get('/logs/create');
+
+        $response->assertStatus(200);
+        $response->assertSee('Most Recent Books', false);
+        $response->assertSee('Psalms', false);
+        $response->assertSee('John', false);
+    }
+
     /**
      * Test reading log range functionality
      */
