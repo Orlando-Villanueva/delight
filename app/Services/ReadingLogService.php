@@ -329,6 +329,15 @@ class ReadingLogService
             return;
         }
 
+        $hasRemainingLogs = $user->readingLogs()
+            ->where('book_id', $bookId)
+            ->where('chapter', $chapter)
+            ->exists();
+
+        if ($hasRemainingLogs) {
+            return;
+        }
+
         // Get current chapters read
         $chaptersRead = $bookProgress->chapters_read ?? [];
 

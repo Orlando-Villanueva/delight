@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\ReadingLogService;
+use App\Services\UserStatisticsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -86,7 +88,7 @@ class DeleteReadingLogTest extends TestCase
         $user = User::factory()->create();
 
         // Create reading logs using the service (which creates book progress)
-        $readingLogService = app(\App\Services\ReadingLogService::class);
+        $readingLogService = app(ReadingLogService::class);
 
         $log1 = $readingLogService->logReading($user, [
             'book_id' => 1,
@@ -119,6 +121,41 @@ class DeleteReadingLogTest extends TestCase
         $bookProgress->refresh();
         $this->assertFalse(in_array(1, $bookProgress->chapters_read));
         $this->assertTrue(in_array(2, $bookProgress->chapters_read));
+    }
+
+    /**
+     * Test deleting one of multiple logs for the same chapter preserves progress until all logs are removed
+     */
+    public function test_deleting_duplicate_chapter_only_removes_progress_when_last_log_deleted(): void
+    {
+        $user = User::factory()->create();
+        $readingLogService = app(ReadingLogService::class);
+
+        $log1 = $readingLogService->logReading($user, [
+            'book_id' => 1,
+            'chapter' => 1,
+            'passage_text' => 'Genesis 1',
+            'date_read' => today()->toDateString(),
+        ]);
+
+        $log2 = $readingLogService->logReading($user, [
+            'book_id' => 1,
+            'chapter' => 1,
+            'passage_text' => 'Genesis 1',
+            'date_read' => today()->subDay()->toDateString(),
+        ]);
+
+        $bookProgress = $user->bookProgress()->where('book_id', 1)->first();
+        $this->assertTrue(in_array(1, $bookProgress->chapters_read));
+
+        $readingLogService->deleteReadingLog($log1);
+        $bookProgress->refresh();
+        $this->assertTrue(in_array(1, $bookProgress->chapters_read));
+
+        $log2->refresh();
+        $readingLogService->deleteReadingLog($log2);
+        $bookProgress->refresh();
+        $this->assertFalse(in_array(1, $bookProgress->chapters_read));
     }
 
     /**
@@ -194,7 +231,7 @@ class DeleteReadingLogTest extends TestCase
         $user = User::factory()->create();
 
         // Create a range of chapters (Genesis 1-3) using the service
-        $readingLogService = app(\App\Services\ReadingLogService::class);
+        $readingLogService = app(ReadingLogService::class);
 
         $createdLog = $readingLogService->logReading($user, [
             'book_id' => 1,
@@ -230,7 +267,7 @@ class DeleteReadingLogTest extends TestCase
     public function test_htmx_batch_delete_updates_day_fragment(): void
     {
         $user = User::factory()->create();
-        $readingLogService = app(\App\Services\ReadingLogService::class);
+        $readingLogService = app(ReadingLogService::class);
 
         $readingLogService->logReading($user, [
             'book_id' => 1,
@@ -259,8 +296,8 @@ class DeleteReadingLogTest extends TestCase
     public function test_reading_log_items_use_date_ids(): void
     {
         $user = User::factory()->create();
-        $readingLogService = app(\App\Services\ReadingLogService::class);
-        $statisticsService = app(\App\Services\UserStatisticsService::class);
+        $readingLogService = app(ReadingLogService::class);
+        $statisticsService = app(UserStatisticsService::class);
 
         $readingLogService->logReading($user, [
             'book_id' => 1,
@@ -288,7 +325,7 @@ class DeleteReadingLogTest extends TestCase
     public function test_htmx_batch_delete_updates_multi_chapter_card(): void
     {
         $user = User::factory()->create();
-        $readingLogService = app(\App\Services\ReadingLogService::class);
+        $readingLogService = app(ReadingLogService::class);
 
         $readingLogService->logReading($user, [
             'book_id' => 1,
@@ -320,7 +357,7 @@ class DeleteReadingLogTest extends TestCase
         $user = User::factory()->create();
 
         // Create reading log using the service
-        $readingLogService = app(\App\Services\ReadingLogService::class);
+        $readingLogService = app(ReadingLogService::class);
 
         $log = $readingLogService->logReading($user, [
             'book_id' => 1,
