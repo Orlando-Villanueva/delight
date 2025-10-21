@@ -10,25 +10,8 @@
     aria-modal="true" aria-labelledby="delete-chapters-title-{{ $log->id }}"
     aria-describedby="delete-chapters-desc-{{ $log->id }}"
     class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-stack-modal justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full"
-    x-data="{
-        allChapterIds: {{ $allLogs->pluck('id')->map(fn($id) => (string) $id)->toJson() }},
-        selectedChapters: [],
-        selectAll() {
-            this.selectedChapters = [...this.allChapterIds];
-        },
-        deselectAll() {
-            this.selectedChapters = [];
-        },
-        buttonLabel() {
-            if (this.selectedChapters.length === 0) {
-                return 'Delete Selected';
-            }
-    
-            const suffix = this.selectedChapters.length === 1 ? 'Chapter' : 'Chapters';
-    
-            return `Delete ${this.selectedChapters.length} ${suffix}`;
-        }
-    }" x-on:htmx:afterOnLoad="this.selectedChapters = []">
+    x-data="deleteChapterSelectionState({{ $allLogs->pluck('id')->map(fn($id) => (string) $id)->toJson() }})"
+    x-on:htmx:afterOnLoad="this.selectedChapters = []">
     <div class="relative p-4 w-full max-w-md max-h-full">
         {{-- Modal content --}}
         <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
@@ -114,3 +97,30 @@
         </div>
     </div>
 </div>
+
+<script>
+    /**
+     * Alpine state for managing chapter selection in the delete modal.
+     */
+    function deleteChapterSelectionState(allChapterIds) {
+        return {
+            allChapterIds,
+            selectedChapters: [],
+            selectAll() {
+                this.selectedChapters = [...this.allChapterIds];
+            },
+            deselectAll() {
+                this.selectedChapters = [];
+            },
+            buttonLabel() {
+                if (this.selectedChapters.length === 0) {
+                    return 'Delete Selected';
+                }
+
+                const suffix = this.selectedChapters.length === 1 ? 'Chapter' : 'Chapters';
+
+                return `Delete ${this.selectedChapters.length} ${suffix}`;
+            }
+        };
+    }
+</script>
