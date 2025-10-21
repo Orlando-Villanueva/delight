@@ -39,5 +39,6 @@
   "enabledMcpjsonServers": [
     "laravel-boost",
     "herd"
-  ]
+  ],
+  "enableAllProjectMcpServers": true
 }
