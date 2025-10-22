@@ -221,6 +221,8 @@ class ReadingLogController extends Controller
             abort(403, 'Unauthorized to update this reading log.');
         }
 
+        $user = $request->user();
+
         $validator = Validator::make($request->all(), [
             'notes_text' => 'nullable|string|max:1000',
             'log_ids' => 'nullable|array',
@@ -230,7 +232,11 @@ class ReadingLogController extends Controller
         if ($validator->fails()) {
             $errors = new MessageBag($validator->errors()->toArray());
             $notesText = $request->input('notes_text', '');
-            $allLogs = $this->gatherLogsForNoteUpdate($request, $readingLog);
+            $allLogs = $this->readingLogService->getLogsForNoteUpdate(
+                $user,
+                $readingLog,
+                $request->input('log_ids', [])
+            );
 
             return response()
                 ->view('components.modals.partials.edit-reading-note-form', [
@@ -256,18 +262,11 @@ class ReadingLogController extends Controller
             }
         }
 
-        $user = $request->user();
-
-        $logIds = collect($data['log_ids'] ?? [])
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->push($readingLog->id)
-            ->unique()
-            ->values();
-
-        $logs = ReadingLog::where('user_id', $user->id)
-            ->whereIn('id', $logIds)
-            ->get();
+        $logs = $this->readingLogService->getLogsForNoteUpdate(
+            $user,
+            $readingLog,
+            $data['log_ids'] ?? []
+        );
 
         if ($logs->isEmpty()) {
             abort(404, 'Reading logs not found.');
@@ -399,28 +398,5 @@ class ReadingLogController extends Controller
         }
 
         return redirect()->route('logs.index')->with('success', 'Selected readings deleted successfully.');
-    }
-
-    private function gatherLogsForNoteUpdate(Request $request, ReadingLog $readingLog)
-    {
-        $userId = $request->user()->id;
-
-        $ids = collect($request->input('log_ids', []))
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->push($readingLog->id)
-            ->unique()
-            ->values();
-
-        if ($ids->isEmpty()) {
-            return collect([$readingLog]);
-        }
-
-        $logs = ReadingLog::where('user_id', $userId)
-            ->whereIn('id', $ids)
-            ->orderBy('chapter')
-            ->get();
-
-        return $logs->isEmpty() ? collect([$readingLog]) : $logs;
     }
 }
