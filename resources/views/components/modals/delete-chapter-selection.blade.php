@@ -14,7 +14,7 @@
     x-on:htmx:afterOnLoad="this.selectedChapters = []">
     <div class="relative p-4 w-full max-w-md max-h-full">
         {{-- Modal content --}}
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative bg-gray-50 rounded-lg shadow dark:bg-[#2f3746]">
             {{-- Close button --}}
             <button type="button"
                 class="absolute top-3 end-2.5 text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center dark:hover:bg-gray-600 dark:hover:text-white"
@@ -32,7 +32,7 @@
                 hx-headers='{"X-CSRF-TOKEN": "{{ csrf_token() }}"}'
                 hx-disabled-elt=".js-delete-actions-{{ $log->id }} button">
                 {{-- Modal header --}}
-                <div class="p-4 md:p-5 border-b rounded-t dark:border-gray-600">
+                <div class="p-4 md:p-5 border-b border-gray-200/80 rounded-t-lg bg-white dark:bg-[#2f3746] dark:border-white/10">
                     <h3 id="delete-chapters-title-{{ $log->id }}"
                         class="text-lg font-semibold text-gray-900 dark:text-white">
                         Select Chapters to Delete
@@ -44,7 +44,7 @@
                 </div>
 
                 {{-- Modal body --}}
-                <div class="p-4 md:p-5 space-y-4 flex-1">
+                <div class="p-4 md:p-5 space-y-4 flex-1 bg-gray-50 dark:bg-[#2f3746]">
                     {{-- Select All / Deselect All buttons --}}
                     <div class="flex gap-2 mb-3">
                         <button type="button" @click="selectAll()"
@@ -81,15 +81,15 @@
 
                 {{-- Modal footer --}}
                 <div
-                    class="js-delete-actions-{{ $log->id }} flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
+                    class="js-delete-actions-{{ $log->id }} flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end p-4 md:p-5 border-t border-gray-200/80 rounded-b-lg bg-gray-50 dark:bg-[#2f3746] dark:border-white/10">
                     <button data-modal-hide="delete-chapters-{{ $log->id }}" type="button" @click="deselectAll()"
                         autofocus
-                        class="w-full sm:w-auto py-2.5 px-5 text-sm font-medium text-gray-900 focus-visible:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus-visible:z-10 focus-visible:ring-4 focus-visible:ring-gray-100 dark:focus-visible:ring-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">
+                        class="w-full sm:w-auto py-2.5 px-5 text-sm font-medium text-gray-900 bg-gray-200 rounded-lg border border-gray-300 hover:bg-gray-300 hover:text-gray-900 focus-visible:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500 dark:hover:bg-gray-700 dark:hover:text-white dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-gray-900">
                         Cancel
                     </button>
                     <button type="submit" data-modal-hide="delete-chapters-{{ $log->id }}"
                         :disabled="selectedChapters.length === 0"
-                        class="w-full sm:w-auto inline-flex items-center justify-center text-white bg-red-600 hover:bg-red-500 dark:hover:bg-red-500 disabled:bg-red-200 dark:disabled:bg-red-500/40 disabled:text-white/70 dark:disabled:text-white/60 disabled:cursor-not-allowed focus-visible:ring-4 focus-visible:outline-none focus-visible:ring-red-300 dark:focus-visible:ring-red-700 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
+                        class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 disabled:bg-red-200 dark:disabled:bg-red-500/40 disabled:text-white/70 dark:disabled:text-white/60 disabled:cursor-not-allowed rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-red-700 dark:focus-visible:ring-offset-gray-900 transition-colors">
                         <span x-text="buttonLabel()"></span>
                     </button>
                 </div>
