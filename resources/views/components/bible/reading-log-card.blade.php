@@ -29,8 +29,8 @@ $editModalId = "edit-note-{$log->id}";
                 class="relative z-10 flex-shrink-0 p-2 text-gray-300 hover:text-primary-600 dark:text-gray-600 dark:hover:text-primary-400 transition-colors rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer"
                 title="{{ $log->notes_text ? 'Edit note' : 'Add note' }}"
                 aria-label="{{ $log->notes_text ? 'Edit note' : 'Add note' }}">
-                <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5h2m-1-1v2m-7 6l4.586 4.586a2 2 0 002.828 0L21 8l-4.586-4.586a2 2 0 00-2.828 0L5 12v4H9" />
+                <svg class="w-5 h-5 pointer-events-none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m14.304 4.844 2.852 2.852M7 7H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-4.5m2.409-9.91a2.017 2.017 0 0 1 0 2.853l-6.844 6.844L8 14l.713-3.565 6.844-6.844a2.015 2.015 0 0 1 2.852 0Z"/>
                 </svg>
             </button>
 
@@ -49,11 +49,9 @@ $editModalId = "edit-note-{$log->id}";
     </div>
 
     {{-- Notes Section --}}
-    <div class="border-t border-gray-100 dark:border-gray-700 pt-3 mt-3">
-        @if($log->notes_text)
+    @if($log->notes_text)
+        <div class="border-t border-gray-100 dark:border-gray-700 pt-3 mt-3">
             <p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap leading-relaxed italic">{{ $log->notes_text }}</p>
-        @else
-            <p class="text-sm text-gray-400 dark:text-gray-500 italic">No notes yet. Add one to capture your reflections.</p>
-        @endif
-    </div>
+        </div>
+    @endif
 </div>
