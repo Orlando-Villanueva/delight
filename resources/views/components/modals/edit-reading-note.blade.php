@@ -12,7 +12,7 @@
     aria-labelledby="edit-note-title-{{ $log->id }}" aria-describedby="edit-note-desc-{{ $log->id }}"
     class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-stack-modal justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
     <div class="relative p-4 w-full max-w-lg max-h-full">
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative bg-gray-50 rounded-lg shadow dark:bg-[#2f3746]">
             <button type="button"
                 class="absolute top-3 end-2.5 text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center dark:hover:bg-gray-600 dark:hover:text-white"
                 data-modal-hide="{{ $modalId }}">
@@ -24,7 +24,7 @@
                 <span class="sr-only">Close modal</span>
             </button>
 
-            <div class="p-4 md:p-5 border-b rounded-t dark:border-gray-600">
+            <div class="p-4 md:p-5 border-b border-gray-200/80 rounded-t-lg bg-white dark:bg-[#2f3746] dark:border-white/10">
                 <h3 id="edit-note-title-{{ $log->id }}" class="text-lg font-semibold text-gray-900 dark:text-white">
                     {{ $log->notes_text ? 'Edit note' : 'Add a note' }}
                 </h3>
@@ -33,7 +33,7 @@
                 </p>
             </div>
 
-            <div id="edit-note-form-container-{{ $log->id }}" class="p-4 md:p-5">
+            <div id="edit-note-form-container-{{ $log->id }}" class="p-4 md:p-5 rounded-b-lg bg-gray-50 dark:bg-[#2f3746]">
                 @include('components.modals.partials.edit-reading-note-form', [
                     'log' => $log,
                     'modalId' => $modalId,

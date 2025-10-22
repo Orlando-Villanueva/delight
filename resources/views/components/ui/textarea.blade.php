@@ -27,12 +27,26 @@
 @endphp
 
 <div {{ $attributes->merge(['class' => 'space-y-1']) }} @if($showCounter && $maxlength) x-data="{ count: {{ $currentLength }} }" @endif>
-    @if($label)
-        <label for="{{ $textareaId }}" class="form-label {{ $required ? 'after:content-[\'*\'] after:ml-0.5 after:text-destructive' : '' }}">
-            {{ $label }}
-        </label>
+    @if($label || ($showCounter && $maxlength))
+        <div class="flex items-baseline justify-between gap-3">
+            @if($label)
+                <label for="{{ $textareaId }}" class="form-label {{ $required ? 'after:content-[\'*\'] after:ml-0.5 after:text-destructive' : '' }}">
+                    {{ $label }}
+                </label>
+            @endif
+
+            @if($showCounter && $maxlength)
+                <span
+                    class="text-xs font-medium text-gray-500 dark:text-gray-400 tabular-nums"
+                    aria-live="polite"
+                    x-text="`${count}/{{ $maxlength }}`"
+                >
+                    {{ $currentLength }}/{{ $maxlength }}
+                </span>
+            @endif
+        </div>
     @endif
-    
+
     <textarea 
         id="{{ $textareaId }}"
         name="{{ $name }}"
@@ -47,32 +61,13 @@
         @if($showCounter && $maxlength) x-on:input="count = $event.target.value.length" @endif
     >{{ $currentValue }}</textarea>
     
-    @if($showCounter && $maxlength)
-        <div class="flex justify-between items-center">
-            <div class="flex-1">
-                @if($hasError)
-                    <p id="{{ $textareaId }}-error" class="form-error" role="alert">
-                        {{ $error }}
-                    </p>
-                @elseif($help)
-                    <p id="{{ $textareaId }}-help" class="text-sm text-muted-foreground mt-1">
-                        {{ $help }}
-                    </p>
-                @endif
-            </div>
-            <div class="text-sm text-muted-foreground" x-text="`${count}/{{ $maxlength }}`">
-                {{ $currentLength }}/{{ $maxlength }}
-            </div>
-        </div>
-    @else
-        @if($hasError)
-            <p id="{{ $textareaId }}-error" class="form-error" role="alert">
-                {{ $error }}
-            </p>
-        @elseif($help)
-            <p id="{{ $textareaId }}-help" class="text-sm text-muted-foreground mt-1">
-                {{ $help }}
-            </p>
-        @endif
+    @if($hasError)
+        <p id="{{ $textareaId }}-error" class="form-error" role="alert">
+            {{ $error }}
+        </p>
+    @elseif($help)
+        <p id="{{ $textareaId }}-help" class="text-sm text-muted-foreground mt-1">
+            {{ $help }}
+        </p>
     @endif
 </div> 
