@@ -84,32 +84,6 @@
             📚 Bible Book
         </label>
 
-        @if(! empty($recentBooks))
-            <div class="mt-3 space-y-1">
-                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Most recent</p>
-                <div class="flex flex-wrap gap-2">
-                    @foreach($recentBooks as $recentBook)
-                        <button
-                            type="button"
-                            class="inline-flex items-center px-3 py-1.5 text-sm font-medium border border-gray-200 dark:border-gray-700 rounded-full text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 transition-colors"
-                            :class="{
-                                'bg-primary-50 text-primary-700 border-primary-200 dark:bg-primary-900/40 dark:text-primary-100 dark:border-primary-700': selectedBook == '{{ $recentBook['id'] }}'
-                            }"
-                            @click='selectRecentBook(@json($recentBook))'
-                        >
-                            <span>{{ $recentBook['name'] }}</span>
-
-                            @if(! empty($recentBook['last_read_display']))
-                                <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                                    Last read {{ $recentBook['last_read_display'] }}
-                                </span>
-                            @endif
-                        </button>
-                    @endforeach
-                </div>
-            </div>
-        @endif
-
         <div class="flex relative">
             <!-- Testament Dropdown Button -->
             <button
@@ -168,6 +142,32 @@
             <p class="form-error" role="alert">
                 {{ $errors->first('book_id') }}
             </p>
+        @endif
+
+        @if(! empty($recentBooks))
+            <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                <p class="font-semibold uppercase tracking-wide">Most recent</p>
+                <div class="mt-1 flex flex-wrap gap-x-3 gap-y-2">
+                    @foreach($recentBooks as $recentBook)
+                        <button
+                            type="button"
+                            class="text-sm inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 dark:text-primary-300 dark:hover:text-primary-200 focus:outline-none"
+                            :class="{
+                                'font-semibold underline decoration-2 decoration-primary-500 dark:decoration-primary-300': selectedBook == '{{ $recentBook['id'] }}'
+                            }"
+                            @click='selectRecentBook(@json($recentBook))'
+                        >
+                            <span>{{ $recentBook['name'] }}</span>
+
+                            @if(! empty($recentBook['last_read_display']))
+                                <span class="text-[11px] text-gray-500 dark:text-gray-400">
+                                    Last read {{ $recentBook['last_read_display'] }}
+                                </span>
+                            @endif
+                        </button>
+                    @endforeach
+                </div>
+            </div>
         @endif
     </div>
 
