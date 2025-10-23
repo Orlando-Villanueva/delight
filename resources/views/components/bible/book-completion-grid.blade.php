@@ -2,11 +2,12 @@
     'testament' => 'Old'
 ])
 
-{{-- Data is now provided by the component class through dependency injection --}}
-
 <x-ui.card {{ $attributes->merge(['class' => 'bg-white dark:bg-gray-800 border border-[#D1D7E0] dark:border-gray-700 transition-colors shadow-lg']) }}>
     <div class="p-6 lg:p-4 xl:p-6">
-        <div x-data="bookProgressComponent(@js($testament), @js(route('preferences.testament')))">
+        <div
+            x-data="bookProgressComponent(@js($oldData['testament_progress']), @js($newData['testament_progress']))"
+            x-init="init()"
+        >
             <!-- Header with Title and Testament Toggle -->
             <div class="flex items-start justify-between mb-6">
                 <h3 class="text-lg lg:text-xl font-semibold text-[#4A5568] dark:text-gray-200 leading-[1.5]">
@@ -21,7 +22,7 @@
             </div>
 
             <!-- Old Testament Content -->
-            <div x-show="activeTestament === 'Old'" 
+            <div x-show="activeTestament === 'Old'"
                  x-transition:enter="transition ease-out duration-200"
                  x-transition:enter-start="opacity-0"
                  x-transition:enter-end="opacity-100"
@@ -35,12 +36,13 @@
                     'testamentProgress' => $oldData['testament_progress'],
                     'completedBooks' => $oldData['completed_books'],
                     'inProgressBooks' => $oldData['in_progress_books'],
-                    'notStartedBooks' => $oldData['not_started_books']
+                    'notStartedBooks' => $oldData['not_started_books'],
+                    'progressRef' => 'oldProgressBar'
                 ])
             </div>
 
             <!-- New Testament Content -->
-            <div x-show="activeTestament === 'New'" 
+            <div x-show="activeTestament === 'New'"
                  x-transition:enter="transition ease-out duration-200"
                  x-transition:enter-start="opacity-0"
                  x-transition:enter-end="opacity-100"
@@ -54,7 +56,8 @@
                     'testamentProgress' => $newData['testament_progress'],
                     'completedBooks' => $newData['completed_books'],
                     'inProgressBooks' => $newData['in_progress_books'],
-                    'notStartedBooks' => $newData['not_started_books']
+                    'notStartedBooks' => $newData['not_started_books'],
+                    'progressRef' => 'newProgressBar'
                 ])
             </div>
         </div>
@@ -63,44 +66,60 @@
 
 <script>
     /**
-     * Book Progress Component - Simple Testament Selection
-     * Server handles all persistence via session, client just manages UI state
+     * Book Progress Component - Client-side testament toggling with animated progress bar.
      */
-    function bookProgressComponent(serverDefault, persistUrl = null) {
+    function bookProgressComponent(oldProgress, newProgress) {
         return {
-            // State - Use server preference (from session)
-            activeTestament: serverDefault,
-            persistUrl: persistUrl,
+            activeTestament: 'Old',
+            progressValues: {
+                Old: Number(oldProgress) || 0,
+                New: Number(newProgress) || 0,
+            },
 
             setTestament(testament) {
                 if (this.activeTestament === testament) {
                     return;
                 }
 
+                const previousTestament = this.activeTestament;
+                const previousValue = this.progressValues[previousTestament];
+                const targetRef = testament === 'Old' ? 'oldProgressBar' : 'newProgressBar';
+                const targetBar = this.$refs[targetRef];
+
+                if (targetBar) {
+                    targetBar.style.width = `${previousValue}%`;
+                    void targetBar.offsetWidth;
+                }
+
                 this.activeTestament = testament;
-                this.persistPreference(testament);
+
+                this.$nextTick(() => {
+                    this.animateProgressBar(testament);
+                });
             },
 
-            persistPreference(testament) {
-                if (! this.persistUrl || typeof window.fetch !== 'function') {
+            animateProgressBar(testament) {
+                const refName = testament === 'Old' ? 'oldProgressBar' : 'newProgressBar';
+                const bar = this.$refs[refName];
+
+                if (! bar) {
                     return;
                 }
 
-                const tokenElement = document.head.querySelector('meta[name="csrf-token"]');
-                const csrfToken = tokenElement ? tokenElement.getAttribute('content') : null;
+                bar.style.width = `${this.progressValues[testament]}%`;
+            },
 
-                window.fetch(this.persistUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
-                    },
-                    body: JSON.stringify({ testament }),
-                }).catch(() => {
-                    // Swallow errors to keep UI responsive if the preference fails to persist
-                });
+            init() {
+                const oldBar = this.$refs.oldProgressBar;
+                const newBar = this.$refs.newProgressBar;
+
+                if (oldBar) {
+                    oldBar.style.width = `${this.progressValues.Old}%`;
+                }
+
+                if (newBar) {
+                    newBar.style.width = `${this.progressValues.New}%`;
+                }
             }
         };
     }
