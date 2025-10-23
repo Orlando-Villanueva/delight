@@ -23,3 +23,4 @@ yarn-error.log
 /.zed
 .cursor/rules/project-rules.mdc
 /ui-prototype
+docs/screenshots/
