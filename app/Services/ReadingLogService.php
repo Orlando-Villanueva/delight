@@ -484,6 +484,30 @@ class ReadingLogService
         return $paginator;
     }
 
+    /**
+     * Resolve the collection of logs that should be updated when editing notes.
+     */
+    public function getLogsForNoteUpdate(User $user, ReadingLog $primaryLog, array $logIds = []): Collection
+    {
+        $ids = collect($logIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->push($primaryLog->id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return collect([$primaryLog]);
+        }
+
+        $logs = ReadingLog::where('user_id', $user->id)
+            ->whereIn('id', $ids)
+            ->orderBy('chapter')
+            ->get();
+
+        return $logs->isEmpty() ? collect([$primaryLog]) : $logs;
+    }
+
     public function getPreparedLogsForDate(User $user, string $date, UserStatisticsService $statisticsService): ?Collection
     {
         $logsForDay = $user->readingLogs()
