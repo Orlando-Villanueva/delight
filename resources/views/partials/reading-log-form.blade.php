@@ -6,7 +6,8 @@
 @php
     $oldTestament = collect($books)->where('testament', 'old')->values();
     $newTestament = collect($books)->where('testament', 'new')->values();
-    
+    $recentBooks = collect($recentBooks ?? [])->values()->all();
+
     $initialTestament = 'old';
     $oldBookId = old('book_id');
 
@@ -23,12 +24,13 @@
       hx-swap="outerHTML" 
       class="space-y-6"
       x-data="readingLogForm({
-        initialTestament: '{{ $initialTestament }}',
-        initialBookId: '{{ old('book_id') }}',
+        initialTestament: @js($initialTestament),
+        initialBookId: @js(old('book_id') ?? ''),
         books: {
-            old: {{ $oldTestament->toJson() }},
-            new: {{ $newTestament->toJson() }}
-        }
+            old: @js($oldTestament),
+            new: @js($newTestament)
+        },
+        recentBooks: @js($recentBooks)
     })" x-init="init()">
     @csrf
 
@@ -81,6 +83,32 @@
         <label class="form-label">
             📚 Bible Book
         </label>
+
+        @if(! empty($recentBooks))
+            <div class="mt-3 space-y-1">
+                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Most recent</p>
+                <div class="flex flex-wrap gap-2">
+                    @foreach($recentBooks as $recentBook)
+                        <button
+                            type="button"
+                            class="inline-flex items-center px-3 py-1.5 text-sm font-medium border border-gray-200 dark:border-gray-700 rounded-full text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 transition-colors"
+                            :class="{
+                                'bg-primary-50 text-primary-700 border-primary-200 dark:bg-primary-900/40 dark:text-primary-100 dark:border-primary-700': selectedBook == '{{ $recentBook['id'] }}'
+                            }"
+                            @click='selectRecentBook(@json($recentBook))'
+                        >
+                            <span>{{ $recentBook['name'] }}</span>
+
+                            @if(! empty($recentBook['last_read_display']))
+                                <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                                    Last read {{ $recentBook['last_read_display'] }}
+                                </span>
+                            @endif
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+        @endif
 
         <div class="flex relative">
             <!-- Testament Dropdown Button -->
@@ -218,6 +246,7 @@
             testamentLabel: config.initialTestament === 'old' ? '📜 Old Testament' : '✝️ New Testament',
             books: config.books,
             selectedBook: config.initialBookId,
+            recentBooks: config.recentBooks ?? [],
             chapterPlaceholder: 'e.g., 3 or 1-5',
 
             init() {
@@ -245,6 +274,20 @@
                 this.testamentLabel = newTestament === 'old' ? '📜 Old Testament' : '✝️ New Testament';
                 // Close the dropdown by simulating a click on the button that controls it
                 document.getElementById('testament-button').click();
+            },
+
+            selectRecentBook(book) {
+                if (! book) {
+                    return;
+                }
+
+                if (book.testament && book.testament !== this.testament) {
+                    this.testament = book.testament;
+                    this.testamentLabel = book.testament === 'old' ? '📜 Old Testament' : '✝️ New Testament';
+                }
+
+                this.selectedBook = String(book.id);
+                this.updateChapterPlaceholder(book.id);
             }
         }
     }
