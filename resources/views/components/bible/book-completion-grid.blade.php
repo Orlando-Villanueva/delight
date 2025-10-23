@@ -6,7 +6,7 @@
 
 <x-ui.card {{ $attributes->merge(['class' => 'bg-white dark:bg-gray-800 border border-[#D1D7E0] dark:border-gray-700 transition-colors shadow-lg']) }}>
     <div class="p-6 lg:p-4 xl:p-6">
-        <div x-data="bookProgressComponent('{{ $testament }}')">
+        <div x-data="bookProgressComponent(@js($testament), @js(route('preferences.testament')))">
             <!-- Header with Title and Testament Toggle -->
             <div class="flex items-start justify-between mb-6">
                 <h3 class="text-lg lg:text-xl font-semibold text-[#4A5568] dark:text-gray-200 leading-[1.5]">
@@ -66,10 +66,42 @@
      * Book Progress Component - Simple Testament Selection
      * Server handles all persistence via session, client just manages UI state
      */
-    function bookProgressComponent(serverDefault) {
+    function bookProgressComponent(serverDefault, persistUrl = null) {
         return {
             // State - Use server preference (from session)
-            activeTestament: serverDefault
+            activeTestament: serverDefault,
+            persistUrl: persistUrl,
+
+            setTestament(testament) {
+                if (this.activeTestament === testament) {
+                    return;
+                }
+
+                this.activeTestament = testament;
+                this.persistPreference(testament);
+            },
+
+            persistPreference(testament) {
+                if (! this.persistUrl || typeof window.fetch !== 'function') {
+                    return;
+                }
+
+                const tokenElement = document.head.querySelector('meta[name="csrf-token"]');
+                const csrfToken = tokenElement ? tokenElement.getAttribute('content') : null;
+
+                window.fetch(this.persistUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                    },
+                    body: JSON.stringify({ testament }),
+                }).catch(() => {
+                    // Swallow errors to keep UI responsive if the preference fails to persist
+                });
+            }
         };
     }
-</script> 
+</script>
