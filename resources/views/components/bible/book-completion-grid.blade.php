@@ -6,7 +6,7 @@
 
 <x-ui.card {{ $attributes->merge(['class' => 'bg-white dark:bg-gray-800 border border-[#D1D7E0] dark:border-gray-700 transition-colors shadow-lg']) }}>
     <div class="p-6 lg:p-4 xl:p-6">
-        <div x-data="bookProgressComponent('{{ $testament }}')">
+        <div x-data="bookProgressComponent(@js($testament), @js(route('preferences.testament')))">
             <!-- Header with Title and Testament Toggle -->
             <div class="flex items-start justify-between mb-6">
                 <h3 class="text-lg lg:text-xl font-semibold text-[#4A5568] dark:text-gray-200 leading-[1.5]">
@@ -64,12 +64,39 @@
 <script>
     /**
      * Book Progress Component - Simple Testament Selection
-     * Server handles all persistence via session, client just manages UI state
+     * Alpine toggles preloaded content locally and persists preference asynchronously.
      */
-    function bookProgressComponent(serverDefault) {
+    function bookProgressComponent(serverDefault, preferenceUrl) {
         return {
             // State - Use server preference (from session)
-            activeTestament: serverDefault
+            activeTestament: serverDefault,
+            preferenceUrl: preferenceUrl ?? null,
+            selectTestament(testament) {
+                if (this.activeTestament === testament) {
+                    return;
+                }
+
+                this.activeTestament = testament;
+
+                if (!this.preferenceUrl) {
+                    return;
+                }
+
+                const tokenElement = document.head.querySelector('meta[name="csrf-token"]');
+                const token = tokenElement ? tokenElement.getAttribute('content') : '';
+
+                window.fetch(this.preferenceUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ testament }),
+                }).catch(() => {
+                    // Silently ignore preference persistence failures
+                });
+            }
         };
     }
-</script> 
+</script>
