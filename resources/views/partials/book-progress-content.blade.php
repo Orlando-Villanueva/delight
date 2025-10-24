@@ -15,8 +15,13 @@
     
     <!-- Progress Bar -->
     <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-3 overflow-hidden">
-        <div class="bg-primary-500 h-3 transition-all duration-300" 
-             style="width: {{ $testamentProgress }}%"></div>
+        <div
+            class="bg-primary-500 h-3 rounded-full transition-[width] duration-500 ease-in-out"
+            @isset($progressRef)
+                x-ref="{{ $progressRef }}"
+            @endisset
+            style="width: 0%"
+        ></div>
     </div>
     
     <!-- Stats Summary -->

@@ -23,13 +23,10 @@ class BookCompletionGrid extends Component
         $oldData = $this->bookProgressService->getTestamentProgress($user, 'Old');
         $newData = $this->bookProgressService->getTestamentProgress($user, 'New');
 
-        // Use session preference, fallback to component prop, then default to 'Old'
-        $testament = session('testament_preference', 'Old');
-
         return view('components.bible.book-completion-grid', [
             'oldData' => $oldData,
             'newData' => $newData,
-            'testament' => $testament,
+            'testament' => 'Old',
         ]);
     }
 }
