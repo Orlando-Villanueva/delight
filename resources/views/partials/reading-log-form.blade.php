@@ -147,7 +147,7 @@
     <x-ui.input 
         name="chapter_input" 
         label="Chapter(s)" 
-        inputmode="numeric"
+        inputmode="tel"
         pattern="\d+(-\d+)?"
         x-bind:placeholder="chapterPlaceholder"
         :value="old('chapter_input')"
