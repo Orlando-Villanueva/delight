@@ -379,7 +379,6 @@ class ReadingLogService
             // First reading of the day - streak and weekly goal will change
             $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
             Cache::forget("user_weekly_goal_{$user->id}_{$weekStart}");
-            Cache::forget("user_weekly_streak_{$user->id}_{$weekStart}");
             Cache::forget("user_current_streak_{$user->id}");
 
             // Longest streak - only invalidate if current streak might exceed it
