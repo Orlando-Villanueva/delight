@@ -1,12 +1,10 @@
 <?php
 
-use App\Models\User;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
-use Laravel\Socialite\Facades\Socialite;
-use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\Auth\GoogleOAuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReadingLogController;
+use App\Http\Controllers\SitemapController;
+use Illuminate\Support\Facades\Route;
 
 // Development Routes (Local Development Only)
 if (app()->environment('local') || app()->environment('staging')) {
@@ -53,23 +51,11 @@ Route::middleware('guest')->group(function () {
         return view('auth.reset-password', ['request' => request()->merge(['token' => $token])]);
     })->name('password.reset');
 
-    Route::get('/auth/google/redirect', function () {
-        return Socialite::driver('google')->redirect();
-    });
+    Route::get('/auth/google/redirect', [GoogleOAuthController::class, 'redirect'])
+        ->name('oauth.google.redirect');
 
-    Route::get('/auth/google/callback', function () {
-        $user = Socialite::driver('google')->user();
-
-        $user = User::updateOrCreate([
-            'email' => $user->getEmail(),
-        ], [
-            'name' => $user->getName() ?? $user->getNickname(),
-        ]);
-
-        Auth::login($user);
-
-        return redirect()->intended('/dashboard');
-    });
+    Route::get('/auth/google/callback', [GoogleOAuthController::class, 'callback'])
+        ->name('oauth.google.callback');
 });
 
 // Authenticated Routes
