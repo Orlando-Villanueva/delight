@@ -17,7 +17,7 @@
         <div class="lg:col-span-2 xl:col-span-3 space-y-4 xl:space-y-6">
 
             <!-- Cards Grid: 2x2 on iPad (portrait/landscape), 3+1 on desktop -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-4 xl:gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4 lg:gap-4 xl:gap-6">
                 <!-- Weekly Goal - Primary Focus -->
                 <div class="sm:col-span-1 lg:col-span-1 xl:col-span-1">
                     <x-ui.weekly-goal-card
@@ -28,17 +28,8 @@
                         class="h-full" />
                 </div>
 
-                <!-- Weekly Streak - Secondary Achievement -->
-                <div class="sm:col-span-1 lg:col-span-1 xl:col-span-1">
-                    <x-ui.weekly-streak-card
-                        :streakCount="$weeklyStreak['streak_count'] ?? 0"
-                        :isActive="$weeklyStreak['is_active'] ?? false"
-                        :motivationalMessage="$weeklyStreak['motivational_message'] ?? ''"
-                        class="h-full" />
-                </div>
-
                 <!-- Daily Streak - Secondary Achievement -->
-                <div class="sm:col-span-2 md:col-span-1 lg:col-span-1 xl:col-span-1">
+                <div class="sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-1">
                     <x-ui.streak-counter
                         :currentStreak="$stats['streaks']['current_streak']"
                         :longestStreak="$stats['streaks']['longest_streak']"
@@ -47,7 +38,7 @@
                         class="h-full" />
                 </div>
 
-                <!-- Summary Stats - Fourth card on iPad (portrait & landscape), hidden on desktop -->
+                <!-- Summary Stats - Supplemental card on tablet, hidden on desktop -->
                 <div class="sm:col-span-2 md:col-span-1 lg:col-span-1 xl:hidden">
                     <x-ui.summary-stats
                         :daysRead="$stats['reading_summary']['total_reading_days']"
