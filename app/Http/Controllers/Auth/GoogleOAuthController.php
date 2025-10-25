@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -27,7 +28,7 @@ class GoogleOAuthController extends Controller
     /**
      * Handle the OAuth callback and log the user in.
      */
-    public function callback(): RedirectResponse
+    public function callback(Request $request): RedirectResponse
     {
         try {
             $googleUser = Socialite::driver('google')->user();
@@ -35,7 +36,7 @@ class GoogleOAuthController extends Controller
             Log::warning('Google OAuth callback failed.', [
                 'exception_class' => $exception::class,
                 'exception_message' => $exception->getMessage(),
-                'state' => request()->get('state'),
+                'state' => $request->get('state'),
             ]);
 
             return redirect()
@@ -46,7 +47,7 @@ class GoogleOAuthController extends Controller
         } catch (Throwable $exception) {
             Log::error('Unexpected Google OAuth callback failure.', [
                 'exception' => $exception,
-                'state' => request()->get('state'),
+                'state' => $request->get('state'),
             ]);
 
             return redirect()
@@ -87,6 +88,9 @@ class GoogleOAuthController extends Controller
         }
 
         Auth::login($user);
+
+        $request->session()->regenerate();
+        $request->session()->regenerateToken();
 
         return redirect()->intended('/dashboard');
     }
