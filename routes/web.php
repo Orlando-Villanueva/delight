@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Laravel\Socialite\Facades\Socialite;
 use App\Http\Controllers\SitemapController;
@@ -56,10 +58,18 @@ Route::middleware('guest')->group(function () {
     });
 
     Route::get('/auth/google/callback', function () {
-    $user = Socialite::driver('google')->user();
+        $user = Socialite::driver('google')->user();
 
-    dd($user);
-});
+        $user = User::updateOrCreate([
+            'email' => $user->getEmail(),
+        ], [
+            'name' => $user->getName() ?? $user->getNickname(),
+        ]);
+
+        Auth::login($user);
+
+        return redirect()->intended('/dashboard');
+    });
 });
 
 // Authenticated Routes
@@ -74,5 +84,4 @@ Route::middleware('auth')->group(function () {
     Route::patch('/logs/{readingLog}/notes', [ReadingLogController::class, 'updateNotes'])->name('logs.notes.update');
     Route::delete('/logs/batch', [ReadingLogController::class, 'batchDestroy'])->name('logs.batchDestroy');
     Route::delete('/logs/{readingLog}', [ReadingLogController::class, 'destroy'])->name('logs.destroy');
-
 });
