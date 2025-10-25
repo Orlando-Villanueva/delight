@@ -116,6 +116,23 @@ class ReadingLogService
     }
 
     /**
+     * Retrieve the most recently read unique books for a user.
+     */
+    public function getMostRecentBookLogs(User $user, int $limit = 3, int $scanLimit = 50): Collection
+    {
+        $recentLogs = $user->readingLogs()
+            ->orderByDesc('date_read')
+            ->orderByDesc('created_at')
+            ->limit($scanLimit)
+            ->get();
+
+        return $recentLogs
+            ->unique('book_id')
+            ->take($limit)
+            ->values();
+    }
+
+    /**
      * Get reading history for a user with optional filtering.
      */
     public function getReadingHistory(User $user, ?int $limit = null, ?string $startDate = null, ?string $endDate = null): Collection

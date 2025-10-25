@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\BibleReferenceService;
 use App\Services\ReadingFormService;
 use App\Services\ReadingLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,7 +23,8 @@ class ReadingFormServiceTest extends TestCase
         parent::setUp();
 
         $readingLogService = $this->app->make(ReadingLogService::class);
-        $this->service = new ReadingFormService($readingLogService);
+        $bibleReferenceService = $this->app->make(BibleReferenceService::class);
+        $this->service = new ReadingFormService($readingLogService, $bibleReferenceService);
         $this->user = User::factory()->create();
     }
 
@@ -158,6 +160,61 @@ class ReadingFormServiceTest extends TestCase
         $this->assertEquals(
             $this->service->hasReadToday($this->user),
             $contextData['hasReadToday']
+        );
+
+        $this->assertArrayHasKey('recentBooks', $contextData);
+    }
+
+    /**
+     * Test that recent books are returned in order of most recent readings and limited to unique books.
+     */
+    public function test_get_recent_books_for_form_returns_unique_recent_books(): void
+    {
+        // Seed readings across multiple books
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 2,
+            'chapter' => 1,
+            'date_read' => today()->toDateString(),
+        ]);
+
+        // Duplicate reading for book 2 on an earlier date to ensure the latest log is prioritized
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 2,
+            'chapter' => 3,
+            'date_read' => today()->subDays(2)->toDateString(),
+        ]);
+
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 3,
+            'chapter' => 1,
+            'date_read' => today()->subDay()->toDateString(),
+        ]);
+
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 4,
+            'chapter' => 1,
+            'date_read' => today()->subDays(2)->toDateString(),
+        ]);
+
+        // Older reading should be ignored because we only surface the three most recent unique books
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 5,
+            'chapter' => 1,
+            'date_read' => today()->subDays(3)->toDateString(),
+        ]);
+
+        $recentBooks = $this->service->getRecentBooksForForm($this->user);
+
+        $this->assertCount(3, $recentBooks);
+        $this->assertSame([2, 3, 4], array_column($recentBooks, 'id'));
+        $this->assertSame(
+            today()->format('M j, Y'),
+            $recentBooks[0]['last_read_display']
         );
     }
 }
