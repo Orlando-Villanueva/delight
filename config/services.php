@@ -31,10 +31,10 @@ return [
         'scheme' => 'https',
     ],
 
-    // Email and notification services can be added here when needed
-    // Example:
-    // 'resend' => [
-    //     'key' => env('RESEND_KEY'),
-    // ],
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
 
 ];

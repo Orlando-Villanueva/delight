@@ -1,9 +1,10 @@
 <?php
 
+use Illuminate\Support\Facades\Route;
+use Laravel\Socialite\Facades\Socialite;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReadingLogController;
-use App\Http\Controllers\SitemapController;
-use Illuminate\Support\Facades\Route;
 
 // Development Routes (Local Development Only)
 if (app()->environment('local') || app()->environment('staging')) {
@@ -49,6 +50,16 @@ Route::middleware('guest')->group(function () {
     Route::get('/reset-password/{token}', function ($token) {
         return view('auth.reset-password', ['request' => request()->merge(['token' => $token])]);
     })->name('password.reset');
+
+    Route::get('/auth/google/redirect', function () {
+        return Socialite::driver('google')->redirect();
+    });
+
+    Route::get('/auth/google/callback', function () {
+    $user = Socialite::driver('google')->user();
+
+    dd($user);
+});
 });
 
 // Authenticated Routes
