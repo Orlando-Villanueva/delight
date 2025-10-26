@@ -6,9 +6,9 @@
         <div class="w-full max-w-md space-y-8">
             <!-- Logo Section -->
             <div class="text-center">
-                <img src="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}"
-                    srcset="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }} 1x, {{ asset('images/logo-64-2x.png') }}?v={{ config('app.asset_version') }} 2x"
-                    alt="{{ config('app.name') }} Logo" class="w-20 h-20 object-contain mx-auto mb-6"
+                <img src="{{ asset('images/logo-192.png') }}?v={{ config('app.asset_version') }}"
+                    srcset="{{ asset('images/logo-192.png') }}?v={{ config('app.asset_version') }} 1x, {{ asset('images/logo-512.png') }}?v={{ config('app.asset_version') }} 2x"
+                    alt="{{ config('app.name') }} Logo" class="w-20 h-20 object-contain mx-auto mb-4"
                     style="filter: drop-shadow(0 0 15px rgba(51, 102, 204, 0.2)) drop-shadow(0 0 30px rgba(51, 102, 204, 0.08));" />
                 <h1 class="text-2xl font-bold text-[#4A5568] dark:text-gray-200 mb-2">{{ config('app.name') }}</h1>
             </div>
