@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\GoogleOAuthController;
+use App\Http\Controllers\Auth\XOAuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\SitemapController;
@@ -56,6 +57,9 @@ Route::middleware('guest')->group(function () {
 
     Route::get('/auth/google/callback', [GoogleOAuthController::class, 'callback'])
         ->name('oauth.google.callback');
+
+    Route::get('/auth/x/redirect', [XOAuthController::class, 'redirect'])->name('x.redirect');
+    Route::get('/auth/x/callback', [XOAuthController::class, 'callback'])->name('x.callback');
 });
 
 // Authenticated Routes

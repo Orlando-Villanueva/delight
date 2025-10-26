@@ -28,7 +28,7 @@ class GoogleOAuthController extends Controller
     /**
      * Handle the OAuth callback and log the user in.
      */
-    public function callback(Request $request): RedirectResponse
+    public function callback(Request $request)
     {
         try {
             $googleUser = Socialite::driver('google')->user();
