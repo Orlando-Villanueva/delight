@@ -57,6 +57,18 @@ describe('Navigation Component Rendering', function () {
         $response->assertSee('A', false);
     });
 
+    it('renders user avatar image when an avatar URL is set', function () {
+        $user = User::factory()->create([
+            'avatar_url' => 'https://example.com/avatar.jpg',
+        ]);
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertSuccessful();
+        $response->assertSee('https://example.com/avatar.jpg', false);
+        $response->assertSee('referrerpolicy="no-referrer"', false);
+    });
+
     it('renders Log Reading button in desktop navbar', function () {
         $user = User::factory()->create();
 

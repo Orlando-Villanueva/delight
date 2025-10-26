@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Auth\GoogleOAuthController;
+use App\Http\Controllers\Auth\XOAuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\SitemapController;
@@ -49,6 +51,15 @@ Route::middleware('guest')->group(function () {
     Route::get('/reset-password/{token}', function ($token) {
         return view('auth.reset-password', ['request' => request()->merge(['token' => $token])]);
     })->name('password.reset');
+
+    Route::get('/auth/google/redirect', [GoogleOAuthController::class, 'redirect'])
+        ->name('oauth.google.redirect');
+
+    Route::get('/auth/google/callback', [GoogleOAuthController::class, 'callback'])
+        ->name('oauth.google.callback');
+
+    Route::get('/auth/x/redirect', [XOAuthController::class, 'redirect'])->name('x.redirect');
+    Route::get('/auth/x/callback', [XOAuthController::class, 'callback'])->name('x.callback');
 });
 
 // Authenticated Routes
@@ -63,5 +74,4 @@ Route::middleware('auth')->group(function () {
     Route::patch('/logs/{readingLog}/notes', [ReadingLogController::class, 'updateNotes'])->name('logs.notes.update');
     Route::delete('/logs/batch', [ReadingLogController::class, 'batchDestroy'])->name('logs.batchDestroy');
     Route::delete('/logs/{readingLog}', [ReadingLogController::class, 'destroy'])->name('logs.destroy');
-
 });
