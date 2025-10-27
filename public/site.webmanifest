@@ -37,22 +37,15 @@
   ],
   "screenshots": [
     {
-      "src": "/images/screenshots/mobile_101.png",
-      "sizes": "1440x2983",
+      "src": "/images/screenshots/mobile_v2.png",
+      "sizes": "432x934",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Dashboard view on mobile"
     },
     {
-      "src": "/images/screenshots/mobile_102_fixed.png",
-      "sizes": "1440x2983",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Reading log on mobile"
-    },
-    {
-      "src": "/images/screenshots/desktop_101.png",
-      "sizes": "1920x1080",
+      "src": "/images/screenshots/desktop_v2.1.png",
+      "sizes": "4112x2580",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Dashboard view on desktop"

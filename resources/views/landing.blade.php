@@ -77,7 +77,7 @@
                 "name": "Delight"
             },
             "keywords": "bible tracking app, bible reading tracker, research-based bible habits, bible reading accountability",
-            "screenshot": "{{ asset('images/screenshots/desktop_101.png') }}",
+            "screenshot": "{{ asset('images/screenshots/desktop_v2.1.png') }}",
             "featureList": [
                 "Daily Streak Tracking",
                 "Daily Reading Log",
@@ -165,36 +165,25 @@
                         <div class="hidden lg:block bg-white rounded-2xl shadow-2xl p-0 transform rotate-1">
                             <div class="rounded-lg overflow-hidden">
                                 <img
-                                    src="{{ asset('images/screenshots/desktop_101.png') }}"
-                                    alt="Delight Bible reading tracker showing daily streaks, book completion grid, and reading log interface"
+                                    src="{{ asset('images/screenshots/desktop_v2.1.png') }}"
+                                    alt="Delight desktop dashboard highlighting habit streaks, reading log, and progress insights"
                                     class="w-full h-auto max-w-full"
-                                    width="800"
-                                    height="600"
+                                    width="4112"
+                                    height="2580"
                                     loading="lazy" />
                             </div>
                         </div>
 
-                        <!-- Mobile Screenshots - Shown on mobile, side by side -->
-                        <div class="lg:hidden grid grid-cols-2 gap-4 mt-8">
-                            <div class="bg-white rounded-2xl shadow-2xl p-0">
+                        <!-- Mobile Screenshot - Shown on mobile -->
+                        <div class="lg:hidden flex justify-center mt-8">
+                            <div class="bg-white rounded-2xl shadow-2xl p-0 max-w-xs w-full">
                                 <div class="rounded-lg overflow-hidden">
                                     <img
-                                        src="{{ asset('images/screenshots/mobile_101.png') }}"
-                                        alt="Delight mobile Bible tracker showing progress target and daily streak widgets with a touch-friendly interface"
+                                        src="{{ asset('images/screenshots/mobile_v2.png') }}"
+                                        alt="Delight mobile dashboard showing recent readings, streak tracker, and chapter progress cards"
                                         class="w-full h-auto"
-                                        width="128"
-                                        height="256"
-                                        loading="lazy" />
-                                </div>
-                            </div>
-                            <div class="bg-white rounded-2xl shadow-2xl p-0">
-                                <div class="rounded-lg overflow-hidden">
-                                    <img
-                                        src="{{ asset('images/screenshots/mobile_102.png') }}"
-                                        alt="Delight mobile Bible reading tracker showing daily streak and enhanced summary stats including days read, total chapters, and Bible progress percentage"
-                                        class="w-full h-auto"
-                                        width="128"
-                                        height="256"
+                                        width="432"
+                                        height="934"
                                         loading="lazy" />
                                 </div>
                             </div>
@@ -204,11 +193,11 @@
                         <div class="hidden lg:block absolute -bottom-6 -right-6 w-36 sm:w-40 lg:w-48 bg-white rounded-xl shadow-xl p-0 transform rotate-6">
                             <div class="rounded-lg overflow-hidden">
                                 <img
-                                    src="{{ asset('images/screenshots/mobile_101.png') }}"
-                                    alt="Delight mobile Bible tracker showing progress target and daily streak widgets with a touch-friendly interface"
+                                    src="{{ asset('images/screenshots/mobile_v2.png') }}"
+                                    alt="Delight mobile dashboard showing recent readings, streak tracker, and chapter progress cards"
                                     class="w-full h-auto max-w-full"
-                                    width="192"
-                                    height="384"
+                                    width="432"
+                                    height="934"
                                     loading="lazy" />
                             </div>
                         </div>

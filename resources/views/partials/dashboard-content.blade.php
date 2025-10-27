@@ -11,13 +11,13 @@
     hx-select="#main-content">
 
     <!-- Main Dashboard Layout (responsive grid) -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-4 xl:gap-6">
+    <div class="grid grid-cols-1 xl:grid-cols-4 gap-6 lg:gap-4 xl:gap-6">
 
         <!-- Left Column - Main Content (responsive width) -->
-        <div class="lg:col-span-2 xl:col-span-3 space-y-4 xl:space-y-6">
+        <div class="xl:col-span-3 space-y-4 xl:space-y-6">
 
-            <!-- Cards Grid: 2x2 on iPad (portrait/landscape), 3+1 on desktop -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4 lg:gap-4 xl:gap-6">
+            <!-- Cards Grid: 2x2 on tablet (shares row with calendar), 2-up until ultra-wide, 3-up on 2xl -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-4 xl:gap-6">
                 <!-- Weekly Goal - Primary Focus -->
                 <div class="sm:col-span-1 lg:col-span-1 xl:col-span-1">
                     <x-ui.weekly-goal-card
@@ -38,8 +38,8 @@
                         class="h-full" />
                 </div>
 
-                <!-- Summary Stats - Supplemental card on tablet, hidden on desktop -->
-                <div class="sm:col-span-2 md:col-span-1 lg:col-span-1 xl:hidden">
+                <!-- Summary Stats - shares row with calendar on tablet, full-width at xl, third column on 2xl -->
+                <div class="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-2 2xl:col-span-1">
                     <x-ui.summary-stats
                         :daysRead="$stats['reading_summary']['total_reading_days']"
                         :totalChapters="$stats['reading_summary']['total_readings']"
@@ -47,28 +47,18 @@
                         :averageChaptersPerDay="$stats['reading_summary']['average_chapters_per_day']"
                         class="h-full" />
                 </div>
-            </div>
 
-            <!-- Summary Stats Row - Desktop only -->
-            <div class="hidden xl:block">
-                <x-ui.summary-stats
-                    :daysRead="$stats['reading_summary']['total_reading_days']"
-                    :totalChapters="$stats['reading_summary']['total_readings']"
-                    :bibleProgress="$stats['book_progress']['overall_progress_percent']"
-                    :averageChaptersPerDay="$stats['reading_summary']['average_chapters_per_day']"
-                    class="h-full" />
-            </div>
-
-            <!-- Mobile Calendar Row - Shows only on mobile -->
-            <div class="lg:hidden md:mx-32">
-                <x-bible.calendar-heatmap
-                    :calendar="$calendarData['calendar']"
-                    :monthName="$calendarData['monthName']"
-                    :thisMonthReadings="$calendarData['thisMonthReadings']"
-                    :thisMonthChapters="$calendarData['thisMonthChapters']"
-                    :successRate="$calendarData['successRate']"
-                    :showLegend="false"
-                    class="text-sm" />
+                <!-- Mobile/Tablet Calendar - pairs with quick stats from sm breakpoint -->
+                <div class="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:hidden">
+                    <x-bible.calendar-heatmap
+                        :calendar="$calendarData['calendar']"
+                        :monthName="$calendarData['monthName']"
+                        :thisMonthReadings="$calendarData['thisMonthReadings']"
+                        :thisMonthChapters="$calendarData['thisMonthChapters']"
+                        :successRate="$calendarData['successRate']"
+                        :showLegend="false"
+                        class="h-full text-sm" />
+                </div>
             </div>
 
             <!-- Book Progress Visualization -->
@@ -77,7 +67,7 @@
         </div>
 
         <!-- Right Column - Desktop Sidebar (responsive width) -->
-        <div class="hidden lg:block lg:col-span-1 xl:col-span-1 space-y-6 lg:space-y-4 xl:space-y-6"
+        <div class="hidden xl:block xl:col-span-1 space-y-6 xl:space-y-6"
             id="dashboard-sidebar"
             hx-trigger="readingLogAdded from:body"
             hx-get="{{ route('dashboard') }}"
