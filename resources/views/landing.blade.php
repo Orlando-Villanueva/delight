@@ -7,9 +7,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- SEO Meta Tags -->
-    <title>{{ config('app.name', 'Delight') }} - Bible Tracking App | Free Bible Reading Tracker with Weekly Goals</title>
-    <meta name="description" content="Make Bible reading consistency achievable with gentle tracking and motivation. Hit the research-backed 4-day threshold through weekly goals, streaks, and progress visualization."
-    <meta name="keywords" content="bible tracking app, bible reading tracker, bible habit tracker, Power of 4 bible reading, research-based bible habits, 4 day bible reading, bible reading accountability, overcome bible reading struggles, bible engagement study, scripture reading app, daily bible reading, bible progress tracker">
+    <title>{{ config('app.name', 'Delight') }} - Bible Reading Tracker</title>
+    <meta name="description" content="Make Bible reading consistency achievable with gentle tracking and motivation. Build lasting habits through streaks, reading logs, and progress visualization.">
+    <meta name="keywords" content="bible tracking app, bible reading tracker, bible habit tracker, research-based bible habits, bible reading accountability, overcome bible reading struggles, bible engagement study, scripture reading app, daily bible reading, bible progress tracker">
     <meta name="author" content="Delight">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <link rel="canonical" href="{{ config('app.url') }}">
@@ -26,8 +26,8 @@
     <link rel="sitemap" type="application/xml" title="Sitemap" href="{{ config('app.url') }}/sitemap.xml">
 
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Delight - Bible Reading Tracker with Weekly Goals">
-    <meta property="og:description" content="Bible reading tracker that makes consistency achievable. Gentle motivation helps you hit the research-backed 4-day threshold for lasting transformation."
+    <meta property="og:title" content="Delight - Bible Reading Tracker for Consistency">
+    <meta property="og:description" content="Bible reading tracker that makes consistency achievable. Gentle motivation helps you stay engaged with Scripture for lasting transformation.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ config('app.url') }}">
     <meta property="og:image" content="{{ asset('images/screenshots/preview-social.png') }}">
@@ -35,8 +35,8 @@
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Delight - Bible Tracking App with Weekly Goals">
-    <meta name="twitter:description" content="Overcome Bible reading struggles with research-based weekly goals and gentle accountability.">
+    <meta name="twitter:title" content="Delight - Bible Tracking App for Consistency">
+    <meta name="twitter:description" content="Overcome Bible reading struggles with gentle accountability, streak tracking, and joyful progress visualization.">
     <meta name="twitter:image" content="{{ asset('images/screenshots/preview-social.png') }}">
 
     <!-- Favicon -->
@@ -55,7 +55,7 @@
             "@context": "https://schema.org",
             "@type": "WebApplication",
             "name": "Delight",
-            "description": "Overcome Bible reading struggles with research-based weekly goals. Bible tracking app that makes 4+ days per week achievable with gentle accountability and progress visualization.",
+            "description": "Overcome Bible reading struggles with gentle accountability, streak tracking, and joyful progress visualization.",
             "url": "{{ config('app.url') }}",
             "applicationCategory": "LifestyleApplication",
             "operatingSystem": "Web Browser",
@@ -76,13 +76,12 @@
                 "@type": "Organization",
                 "name": "Delight"
             },
-            "keywords": "bible tracking app, bible reading tracker, Power of 4 bible reading, research-based bible habits, weekly goals, bible reading accountability",
+            "keywords": "bible tracking app, bible reading tracker, research-based bible habits, bible reading accountability",
             "screenshot": "{{ asset('images/screenshots/desktop_101.png') }}",
             "featureList": [
-                "Research-Based Weekly Goals",
-                "Weekly Streaks",
+                "Daily Streak Tracking",
                 "Daily Reading Log",
-                "Daily Streak Tracking", 
+                "Recent Activity Timeline",
                 "Book Completion Grid",
                 "Reading Statistics"
             ]
@@ -143,16 +142,19 @@
                     <!-- Hero Content -->
                     <div class="text-center lg:text-left lg:pr-24">
                         <h1 id="hero-heading" class="text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-6">
-                            Struggling to Stay Consistent with Bible Reading?
+                            Track Every Reading and See Your Momentum
                         </h1>
                         <p class="text-xl text-gray-600 mb-6 leading-relaxed">
-                            You're not alone. Build the habit that transforms lives. Delight makes this achievable with progress tracking, reading goals, and milestone celebrations.
+                            Delight records what you read, keeps your streaks visible, and shows how far you’ve come. Log a passage in seconds, review recent activity, and stay aware of the habit you’re building day by day.
                         </p>
 
                         <!-- Primary CTA -->
-                        <div class="space-y-4">
-                            <x-ui.button variant="accent" size="lg" href="{{ route('register') }}">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                            <x-ui.button variant="accent" size="lg" href="{{ route('register') }}" class="whitespace-normal sm:whitespace-nowrap">
                                 Start Building Life-Changing Habits
+                            </x-ui.button>
+                            <x-ui.button variant="ghost" size="lg" href="#features-heading" aria-label="Scroll to see Delight features" class="whitespace-normal sm:whitespace-nowrap">
+                                Explore the Dashboard
                             </x-ui.button>
                         </div>
                     </div>
@@ -164,7 +166,7 @@
                             <div class="rounded-lg overflow-hidden">
                                 <img
                                     src="{{ asset('images/screenshots/desktop_101.png') }}"
-                                    alt="Delight Bible reading tracker showing weekly goals, weekly streaks, daily streak counter, book completion grid, and reading log interface"
+                                    alt="Delight Bible reading tracker showing daily streaks, book completion grid, and reading log interface"
                                     class="w-full h-auto max-w-full"
                                     width="800"
                                     height="600"
@@ -178,7 +180,7 @@
                                 <div class="rounded-lg overflow-hidden">
                                     <img
                                         src="{{ asset('images/screenshots/mobile_101.png') }}"
-                                        alt="Delight mobile Bible tracker showing weekly goal widget and weekly streak widget with touch-friendly interface"
+                                        alt="Delight mobile Bible tracker showing progress target and daily streak widgets with a touch-friendly interface"
                                         class="w-full h-auto"
                                         width="128"
                                         height="256"
@@ -203,7 +205,7 @@
                             <div class="rounded-lg overflow-hidden">
                                 <img
                                     src="{{ asset('images/screenshots/mobile_101.png') }}"
-                                    alt="Delight mobile Bible tracker showing weekly goal widget and weekly streak widget with touch-friendly interface"
+                                    alt="Delight mobile Bible tracker showing progress target and daily streak widgets with a touch-friendly interface"
                                     class="w-full h-auto max-w-full"
                                     width="192"
                                     height="384"
@@ -229,35 +231,21 @@
 
                 <!-- Features Grid -->
                 <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8" role="list" aria-label="Key features of Delight">
-                    <!-- Feature 1: Research-Based Weekly Goals (Featured) -->
+                    <!-- Feature 1: Daily Streak Tracking (Featured) -->
                     <div role="listitem">
                         <x-ui.card class="bg-gradient-to-br from-accent-500 to-accent-600 text-white shadow-lg hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content>
-                                <div class="text-4xl mb-4" role="img" aria-label="Target icon representing weekly goals">🎯</div>
-                                <x-ui.card-title class="text-white">Research-Based Weekly Goals</x-ui.card-title>
-                                <p class="text-orange-200 text-xs mb-2">Hit the 4-day threshold without pressure</p>
+                                <div class="text-4xl mb-4" role="img" aria-label="Fire icon representing daily streaks">🔥</div>
+                                <x-ui.card-title class="text-white">Daily Streak Tracking</x-ui.card-title>
+                                <p class="text-orange-200 text-xs mb-2">Watch consistency grow</p>
                                 <p class="text-orange-100 leading-relaxed mt-3">
-                                    Stay motivated to hit the proven 4-day threshold with achievable weekly targets. Focus on progress, not perfection, with gentle accountability that works with your life.
+                                    Build momentum with daily reading streaks. See your current and longest streaks to stay motivated and celebrate consistency.
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
                     </div>
 
-                    <!-- Feature 2: Weekly Streaks (Featured) -->
-                    <div role="listitem">
-                        <x-ui.card class="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl transition-shadow h-full">
-                            <x-ui.card-content>
-                                <div class="text-4xl mb-4" role="img" aria-label="Calendar icon representing weekly streaks">📅</div>
-                                <x-ui.card-title class="text-white">Weekly Streaks</x-ui.card-title>
-                                <p class="text-blue-200 text-xs mb-2">Build unstoppable momentum</p>
-                                <p class="text-blue-100 leading-relaxed mt-3">
-                                    Celebrate consecutive weeks of reading success. Track your consistency as you maintain your goals and watch your habit strengthen.
-                                </p>
-                            </x-ui.card-content>
-                        </x-ui.card>
-                    </div>
-
-                    <!-- Feature 3: Daily Reading Log -->
+                    <!-- Feature 2: Daily Reading Log -->
                     <div role="listitem">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content>
@@ -271,21 +259,21 @@
                         </x-ui.card>
                     </div>
 
-                    <!-- Feature 4: Daily Streak Tracking -->
+                    <!-- Feature 3: Recent Activity Timeline -->
                     <div role="listitem">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content>
-                                <div class="text-4xl mb-4" role="img" aria-label="Fire icon representing daily streaks">🔥</div>
-                                <x-ui.card-title>Daily Streak Tracking</x-ui.card-title>
-                                <p class="text-gray-400 text-xs mb-2">Watch consistency grow</p>
+                                <div class="text-4xl mb-4" role="img" aria-label="Clock icon representing recent activity">🕒</div>
+                                <x-ui.card-title>Recent Activity Timeline</x-ui.card-title>
+                                <p class="text-gray-400 text-xs mb-2">Remember what you read</p>
                                 <p class="text-gray-600 leading-relaxed mt-3">
-                                    Build momentum with daily reading streaks. See your current and longest streaks to stay motivated and celebrate consistency.
+                                    Review your latest passages and notes at a glance. Delight keeps a clear history of your readings so you can reflect and pick up right where you left off.
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
                     </div>
 
-                    <!-- Feature 5: Book Completion Grid -->
+                    <!-- Feature 4: Book Completion Grid -->
                     <div role="listitem">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content>
@@ -299,7 +287,7 @@
                         </x-ui.card>
                     </div>
 
-                    <!-- Feature 6: Reading Statistics -->
+                    <!-- Feature 5: Reading Statistics -->
                     <div role="listitem">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content>
@@ -312,41 +300,34 @@
                             </x-ui.card-content>
                         </x-ui.card>
                     </div>
+
+                    <!-- Feature 6: Research-Based Weekly Goal -->
+                    <div role="listitem">
+                        <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
+                            <x-ui.card-content>
+                                <div class="text-4xl mb-4" role="img" aria-label="Target icon representing weekly goal">🎯</div>
+                                <x-ui.card-title>Research-Based Weekly Goal</x-ui.card-title>
+                                <p class="text-gray-400 text-xs mb-2">Aim for 4 reading days each week</p>
+                                <p class="text-gray-600 leading-relaxed mt-3">
+                                    Delight sets a single weekly target: read at least four days—the research-backed 4-day threshold for life change. Gentle accountability helps you reach it without pressure.
+                                </p>
+                            </x-ui.card-content>
+                        </x-ui.card>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- How It Works Section -->
-        <section class="py-20 bg-gray-50" aria-labelledby="how-it-works-heading">
+        <!-- Steps Section -->
+        <section class="py-20 bg-gray-50" aria-labelledby="steps-heading">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-16">
-                    <h2 id="how-it-works-heading" class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                        The Science Behind Life-Changing Bible Reading
+                    <h2 id="steps-heading" class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                        How Delight Works
                     </h2>
                     <p class="text-xl text-gray-600">
-                        Discover the research-backed approach that makes Bible reading consistency achievable.
+                        Build a resilient Bible habit in three simple steps.
                     </p>
-                </div>
-
-                <!-- Research-Solution Grid -->
-                <div class="grid md:grid-cols-2 gap-8 mb-16">
-                    <!-- Research Card -->
-                    <div class="bg-white rounded-2xl p-8 shadow-lg">
-                        <div class="text-5xl mb-6" role="img" aria-label="Research chart icon">📊</div>
-                        <h3 class="text-2xl font-bold text-gray-900 mb-4">The Research</h3>
-                        <p class="text-gray-600 leading-relaxed">
-                            Studies of 100,000+ people show that reading 1-3 days per week has virtually no impact. But 4+ days per week creates dramatic life transformation - 228% more likely to share faith, 60% less spiritual stagnation.
-                        </p>
-                    </div>
-
-                    <!-- Solution Card -->
-                    <div class="bg-white rounded-2xl p-8 shadow-lg">
-                        <div class="text-5xl mb-6" role="img" aria-label="Target approach icon">🎯</div>
-                        <h3 class="text-2xl font-bold text-gray-900 mb-4">Our Approach</h3>
-                        <p class="text-gray-600 leading-relaxed">
-                            Delight makes consistency achievable with gentle tracking and motivation. Weekly goals help you stay focused on hitting that proven 4-day threshold through flexible targets and progress celebration.
-                        </p>
-                    </div>
                 </div>
 
                 <!-- Steps Grid -->
@@ -369,7 +350,7 @@
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-3">See Progress</h3>
                         <p class="text-gray-600 leading-relaxed">
-                            Watch your weekly goals, weekly streaks, daily streaks, and book completion grids grow. Beautiful visuals show your Scripture journey.
+                            Watch your daily streaks and book completion grid grow. Beautiful visuals show your Scripture journey.
                         </p>
                     </li>
 
@@ -391,10 +372,10 @@
         <section class="py-20 bg-gradient-to-br from-[#3366CC] to-[#2952A3]" aria-labelledby="final-cta-heading">
             <div class="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
                 <h2 id="final-cta-heading" class="text-3xl md:text-4xl font-bold text-white mb-6">
-                    Ready to Experience the Power of 4-Day Bible Reading?
+                    Ready to Experience Consistent Bible Reading?
                 </h2>
                 <p class="text-xl text-white mb-8">
-                    Join readers discovering how gentle tracking makes Bible reading consistency achievable. Experience the transformation that comes from hitting the 4-day threshold.
+                    Join readers discovering how gentle tracking makes Scripture engagement feel sustainable. Experience the transformation that comes from steady, grace-filled momentum.
                 </p>
                 <x-ui.button variant="accent" size="lg" href="{{ route('register') }}" aria-label="Start building life-changing Bible reading habits">
                     Start Building Life-Changing Habits
@@ -411,7 +392,7 @@
                 <div class="md:col-span-2">
                     <h3 class="text-2xl font-bold mb-4">Delight</h3>
                     <p class="text-gray-300 leading-relaxed">
-                        Your Bible reading tracker for building consistent Scripture habits through simple logging, weekly goals, and motivating progress visualization.
+                        Your Bible reading tracker for building consistent Scripture habits through simple logging, streak tracking, and motivating progress visualization.
                     </p>
                 </div>
 
