@@ -7,8 +7,8 @@
 
 <div {{ $attributes->merge(['class' => 'bg-white dark:bg-gray-800 border border-[#D1D7E0] dark:border-gray-700 h-full transition-colors rounded-lg shadow-lg']) }}>
     <div class="p-6 lg:px-3 lg:py-4 xl:p-6 h-full flex items-center">
-        <!-- Responsive: 2x2 when sharing row (iPad), 1x4 when own row (desktop) -->
-        <div class="grid grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-4 xl:gap-y-0 xl:gap-x-8 w-full">
+        <!-- 2x2 by default, horizontal row on xl, back to 2x2 on 2xl+ -->
+        <div class="grid grid-cols-2 xl:grid-cols-4 2xl:grid-cols-2 gap-x-6 gap-y-6 sm:gap-y-16 lg:gap-x-4 lg:gap-y-16 xl:gap-y-0 2xl:gap-y-12 w-full">
             <!-- Days Read -->
             <div class="flex flex-col items-center text-center">
                 <div class="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 mb-3">

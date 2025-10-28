@@ -100,15 +100,15 @@ class WeeklyGoalDashboardIntegrationTest extends TestCase
         $this->assertEquals($stats['weekly_goal'], $weeklyGoal);
     }
 
-    public function test_weekly_streak_cache_invalidation_on_reading_log_creation()
+    public function test_weekly_goal_cache_invalidation_on_reading_log_creation()
     {
         // Create and authenticate a user
         $user = User::factory()->create();
         $this->actingAs($user);
 
-        // Cache some initial weekly streak data
+        // Cache some initial weekly goal data
         $weekStart = now()->startOfWeek(\Carbon\Carbon::SUNDAY)->toDateString();
-        $cacheKey = "user_weekly_streak_{$user->id}_{$weekStart}";
+        $cacheKey = "user_weekly_goal_{$user->id}_{$weekStart}";
         cache()->put($cacheKey, ['test_data' => 'should_be_cleared'], 3600);
 
         // Verify cache exists
@@ -125,7 +125,7 @@ class WeeklyGoalDashboardIntegrationTest extends TestCase
         // Assert the reading log was created successfully (returns HTMX view)
         $response->assertStatus(200);
 
-        // Verify the weekly streak cache was invalidated
+        // Verify the weekly goal cache was invalidated
         $this->assertFalse(cache()->has($cacheKey));
     }
 }
