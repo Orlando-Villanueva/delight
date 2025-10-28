@@ -396,7 +396,6 @@ class ReadingLogService
             // First reading of the day - streak and weekly goal will change
             $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
             Cache::forget("user_weekly_goal_{$user->id}_{$weekStart}");
-            Cache::forget("user_weekly_streak_{$user->id}_{$weekStart}");
             Cache::forget("user_current_streak_{$user->id}");
 
             // Longest streak - only invalidate if current streak might exceed it
@@ -482,6 +481,30 @@ class ReadingLogService
         $paginator->appends($request->query());
 
         return $paginator;
+    }
+
+    /**
+     * Resolve the collection of logs that should be updated when editing notes.
+     */
+    public function getLogsForNoteUpdate(User $user, ReadingLog $primaryLog, array $logIds = []): Collection
+    {
+        $ids = collect($logIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->push($primaryLog->id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return collect([$primaryLog]);
+        }
+
+        $logs = ReadingLog::where('user_id', $user->id)
+            ->whereIn('id', $ids)
+            ->orderBy('chapter')
+            ->get();
+
+        return $logs->isEmpty() ? collect([$primaryLog]) : $logs;
     }
 
     public function getPreparedLogsForDate(User $user, string $date, UserStatisticsService $statisticsService): ?Collection

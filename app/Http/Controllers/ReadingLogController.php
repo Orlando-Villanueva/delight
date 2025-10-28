@@ -9,6 +9,7 @@ use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\MessageBag;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -209,6 +210,107 @@ class ReadingLogController extends Controller
 
         // Return full page for direct access (browser URL)
         return view('logs.index', compact('logs'));
+    }
+
+    /**
+     * Update the notes associated with a reading log (or grouped logs).
+     */
+    public function updateNotes(Request $request, ReadingLog $readingLog)
+    {
+        if ($request->user()->id !== $readingLog->user_id) {
+            abort(403, 'Unauthorized to update this reading log.');
+        }
+
+        $user = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'notes_text' => 'nullable|string|max:1000',
+            'log_ids' => 'nullable|array',
+            'log_ids.*' => 'integer',
+        ]);
+
+        if ($validator->fails()) {
+            $errors = new MessageBag($validator->errors()->toArray());
+            $notesText = $request->input('notes_text', '');
+            $allLogs = $this->readingLogService->getLogsForNoteUpdate(
+                $user,
+                $readingLog,
+                $request->input('log_ids', [])
+            );
+
+            return response()
+                ->view('components.modals.partials.edit-reading-note-form', [
+                    'log' => $readingLog,
+                    'modalId' => "edit-note-{$readingLog->id}",
+                    'dateKey' => $readingLog->date_read->format('Y-m-d'),
+                    'allLogs' => $allLogs,
+                    'notesText' => $notesText,
+                    'errors' => $errors,
+                ], 422)
+                ->header('HX-Retarget', "#edit-note-form-container-{$readingLog->id}")
+                ->header('HX-Reswap', 'outerHTML');
+        }
+
+        $data = $validator->validated();
+        $notesText = array_key_exists('notes_text', $data) ? (string) $data['notes_text'] : null;
+
+        if ($notesText !== null) {
+            $notesText = trim($notesText);
+
+            if ($notesText === '') {
+                $notesText = null;
+            }
+        }
+
+        $logs = $this->readingLogService->getLogsForNoteUpdate(
+            $user,
+            $readingLog,
+            $data['log_ids'] ?? []
+        );
+
+        if ($logs->isEmpty()) {
+            abort(404, 'Reading logs not found.');
+        }
+
+        foreach ($logs as $log) {
+            $this->readingLogService->updateReadingLog($log, [
+                'notes_text' => $notesText,
+            ]);
+        }
+
+        $dates = $logs
+            ->map(fn ($log) => $log->date_read->format('Y-m-d'))
+            ->unique()
+            ->values();
+
+        $dayResponses = $this->readingLogService->getPreparedLogsForDates(
+            $user,
+            $dates->all(),
+            $this->userStatisticsService
+        );
+
+        $orderedResponses = $dates
+            ->mapWithKeys(fn ($date) => [$date => $dayResponses[$date] ?? null])
+            ->all();
+
+        if ($request->header('HX-Request')) {
+            $response = response()->view('partials.reading-log-update-response', [
+                'primaryDate' => $readingLog->date_read->format('Y-m-d'),
+                'dayResponses' => $orderedResponses,
+                'userHasLogs' => $this->readingLogService->userHasAnyLogs($user),
+            ]);
+
+            $triggerPayload = [
+                'hideModal' => ['id' => "edit-note-{$readingLog->id}"],
+                'readingLogUpdated' => ['date' => $readingLog->date_read->format('Y-m-d')],
+            ];
+
+            return $response->header('HX-Trigger', json_encode($triggerPayload));
+        }
+
+        return redirect()
+            ->route('logs.index')
+            ->with('success', 'Reading note updated successfully.');
     }
 
     /**

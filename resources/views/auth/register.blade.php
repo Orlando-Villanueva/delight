@@ -6,8 +6,8 @@
         <div class="w-full max-w-md space-y-6">
             <!-- Logo Section -->
             <div class="text-center">
-                <img src="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}"
-                    srcset="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }} 1x, {{ asset('images/logo-64-2x.png') }}?v={{ config('app.asset_version') }} 2x"
+                <img src="{{ asset('images/logo-192.png') }}?v={{ config('app.asset_version') }}"
+                    srcset="{{ asset('images/logo-192.png') }}?v={{ config('app.asset_version') }} 1x, {{ asset('images/logo-512.png') }}?v={{ config('app.asset_version') }} 2x"
                     alt="{{ config('app.name') }} Logo" class="w-20 h-20 object-contain mx-auto mb-4"
                     style="filter: drop-shadow(0 0 15px rgba(51, 102, 204, 0.2)) drop-shadow(0 0 30px rgba(51, 102, 204, 0.08));" />
                 <h1 class="text-2xl font-bold text-[#4A5568] dark:text-gray-200 mb-1">{{ config('app.name') }}</h1>
@@ -25,6 +25,19 @@
                         <p class="text-[#4A5568] dark:text-gray-300 opacity-75">
                             Start your Bible reading journey today
                         </p>
+                    </div>
+
+                    <!-- Single Entry Social Login -->
+                    <div class="space-y-4">
+                        <x-oauth.login-with-google />
+                        <x-oauth.login-with-x />
+                        <div class="flex items-center gap-3">
+                            <div class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                or continue with email
+                            </span>
+                            <div class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                        </div>
                     </div>
 
                     <!-- Registration Form -->

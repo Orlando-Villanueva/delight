@@ -46,6 +46,32 @@ if (typeof document !== 'undefined') {
 
         document.body.addEventListener('htmx:afterSwap', initFlowbiteWithPatches);
 
+        document.body.addEventListener('hideModal', (event) => {
+            const modalId = event?.detail?.id ?? event?.detail;
+
+            if (!modalId || typeof window === 'undefined' || typeof window.Modal === 'undefined') {
+                return;
+            }
+
+            const modalElement = document.getElementById(modalId);
+
+            if (!modalElement) {
+                return;
+            }
+
+            let instance = typeof window.Modal.getInstance === 'function'
+                ? window.Modal.getInstance(modalElement)
+                : null;
+
+            if (!instance) {
+                instance = new window.Modal(modalElement);
+            }
+
+            if (instance && typeof instance.hide === 'function') {
+                instance.hide();
+            }
+        });
+
         const readingContent = document.getElementById('reading-content');
         const loadingOverlay = document.getElementById('loading');
 

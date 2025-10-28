@@ -1,9 +1,10 @@
 <?php
 
+use App\Http\Controllers\Auth\GoogleOAuthController;
+use App\Http\Controllers\Auth\XOAuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\SitemapController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Development Routes (Local Development Only)
@@ -50,6 +51,15 @@ Route::middleware('guest')->group(function () {
     Route::get('/reset-password/{token}', function ($token) {
         return view('auth.reset-password', ['request' => request()->merge(['token' => $token])]);
     })->name('password.reset');
+
+    Route::get('/auth/google/redirect', [GoogleOAuthController::class, 'redirect'])
+        ->name('oauth.google.redirect');
+
+    Route::get('/auth/google/callback', [GoogleOAuthController::class, 'callback'])
+        ->name('oauth.google.callback');
+
+    Route::get('/auth/x/redirect', [XOAuthController::class, 'redirect'])->name('x.redirect');
+    Route::get('/auth/x/callback', [XOAuthController::class, 'callback'])->name('x.callback');
 });
 
 // Authenticated Routes
@@ -61,22 +71,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/logs', [ReadingLogController::class, 'index'])->name('logs.index');
     Route::get('/logs/create', [ReadingLogController::class, 'create'])->name('logs.create');
     Route::post('/logs', [ReadingLogController::class, 'store'])->name('logs.store');
+    Route::patch('/logs/{readingLog}/notes', [ReadingLogController::class, 'updateNotes'])->name('logs.notes.update');
     Route::delete('/logs/batch', [ReadingLogController::class, 'batchDestroy'])->name('logs.batchDestroy');
     Route::delete('/logs/{readingLog}', [ReadingLogController::class, 'destroy'])->name('logs.destroy');
-
-    // User Preferences
-    Route::post('/preferences/testament', function (Request $request) {
-        $testament = $request->input('testament');
-
-        // Validate the testament value
-        if (! in_array($testament, ['Old', 'New'])) {
-            return response('Invalid testament', 400);
-        }
-
-        // Store in session
-        session(['testament_preference' => $testament]);
-
-        // Return 200 OK for HTMX (no content needed since hx-swap="none")
-        return response('', 200);
-    })->name('preferences.testament');
 });

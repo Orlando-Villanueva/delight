@@ -28,7 +28,6 @@ class UserStatisticsService
                 'book_progress' => $this->getBookProgressSummary($user),
                 'recent_activity' => $this->getRecentActivity($user),
                 'weekly_goal' => $this->getWeeklyGoalStatistics($user),
-                'weekly_streak' => $this->getWeeklyStreakStatistics($user),
             ]
         );
     }
@@ -67,32 +66,6 @@ class UserStatisticsService
             "user_weekly_goal_{$user->id}_{$weekStart}",
             900, // 15 minutes TTL - light query with date range filter
             fn () => $this->weeklyGoalService->getWeeklyGoalData($user)
-        );
-    }
-
-    /**
-     * Get weekly streak statistics.
-     */
-    public function getWeeklyStreakStatistics(User $user): array
-    {
-        $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
-
-        return Cache::remember(
-            "user_weekly_streak_{$user->id}_{$weekStart}",
-            $this->getWeeklyStreakCacheExpiry(), // Cache until Sunday 12:01 AM
-            function () use ($user) {
-                try {
-                    return $this->weeklyGoalService->getWeeklyStreakData($user);
-                } catch (\Exception $e) {
-                    // Graceful fallback for streak calculation failures
-                    return [
-                        'streak_count' => 0,
-                        'is_active' => false,
-                        'motivational_message' => 'Start your first weekly streak!',
-                        'error' => true,
-                    ];
-                }
-            }
         );
     }
 
@@ -445,16 +418,6 @@ class UserStatisticsService
     }
 
     /**
-     * Calculate cache expiry for weekly streak data - cache until Sunday 12:01 AM.
-     */
-    private function getWeeklyStreakCacheExpiry(): int
-    {
-        $nextSunday = now()->next(Carbon::SUNDAY)->startOfDay()->addMinute();
-
-        return now()->diffInSeconds($nextSunday);
-    }
-
-    /**
      * Invalidate all cached statistics for a user.
      */
     public function invalidateUserCache(User $user): void
@@ -469,7 +432,6 @@ class UserStatisticsService
         Cache::forget("user_current_streak_{$user->id}");
         Cache::forget("user_longest_streak_{$user->id}");
         Cache::forget("user_weekly_goal_{$user->id}_{$weekStart}");
-        Cache::forget("user_weekly_streak_{$user->id}_{$weekStart}");
         Cache::forget("user_calendar_{$user->id}_{$currentYear}");
         Cache::forget("user_calendar_{$user->id}_{$previousYear}");
         Cache::forget("user_monthly_calendar_{$user->id}_{$currentMonth}");

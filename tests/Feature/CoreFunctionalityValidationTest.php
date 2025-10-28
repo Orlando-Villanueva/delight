@@ -293,12 +293,13 @@ class CoreFunctionalityValidationTest extends TestCase
 
         // Check for responsive grid classes
         $response->assertSee('grid-cols-1', false);
-        $response->assertSee('lg:grid-cols-3', false);
+        $response->assertSee('lg:grid-cols-2', false);
+        $response->assertSee('2xl:grid-cols-3', false);
         $response->assertSee('xl:grid-cols-4', false);
 
         // Check for mobile-specific elements
         $response->assertSee('lg:hidden', false); // Mobile navigation and FAB
-        $response->assertSee('hidden lg:block', false); // Desktop sidebar
+        $response->assertSee('hidden xl:block', false); // Desktop sidebar
 
         // Test guest pages (logout first to clear authentication)
         auth()->logout();
