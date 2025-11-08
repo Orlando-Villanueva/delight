@@ -11,7 +11,8 @@ class UserStatisticsService
 {
     public function __construct(
         private ReadingLogService $readingLogService,
-        private WeeklyGoalService $weeklyGoalService
+        private WeeklyGoalService $weeklyGoalService,
+        private WeeklyJourneyService $weeklyJourneyService
     ) {}
 
     /**
@@ -22,13 +23,18 @@ class UserStatisticsService
         return Cache::remember(
             "user_dashboard_stats_{$user->id}",
             300, // 5 minutes TTL
-            fn () => [
-                'streaks' => $this->getStreakStatistics($user),
-                'reading_summary' => $this->getReadingSummary($user),
-                'book_progress' => $this->getBookProgressSummary($user),
-                'recent_activity' => $this->getRecentActivity($user),
-                'weekly_goal' => $this->getWeeklyGoalStatistics($user),
-            ]
+            function () use ($user) {
+                $weeklyGoal = $this->getWeeklyGoalStatistics($user);
+
+                return [
+                    'streaks' => $this->getStreakStatistics($user),
+                    'reading_summary' => $this->getReadingSummary($user),
+                    'book_progress' => $this->getBookProgressSummary($user),
+                    'recent_activity' => $this->getRecentActivity($user),
+                    'weekly_goal' => $weeklyGoal,
+                    'weekly_journey' => $weeklyGoal['journey'] ?? null,
+                ];
+            }
         );
     }
 
@@ -65,7 +71,19 @@ class UserStatisticsService
         return Cache::remember(
             "user_weekly_goal_{$user->id}_{$weekStart}",
             900, // 15 minutes TTL - light query with date range filter
-            fn () => $this->weeklyGoalService->getWeeklyGoalData($user)
+            function () use ($user) {
+                $weeklyGoalData = $this->weeklyGoalService->getWeeklyGoalData($user);
+
+                return array_merge(
+                    $weeklyGoalData,
+                    [
+                        'journey' => $this->weeklyJourneyService->getWeeklyJourneyData(
+                            $user,
+                            $weeklyGoalData['current_progress'] ?? null
+                        ),
+                    ]
+                );
+            }
         );
     }
 

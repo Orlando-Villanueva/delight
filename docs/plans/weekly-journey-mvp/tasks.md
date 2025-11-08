@@ -19,3 +19,8 @@
 10. Add unit tests (Pest) for the new service to guarantee seven day objects, correct `isToday` flagging, accurate distinct-day counts, and week-range formatting for edge cases like year boundaries.
 11. Create feature tests covering CTA visibility for (a) no readings, (b) today already logged, and (c) perfect week scenarios to lock in the encouragement logic.
 12. Add view/component tests or snapshot assertions for status chip text/class mappings at each milestone threshold (0, 3, 4, 6, 7) to prevent regressions when tailoring copy or tokens later.
+
+## Commit 5 — `[DEL-000]` Retire Weekly Goal legacy code
+13. Remove `<x-ui.weekly-goal-card>` and its PHP props/Blade includes, swapping any lingering references to the new Weekly Journey contract so dead UI fragments aren’t shipped.
+14. Delete `WeeklyGoalService`, its cache helpers, and the related `weekly_goal` stats keys in favor of `weekly_journey`; migrate controller/view variables accordingly and consolidate cache invalidation to the new key.
+15. Prune obsolete unit/feature tests that only asserted the legacy weekly goal payload, replacing them with focused coverage that now targets Weekly Journey data so CI stays green.

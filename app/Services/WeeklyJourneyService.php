@@ -1,0 +1,119 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\ReadingLog;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
+use Throwable;
+
+class WeeklyJourneyService
+{
+    private const int DAYS_IN_WEEK = 7;
+
+    private const int FIRST_DAY_OF_WEEK = Carbon::SUNDAY;
+
+    private const int LAST_DAY_OF_WEEK = Carbon::SATURDAY;
+
+    private const int WEEKLY_TARGET = 7;
+
+    public function getWeeklyJourneyData(User $user, ?int $currentProgressOverride = null): array
+    {
+        if (! $user || ! $user->id) {
+            throw new InvalidArgumentException('Valid user with ID required');
+        }
+
+        try {
+            $today = now();
+            $weekStart = $today->copy()->startOfWeek(self::FIRST_DAY_OF_WEEK);
+            $weekEnd = $today->copy()->endOfWeek(self::LAST_DAY_OF_WEEK);
+
+            $distinctReadingDates = $this->getDistinctReadingDatesForWeek($user, $weekStart, $weekEnd);
+            $currentProgress = $currentProgressOverride ?? count($distinctReadingDates);
+            $days = $this->buildWeeklyDayMap($weekStart, $distinctReadingDates, $today);
+
+            $todaySlot = collect($days)->firstWhere('isToday', true);
+
+            return [
+                'currentProgress' => $currentProgress,
+                'days' => $days,
+                'today' => $todaySlot,
+                'weekRangeText' => $this->formatWeekRange($weekStart, $weekEnd),
+                'weeklyTarget' => self::WEEKLY_TARGET,
+                'ctaEnabled' => $this->isCtaEnabled($todaySlot),
+            ];
+        } catch (Throwable $exception) {
+            Log::error('Error building weekly journey data', [
+                'user_id' => $user->id ?? null,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return $this->getDefaultJourneyData();
+        }
+    }
+
+    private function getDistinctReadingDatesForWeek(User $user, Carbon $weekStart, Carbon $weekEnd): array
+    {
+        return ReadingLog::forUser($user->id)
+            ->dateRange($weekStart->toDateString(), $weekEnd->toDateString())
+            ->select('date_read')
+            ->distinct()
+            ->pluck('date_read')
+            ->map(fn ($date) => Carbon::parse($date)->toDateString())
+            ->toArray();
+    }
+
+    private function buildWeeklyDayMap(Carbon $weekStart, array $readDates, Carbon $today): array
+    {
+        $readLookup = array_fill_keys($readDates, true);
+        $days = [];
+
+        for ($offset = 0; $offset < self::DAYS_IN_WEEK; $offset++) {
+            $date = $weekStart->copy()->addDays($offset);
+            $dateString = $date->toDateString();
+
+            $days[] = [
+                'date' => $dateString,
+                'dow' => $date->dayOfWeek,
+                'isToday' => $date->isSameDay($today),
+                'read' => isset($readLookup[$dateString]),
+            ];
+        }
+
+        return $days;
+    }
+
+    private function formatWeekRange(Carbon $weekStart, Carbon $weekEnd): string
+    {
+        if ($weekStart->isSameMonth($weekEnd)) {
+            return sprintf('%s–%s', $weekStart->format('M j'), $weekEnd->format('j'));
+        }
+
+        return sprintf('%s–%s', $weekStart->format('M j'), $weekEnd->format('M j'));
+    }
+
+    private function isCtaEnabled(?array $todaySlot): bool
+    {
+        return $todaySlot !== null;
+    }
+
+    private function getDefaultJourneyData(): array
+    {
+        $today = now();
+        $weekStart = $today->copy()->startOfWeek(self::FIRST_DAY_OF_WEEK);
+        $weekEnd = $today->copy()->endOfWeek(self::LAST_DAY_OF_WEEK);
+        $days = $this->buildWeeklyDayMap($weekStart, [], $today);
+        $todaySlot = collect($days)->firstWhere('isToday', true);
+
+        return [
+            'currentProgress' => 0,
+            'days' => $days,
+            'today' => $todaySlot,
+            'weekRangeText' => $this->formatWeekRange($weekStart, $weekEnd),
+            'weeklyTarget' => self::WEEKLY_TARGET,
+            'ctaEnabled' => $this->isCtaEnabled($todaySlot),
+        ];
+    }
+}

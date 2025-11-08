@@ -22,11 +22,13 @@ class WeeklyGoalDashboardIntegrationTest extends TestCase
         // Assert the response is successful
         $response->assertStatus(200);
 
-        // Assert the view has the weekly goal data
+        // Assert the view has the weekly goal and journey data
         $response->assertViewHas('weeklyGoal');
+        $response->assertViewHas('weeklyJourney');
 
         // Get the view data
         $viewData = $response->viewData('weeklyGoal');
+        $journeyData = $response->viewData('weeklyJourney');
 
         // Assert the weekly goal data structure
         $this->assertIsArray($viewData);
@@ -46,11 +48,22 @@ class WeeklyGoalDashboardIntegrationTest extends TestCase
         $this->assertIsBool($viewData['is_goal_achieved']);
         $this->assertIsNumeric($viewData['progress_percentage']);
         $this->assertIsString($viewData['message']);
+        $this->assertArrayHasKey('journey', $viewData);
+        $this->assertIsArray($viewData['journey']);
 
         // Assert default values
         $this->assertEquals(4, $viewData['weekly_target']);
         $this->assertGreaterThanOrEqual(0, $viewData['current_progress']);
         $this->assertLessThanOrEqual(100, $viewData['progress_percentage']);
+
+        // Assert journey data mirrors the dedicated payload
+        $this->assertEquals($journeyData, $viewData['journey']);
+        $this->assertArrayHasKey('currentProgress', $journeyData);
+        $this->assertArrayHasKey('days', $journeyData);
+        $this->assertArrayHasKey('weekRangeText', $journeyData);
+        $this->assertArrayHasKey('weeklyTarget', $journeyData);
+        $this->assertArrayHasKey('ctaEnabled', $journeyData);
+        $this->assertCount(7, $journeyData['days']);
     }
 
     public function test_htmx_dashboard_request_includes_weekly_goal_data()
@@ -69,15 +82,18 @@ class WeeklyGoalDashboardIntegrationTest extends TestCase
 
         // Assert the view has the weekly goal data
         $response->assertViewHas('weeklyGoal');
+        $response->assertViewHas('weeklyJourney');
 
         // Get the view data
         $viewData = $response->viewData('weeklyGoal');
+        $journeyData = $response->viewData('weeklyJourney');
 
         // Assert the weekly goal data structure is present
         $this->assertIsArray($viewData);
         $this->assertArrayHasKey('current_progress', $viewData);
         $this->assertArrayHasKey('weekly_target', $viewData);
         $this->assertEquals(4, $viewData['weekly_target']);
+        $this->assertEquals($viewData['journey'], $journeyData);
     }
 
     public function test_weekly_goal_data_matches_stats_weekly_goal()
@@ -95,9 +111,12 @@ class WeeklyGoalDashboardIntegrationTest extends TestCase
         // Get both weekly goal and stats data
         $weeklyGoal = $response->viewData('weeklyGoal');
         $stats = $response->viewData('stats');
+        $weeklyJourney = $response->viewData('weeklyJourney');
 
         // Assert that weeklyGoal matches stats['weekly_goal']
         $this->assertEquals($stats['weekly_goal'], $weeklyGoal);
+        $this->assertEquals($stats['weekly_journey'], $weeklyJourney);
+        $this->assertEquals($weeklyGoal['journey'], $stats['weekly_journey']);
     }
 
     public function test_weekly_goal_cache_invalidation_on_reading_log_creation()
