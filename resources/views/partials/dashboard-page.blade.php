@@ -8,4 +8,4 @@
     <div id="main-content" class="h-full">
         @include('partials.dashboard-content', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'stats', 'weeklyGoal', 'weeklyJourney'))
     </div>
-</div> 
+</div>
