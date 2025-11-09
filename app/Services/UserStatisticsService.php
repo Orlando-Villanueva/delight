@@ -69,7 +69,7 @@ class UserStatisticsService
         $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
 
         return Cache::remember(
-            "user_weekly_goal_{$user->id}_{$weekStart}",
+            "user_weekly_goal_v2_{$user->id}_{$weekStart}",
             900, // 15 minutes TTL - light query with date range filter
             function () use ($user) {
                 $weeklyGoalData = $this->weeklyGoalService->getWeeklyGoalData($user);

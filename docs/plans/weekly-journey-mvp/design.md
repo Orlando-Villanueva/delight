@@ -38,9 +38,9 @@ Behavior
 - Status chip logic (copy + color)
   - Always visible, including at 0 days
   - 0: `Get started` — gray
-  - 1–3: `Nice momentum` — info/teal
-  - 4: `Solid week—keep going` — subdued success/green
-  - 5–6: `On a roll` — bolder success/green
+  - 1–3: `Momentum` — info/teal
+  - 4: `Keep going` — subdued success/green
+  - 5–6: `Almost there` — bolder success/green
   - 7: `Perfect week` — gold with crown icon
 - Microcopy (one line under bar; always visible)
   - 0: `Let’s start your week`

@@ -172,15 +172,15 @@ class WeeklyJourneyService
             ],
             'momentum' => [
                 'state' => 'momentum',
-                'label' => 'Nice momentum',
+                'label' => 'Momentum',
                 'microcopy' => 'Nice start—keep going',
-                'chipClasses' => 'bg-teal-100 text-teal-800 border border-teal-200 dark:bg-teal-900/40 dark:text-teal-100 dark:border-teal-800',
-                'microcopyClasses' => 'text-teal-700 dark:text-teal-200',
+                'chipClasses' => 'bg-primary-100 text-primary-800 border border-primary-200 dark:bg-primary-900/40 dark:text-primary-100 dark:border-primary-800',
+                'microcopyClasses' => 'text-primary-700 dark:text-primary-200',
                 'showCrown' => false,
             ],
             'solid' => [
                 'state' => 'solid',
-                'label' => 'Solid week—keep going',
+                'label' => 'Keep going',
                 'microcopy' => 'Solid week—keep reaching for 7',
                 'chipClasses' => 'bg-success-100 text-success-800 border border-success-200 dark:bg-success-900/40 dark:text-success-100 dark:border-success-800',
                 'microcopyClasses' => 'text-success-700 dark:text-success-200',
@@ -188,7 +188,7 @@ class WeeklyJourneyService
             ],
             'on-a-roll' => [
                 'state' => 'on-a-roll',
-                'label' => 'On a roll',
+                'label' => 'Almost there',
                 'microcopy' => 'So close to perfect',
                 'chipClasses' => 'bg-success-500 text-white border border-success-500 dark:bg-success-600 dark:border-success-600',
                 'microcopyClasses' => 'text-success-700 dark:text-success-200',

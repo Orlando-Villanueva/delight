@@ -9,6 +9,19 @@
     hx-target="#main-content"
     hx-swap="outerHTML"
     hx-select="#main-content">
+    @php
+        $journeyPayload = $weeklyJourney ?? ($weeklyGoal['journey'] ?? []);
+        $weeklyJourneyCard = array_merge([
+            'currentProgress' => 0,
+            'days' => [],
+            'weekRangeText' => '',
+            'weeklyTarget' => 7,
+            'ctaEnabled' => true,
+            'ctaVisible' => false,
+            'status' => null,
+            'journeyAltText' => null,
+        ], is_array($journeyPayload) ? $journeyPayload : []);
+    @endphp
 
     <!-- Main Dashboard Layout (responsive grid) -->
     <div class="grid grid-cols-1 xl:grid-cols-4 gap-6 lg:gap-4 xl:gap-6">
@@ -18,13 +31,17 @@
 
             <!-- Cards Grid: 2x2 on tablet (shares row with calendar), 2-up until ultra-wide, 3-up on 2xl -->
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-4 xl:gap-6">
-                <!-- Weekly Goal - Primary Focus -->
+                <!-- Weekly Journey - Primary Focus -->
                 <div class="sm:col-span-1 lg:col-span-1 xl:col-span-1">
-                    <x-ui.weekly-goal-card
-                        :currentProgress="$weeklyGoal['current_progress']"
-                        :weeklyTarget="$weeklyGoal['weekly_target']"
-                        :motivationalMessage="$weeklyGoal['message'] ?? ''"
-                        :showResearchInfo="true"
+                    <x-ui.weekly-journey-card
+                        :currentProgress="$weeklyJourneyCard['currentProgress']"
+                        :days="$weeklyJourneyCard['days']"
+                        :weekRangeText="$weeklyJourneyCard['weekRangeText']"
+                        :weeklyTarget="$weeklyJourneyCard['weeklyTarget']"
+                        :ctaEnabled="$weeklyJourneyCard['ctaEnabled']"
+                        :ctaVisible="$weeklyJourneyCard['ctaVisible']"
+                        :status="$weeklyJourneyCard['status']"
+                        :journeyAltText="$weeklyJourneyCard['journeyAltText']"
                         class="h-full" />
                 </div>
 

@@ -43,18 +43,19 @@
     $status = array_merge($statusFallback, $status ?? []);
     $journeyAltText =
         $journeyAltText ?? sprintf('%d of %d days logged this week.', (int) $currentProgress, (int) $weeklyTarget);
+    $ctaIsVisible = (bool) ($ctaVisible ?? false);
 @endphp
 
 <div {{ $attributes->class(['card h-full flex flex-col dark:bg-gray-900 dark:border-gray-800 shadow-lg']) }}>
     <div class="card-header pb-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-                <p class="card-title text-gray-900 dark:text-gray-100">Weekly Journey</p>
-                <p class="card-description text-gray-600 dark:text-gray-300">{{ $weekRangeText }}</p>
-            </div>
-            <div class="flex items-center justify-end">
+        <div class="flex flex-col gap-2">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="card-title text-gray-900 dark:text-gray-100">Weekly Journey</p>
+                    <p class="card-description text-gray-600 dark:text-gray-300">{{ $weekRangeText }}</p>
+                </div>
                 <output
-                    class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium {{ $status['chipClasses'] }}"
+                    class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold {{ $status['chipClasses'] }}"
                     aria-live="polite" aria-atomic="true">
                     @if ($status['showCrown'])
                         <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -76,21 +77,18 @@
                     {{ \Illuminate\Support\Str::plural('day', $currentProgress ?? 0) }} this week
                 </span>
             </p>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Target: {{ $weeklyTarget ?? 0 }} {{ \Illuminate\Support\Str::plural('day', $weeklyTarget ?? 0) }}
-            </p>
         </div>
 
         <div class="flex flex-col gap-2">
             <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAQAIBRAA7"
                 alt="{{ $journeyAltText }}" class="sr-only">
-            <div class="grid grid-cols-7 gap-0.5 sm:gap-1">
+            <div class="grid grid-cols-7 gap-1">
                 @foreach ($journeyDays as $index => $day)
                     @php
                         $segmentClasses = implode(
                             ' ',
                             array_filter([
-                                'h-3 sm:h-4 rounded-sm border border-transparent cursor-default transition-colors duration-300',
+                                'h-4 rounded-sm border border-transparent cursor-default transition-colors duration-300',
                                 $day['read'] ?? false
                                     ? 'bg-success-500 dark:bg-success-600'
                                     : 'bg-gray-200 dark:bg-gray-700',
@@ -106,7 +104,7 @@
                 @endforeach
             </div>
 
-            <div class="hidden sm:grid grid-cols-7 text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wide">
+            <div class="grid grid-cols-7 text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wide">
                 @foreach ($journeyDays as $index => $day)
                     <span
                         class="text-center {{ $day['isToday'] ?? false ? 'text-gray-900 dark:text-gray-100 font-semibold' : '' }}">
@@ -117,8 +115,11 @@
         </div>
     </div>
 
-    <div
-        class="card-footer border-t border-gray-100 dark:border-gray-800 pt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div @class([
+        'card-footer border-t border-gray-100 dark:border-gray-800 pt-4 flex flex-row items-center gap-4 flex-wrap',
+        'justify-between' => $ctaIsVisible,
+        'justify-start' => ! $ctaIsVisible,
+    ])>
         <p class="text-sm leading-relaxed flex items-center gap-2 {{ $status['microcopyClasses'] }}">
             @if ($status['showCrown'])
                 <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -129,10 +130,10 @@
             <span>{{ $status['microcopy'] }}</span>
         </p>
 
-        @if ($ctaVisible ?? false)
+        @if ($ctaIsVisible)
             <button type="button" hx-get="{{ route('logs.create') }}" hx-target="#page-container" hx-swap="innerHTML"
                 hx-push-url="true"
-                class="inline-flex w-full sm:w-auto items-center justify-center rounded-full bg-accent-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-500">
+                class="inline-flex w-auto items-center justify-center rounded-full bg-accent-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-500">
                 Log today's reading
             </button>
         @endif
