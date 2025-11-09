@@ -1,3 +1,5 @@
+<?php use App\Enums\WeeklyJourneyDayState; ?>
+
 @props([
     'currentProgress' => 0,
     'days' => [],
@@ -85,13 +87,22 @@
             <div class="grid grid-cols-7 gap-1">
                 @foreach ($journeyDays as $index => $day)
                     @php
+                        $state = $day['state'] ??
+                            (($day['read'] ?? false)
+                                ? WeeklyJourneyDayState::COMPLETE->value
+                                : WeeklyJourneyDayState::UPCOMING->value);
+                        $stateClasses = [
+                            WeeklyJourneyDayState::COMPLETE->value => 'bg-success-500 dark:bg-success-600 border-transparent',
+                            WeeklyJourneyDayState::MISSED->value => 'bg-destructive-100 dark:bg-destructive-900/40 border-destructive-200 dark:border-destructive-700',
+                            WeeklyJourneyDayState::TODAY->value => 'bg-gray-200 dark:bg-gray-700 border-transparent',
+                            WeeklyJourneyDayState::UPCOMING->value => 'bg-gray-200 dark:bg-gray-700 border-transparent',
+                        ];
+                        $segmentStateClass = $stateClasses[$state] ?? $stateClasses[WeeklyJourneyDayState::UPCOMING->value];
                         $segmentClasses = implode(
                             ' ',
                             array_filter([
-                                'h-4 rounded-sm border border-transparent cursor-default transition-colors duration-300',
-                                $day['read'] ?? false
-                                    ? 'bg-success-500 dark:bg-success-600'
-                                    : 'bg-gray-200 dark:bg-gray-700',
+                                'h-4 rounded-sm border cursor-default transition-colors duration-300',
+                                $segmentStateClass,
                                 $day['isToday'] ?? false
                                     ? 'ring-2 ring-primary-400 dark:ring-primary-500 ring-offset-1 ring-offset-white dark:ring-offset-gray-900'
                                     : '',
@@ -116,11 +127,11 @@
     </div>
 
     <div @class([
-        'card-footer border-t border-gray-100 dark:border-gray-800 pt-4 flex flex-row items-center gap-4 flex-wrap',
-        'justify-between' => $ctaIsVisible,
+        'card-footer border-t border-gray-100 dark:border-gray-800 pt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6',
+        'sm:justify-between' => $ctaIsVisible,
         'justify-start' => ! $ctaIsVisible,
     ])>
-        <p class="text-sm leading-relaxed flex items-center gap-2 {{ $status['microcopyClasses'] }}">
+        <p class="text-sm leading-relaxed flex items-center gap-2 flex-1 min-w-0 {{ $status['microcopyClasses'] }}">
             @if ($status['showCrown'])
                 <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path
@@ -133,8 +144,8 @@
         @if ($ctaIsVisible)
             <button type="button" hx-get="{{ route('logs.create') }}" hx-target="#page-container" hx-swap="innerHTML"
                 hx-push-url="true"
-                class="inline-flex w-auto items-center justify-center rounded-full bg-accent-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-500">
-                Log today's reading
+                class="inline-flex w-full sm:w-auto shrink-0 items-center justify-center rounded-full bg-accent-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-500">
+                Log reading
             </button>
         @endif
     </div>

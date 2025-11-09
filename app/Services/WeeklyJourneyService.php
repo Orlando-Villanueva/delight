@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\WeeklyJourneyDayState;
 use App\Models\ReadingLog;
 use App\Models\User;
 use Carbon\Carbon;
@@ -64,12 +65,15 @@ class WeeklyJourneyService
         for ($offset = 0; $offset < self::DAYS_IN_WEEK; $offset++) {
             $date = $weekStart->copy()->addDays($offset);
             $dateString = $date->toDateString();
+            $isRead = isset($readLookup[$dateString]);
+            $state = WeeklyJourneyDayState::resolve($date, $today, $isRead);
 
             $days[] = [
                 'date' => $dateString,
                 'dow' => $date->dayOfWeek,
                 'isToday' => $date->isSameDay($today),
-                'read' => isset($readLookup[$dateString]),
+                'read' => $isRead,
+                'state' => $state->value,
             ];
         }
 
@@ -125,8 +129,11 @@ class WeeklyJourneyService
                 $dateString = $day['date'] ?? null;
                 $date = $dateString ? Carbon::parse($dateString) : null;
                 $formattedDate = $date ? $date->format('D M j') : sprintf('Day %d', $index + 1);
-                $readText = ($day['read'] ?? false) ? 'read' : 'not yet';
-                $label = sprintf('%s — %s', $formattedDate, $readText);
+                $state = WeeklyJourneyDayState::tryFrom($day['state'] ?? '') ?? (($day['read'] ?? false)
+                    ? WeeklyJourneyDayState::COMPLETE
+                    : WeeklyJourneyDayState::UPCOMING);
+                $stateDescription = $state->description();
+                $label = sprintf('%s — %s', $formattedDate, $stateDescription);
 
                 return array_merge($day, [
                     'title' => $label,
@@ -165,7 +172,7 @@ class WeeklyJourneyService
             'not-started' => [
                 'state' => 'not-started',
                 'label' => 'Get started',
-                'microcopy' => 'Let\'s start your week',
+                'microcopy' => 'Start your week',
                 'chipClasses' => 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800/70 dark:text-gray-100 dark:border-gray-700',
                 'microcopyClasses' => 'text-gray-600 dark:text-gray-300',
                 'showCrown' => false,

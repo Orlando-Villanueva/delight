@@ -449,6 +449,7 @@ class UserStatisticsService
         Cache::forget("user_dashboard_stats_{$user->id}");
         Cache::forget("user_current_streak_{$user->id}");
         Cache::forget("user_longest_streak_{$user->id}");
+        Cache::forget("user_weekly_goal_v2_{$user->id}_{$weekStart}");
         Cache::forget("user_weekly_goal_{$user->id}_{$weekStart}");
         Cache::forget("user_calendar_{$user->id}_{$currentYear}");
         Cache::forget("user_calendar_{$user->id}_{$previousYear}");
