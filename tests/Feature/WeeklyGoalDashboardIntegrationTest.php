@@ -127,7 +127,7 @@ class WeeklyGoalDashboardIntegrationTest extends TestCase
 
         // Cache some initial weekly goal data
         $weekStart = now()->startOfWeek(\Carbon\Carbon::SUNDAY)->toDateString();
-        $cacheKey = "user_weekly_goal_{$user->id}_{$weekStart}";
+        $cacheKey = "user_weekly_goal_v2_{$user->id}_{$weekStart}";
         cache()->put($cacheKey, ['test_data' => 'should_be_cleared'], 3600);
 
         // Verify cache exists
