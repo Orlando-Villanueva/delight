@@ -48,7 +48,8 @@
     $ctaIsVisible = (bool) ($ctaVisible ?? false);
 @endphp
 
-<div {{ $attributes->class(['card h-full flex flex-col dark:bg-gray-900 dark:border-gray-800 shadow-lg']) }}>
+<div
+    {{ $attributes->class(['card h-full flex flex-col border border-[#D1D7E0] dark:border-gray-700 dark:bg-gray-800 shadow-lg transition-colors']) }}>
     <div class="card-header pb-4">
         <div class="flex flex-col gap-2">
             <div class="flex flex-wrap items-start justify-between gap-3">
@@ -127,7 +128,7 @@
     </div>
 
     <div @class([
-        'card-footer border-t border-gray-100 dark:border-gray-800 pt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6',
+        'card-footer border-t border-gray-100 dark:border-gray-700 pt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6',
         'sm:justify-between' => $ctaIsVisible,
         'justify-start' => ! $ctaIsVisible,
     ])>
