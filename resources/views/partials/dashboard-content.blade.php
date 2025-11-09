@@ -8,7 +8,8 @@
     hx-get="{{ route('dashboard') }}"
     hx-target="#main-content"
     hx-swap="outerHTML"
-    hx-select="#main-content">
+    hx-select="#main-content"
+    hx-disinherit="hx-select">
     @php
         $journeyPayload = $weeklyJourney ?? ($weeklyGoal['journey'] ?? []);
         $weeklyJourneyCard = array_merge([
