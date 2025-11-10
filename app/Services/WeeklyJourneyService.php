@@ -117,7 +117,7 @@ class WeeklyJourneyService
             'weeklyTarget' => self::WEEKLY_TARGET,
             'ctaEnabled' => $ctaEnabled,
             'ctaVisible' => $this->shouldShowCta($ctaEnabled, $todaySlot, $currentProgress),
-            'status' => $this->determineStatusTokens($currentProgress),
+            'status' => $this->buildPerfectWeekStatus($currentProgress),
             'journeyAltText' => $this->buildJourneyAltText($currentProgress),
         ];
     }
@@ -154,64 +154,20 @@ class WeeklyJourneyService
         return ! $todayRead && $currentProgress < self::WEEKLY_TARGET;
     }
 
-    private function determineStatusTokens(int $currentProgress): array
+    private function buildPerfectWeekStatus(int $currentProgress): ?array
     {
-        $state = 'not-started';
-
-        if ($currentProgress >= self::WEEKLY_TARGET) {
-            $state = 'perfect';
-        } elseif ($currentProgress >= 5) {
-            $state = 'on-a-roll';
-        } elseif ($currentProgress >= 4) {
-            $state = 'solid';
-        } elseif ($currentProgress >= 1) {
-            $state = 'momentum';
+        if ($currentProgress < self::WEEKLY_TARGET) {
+            return null;
         }
 
-        $tokens = [
-            'not-started' => [
-                'state' => 'not-started',
-                'label' => 'Get started',
-                'microcopy' => 'Start your week',
-                'chipClasses' => 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800/70 dark:text-gray-100 dark:border-gray-700',
-                'microcopyClasses' => 'text-gray-600 dark:text-gray-300',
-                'showCrown' => false,
-            ],
-            'momentum' => [
-                'state' => 'momentum',
-                'label' => 'Momentum',
-                'microcopy' => 'Nice start—keep going',
-                'chipClasses' => 'bg-primary-100 text-primary-800 border border-primary-200 dark:bg-primary-900/40 dark:text-primary-100 dark:border-primary-800',
-                'microcopyClasses' => 'text-primary-700 dark:text-primary-200',
-                'showCrown' => false,
-            ],
-            'solid' => [
-                'state' => 'solid',
-                'label' => 'Keep going',
-                'microcopy' => 'Solid week—keep reaching for 7',
-                'chipClasses' => 'bg-success-100 text-success-800 border border-success-200 dark:bg-success-900/40 dark:text-success-100 dark:border-success-800',
-                'microcopyClasses' => 'text-success-700 dark:text-success-200',
-                'showCrown' => false,
-            ],
-            'on-a-roll' => [
-                'state' => 'on-a-roll',
-                'label' => 'Almost there',
-                'microcopy' => 'So close to perfect',
-                'chipClasses' => 'bg-success-500 text-white border border-success-500 dark:bg-success-600 dark:border-success-600',
-                'microcopyClasses' => 'text-success-700 dark:text-success-200',
-                'showCrown' => false,
-            ],
-            'perfect' => [
-                'state' => 'perfect',
-                'label' => 'Perfect week',
-                'microcopy' => 'Perfect week!',
-                'chipClasses' => 'bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/40 dark:text-amber-100 dark:border-amber-800',
-                'microcopyClasses' => 'text-amber-600 dark:text-amber-300 font-semibold',
-                'showCrown' => true,
-            ],
+        return [
+            'state' => 'perfect',
+            'label' => 'Perfect week',
+            'microcopy' => 'You did it—enjoy some rest!',
+            'chipClasses' => 'bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/40 dark:text-amber-100 dark:border-amber-800',
+            'microcopyClasses' => 'text-amber-600 dark:text-amber-300 font-semibold',
+            'showCrown' => true,
         ];
-
-        return $tokens[$state];
     }
 
     private function buildJourneyAltText(int $currentProgress): string

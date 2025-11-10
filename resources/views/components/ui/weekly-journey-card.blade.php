@@ -34,10 +34,10 @@
     $dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
     $statusFallback = [
-        'label' => 'Get started',
-        'microcopy' => 'Let\'s start your week',
-        'chipClasses' =>
-            'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800/70 dark:text-gray-100 dark:border-gray-700',
+        'state' => null,
+        'label' => null,
+        'microcopy' => 'Kick off your week',
+        'chipClasses' => '',
         'microcopyClasses' => 'text-gray-600 dark:text-gray-300',
         'showCrown' => false,
     ];
@@ -57,28 +57,30 @@
                     <p class="card-title text-gray-900 dark:text-gray-100">Weekly Journey</p>
                     <p class="card-description text-gray-600 dark:text-gray-300">{{ $weekRangeText }}</p>
                 </div>
-                <output
-                    class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold {{ $status['chipClasses'] }}"
-                    aria-live="polite" aria-atomic="true">
-                    @if ($status['showCrown'])
-                        <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <path
-                                d="M4 18h16l1.3-7.8a.75.75 0 0 0-1.18-.73L17 12.5l-4.11-6.17a.75.75 0 0 0-1.28 0L7.5 12.5 3.88 9.47a.75.75 0 0 0-1.18.73L4 18zm-1 2.25A.75.75 0 0 0 3.75 21h16.5a.75.75 0 0 0 .75-.75V19H3v1.25z" />
-                        </svg>
-                    @endif
-                    <span>{{ $status['label'] }}</span>
-                </output>
+                @if (($status['state'] ?? null) === 'perfect')
+                    <output
+                        class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold {{ $status['chipClasses'] }}"
+                        aria-live="polite" aria-atomic="true">
+                        @if ($status['showCrown'])
+                            <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path
+                                    d="M4 18h16l1.3-7.8a.75.75 0 0 0-1.18-.73L17 12.5l-4.11-6.17a.75.75 0 0 0-1.28 0L7.5 12.5 3.88 9.47a.75.75 0 0 0-1.18.73L4 18zm-1 2.25A.75.75 0 0 0 3.75 21h16.5a.75.75 0 0 0 .75-.75V19H3v1.25z" />
+                            </svg>
+                        @endif
+                        <span>{{ $status['label'] }}</span>
+                    </output>
+                @endif
             </div>
         </div>
     </div>
 
     <div class="card-content flex-1 flex flex-col gap-6 pt-4">
-        <div>
+        <div class="flex items-center gap-3">
             <p class="text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight">
                 {{ $currentProgress ?? 0 }}
-                <span class="ml-2 text-base font-normal text-gray-500 dark:text-gray-300">
-                    {{ \Illuminate\Support\Str::plural('day', $currentProgress ?? 0) }} this week
-                </span>
+            </p>
+            <p class="text-base font-normal text-gray-500 dark:text-gray-300 leading-tight">
+                {{ \Illuminate\Support\Str::plural('day', $currentProgress ?? 0) }} this week
             </p>
         </div>
 
@@ -133,12 +135,6 @@
         'justify-start' => ! $ctaIsVisible,
     ])>
         <p class="text-sm leading-relaxed flex items-center gap-2 flex-1 min-w-0 {{ $status['microcopyClasses'] }}">
-            @if ($status['showCrown'])
-                <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path
-                        d="M4 18h16l1.3-7.8a.75.75 0 0 0-1.18-.73L17 12.5l-4.11-6.17a.75.75 0 0 0-1.28 0L7.5 12.5 3.88 9.47a.75.75 0 0 0-1.18.73L4 18zm-1 2.25A.75.75 0 0 0 3.75 21h16.5a.75.75 0 0 0 .75-.75V19H3v1.25z" />
-                </svg>
-            @endif
             <span>{{ $status['microcopy'] }}</span>
         </p>
 
