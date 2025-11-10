@@ -46,6 +46,7 @@
     $journeyAltText =
         $journeyAltText ?? sprintf('%d of %d days logged this week.', (int) $currentProgress, (int) $weeklyTarget);
     $ctaIsVisible = (bool) ($ctaVisible ?? false);
+    $isPerfectWeek = ($status['state'] ?? null) === 'perfect';
 @endphp
 
 <div
@@ -62,9 +63,9 @@
                         class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold {{ $status['chipClasses'] }}"
                         aria-live="polite" aria-atomic="true">
                         @if ($status['showCrown'])
-                            <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <svg class="w-5 h-5 text-amber-500" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true">
                                 <path
-                                    d="M4 18h16l1.3-7.8a.75.75 0 0 0-1.18-.73L17 12.5l-4.11-6.17a.75.75 0 0 0-1.28 0L7.5 12.5 3.88 9.47a.75.75 0 0 0-1.18.73L4 18zm-1 2.25A.75.75 0 0 0 3.75 21h16.5a.75.75 0 0 0 .75-.75V19H3v1.25z" />
+                                    d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512H456.9C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
                             </svg>
                         @endif
                         <span>{{ $status['label'] }}</span>
@@ -76,10 +77,10 @@
 
     <div class="card-content flex-1 flex flex-col gap-6 pt-4">
         <div class="flex items-center gap-3">
-            <p class="text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight">
+            <p class="text-3xl font-semibold leading-tight text-gray-900 dark:text-gray-100">
                 {{ $currentProgress ?? 0 }}
             </p>
-            <p class="text-base font-normal text-gray-500 dark:text-gray-300 leading-tight">
+            <p class="text-base font-normal leading-tight text-gray-500 dark:text-gray-300">
                 {{ \Illuminate\Support\Str::plural('day', $currentProgress ?? 0) }} this week
             </p>
         </div>
@@ -90,12 +91,15 @@
             <div class="grid grid-cols-7 gap-1">
                 @foreach ($journeyDays as $index => $day)
                     @php
+                        $perfectCompleteState = 'bg-amber-400/90 dark:bg-amber-400 border-transparent';
                         $state = $day['state'] ??
                             (($day['read'] ?? false)
                                 ? WeeklyJourneyDayState::COMPLETE->value
                                 : WeeklyJourneyDayState::UPCOMING->value);
                         $stateClasses = [
-                            WeeklyJourneyDayState::COMPLETE->value => 'bg-success-500 dark:bg-success-600 border-transparent',
+                            WeeklyJourneyDayState::COMPLETE->value => $isPerfectWeek
+                                ? $perfectCompleteState
+                                : 'bg-success-500 dark:bg-success-600 border-transparent',
                             WeeklyJourneyDayState::MISSED->value => 'bg-destructive-100 dark:bg-destructive-900/40 border-destructive-200 dark:border-destructive-700',
                             WeeklyJourneyDayState::TODAY->value => 'bg-gray-200 dark:bg-gray-700 border-transparent',
                             WeeklyJourneyDayState::UPCOMING->value => 'bg-gray-200 dark:bg-gray-700 border-transparent',
