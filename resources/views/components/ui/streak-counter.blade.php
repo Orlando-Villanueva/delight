@@ -21,9 +21,9 @@
     ];
 
     $numberSizes = [
-        'small' => 'text-2xl lg:text-3xl',
-        'default' => 'text-3xl lg:text-4xl',
-        'large' => 'text-4xl lg:text-5xl',
+        'small' => 'text-2xl',
+        'default' => 'text-3xl',
+        'large' => 'text-4xl',
     ];
 
     $iconSizes = [
@@ -39,30 +39,45 @@
                 'count' => max(0, (int) ($entry['count'] ?? 0)),
             ];
         })
-        ->filter(fn($entry) => !empty($entry['date']))
+        ->filter(fn ($entry) => ! empty($entry['date']))
         ->values();
+
+    $minSeriesLength = 15;
+    if ($series->count() > 0 && $series->count() < $minSeriesLength) {
+        $placeholderCount = $minSeriesLength - $series->count();
+        $placeholders = collect()->times($placeholderCount, fn () => [
+            'date' => null,
+            'count' => 0,
+        ]);
+        $series = $series->merge($placeholders)->values();
+    }
 
     $seriesPointCount = $series->count();
     $seriesRawMax = $series->max('count') ?? 0;
     $seriesRawMin = $series->min('count') ?? 0;
-    $seriesMaxValue = max(1, $seriesRawMax);
-    $sparklineWidth = 150;
+    $seriesMaxValue = max(3, $seriesRawMax);
     $sparklineHeight = 42;
     $sparklineGradientId = 'streakSparklineFill_' . uniqid();
 
+    $baseWidth = 160;
+    $maxWidth = 260;
+    $dynamicWidth = $seriesPointCount > 0 ? $seriesPointCount * 18 : $baseWidth;
+    $sparklineWidth = min($maxWidth, max($baseWidth, $dynamicWidth));
     $plotOffsetX = 18;
+    $viewBoxWidth = $sparklineWidth + $plotOffsetX + 2;
+    $plotWidth = $sparklineWidth;
 
     $pointCoordinates = $series->map(function ($entry, $index) use (
         $seriesPointCount,
-        $sparklineWidth,
+        $plotWidth,
         $sparklineHeight,
         $seriesMaxValue,
         $plotOffsetX,
     ) {
         if ($seriesPointCount === 1) {
-            $x = $plotOffsetX + $sparklineWidth;
+            $x = $plotOffsetX + $plotWidth;
         } else {
-            $x = $plotOffsetX + ($index / max(1, $seriesPointCount - 1)) * $sparklineWidth;
+            $x = $plotOffsetX + ($index / max(1, $seriesPointCount - 1)) * $plotWidth;
         }
 
         $normalized = $seriesMaxValue > 0 ? $entry['count'] / $seriesMaxValue : 0;
@@ -118,34 +133,51 @@
                 <p class="card-title text-gray-900 dark:text-gray-100">Daily Streak</p>
                 <p class="card-description text-gray-600 dark:text-gray-300">Stay consistent day after day</p>
             </div>
-            @if ($stateClasses['showIcon'] ?? false)
-                <span
-                    class="inline-flex shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 p-2">
-                    <svg class="{{ $iconSizes[$size] ?? $iconSizes['default'] }} {{ $iconStateClasses[$state] ?? $iconStateClasses['active'] }}"
-                        fill="currentColor" viewBox="0 0 384 512">
-                        <path
-                            d="M216 23.86c0-23.8-30.65-32.77-44.15-13.04C48 191.85 224 200 224 288c0 35.63-29.11 64.46-64.85 63.99-35.17-.45-63.15-29.77-63.15-64.94v-85.51c0-21.7-26.47-32.4-41.6-16.9C21.22 216.4 0 268.2 0 320c0 105.87 86.13 192 192 192s192-86.13 192-192c0-170.29-168-193.17-168-296.14z" />
-                    </svg>
-                </span>
-            @endif
+            <div class="flex items-center gap-2">
+                @if ($stateClasses['showIcon'] ?? false)
+                    <span
+                        class="inline-flex shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 p-2">
+                        <svg class="{{ $iconSizes[$size] ?? $iconSizes['default'] }} {{ $iconStateClasses[$state] ?? $iconStateClasses['active'] }}"
+                            fill="currentColor" viewBox="0 0 384 512">
+                            <path
+                                d="M216 23.86c0-23.8-30.65-32.77-44.15-13.04C48 191.85 224 200 224 288c0 35.63-29.11 64.46-64.85 63.99-35.17-.45-63.15-29.77-63.15-64.94v-85.51c0-21.7-26.47-32.4-41.6-16.9C21.22 216.4 0 268.2 0 320c0 105.87 86.13 192 192 192s192-86.13 192-192c0-170.29-168-193.17-168-296.14z" />
+                        </svg>
+                    </span>
+                @endif
+            </div>
         </div>
     </div>
 
     <div
         class="card-content flex-1 flex flex-col gap-6 pt-4 {{ $contentPaddingClasses[$size] ?? $contentPaddingClasses['default'] }}">
         <div class="flex flex-col gap-3">
-            <div class="flex items-center gap-3">
-                <p class="{{ $numberSizes[$size] ?? $numberSizes['default'] }} font-semibold {{ $numberColorClass }}">
-                    {{ $currentStreak }}
-                </p>
-                <p class="text-base font-normal {{ $textColorClass }}">
-                    {{ $currentStreak === 1 ? 'day' : 'days' }} in a row
-                </p>
+            <div class="flex items-center gap-3 flex-wrap">
+                <div class="flex items-center gap-3">
+                    <p class="{{ $numberSizes[$size] ?? $numberSizes['default'] }} font-semibold {{ $numberColorClass }}">
+                        {{ $currentStreak }}
+                    </p>
+                    <p class="text-base font-normal {{ $textColorClass }}">
+                        {{ $currentStreak === 1 ? 'day' : 'days' }} in a row
+                    </p>
+                </div>
+
+                @if ($longestStreak > $currentStreak)
+                    <span
+                        class="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-700 px-3 py-1 text-xs font-semibold text-gray-700 dark:text-gray-200"
+                        title="Best streak: {{ $longestStreak }} {{ Str::plural('day', $longestStreak) }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-amber-500" fill="currentColor"
+                            viewBox="0 0 16 16" aria-hidden="true">
+                            <path
+                                d="M2.5.5A.5.5 0 0 1 3 0h10a.5.5 0 0 1 .5.5q0 .807-.034 1.536a3 3 0 1 1-1.133 5.89c-.79 1.865-1.878 2.777-2.833 3.011v2.173l1.425.356c.194.048.377.135.537.255L13.3 15.1a.5.5 0 0 1-.3.9H3a.5.5 0 0 1-.3-.9l1.838-1.379c.16-.12.343-.207.537-.255L6.5 13.11v-2.173c-.955-.234-2.043-1.146-2.833-3.012a3 3 0 1 1-1.132-5.89A33 33 0 0 1 2.5.5m.099 2.54a2 2 0 0 0 .72 3.935c-.333-1.05-.588-2.346-.72-3.935m10.083 3.935a2 2 0 0 0 .72-3.935c-.133 1.59-.388 2.885-.72 3.935" />
+                        </svg>
+                        {{ $longestStreak }}
+                    </span>
+                @endif
             </div>
 
             @if ($seriesHasTrend)
                 <figure class="mt-2">
-                    <svg viewBox="0 0 {{ $sparklineWidth + $plotOffsetX + 2 }} {{ $sparklineHeight }}" role="img"
+                    <svg viewBox="0 0 {{ $viewBoxWidth }} {{ $sparklineHeight }}" role="img"
                         aria-label="Daily readings since streak began. Starts {{ $seriesStart }}, most recent {{ $seriesEnd }}."
                         class="w-full h-12" style="overflow: visible;">
                         <defs>
@@ -171,7 +203,7 @@
                             </text>
                         @endforeach
                         <polyline
-                            points="{{ $sparklinePoints }} {{ $plotOffsetX + $sparklineWidth }},{{ $sparklineHeight }} {{ $plotOffsetX }},{{ $sparklineHeight }}"
+                            points="{{ $sparklinePoints }} {{ $plotOffsetX + $plotWidth }},{{ $sparklineHeight }} {{ $plotOffsetX }},{{ $sparklineHeight }}"
                             fill="url(#{{ $sparklineGradientId }})" stroke="none" />
                         <polyline points="{{ $sparklinePoints }}" fill="none"
                             stroke="var(--color-primary-500, #2563eb)" stroke-width="2" stroke-linecap="round"
@@ -183,18 +215,13 @@
                 </figure>
             @endif
 
-            @if ($longestStreak > $currentStreak)
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    Record: {{ $longestStreak }} {{ Str::plural('day', $longestStreak) }}
-                </p>
-            @endif
         </div>
     </div>
 
     @if ($message)
         <div
-            class="card-footer border-t border-gray-100 dark:border-gray-700 pt-4 pb-4 {{ $footerPaddingClasses[$size] ?? $footerPaddingClasses['default'] }}">
-            <p class="text-sm leading-relaxed text-gray-700 dark:text-gray-200">
+            class="card-footer border-t border-gray-100 dark:border-gray-700 pt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6 {{ $footerPaddingClasses[$size] ?? $footerPaddingClasses['default'] }}">
+            <p class="text-sm leading-relaxed text-gray-700 dark:text-gray-200 flex items-center gap-2 flex-1 min-w-0">
                 {{ $message }}
             </p>
         </div>
