@@ -75,6 +75,7 @@ class DashboardControllerTest extends TestCase
         $this->assertIsArray($data['stats']);
         $this->assertArrayHasKey('streaks', $data['stats']);
         $this->assertArrayHasKey('current_streak', $data['stats']['streaks']);
+        $this->assertArrayHasKey('current_streak_series', $data['stats']['streaks']);
     }
 
     public function test_index_includes_weekly_goal_data_for_regular_request()

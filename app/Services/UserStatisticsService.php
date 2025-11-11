@@ -55,9 +55,16 @@ class UserStatisticsService
             fn () => $this->readingLogService->calculateLongestStreak($user)
         );
 
+        $currentStreakSeries = Cache::remember(
+            "user_current_streak_series_{$user->id}",
+            3600,
+            fn () => $this->readingLogService->getCurrentStreakSeries($user)
+        );
+
         return [
             'current_streak' => $currentStreak,
             'longest_streak' => $longestStreak,
+            'current_streak_series' => $currentStreakSeries,
         ];
     }
 

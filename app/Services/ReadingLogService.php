@@ -186,6 +186,61 @@ class ReadingLogService
     }
 
     /**
+     * Build the per-day timeline for the active streak (date -> readings count).
+     *
+     * Returns an array sorted from streak start to the most recent day:
+     * [
+     *     ['date' => '2025-01-01', 'count' => 2],
+     *     ...
+     * ]
+     */
+    public function getCurrentStreakSeries(User $user): array
+    {
+        $dailyCounts = $user->readingLogs()
+            ->select('date_read')
+            ->orderBy('date_read', 'desc')
+            ->get()
+            ->groupBy(function ($row) {
+                return Carbon::parse($row->date_read)->startOfDay()->toDateString();
+            })
+            ->map(function ($group) {
+                return $group->count();
+            });
+
+        if ($dailyCounts->isEmpty()) {
+            return [];
+        }
+
+        $today = Carbon::today();
+        $yesterday = Carbon::yesterday();
+
+        $todayKey = $today->toDateString();
+        $yesterdayKey = $yesterday->toDateString();
+
+        $hasRecentReading = $dailyCounts->has($todayKey) || $dailyCounts->has($yesterdayKey);
+
+        if (! $hasRecentReading) {
+            return [];
+        }
+
+        $series = [];
+        $checkDate = $dailyCounts->has($todayKey) ? $today->copy() : $yesterday->copy();
+
+        while ($dailyCounts->has($checkDate->toDateString())) {
+            $dateKey = $checkDate->toDateString();
+
+            $series[] = [
+                'date' => $dateKey,
+                'count' => $dailyCounts->get($dateKey),
+            ];
+
+            $checkDate->subDay();
+        }
+
+        return array_reverse($series);
+    }
+
+    /**
      * Calculate the longest streak ever for a user.
      */
     public function calculateLongestStreak(User $user): int
@@ -373,6 +428,7 @@ class ReadingLogService
         Cache::forget("user_monthly_calendar_{$user->id}_{$currentMonth}");
         Cache::forget("user_total_reading_days_{$user->id}");
         Cache::forget("user_avg_chapters_per_day_{$user->id}");
+        Cache::forget("user_current_streak_series_{$user->id}");
 
         // Smart invalidation - only invalidate on first reading of the day
         if ($isFirstReadingOfDay) {
