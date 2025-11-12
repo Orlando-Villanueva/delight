@@ -245,16 +245,50 @@ class ReadingLogService
      */
     public function calculateLongestStreak(User $user): int
     {
-        // Get all unique reading dates, normalized and sorted ascending
-        $readingDates = $user->readingLogs()
+        $readingDates = $this->getNormalizedReadingDates($user);
+
+        return $this->computeLongestStreakFromDates($readingDates);
+    }
+
+    /**
+     * Calculate the longest streak prior to the supplied date (exclusive).
+     */
+    public function calculateLongestStreakBeforeDate(User $user, Carbon|string $beforeDate): int
+    {
+        $normalizedDate = $beforeDate instanceof Carbon
+            ? $beforeDate->copy()->startOfDay()
+            : Carbon::parse($beforeDate)->startOfDay();
+
+        $readingDates = $this->getNormalizedReadingDates($user, $normalizedDate);
+
+        return $this->computeLongestStreakFromDates($readingDates);
+    }
+
+    /**
+     * Fetch normalized reading dates optionally filtered before a date.
+     */
+    private function getNormalizedReadingDates(User $user, ?Carbon $beforeDate = null): Collection
+    {
+        $query = $user->readingLogs()
             ->select('date_read')
             ->distinct()
-            ->orderBy('date_read', 'asc')
-            ->pluck('date_read')
+            ->orderBy('date_read', 'asc');
+
+        if ($beforeDate) {
+            $query->where('date_read', '<', $beforeDate->toDateString());
+        }
+
+        return $query->pluck('date_read')
             ->map(fn ($date) => Carbon::parse($date)->startOfDay())
             ->unique()
             ->values();
+    }
 
+    /**
+     * Compute the longest streak from an ordered list of reading dates.
+     */
+    private function computeLongestStreakFromDates(Collection $readingDates): int
+    {
         if ($readingDates->isEmpty()) {
             return 0;
         }
@@ -264,15 +298,12 @@ class ReadingLogService
         $previousDate = $readingDates->first();
 
         foreach ($readingDates->skip(1) as $date) {
-            // Cast to int as diffInDays may return float depending on Carbon version
             $daysDifference = (int) $previousDate->diffInDays($date);
 
-            // Consecutive days should have exactly 1 day difference
             if ($daysDifference === 1) {
                 $currentStreak++;
                 $longestStreak = max($longestStreak, $currentStreak);
             } else {
-                // Gap found, reset current streak
                 $currentStreak = 1;
             }
 

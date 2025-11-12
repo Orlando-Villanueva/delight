@@ -5,6 +5,9 @@
     'message' => '',
     'size' => 'default',
     'streakSeries' => [],
+    'messageTone' => 'default',
+    'recordStatus' => 'none',
+    'recordJustBroken' => false,
 ])
 
 @php
@@ -124,6 +127,18 @@
         'active' => 'text-accent-500 dark:text-accent-400',
         'inactive' => 'text-accent-400/70 dark:text-accent-300/70',
     ];
+
+    $normalizedRecordStatus = strtolower((string) $recordStatus);
+    $isRecordRun = $normalizedRecordStatus === 'record';
+    $sparklineStrokeColor = $isRecordRun
+        ? 'var(--color-accent-500, #f97316)'
+        : 'var(--color-primary-500, #2563eb)';
+    $sparklineGradientColor = $isRecordRun ? '#fb923c' : '#3B82F6';
+    $sparklineStrokeDarkClass = $isRecordRun ? 'dark:stroke-accent-300' : 'dark:stroke-primary-400';
+    $messageToneClasses = [
+        'default' => 'text-gray-700 dark:text-gray-200',
+        'accent' => 'text-accent-600 dark:text-accent-400',
+    ];
 @endphp
 
 <div {{ $attributes->merge(['class' => $baseClass]) }}>
@@ -161,7 +176,21 @@
                     </p>
                 </div>
 
-                @if ($longestStreak > $currentStreak)
+                @if ($isRecordRun)
+                    <span
+                        class="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-accent-500 to-amber-400 px-3 py-1 text-xs font-semibold text-white shadow-sm {{ $recordJustBroken ? 'animate-pulse' : '' }}"
+                        title="You're on your longest streak ever">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-white" fill="currentColor"
+                            viewBox="0 0 16 16" aria-hidden="true">
+                            <path
+                                d="M2.5.5A.5.5 0 0 1 3 0h10a.5.5 0 0 1 .5.5q0 .807-.034 1.536a3 3 0 1 1-1.133 5.89c-.79 1.865-1.878 2.777-2.833 3.011v2.173l1.425.356c.194.048.377.135.537.255L13.3 15.1a.5.5 0 0 1-.3.9H3a.5.5 0 0 1-.3-.9l1.838-1.379c.16-.12.343-.207.537-.255L6.5 13.11v-2.173c-.955-.234-2.043-1.146-2.833-3.012a3 3 0 1 1-1.132-5.89A33 33 0 0 1 2.5.5m.099 2.54a2 2 0 0 0 .72 3.935c-.333-1.05-.588-2.346-.72-3.935m10.083 3.935a2 2 0 0 0 .72-3.935c-.133 1.59-.388 2.885-.72 3.935" />
+                        </svg>
+                        <span class="uppercase tracking-wide text-[11px]">Record</span>
+                    </span>
+                    @if ($recordJustBroken)
+                        <span class="sr-only">New personal record streak declared today</span>
+                    @endif
+                @elseif ($longestStreak > $currentStreak)
                     <span
                         class="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-700 px-3 py-1 text-xs font-semibold text-gray-700 dark:text-gray-200"
                         title="Best streak: {{ $longestStreak }} {{ Str::plural('day', $longestStreak) }}">
@@ -183,8 +212,8 @@
                         <defs>
                             <linearGradient id="{{ $sparklineGradientId }}" x1="0%" y1="0%"
                                 x2="0%" y2="100%">
-                                <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.25" />
-                                <stop offset="100%" stop-color="#3B82F6" stop-opacity="0" />
+                                <stop offset="0%" stop-color="{{ $sparklineGradientColor }}" stop-opacity="0.25" />
+                                <stop offset="100%" stop-color="{{ $sparklineGradientColor }}" stop-opacity="0" />
                             </linearGradient>
                         </defs>
                         <line x1="{{ $plotOffsetX }}" y1="0" x2="{{ $plotOffsetX }}"
@@ -206,8 +235,8 @@
                             points="{{ $sparklinePoints }} {{ $plotOffsetX + $plotWidth }},{{ $sparklineHeight }} {{ $plotOffsetX }},{{ $sparklineHeight }}"
                             fill="url(#{{ $sparklineGradientId }})" stroke="none" />
                         <polyline points="{{ $sparklinePoints }}" fill="none"
-                            stroke="var(--color-primary-500, #2563eb)" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round" class="dark:stroke-primary-400" />
+                            stroke="{{ $sparklineStrokeColor }}" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" class="{{ $sparklineStrokeDarkClass }}" />
                     </svg>
                     <figcaption class="sr-only">
                         Reading counts per day along the current streak
@@ -221,7 +250,7 @@
     @if ($message)
         <div
             class="card-footer border-t border-gray-100 dark:border-gray-700 pt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6 {{ $footerPaddingClasses[$size] ?? $footerPaddingClasses['default'] }}">
-            <p class="text-sm leading-relaxed text-gray-700 dark:text-gray-200 flex items-center gap-2 flex-1 min-w-0">
+            <p class="text-sm leading-relaxed flex items-center gap-2 flex-1 min-w-0 {{ $messageToneClasses[$messageTone] ?? $messageToneClasses['default'] }}">
                 {{ $message }}
             </p>
         </div>

@@ -49,13 +49,26 @@ class DashboardController extends Controller
             $stats['streaks']['longest_streak'],
             $hasReadToday
         );
+        $streakMessageTone = 'default';
+
+        $recordStatus = data_get($stats, 'streaks.record_status', 'none');
+        $recordJustBroken = data_get($stats, 'streaks.record_just_broken', false);
+        $currentStreak = data_get($stats, 'streaks.current_streak', 0);
+        if ($recordStatus === 'tied' && $currentStreak > 0) {
+            $streakMessage = "You've matched your best streak of {$currentStreak} days. Read tomorrow to set a new record.";
+        } elseif ($recordStatus === 'record' && $recordJustBroken) {
+            $streakMessage = "New personal record! Your {$currentStreak}-day streak is now the one to beat.";
+            $streakMessageTone = 'accent';
+        } elseif ($recordStatus === 'record') {
+            $streakMessage = "You're extending your personal record streak—keep showing up daily.";
+        }
 
         // Return partial for HTMX navigation, full page for direct access
         if ($request->header('HX-Request')) {
-            return view('partials.dashboard-page', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData'));
+            return view('partials.dashboard-page', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData'));
         }
 
         // Return full page for direct access (browser URL)
-        return view('dashboard', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData'));
+        return view('dashboard', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData'));
     }
 }

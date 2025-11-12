@@ -61,10 +61,40 @@ class UserStatisticsService
             fn () => $this->readingLogService->getCurrentStreakSeries($user)
         );
 
+        $currentStreakStartDate = null;
+        if (! empty($currentStreakSeries)) {
+            $firstEntry = $currentStreakSeries[0];
+            if (! empty($firstEntry['date'])) {
+                $currentStreakStartDate = Carbon::parse($firstEntry['date'])->startOfDay();
+            }
+        }
+
+        $previousLongest = 0;
+        if ($currentStreak > 0 && $currentStreakStartDate) {
+            $previousLongest = $this->readingLogService->calculateLongestStreakBeforeDate($user, $currentStreakStartDate);
+        } else {
+            $previousLongest = $longestStreak;
+        }
+
+        $recordStatus = 'none';
+        if ($currentStreak > 0) {
+            if ($currentStreak > $previousLongest) {
+                $recordStatus = 'record';
+            } elseif ($currentStreak === $previousLongest && $previousLongest > 0) {
+                $recordStatus = 'tied';
+            }
+        }
+
+        $recordJustBroken = $recordStatus === 'record' && $currentStreak === ($previousLongest + 1);
+
         return [
             'current_streak' => $currentStreak,
             'longest_streak' => $longestStreak,
             'current_streak_series' => $currentStreakSeries,
+            'record_previous_best' => $previousLongest,
+            'record_status' => $recordStatus,
+            'record_just_broken' => $recordJustBroken,
+            'current_streak_started_at' => $currentStreakStartDate?->toDateString(),
         ];
     }
 

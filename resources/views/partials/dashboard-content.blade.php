@@ -40,7 +40,7 @@
                 <!-- Daily Streak - Secondary Achievement -->
                 <div class="sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-1">
                     <x-ui.streak-counter :currentStreak="$stats['streaks']['current_streak']" :longestStreak="$stats['streaks']['longest_streak']" :streakSeries="$stats['streaks']['current_streak_series'] ?? []" :stateClasses="$streakStateClasses"
-                        :message="$streakMessage" class="h-full" />
+                        :message="$streakMessage" :messageTone="$streakMessageTone" :recordStatus="data_get($stats, 'streaks.record_status', 'none')" :recordJustBroken="data_get($stats, 'streaks.record_just_broken', false)" class="h-full" />
                 </div>
 
                 <!-- Summary Stats - shares row with calendar on tablet, full-width at xl, third column on 2xl -->
