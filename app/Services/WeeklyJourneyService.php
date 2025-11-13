@@ -53,7 +53,7 @@ class WeeklyJourneyService
             ->select('date_read')
             ->distinct()
             ->pluck('date_read')
-            ->map(fn($date) => Carbon::parse($date)->toDateString())
+            ->map(fn ($date) => Carbon::parse($date)->toDateString())
             ->toArray();
     }
 
@@ -100,6 +100,7 @@ class WeeklyJourneyService
         $weekStart = $today->copy()->startOfWeek(self::FIRST_DAY_OF_WEEK);
         $weekEnd = $today->copy()->endOfWeek(self::LAST_DAY_OF_WEEK);
         $days = $this->buildWeeklyDayMap($weekStart, [], $today);
+
         return $this->formatJourneyPayload($days, $weekStart, $weekEnd, 0);
     }
 
@@ -107,6 +108,7 @@ class WeeklyJourneyService
     {
         $normalizedDays = $this->appendAccessibilityMetadata($days);
         $todaySlot = collect($normalizedDays)->firstWhere('isToday', true);
+        $remainingOpportunities = $this->calculateRemainingOpportunities($normalizedDays);
         $ctaEnabled = $this->isCtaEnabled($todaySlot);
 
         return [
@@ -117,7 +119,7 @@ class WeeklyJourneyService
             'weeklyTarget' => self::WEEKLY_TARGET,
             'ctaEnabled' => $ctaEnabled,
             'ctaVisible' => $this->shouldShowCta($ctaEnabled, $todaySlot, $currentProgress),
-            'status' => $this->buildPerfectWeekStatus($currentProgress),
+            'status' => $this->buildJourneyStatus($currentProgress, $remainingOpportunities),
             'journeyAltText' => $this->buildJourneyAltText($currentProgress),
         ];
     }
@@ -154,20 +156,40 @@ class WeeklyJourneyService
         return ! $todayRead && $currentProgress < self::WEEKLY_TARGET;
     }
 
-    private function buildPerfectWeekStatus(int $currentProgress): ?array
+    private function buildJourneyStatus(int $currentProgress, int $remainingOpportunities): array
     {
-        if ($currentProgress < self::WEEKLY_TARGET) {
-            return null;
+        if ($currentProgress >= self::WEEKLY_TARGET) {
+            return $this->perfectWeekStatus();
         }
 
-        return [
-            'state' => 'perfect',
-            'label' => 'Perfect week',
-            'microcopy' => 'You did it—enjoy some rest!',
-            'chipClasses' => 'bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/40 dark:text-amber-100 dark:border-amber-800',
-            'microcopyClasses' => 'text-amber-600 dark:text-amber-300 font-semibold',
-            'showCrown' => true,
-        ];
+        $canStillHitTarget = ($currentProgress + $remainingOpportunities) >= self::WEEKLY_TARGET;
+
+        return match (true) {
+            $currentProgress >= 5 => $this->statusPayload(
+                'almost-there',
+                $canStillHitTarget ? 'Almost there' : 'Great run',
+                $canStillHitTarget ? 'So close to perfect' : 'Strong finish—carry momentum forward',
+                'text-success-700 dark:text-success-200 font-semibold'
+            ),
+            $currentProgress === 4 => $this->statusPayload(
+                'solid-week',
+                'Solid week',
+                $canStillHitTarget ? 'Solid week—keep reaching for 7' : 'Solid week—set up next week for 7',
+                'text-success-700 dark:text-success-200'
+            ),
+            $currentProgress >= 1 => $this->statusPayload(
+                'momentum',
+                'Momentum',
+                'Nice start—keep going',
+                'text-primary-700 dark:text-primary-200'
+            ),
+            default => $this->statusPayload(
+                'getting-started',
+                'Get started',
+                "Let's start your week",
+                'text-gray-600 dark:text-gray-300'
+            ),
+        };
     }
 
     private function buildJourneyAltText(int $currentProgress): string
@@ -175,5 +197,51 @@ class WeeklyJourneyService
         $clampedProgress = max(0, min($currentProgress, self::WEEKLY_TARGET));
 
         return sprintf('%d of %d days logged this week.', $clampedProgress, self::WEEKLY_TARGET);
+    }
+
+    private function calculateRemainingOpportunities(array $days): int
+    {
+        return collect($days)
+            ->reduce(function (int $carry, array $day) {
+                $state = $day['state'] ?? null;
+                if (in_array($state, [
+                    WeeklyJourneyDayState::UPCOMING->value,
+                    WeeklyJourneyDayState::TODAY->value,
+                ], true)) {
+                    return $carry + 1;
+                }
+
+                return $carry;
+            }, 0);
+    }
+
+    private function perfectWeekStatus(): array
+    {
+        return $this->statusPayload(
+            'perfect',
+            'Perfect week',
+            'You did it—enjoy some rest!',
+            'text-amber-600 dark:text-amber-300 font-semibold',
+            'bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/40 dark:text-amber-100 dark:border-amber-800',
+            true
+        );
+    }
+
+    private function statusPayload(
+        string $state,
+        string $label,
+        string $microcopy,
+        string $microcopyClasses,
+        string $chipClasses = '',
+        bool $showCrown = false
+    ): array {
+        return [
+            'state' => $state,
+            'label' => $label,
+            'microcopy' => $microcopy,
+            'chipClasses' => $chipClasses,
+            'microcopyClasses' => $microcopyClasses,
+            'showCrown' => $showCrown,
+        ];
     }
 }

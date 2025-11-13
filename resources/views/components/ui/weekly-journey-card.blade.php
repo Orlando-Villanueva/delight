@@ -36,7 +36,7 @@
     $statusFallback = [
         'state' => null,
         'label' => null,
-        'microcopy' => 'Kick off your week',
+        'microcopy' => "Let's start your week",
         'chipClasses' => '',
         'microcopyClasses' => 'text-gray-600 dark:text-gray-300',
         'showCrown' => false,

@@ -61,10 +61,12 @@ class ReadingLog extends Model implements ReadingLogInterface
      */
     public function scopeDateRange($query, $startDate, $endDate = null)
     {
-        $query->where('date_read', '>=', $startDate);
+        $start = $this->normalizeDateBoundary($startDate);
+        $query->whereDate('date_read', '>=', $start);
 
         if ($endDate) {
-            $query->where('date_read', '<=', $endDate);
+            $end = $this->normalizeDateBoundary($endDate);
+            $query->whereDate('date_read', '<=', $end);
         }
 
         return $query;
@@ -100,5 +102,14 @@ class ReadingLog extends Model implements ReadingLogInterface
     public function getCreatedAt(): Carbon
     {
         return $this->created_at;
+    }
+
+    private function normalizeDateBoundary($value): string
+    {
+        if ($value instanceof Carbon) {
+            return $value->toDateString();
+        }
+
+        return Carbon::parse($value)->toDateString();
     }
 }

@@ -122,7 +122,7 @@ Route::get('/demo/weekly-journey', function () {
         $makeVariant('Fresh Sunday (empty)', 'Brand-new week with no logs yet; CTA encourages a strong start.', [
             'todayIndex' => 0,
             'readIndexes' => [],
-            'status' => $statusTone('Kick off your week'),
+            'status' => $statusTone("Let's start your week"),
         ]),
         $makeVariant('Midweek momentum', 'Three days logged, today still open to keep pace.', [
             'todayIndex' => 3,
