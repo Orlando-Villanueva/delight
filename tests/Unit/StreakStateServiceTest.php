@@ -775,6 +775,41 @@ class StreakStateServiceTest extends \Tests\TestCase
         // The important thing is that the logic allows both types for non-milestone days
     }
 
+    public function test_message_payload_returns_base_message_and_default_tone_without_record_overrides()
+    {
+        $service = new StreakStateService;
+
+        Carbon::setTestNow(Carbon::parse('2024-02-01'));
+
+        $baseMessage = $service->selectMessage(5, 'active', 0, false);
+        $payload = $service->getMessagePayload(5, 'active', 0, false);
+
+        $this->assertSame($baseMessage, $payload['message']);
+        $this->assertSame('default', $payload['tone']);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_message_payload_overrides_for_tied_records()
+    {
+        $service = new StreakStateService;
+
+        $payload = $service->getMessagePayload(12, 'active', 30, false, 'tied', false);
+
+        $this->assertSame("You've matched your best streak of 12 days. Read tomorrow to set a new record.", $payload['message']);
+        $this->assertSame('default', $payload['tone']);
+    }
+
+    public function test_message_payload_overrides_for_new_records_with_accent_tone()
+    {
+        $service = new StreakStateService;
+
+        $payload = $service->getMessagePayload(15, 'active', 14, false, 'record', true);
+
+        $this->assertSame("New personal record! Your 15-day streak is now the one to beat.", $payload['message']);
+        $this->assertSame('accent', $payload['tone']);
+    }
+
     /**
      * Helper method that uses the service to determine state
      */

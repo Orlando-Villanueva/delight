@@ -1,0 +1,247 @@
+<?php
+
+namespace App\Services;
+
+use App\Enums\WeeklyJourneyDayState;
+use App\Models\ReadingLog;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
+use Throwable;
+
+class WeeklyJourneyService
+{
+    private const int DAYS_IN_WEEK = 7;
+
+    private const int FIRST_DAY_OF_WEEK = Carbon::SUNDAY;
+
+    private const int LAST_DAY_OF_WEEK = Carbon::SATURDAY;
+
+    private const int WEEKLY_TARGET = 7;
+
+    public function getWeeklyJourneyData(User $user, ?int $currentProgressOverride = null): array
+    {
+        if (! $user || ! $user->id) {
+            throw new InvalidArgumentException('Valid user with ID required');
+        }
+
+        try {
+            $today = now();
+            $weekStart = $today->copy()->startOfWeek(self::FIRST_DAY_OF_WEEK);
+            $weekEnd = $today->copy()->endOfWeek(self::LAST_DAY_OF_WEEK);
+
+            $distinctReadingDates = $this->getDistinctReadingDatesForWeek($user, $weekStart, $weekEnd);
+            $currentProgress = $currentProgressOverride ?? count($distinctReadingDates);
+            $days = $this->buildWeeklyDayMap($weekStart, $distinctReadingDates, $today);
+
+            return $this->formatJourneyPayload($days, $weekStart, $weekEnd, $currentProgress);
+        } catch (Throwable $exception) {
+            Log::error('Error building weekly journey data', [
+                'user_id' => $user->id ?? null,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return $this->getDefaultJourneyData();
+        }
+    }
+
+    private function getDistinctReadingDatesForWeek(User $user, Carbon $weekStart, Carbon $weekEnd): array
+    {
+        return ReadingLog::forUser($user->id)
+            ->dateRange($weekStart->toDateString(), $weekEnd->toDateString())
+            ->select('date_read')
+            ->distinct()
+            ->pluck('date_read')
+            ->map(fn ($date) => Carbon::parse($date)->toDateString())
+            ->toArray();
+    }
+
+    private function buildWeeklyDayMap(Carbon $weekStart, array $readDates, Carbon $today): array
+    {
+        $readLookup = array_fill_keys($readDates, true);
+        $days = [];
+
+        for ($offset = 0; $offset < self::DAYS_IN_WEEK; $offset++) {
+            $date = $weekStart->copy()->addDays($offset);
+            $dateString = $date->toDateString();
+            $isRead = isset($readLookup[$dateString]);
+            $state = WeeklyJourneyDayState::resolve($date, $today, $isRead);
+
+            $days[] = [
+                'date' => $dateString,
+                'dow' => $date->dayOfWeek,
+                'isToday' => $date->isSameDay($today),
+                'read' => $isRead,
+                'state' => $state->value,
+            ];
+        }
+
+        return $days;
+    }
+
+    private function formatWeekRange(Carbon $weekStart, Carbon $weekEnd): string
+    {
+        if ($weekStart->isSameMonth($weekEnd)) {
+            return sprintf('%s–%s', $weekStart->format('M j'), $weekEnd->format('j'));
+        }
+
+        return sprintf('%s–%s', $weekStart->format('M j'), $weekEnd->format('M j'));
+    }
+
+    private function isCtaEnabled(?array $todaySlot): bool
+    {
+        return $todaySlot !== null;
+    }
+
+    private function getDefaultJourneyData(): array
+    {
+        $today = now();
+        $weekStart = $today->copy()->startOfWeek(self::FIRST_DAY_OF_WEEK);
+        $weekEnd = $today->copy()->endOfWeek(self::LAST_DAY_OF_WEEK);
+        $days = $this->buildWeeklyDayMap($weekStart, [], $today);
+
+        return $this->formatJourneyPayload($days, $weekStart, $weekEnd, 0);
+    }
+
+    private function formatJourneyPayload(array $days, Carbon $weekStart, Carbon $weekEnd, int $currentProgress): array
+    {
+        $normalizedDays = $this->appendAccessibilityMetadata($days);
+        $todaySlot = collect($normalizedDays)->firstWhere('isToday', true);
+        $remainingOpportunities = $this->calculateRemainingOpportunities($normalizedDays);
+        $ctaEnabled = $this->isCtaEnabled($todaySlot);
+
+        return [
+            'currentProgress' => $currentProgress,
+            'days' => $normalizedDays,
+            'today' => $todaySlot,
+            'weekRangeText' => $this->formatWeekRange($weekStart, $weekEnd),
+            'weeklyTarget' => self::WEEKLY_TARGET,
+            'ctaEnabled' => $ctaEnabled,
+            'ctaVisible' => $this->shouldShowCta($ctaEnabled, $todaySlot, $currentProgress),
+            'status' => $this->buildJourneyStatus($currentProgress, $remainingOpportunities),
+            'journeyAltText' => $this->buildJourneyAltText($currentProgress),
+        ];
+    }
+
+    private function appendAccessibilityMetadata(array $days): array
+    {
+        return collect($days)
+            ->map(function (array $day, int $index) {
+                $dateString = $day['date'] ?? null;
+                $date = $dateString ? Carbon::parse($dateString) : null;
+                $formattedDate = $date ? $date->format('D M j') : sprintf('Day %d', $index + 1);
+                $state = WeeklyJourneyDayState::tryFrom($day['state'] ?? '') ?? (($day['read'] ?? false)
+                    ? WeeklyJourneyDayState::COMPLETE
+                    : WeeklyJourneyDayState::UPCOMING);
+                $stateDescription = $state->description();
+                $label = sprintf('%s — %s', $formattedDate, $stateDescription);
+
+                return array_merge($day, [
+                    'title' => $label,
+                    'ariaLabel' => $label,
+                ]);
+            })
+            ->all();
+    }
+
+    private function shouldShowCta(bool $ctaEnabled, ?array $todaySlot, int $currentProgress): bool
+    {
+        if (! $ctaEnabled || ! $todaySlot) {
+            return false;
+        }
+
+        $todayRead = (bool) ($todaySlot['read'] ?? false);
+
+        return ! $todayRead && $currentProgress < self::WEEKLY_TARGET;
+    }
+
+    private function buildJourneyStatus(int $currentProgress, int $remainingOpportunities): array
+    {
+        if ($currentProgress >= self::WEEKLY_TARGET) {
+            return $this->perfectWeekStatus();
+        }
+
+        $canStillHitTarget = ($currentProgress + $remainingOpportunities) >= self::WEEKLY_TARGET;
+
+        return match (true) {
+            $currentProgress >= 5 => $this->statusPayload(
+                'almost-there',
+                $canStillHitTarget ? 'Almost there' : 'Great run',
+                $canStillHitTarget ? 'So close to perfect' : 'Strong finish—carry momentum forward',
+                'text-success-700 dark:text-success-200 font-semibold'
+            ),
+            $currentProgress === 4 => $this->statusPayload(
+                'solid-week',
+                'Solid week',
+                $canStillHitTarget ? 'Solid week—keep reaching for 7' : 'Solid week—set up next week for 7',
+                'text-success-700 dark:text-success-200'
+            ),
+            $currentProgress >= 1 => $this->statusPayload(
+                'momentum',
+                'Momentum',
+                'Nice start—keep going',
+                'text-primary-700 dark:text-primary-200'
+            ),
+            default => $this->statusPayload(
+                'getting-started',
+                'Get started',
+                "Let's start your week",
+                'text-gray-600 dark:text-gray-300'
+            ),
+        };
+    }
+
+    private function buildJourneyAltText(int $currentProgress): string
+    {
+        $clampedProgress = max(0, min($currentProgress, self::WEEKLY_TARGET));
+
+        return sprintf('%d of %d days logged this week.', $clampedProgress, self::WEEKLY_TARGET);
+    }
+
+    private function calculateRemainingOpportunities(array $days): int
+    {
+        return collect($days)
+            ->reduce(function (int $carry, array $day) {
+                $state = $day['state'] ?? null;
+                if (in_array($state, [
+                    WeeklyJourneyDayState::UPCOMING->value,
+                    WeeklyJourneyDayState::TODAY->value,
+                ], true)) {
+                    return $carry + 1;
+                }
+
+                return $carry;
+            }, 0);
+    }
+
+    private function perfectWeekStatus(): array
+    {
+        return $this->statusPayload(
+            'perfect',
+            'Perfect week',
+            'You did it—enjoy some rest!',
+            'text-amber-600 dark:text-amber-300 font-semibold',
+            'bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/40 dark:text-amber-100 dark:border-amber-800',
+            true
+        );
+    }
+
+    private function statusPayload(
+        string $state,
+        string $label,
+        string $microcopy,
+        string $microcopyClasses,
+        string $chipClasses = '',
+        bool $showCrown = false
+    ): array {
+        return [
+            'state' => $state,
+            'label' => $label,
+            'microcopy' => $microcopy,
+            'chipClasses' => $chipClasses,
+            'microcopyClasses' => $microcopyClasses,
+            'showCrown' => $showCrown,
+        ];
+    }
+}

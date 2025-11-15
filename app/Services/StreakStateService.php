@@ -101,6 +101,35 @@ class StreakStateService
     }
 
     /**
+     * Build streak message payload including tone, factoring in record state overrides
+     */
+    public function getMessagePayload(
+        int $currentStreak,
+        string $state,
+        int $longestStreak = 0,
+        bool $hasReadToday = false,
+        string $recordStatus = 'none',
+        bool $recordJustBroken = false
+    ): array {
+        $message = $this->selectMessage($currentStreak, $state, $longestStreak, $hasReadToday);
+        $tone = 'default';
+
+        $normalizedRecordStatus = strtolower($recordStatus);
+
+        if ($normalizedRecordStatus === 'tied' && $currentStreak > 0) {
+            $message = "You've matched your best streak of {$currentStreak} days. Read tomorrow to set a new record.";
+        } elseif ($normalizedRecordStatus === 'record' && $recordJustBroken) {
+            $message = "New personal record! Your {$currentStreak}-day streak is now the one to beat.";
+            $tone = 'accent';
+        }
+
+        return [
+            'message' => $message,
+            'tone' => $tone,
+        ];
+    }
+
+    /**
      * Select message for inactive state (0 streak)
      */
     private function selectInactiveMessage(int $longestStreak): string
