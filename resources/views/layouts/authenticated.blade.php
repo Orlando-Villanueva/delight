@@ -80,13 +80,34 @@
     {{-- Global container for HTMX out-of-band modal swaps --}}
     <div id="reading-log-modals"></div>
 
-    <!-- HTMX History Configuration -->
+    <!-- HTMX History Configuration & Navigation Helpers -->
     <script>
         document.body.addEventListener('htmx:historyRestore', function(evt) {
             // This event is fired when HTMX restores a page from history.
             // You can use it to re-initialize any components or scripts that might
             // have been affected by the content swap.
             console.log('HTMX history restored.');
+        });
+
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            const pageContainer = document.getElementById('page-container');
+            if (!pageContainer || evt.detail?.target !== pageContainer) {
+                return;
+            }
+
+            // Reset both the window and the scrollable <main> container so that
+            // navigating from a long page (like the history logs) to a shorter
+            // page always starts at the top.
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+
+            const mainContent = document.querySelector('main.flex-1');
+            if (mainContent) {
+                if (typeof mainContent.scrollTo === 'function') {
+                    mainContent.scrollTo({ top: 0, left: 0 });
+                } else {
+                    mainContent.scrollTop = 0;
+                }
+            }
         });
     </script>
 
