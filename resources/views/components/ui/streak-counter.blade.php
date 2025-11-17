@@ -45,19 +45,21 @@
         ->filter(fn ($entry) => ! empty($entry['date']))
         ->values();
 
+    $plotSeries = $series->values();
+
     $minSeriesLength = 15;
-    if ($series->count() > 0 && $series->count() < $minSeriesLength) {
-        $placeholderCount = $minSeriesLength - $series->count();
+    if ($plotSeries->count() > 0 && $plotSeries->count() < $minSeriesLength) {
+        $placeholderCount = $minSeriesLength - $plotSeries->count();
         $placeholders = collect()->times($placeholderCount, fn () => [
             'date' => null,
             'count' => 0,
         ]);
-        $series = $series->merge($placeholders)->values();
+        $plotSeries = $placeholders->merge($plotSeries)->values();
     }
 
-    $seriesPointCount = $series->count();
-    $seriesRawMax = $series->max('count') ?? 0;
-    $seriesRawMin = $series->min('count') ?? 0;
+    $seriesPointCount = $plotSeries->count();
+    $seriesRawMax = $plotSeries->max('count') ?? 0;
+    $seriesRawMin = $plotSeries->min('count') ?? 0;
     $seriesMaxValue = max(3, $seriesRawMax);
     $sparklineHeight = 42;
     $sparklineGradientId = 'streakSparklineFill_' . uniqid();
@@ -70,7 +72,7 @@
     $viewBoxWidth = $sparklineWidth + $plotOffsetX + 2;
     $plotWidth = $sparklineWidth;
 
-    $pointCoordinates = $series->map(function ($entry, $index) use (
+    $pointCoordinates = $plotSeries->map(function ($entry, $index) use (
         $seriesPointCount,
         $plotWidth,
         $sparklineHeight,
