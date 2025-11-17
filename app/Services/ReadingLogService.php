@@ -186,20 +186,109 @@ class ReadingLogService
     }
 
     /**
+     * Build the per-day timeline for the active streak (date -> readings count).
+     *
+     * Returns an array sorted from streak start to the most recent day:
+     * [
+     *     ['date' => '2025-01-01', 'count' => 2],
+     *     ...
+     * ]
+     */
+    public function getCurrentStreakSeries(User $user): array
+    {
+        $dailyCounts = $user->readingLogs()
+            ->select('date_read')
+            ->orderBy('date_read', 'desc')
+            ->get()
+            ->groupBy(function ($row) {
+                return Carbon::parse($row->date_read)->startOfDay()->toDateString();
+            })
+            ->map(function ($group) {
+                return $group->count();
+            });
+
+        if ($dailyCounts->isEmpty()) {
+            return [];
+        }
+
+        $today = Carbon::today();
+        $yesterday = Carbon::yesterday();
+
+        $todayKey = $today->toDateString();
+        $yesterdayKey = $yesterday->toDateString();
+
+        $hasRecentReading = $dailyCounts->has($todayKey) || $dailyCounts->has($yesterdayKey);
+
+        if (! $hasRecentReading) {
+            return [];
+        }
+
+        $series = [];
+        $checkDate = $dailyCounts->has($todayKey) ? $today->copy() : $yesterday->copy();
+
+        while ($dailyCounts->has($checkDate->toDateString())) {
+            $dateKey = $checkDate->toDateString();
+
+            $series[] = [
+                'date' => $dateKey,
+                'count' => $dailyCounts->get($dateKey),
+            ];
+
+            $checkDate->subDay();
+        }
+
+        return array_reverse($series);
+    }
+
+    /**
      * Calculate the longest streak ever for a user.
      */
     public function calculateLongestStreak(User $user): int
     {
-        // Get all unique reading dates, normalized and sorted ascending
-        $readingDates = $user->readingLogs()
+        $readingDates = $this->getNormalizedReadingDates($user);
+
+        return $this->computeLongestStreakFromDates($readingDates);
+    }
+
+    /**
+     * Calculate the longest streak prior to the supplied date (exclusive).
+     */
+    public function calculateLongestStreakBeforeDate(User $user, Carbon|string $beforeDate): int
+    {
+        $normalizedDate = $beforeDate instanceof Carbon
+            ? $beforeDate->copy()->startOfDay()
+            : Carbon::parse($beforeDate)->startOfDay();
+
+        $readingDates = $this->getNormalizedReadingDates($user, $normalizedDate);
+
+        return $this->computeLongestStreakFromDates($readingDates);
+    }
+
+    /**
+     * Fetch normalized reading dates optionally filtered before a date.
+     */
+    private function getNormalizedReadingDates(User $user, ?Carbon $beforeDate = null): Collection
+    {
+        $query = $user->readingLogs()
             ->select('date_read')
             ->distinct()
-            ->orderBy('date_read', 'asc')
-            ->pluck('date_read')
+            ->orderBy('date_read', 'asc');
+
+        if ($beforeDate) {
+            $query->where('date_read', '<', $beforeDate->toDateString());
+        }
+
+        return $query->pluck('date_read')
             ->map(fn ($date) => Carbon::parse($date)->startOfDay())
             ->unique()
             ->values();
+    }
 
+    /**
+     * Compute the longest streak from an ordered list of reading dates.
+     */
+    private function computeLongestStreakFromDates(Collection $readingDates): int
+    {
         if ($readingDates->isEmpty()) {
             return 0;
         }
@@ -209,15 +298,12 @@ class ReadingLogService
         $previousDate = $readingDates->first();
 
         foreach ($readingDates->skip(1) as $date) {
-            // Cast to int as diffInDays may return float depending on Carbon version
             $daysDifference = (int) $previousDate->diffInDays($date);
 
-            // Consecutive days should have exactly 1 day difference
             if ($daysDifference === 1) {
                 $currentStreak++;
                 $longestStreak = max($longestStreak, $currentStreak);
             } else {
-                // Gap found, reset current streak
                 $currentStreak = 1;
             }
 
@@ -373,11 +459,13 @@ class ReadingLogService
         Cache::forget("user_monthly_calendar_{$user->id}_{$currentMonth}");
         Cache::forget("user_total_reading_days_{$user->id}");
         Cache::forget("user_avg_chapters_per_day_{$user->id}");
+        Cache::forget("user_current_streak_series_{$user->id}");
 
         // Smart invalidation - only invalidate on first reading of the day
         if ($isFirstReadingOfDay) {
             // First reading of the day - streak and weekly goal will change
             $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
+            Cache::forget("user_weekly_goal_v2_{$user->id}_{$weekStart}");
             Cache::forget("user_weekly_goal_{$user->id}_{$weekStart}");
             Cache::forget("user_current_streak_{$user->id}");
 

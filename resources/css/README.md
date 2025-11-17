@@ -173,6 +173,7 @@ Warning: #D69E2E    /* Yellow - warning states */
 <x-ui.streak-counter 
     :currentStreak="$user->current_streak"
     :longestStreak="$user->longest_streak"
+    :streakSeries="$stats['streaks']['current_streak_series'] ?? []"
     size="default"
 />
 ```

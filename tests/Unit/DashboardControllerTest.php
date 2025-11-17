@@ -75,6 +75,7 @@ class DashboardControllerTest extends TestCase
         $this->assertIsArray($data['stats']);
         $this->assertArrayHasKey('streaks', $data['stats']);
         $this->assertArrayHasKey('current_streak', $data['stats']['streaks']);
+        $this->assertArrayHasKey('current_streak_series', $data['stats']['streaks']);
     }
 
     public function test_index_includes_weekly_goal_data_for_regular_request()
@@ -87,6 +88,8 @@ class DashboardControllerTest extends TestCase
         // Verify weeklyGoal is available as a separate variable
         $this->assertArrayHasKey('weeklyGoal', $data);
         $this->assertIsArray($data['weeklyGoal']);
+        $this->assertArrayHasKey('weeklyJourney', $data);
+        $this->assertIsArray($data['weeklyJourney']);
 
         // Verify weekly goal data structure
         $weeklyGoal = $data['weeklyGoal'];
@@ -97,10 +100,13 @@ class DashboardControllerTest extends TestCase
         $this->assertArrayHasKey('is_goal_achieved', $weeklyGoal);
         $this->assertArrayHasKey('progress_percentage', $weeklyGoal);
         $this->assertArrayHasKey('message', $weeklyGoal);
+        $this->assertArrayHasKey('journey', $weeklyGoal);
 
         // Verify weekly goal is also available in stats
         $this->assertArrayHasKey('weekly_goal', $data['stats']);
+        $this->assertArrayHasKey('weekly_journey', $data['stats']);
         $this->assertEquals($data['stats']['weekly_goal'], $data['weeklyGoal']);
+        $this->assertEquals($data['stats']['weekly_journey'], $data['weeklyJourney']);
     }
 
     public function test_index_includes_weekly_goal_data_for_htmx_request()
@@ -114,6 +120,8 @@ class DashboardControllerTest extends TestCase
         // Verify weeklyGoal is available as a separate variable for HTMX requests too
         $this->assertArrayHasKey('weeklyGoal', $data);
         $this->assertIsArray($data['weeklyGoal']);
+        $this->assertArrayHasKey('weeklyJourney', $data);
+        $this->assertIsArray($data['weeklyJourney']);
 
         // Verify weekly goal data structure
         $weeklyGoal = $data['weeklyGoal'];

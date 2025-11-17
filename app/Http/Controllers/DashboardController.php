@@ -30,6 +30,7 @@ class DashboardController extends Controller
 
         // Extract weekly goal data for easier access in views
         $weeklyGoal = $stats['weekly_goal'];
+        $weeklyJourney = $stats['weekly_journey'] ?? ($weeklyGoal['journey'] ?? null);
 
         // Get monthly calendar data for calendar widget
         $calendarData = $this->statisticsService->getMonthlyCalendarData($user);
@@ -41,20 +42,25 @@ class DashboardController extends Controller
         );
         $streakStateClasses = $this->streakStateService->getStateClasses($streakState);
 
-        // Get contextual message for the streak counter
-        $streakMessage = $this->streakStateService->selectMessage(
+        $recordStatus = data_get($stats, 'streaks.record_status', 'none');
+        $recordJustBroken = data_get($stats, 'streaks.record_just_broken', false);
+        $messagePayload = $this->streakStateService->getMessagePayload(
             $stats['streaks']['current_streak'],
             $streakState,
             $stats['streaks']['longest_streak'],
-            $hasReadToday
+            $hasReadToday,
+            $recordStatus,
+            $recordJustBroken
         );
+        $streakMessage = $messagePayload['message'];
+        $streakMessageTone = $messagePayload['tone'] ?? 'default';
 
         // Return partial for HTMX navigation, full page for direct access
         if ($request->header('HX-Request')) {
-            return view('partials.dashboard-page', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'stats', 'weeklyGoal', 'calendarData'));
+            return view('partials.dashboard-page', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData'));
         }
 
         // Return full page for direct access (browser URL)
-        return view('dashboard', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'stats', 'weeklyGoal', 'calendarData'));
+        return view('dashboard', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData'));
     }
 }
