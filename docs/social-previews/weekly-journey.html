@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delight · Social Preview</title>
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet" />
+    <style>
+        :root {
+            --primary: #3366CC;
+            --primary-dark: #1f3e99;
+            --success: #66CC99;
+            --accent: #f97316;
+            --ink: #0f172a;
+            --muted: #475569;
+            --surface: #ffffff;
+            --shadow-strong: 0 20px 60px rgba(15, 23, 42, 0.16);
+            --shadow-soft: 0 14px 40px rgba(51, 102, 204, 0.16);
+            --radius-lg: 28px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            width: 1200px;
+            height: 630px;
+            display: grid;
+            place-items: center;
+            font-family: 'Instrument Sans', 'Inter', system-ui, -apple-system, sans-serif;
+            background: radial-gradient(120% 120% at 20% 20%, #f3f7ff 0%, #f8fbff 45%, #ffffff 100%);
+            color: var(--ink);
+        }
+
+        .canvas {
+            position: relative;
+            width: 1120px;
+            height: 610px;
+            padding: 48px;
+            border-radius: 36px;
+            background: linear-gradient(135deg, #f8fbff 0%, #eef2ff 40%, #ffffff 100%);
+            box-shadow: var(--shadow-strong);
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 340px;
+            gap: 28px;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .canvas::before,
+        .canvas::after {
+            content: "";
+            position: absolute;
+            filter: blur(70px);
+            opacity: 0.5;
+            z-index: 0;
+        }
+
+        .canvas::before {
+            width: 320px;
+            height: 280px;
+            background: radial-gradient(circle at 30% 30%, rgba(102, 204, 153, 0.55), rgba(255, 255, 255, 0));
+            top: -60px;
+            right: 40px;
+        }
+
+        .canvas::after {
+            width: 320px;
+            height: 280px;
+            background: radial-gradient(circle at 70% 70%, rgba(51, 102, 204, 0.65), rgba(255, 255, 255, 0));
+            bottom: -80px;
+            left: -40px;
+        }
+
+        .content,
+        .preview {
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(51, 102, 204, 0.08);
+            color: var(--primary);
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .logo-mark {
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            background: #fff;
+            display: grid;
+            place-items: center;
+            color: transparent;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 10px 26px rgba(15, 23, 42, 0.1);
+            overflow: hidden;
+        }
+
+        .logo-mark img {
+            width: 30px;
+            height: 30px;
+            display: block;
+        }
+
+        h1 {
+            margin: 22px 0 14px;
+            font-size: 46px;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+        }
+
+        .lede {
+            font-size: 20px;
+            line-height: 1.6;
+            color: var(--muted);
+            max-width: 590px;
+            margin-bottom: 26px;
+        }
+
+        .pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.06);
+            color: var(--ink);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .pill svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .preview {
+            align-self: center;
+            justify-self: end;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            height: 100%;
+            padding: 12px 0;
+        }
+
+        .device {
+            width: 420px;
+            background: var(--surface);
+            border-radius: 32px;
+            box-shadow: 0 20px 48px rgba(15, 23, 42, 0.16);
+            padding: 24px;
+            border: 6px solid #e2e8f0;
+            transform: rotate(-3deg);
+            position: relative;
+        }
+
+        .device::after {
+            content: "";
+            position: absolute;
+            inset: 16px;
+            border-radius: 22px;
+            pointer-events: none;
+            background: radial-gradient(140% 140% at 80% -10%, rgba(249, 115, 22, 0.08), rgba(255, 255, 255, 0));
+        }
+
+        .device-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .status-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.13);
+        }
+
+        .device h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--ink);
+        }
+
+        .card {
+            background: #ffffff;
+            color: var(--ink);
+            border-radius: 20px;
+            padding: 18px;
+            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+            border: 1px solid #e2e8f0;
+        }
+
+        .card + .card { margin-top: 14px; }
+
+        .card.mini {
+            padding: 16px;
+            border-radius: 18px;
+            box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
+        }
+
+        .cards-grid,
+        .cards-stack {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .cards-stack {
+            width: 340px;
+            gap: 14px;
+            transform: none;
+            transform-origin: center right;
+            margin: 0;
+        }
+
+        .widget-meta {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .pill-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #e5e7eb;
+            color: #0f172a;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .stat-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 14px 0 10px;
+        }
+
+        .stat-number {
+            font-size: 42px;
+            line-height: 1;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .stat-label {
+            font-size: 20px;
+            color: #475569;
+        }
+
+        .journey-bars {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin: 14px 0 8px;
+        }
+
+        .journey-bar {
+            height: 18px;
+            border-radius: 6px;
+            background: #e5e7eb;
+        }
+
+        .journey-bar.complete { background: #66cc99; }
+        .journey-bar.today { background: #66cc99; box-shadow: 0 0 0 3px #2563eb66; border: 2px solid #2563eb; }
+
+        .journey-dows {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-size: 12px;
+            color: #6b7280;
+            letter-spacing: 0.02em;
+        }
+
+        .sparkline {
+            height: 60px;
+            width: 100%;
+        }
+
+        .widget-footer {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 16px;
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+
+        .widget-footer.muted {
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .weekly-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .chip.success {
+            background: rgba(102, 204, 153, 0.12);
+            color: #0f5132;
+        }
+
+        .chip.accent {
+            background: rgba(249, 115, 22, 0.1);
+            color: #9a3412;
+        }
+
+        .goal {
+            font-size: 34px;
+            margin: 12px 0 8px;
+            display: flex;
+            gap: 10px;
+            align-items: baseline;
+        }
+
+        .goal span:last-child {
+            font-size: 15px;
+            color: #475569;
+            font-weight: 500;
+        }
+
+        .journey {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .journey-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .bar {
+            height: 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(15, 23, 42, 0.06);
+            position: relative;
+        }
+
+        .bar.complete { background: var(--success); border-color: rgba(102, 204, 153, 0.65); }
+        .bar.today { background: #e2e8f0; border-color: #cbd5e1; box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.25); }
+        .bar.upcoming { background: #e2e8f0; }
+        .bar.missed { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.35); }
+
+        .dow {
+            text-align: center;
+            font-size: 11px;
+            color: #475569;
+            letter-spacing: 0.04em;
+            margin-top: 4px;
+        }
+
+        .streak {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .streak-badge {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            display: grid;
+            place-items: center;
+            background: radial-gradient(circle at 40% 40%, #fff7ed 10%, #fb923c 90%);
+            color: #9a3412;
+            font-size: 24px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        }
+
+        .streak h4 {
+            margin: 0 0 2px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .streak p {
+            margin: 0;
+            color: #0f172a;
+            font-size: 14px;
+        }
+
+        .microcopy {
+            margin-top: 12px;
+            font-size: 14px;
+            color: #1e293b;
+        }
+    </style>
+</head>
+<body>
+    <div class="canvas">
+        <div class="content">
+            <div class="logo-row">
+                <span class="logo-mark"><img src="../public/images/logo-64.png" alt="Delight logo"></span>
+                <span>Delight</span>
+            </div>
+            <h1>The Bible Tracker That Keeps You Moving</h1>
+            <p class="lede">
+                Delight makes daily Scripture simple: log chapters fast, keep streaks in view, and see your week at a glance so momentum never feels mysterious.
+            </p>
+            <div class="pill-row">
+                <span class="pill">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path fill-rule="evenodd" d="M6 5V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v2H3V7a2 2 0 0 1 2-2h1ZM3 19v-8h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Zm5-6a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2H8Z" clip-rule="evenodd" />
+                    </svg>
+                    Weekly Journey
+                </span>
+                <span class="pill">
+                    <svg viewBox="0 0 384 512" fill="currentColor">
+                        <path d="M216 23.86c0-23.8-30.65-32.77-44.15-13.04C48 191.85 224 200 224 288c0 35.63-29.11 64.46-64.85 63.99-35.17-.45-63.15-29.77-63.15-64.94v-85.51c0-21.7-26.47-32.4-41.6-16.9C21.22 216.4 0 268.2 0 320c0 105.87 86.13 192 192 192s192-86.13 192-192c0-170.29-168-193.17-168-296.14z" />
+                    </svg>
+                    Daily Streak
+                </span>
+                <span class="pill">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.03v13m0-13c-2.819-.831-4.715-1.076-8.029-1.023A.99.99 0 0 0 3 6v11c0 .563.466 1.014 1.03 1.007 3.122-.043 5.018.212 7.97 1.023m0-13c2.819-.831 4.715-1.076 8.029-1.023A.99.99 0 0 1 21 6v11c0 .563-.466 1.014-1.03 1.007-3.122-.043-5.018.212-7.97 1.023" />
+                    </svg>
+                    Quick Log
+                </span>
+                <span class="pill">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15v4m6-6v6m6-4v4m6-6v6M3 11l6-5 6 5 5.5-5.5" />
+                    </svg>
+                    Progress you can see
+                </span>
+            </div>
+        </div>
+
+        <div class="preview">
+            <div class="cards-stack" style="gap: 14px; margin: 0;">
+
+                <!-- Weekly Journey mini (styled like live widget) -->
+                <div class="card mini" aria-label="Weekly Journey widget">
+                    <div class="widget-meta">
+                        <div>
+                            <p style="margin:0; font-size:22px; font-weight:700; color:#0f172a;">Weekly Journey</p>
+                            <p style="margin:2px 0 0; font-size:15px; color:#475569;">Nov 16–22</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-row" style="margin-top:12px;">
+                        <span class="stat-number">3</span>
+                        <span class="stat-label">days this week</span>
+                    </div>
+
+                    <div class="journey" aria-label="Weekly journey preview">
+                        <div class="journey-bars">
+                            <span class="journey-bar complete"></span>
+                            <span class="journey-bar complete"></span>
+                            <span class="journey-bar today"></span>
+                            <span class="journey-bar"></span>
+                            <span class="journey-bar"></span>
+                            <span class="journey-bar"></span>
+                            <span class="journey-bar"></span>
+                        </div>
+                        <div class="journey-dows">
+                            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Daily Streak mini -->
+                <div class="card mini" aria-label="Daily Streak widget">
+                    <div class="widget-meta" style="margin-bottom:6px;">
+                        <div>
+                            <p style="margin:0; font-size:22px; font-weight:700; color:#0f172a;">Daily Streak</p>
+                            <p style="margin:2px 0 0; font-size:15px; color:#475569;">Stay consistent day after day</p>
+                        </div>
+                        <span style="width:42px; height:42px; border-radius:999px; background:#fff4eb; display:grid; place-items:center; color:#f97316;">
+                            <svg viewBox="0 0 384 512" fill="currentColor" width="20" height="20" aria-hidden="true">
+                                <path d="M216 23.86c0-23.8-30.65-32.77-44.15-13.04C48 191.85 224 200 224 288c0 35.63-29.11 64.46-64.85 63.99-35.17-.45-63.15-29.77-63.15-64.94v-85.51c0-21.7-26.47-32.4-41.6-16.9C21.22 216.4 0 268.2 0 320c0 105.87 86.13 192 192 192s192-86.13 192-192c0-170.29-168-193.17-168-296.14z" />
+                            </svg>
+                        </span>
+                    </div>
+
+                    <div class="stat-row">
+                        <span class="stat-number">3</span>
+                        <span class="stat-label">days in a row</span>
+                        <span class="pill-badge" aria-label="Longest streak 112 days">
+                            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true" style="color:#f59e0b;">
+                                <path d="M2.5.5A.5.5 0 0 1 3 0h10a.5.5 0 0 1 .5.5q0 .807-.034 1.536a3 3 0 1 1-1.133 5.89c-.79 1.865-1.878 2.777-2.833 3.011v2.173l1.425.356c.194.048.377.135.537.255L13.3 15.1a.5.5 0 0 1-.3.9H3a.5.5 0 0 1-.3-.9l1.838-1.379c.16-.12.343-.207.537-.255L6.5 13.11v-2.173c-.955-.234-2.043-1.146-2.833-3.012a3 3 0 1 1-1.132-5.89A33 33 0 0 1 2.5.5m.099 2.54a2 2 0 0 0 .72 3.935c-.333-1.05-.588-2.346-.72-3.935m10.083 3.935a2 2 0 0 0 .72-3.935c-.133 1.59-.388 2.885-.72 3.935" />
+                            </svg>
+                            112
+                        </span>
+                    </div>
+
+                    <svg class="sparkline" viewBox="0 0 140 70" fill="none" aria-hidden="true">
+                        <defs>
+                            <linearGradient id="streakFill" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#3366CC" stop-opacity="0.35" />
+                                <stop offset="100%" stop-color="#3366CC" stop-opacity="0" />
+                            </linearGradient>
+                        </defs>
+                        <path d="M6 64 L60 64 L90 32 L134 32 L134 64 L6 64 Z" fill="url(#streakFill)"/>
+                        <polyline points="6,64 60,64 90,32 134,32" fill="none" stroke="#3366CC" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
