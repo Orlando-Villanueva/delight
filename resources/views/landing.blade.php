@@ -49,6 +49,9 @@
     <!-- Styles -->
     @vite(['resources/css/app.css'])
 
+    <!-- Preload critical hero image for faster LCP -->
+    <link rel="preload" as="image" href="{{ asset('images/screenshots/desktop-v3.png') }}" imagesrcset="{{ asset('images/screenshots/desktop-v3.png') }} 1x" fetchpriority="high">
+
     <!-- Structured Data -->
     <script type="application/ld+json">
         {
@@ -109,7 +112,8 @@
                             class="w-8 h-8"
                             width="32"
                             height="32"
-                            loading="eager" />
+                            loading="eager"
+                            decoding="async" />
                         <span>Delight</span>
                     </a>
                 </div>
@@ -170,7 +174,9 @@
                                     class="w-full h-auto max-w-full"
                                     width="3456"
                                     height="2168"
-                                    loading="lazy" />
+                                    loading="eager"
+                                    fetchpriority="high"
+                                    decoding="async" />
                             </div>
                         </div>
 
@@ -184,7 +190,8 @@
                                     class="w-full h-auto"
                                     width="864"
                                     height="1866"
-                                    loading="lazy" />
+                                    loading="lazy"
+                                    decoding="async" />
                                 </div>
                             </div>
                         </div>
@@ -198,7 +205,9 @@
                                     class="w-full h-auto max-w-full"
                                     width="864"
                                     height="1866"
-                                    loading="lazy" />
+                                    loading="lazy"
+                                    decoding="async"
+                                    fetchpriority="low" />
                             </div>
                         </div>
                     </div>
