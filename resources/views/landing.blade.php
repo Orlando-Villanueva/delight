@@ -142,10 +142,10 @@
                     <!-- Hero Content -->
                     <div class="text-center lg:text-left lg:pr-24">
                         <h1 id="hero-heading" class="text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-6">
-                            Track Every Reading and See Your Momentum
+                            Keep Every Bible Reading Visible, Stay on Track
                         </h1>
                         <p class="text-xl text-gray-600 mb-6 leading-relaxed">
-                            Delight records what you read, keeps your streaks visible, and shows how far you’ve come. Log a passage in seconds, review recent activity, and stay aware of the habit you’re building day by day.
+                            Delight logs each chapter in seconds, keeps your streaks and weekly momentum in view, and makes your progress obvious so you never wonder where you stand.
                         </p>
 
                         <!-- Primary CTA -->
