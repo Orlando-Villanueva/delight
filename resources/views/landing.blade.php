@@ -49,8 +49,8 @@
     <!-- Styles -->
     @vite(['resources/css/app.css'])
 
-    <!-- Preload critical hero image for faster LCP -->
-    <link rel="preload" as="image" href="{{ asset('images/screenshots/desktop-v3.png') }}" imagesrcset="{{ asset('images/screenshots/desktop-v3.png') }} 1x" fetchpriority="high">
+    <!-- Preload critical hero image for faster LCP (desktop only) -->
+    <link rel="preload" as="image" href="{{ asset('images/screenshots/desktop-v3.png') }}" imagesrcset="{{ asset('images/screenshots/desktop-v3.png') }} 1x" fetchpriority="high" media="(min-width: 1024px)">
 
     <!-- Structured Data -->
     <script type="application/ld+json">
