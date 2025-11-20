@@ -30,14 +30,14 @@
     <meta property="og:description" content="Bible reading tracker that makes consistency achievable. Gentle motivation helps you stay engaged with Scripture for lasting transformation.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ config('app.url') }}">
-    <meta property="og:image" content="{{ asset('images/screenshots/preview-social.png') }}">
+    <meta property="og:image" content="{{ asset('images/screenshots/link-preview.png') }}">
     <meta property="og:site_name" content="Delight">
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Delight - Bible Tracking App for Consistency">
     <meta name="twitter:description" content="Overcome Bible reading struggles with gentle accountability, streak tracking, and joyful progress visualization.">
-    <meta name="twitter:image" content="{{ asset('images/screenshots/preview-social.png') }}">
+    <meta name="twitter:image" content="{{ asset('images/screenshots/link-preview.png') }}">
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
