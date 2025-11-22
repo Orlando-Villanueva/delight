@@ -2,8 +2,8 @@
 {{-- Flowbite-based sidebar with HTMX navigation and hover states only --}}
 
 <aside
-    class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 lg:pt-16">
-    <div class="h-full px-3 py-4 overflow-y-auto">
+    class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 lg:pt-16 flex flex-col">
+    <div class="flex-1 px-3 py-4 overflow-y-auto">
         <!-- Navigation Menu -->
         <ul class="space-y-2 font-medium">
             <li>
@@ -40,5 +40,18 @@
                 </x-navigation.nav-link>
             </li>
         </ul>
+    </div>
+
+    <!-- Feedback Link (Isolated at bottom) -->
+    <div class="p-3 border-t border-gray-200 dark:border-gray-700">
+        <x-navigation.nav-link
+            route="feedback.create"
+            label="Feedback"
+            variant="sidebar">
+            <x-slot:icon>
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 10h8M8 14h4M4 18h16a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1Z" />
+            </x-slot:icon>
+        </x-navigation.nav-link>
     </div>
 </aside>
