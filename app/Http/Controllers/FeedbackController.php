@@ -14,8 +14,12 @@ class FeedbackController extends Controller
         protected EmailService $emailService
     ) {}
 
-    public function create()
+    public function create(Request $request)
     {
+        if ($request->header('HX-Request')) {
+            return view('partials.feedback-page');
+        }
+
         return view('feedback.create');
     }
 

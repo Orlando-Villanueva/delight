@@ -51,3 +51,14 @@ test('feedback requires validation', function () {
 
     $response->assertSessionHasErrors(['category', 'message']);
 });
+
+test('feedback page returns partial for HTMX requests', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->get(route('feedback.create'), [
+        'HX-Request' => 'true',
+    ]);
+
+    $response->assertStatus(200);
+    $response->assertViewIs('partials.feedback-page');
+});
