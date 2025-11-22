@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\BibleReferenceService;
 use App\Services\BookProgressSyncService;
 use Carbon\Carbon;
 use Faker\Factory as FakerFactory;
@@ -62,7 +63,7 @@ class DatabaseSeeder extends Seeder
         $faker->seed(12345); // Fixed seed ensures consistent daily counts
 
         $today = Carbon::today();
-        $totalLogs = 0;
+        $bibleService = app(BibleReferenceService::class);
 
         // Build a guaranteed 60-day active streak ending today with 1-10 readings per day
         for ($i = 0; $i < 60; $i++) {
@@ -70,43 +71,38 @@ class DatabaseSeeder extends Seeder
             $logsForDay = $faker->numberBetween(1, 10);
 
             $combos = [];
+            $attempts = 0;
+
             // Ensure unique (book, chapter) per day to satisfy DB unique constraint
-            while (count($combos) < $logsForDay) {
+            while (count($combos) < $logsForDay && $attempts < 50) {
+                $attempts++;
                 $bookId = $faker->numberBetween(1, 66);
-                $chapter = $faker->numberBetween(1, 10);
+                $maxChapters = $bibleService->getBookChapterCount($bookId);
+                $chapter = $faker->numberBetween(1, $maxChapters);
+
                 $key = "{$bookId}-{$chapter}";
+                if (! in_array($key, $combos)) {
+                    $combos[] = $key;
 
-                if (isset($combos[$key])) {
-                    continue;
+                    $loggedAt = $readingDate->copy()
+                        ->addHours($faker->numberBetween(0, 6))
+                        ->addMinutes($faker->numberBetween(0, 59));
+
+                    ReadingLog::create([
+                        'user_id' => $user->id,
+                        'book_id' => $bookId,
+                        'chapter' => $chapter,
+                        'passage_text' => $bibleService->formatBibleReference($bookId, $chapter),
+                        'date_read' => $readingDate->toDateString(),
+                        'notes_text' => $faker->optional()->sentence(),
+                        'created_at' => $loggedAt,
+                        'updated_at' => $loggedAt,
+                    ]);
                 }
-
-                $combos[$key] = ['book_id' => $bookId, 'chapter' => $chapter];
-            }
-
-            foreach ($combos as $combo) {
-                $loggedAt = $readingDate->copy()
-                    ->addHours($faker->numberBetween(0, 6))
-                    ->addMinutes($faker->numberBetween(0, 59));
-
-                ReadingLog::create([
-                    'user_id' => $user->id,
-                    'book_id' => $combo['book_id'],
-                    'chapter' => $combo['chapter'],
-                    'passage_text' => "Book {$combo['book_id']} Chapter {$combo['chapter']}",
-                    'date_read' => $readingDate->toDateString(),
-                    'notes_text' => $faker->sentence(),
-                    'created_at' => $loggedAt,
-                    'updated_at' => $loggedAt,
-                ]);
-
-                $totalLogs++;
             }
         }
 
-        $this->command->info("Created {$totalLogs} reading logs for {$user->name} (60-day active streak)");
-        $this->command->info('- Each day has between 1-10 readings');
-        $this->command->info('- Streak ends on today with 60 consecutive days of activity');
-        $this->command->info('- Average: '.round($totalLogs / 60, 2).' readings per day');
+        $this->command->info("Created guaranteed 60-day active streak for {$user->name}");
     }
 
     /**
