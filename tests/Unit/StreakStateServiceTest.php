@@ -592,53 +592,38 @@ class StreakStateServiceTest extends \Tests\TestCase
         $method = $reflection->getMethod('getStreakRange');
         $method->setAccessible(true);
 
-        // Test all ranges
+        // Test 1 separately
         $this->assertEquals(1, $method->invoke($service, 1));
-        $this->assertEquals('2-6', $method->invoke($service, 2));
-        $this->assertEquals('2-6', $method->invoke($service, 6));
-        $this->assertEquals('7-13', $method->invoke($service, 7));
-        $this->assertEquals('7-13', $method->invoke($service, 13));
-        $this->assertEquals('7-13', $method->invoke($service, 14)); // Fixed gap
-        $this->assertEquals('15-20', $method->invoke($service, 15));
-        $this->assertEquals('15-20', $method->invoke($service, 20));
-        $this->assertEquals('15-20', $method->invoke($service, 21)); // Fixed gap
-        $this->assertEquals('22-29', $method->invoke($service, 22));
-        $this->assertEquals('22-29', $method->invoke($service, 29));
-        $this->assertEquals('22-29', $method->invoke($service, 30)); // Fixed gap
-        $this->assertEquals('31-59', $method->invoke($service, 31));
-        $this->assertEquals('31-59', $method->invoke($service, 59));
-        $this->assertEquals('31-59', $method->invoke($service, 60)); // Fixed gap
-        $this->assertEquals('61-89', $method->invoke($service, 61));
-        $this->assertEquals('61-89', $method->invoke($service, 89));
-        $this->assertEquals('61-89', $method->invoke($service, 90)); // Fixed gap
-        $this->assertEquals('91-119', $method->invoke($service, 91));
-        $this->assertEquals('91-119', $method->invoke($service, 119));
-        $this->assertEquals('91-119', $method->invoke($service, 120)); // Fixed gap
-        $this->assertEquals('121-149', $method->invoke($service, 121));
-        $this->assertEquals('121-149', $method->invoke($service, 149));
-        $this->assertEquals('121-149', $method->invoke($service, 150)); // Fixed gap
-        $this->assertEquals('151-179', $method->invoke($service, 151));
-        $this->assertEquals('151-179', $method->invoke($service, 179));
-        $this->assertEquals('151-179', $method->invoke($service, 180)); // Fixed gap
-        $this->assertEquals('181-209', $method->invoke($service, 181));
-        $this->assertEquals('181-209', $method->invoke($service, 209));
-        $this->assertEquals('181-209', $method->invoke($service, 210)); // Fixed gap
-        $this->assertEquals('211-239', $method->invoke($service, 211));
-        $this->assertEquals('211-239', $method->invoke($service, 239));
-        $this->assertEquals('211-239', $method->invoke($service, 240)); // Fixed gap
-        $this->assertEquals('241-269', $method->invoke($service, 241));
-        $this->assertEquals('241-269', $method->invoke($service, 269));
-        $this->assertEquals('241-269', $method->invoke($service, 270)); // Fixed gap
-        $this->assertEquals('271-299', $method->invoke($service, 271));
-        $this->assertEquals('271-299', $method->invoke($service, 299));
-        $this->assertEquals('271-299', $method->invoke($service, 300)); // Fixed gap
-        $this->assertEquals('301-329', $method->invoke($service, 301));
-        $this->assertEquals('301-329', $method->invoke($service, 329));
-        $this->assertEquals('301-329', $method->invoke($service, 330)); // Fixed gap
-        $this->assertEquals('331-364', $method->invoke($service, 331));
-        $this->assertEquals('331-364', $method->invoke($service, 364));
-        $this->assertEquals('365+', $method->invoke($service, 365));
-        $this->assertEquals('365+', $method->invoke($service, 1000));
+
+        // Test ranges
+        $ranges = [
+            '2-6' => [2, 6],
+            '7-13' => [7, 13, 14],
+            '15-20' => [15, 20, 21],
+            '22-29' => [22, 29, 30],
+            '31-59' => [31, 59, 60],
+            '61-89' => [61, 89, 90],
+            '91-119' => [91, 119, 120],
+            '121-149' => [121, 149, 150],
+            '151-179' => [151, 179, 180],
+            '181-209' => [181, 209, 210],
+            '211-239' => [211, 239, 240],
+            '241-269' => [241, 269, 270],
+            '271-299' => [271, 299, 300],
+            '301-329' => [301, 329, 330],
+            '331-364' => [331, 364],
+            '365+' => [365, 1000],
+        ];
+
+        foreach ($ranges as $expectedRange => $values) {
+            foreach ($values as $streak) {
+                $this->assertEquals(
+                    $expectedRange,
+                    $method->invoke($service, $streak),
+                    "Failed for streak: {$streak}"
+                );
+            }
+        }
     }
 
     /**
