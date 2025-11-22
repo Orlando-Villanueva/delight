@@ -195,25 +195,25 @@ class StreakStateService
             return '15-20';
         } elseif ($streak >= 22 && $streak <= 30) {
             return '22-29';
-        } elseif ($streak >= 31 && $streak <= 59) {
+        } elseif ($streak >= 31 && $streak <= 60) {
             return '31-59';
-        } elseif ($streak >= 61 && $streak <= 89) {
+        } elseif ($streak >= 61 && $streak <= 90) {
             return '61-89';
-        } elseif ($streak >= 91 && $streak <= 119) {
+        } elseif ($streak >= 91 && $streak <= 120) {
             return '91-119';
-        } elseif ($streak >= 121 && $streak <= 149) {
+        } elseif ($streak >= 121 && $streak <= 150) {
             return '121-149';
-        } elseif ($streak >= 151 && $streak <= 179) {
+        } elseif ($streak >= 151 && $streak <= 180) {
             return '151-179';
-        } elseif ($streak >= 181 && $streak <= 209) {
+        } elseif ($streak >= 181 && $streak <= 210) {
             return '181-209';
-        } elseif ($streak >= 211 && $streak <= 239) {
+        } elseif ($streak >= 211 && $streak <= 240) {
             return '211-239';
-        } elseif ($streak >= 241 && $streak <= 269) {
+        } elseif ($streak >= 241 && $streak <= 270) {
             return '241-269';
-        } elseif ($streak >= 271 && $streak <= 299) {
+        } elseif ($streak >= 271 && $streak <= 300) {
             return '271-299';
-        } elseif ($streak >= 301 && $streak <= 329) {
+        } elseif ($streak >= 301 && $streak <= 330) {
             return '301-329';
         } elseif ($streak >= 331 && $streak <= 364) {
             return '331-364';
