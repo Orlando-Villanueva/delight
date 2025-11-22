@@ -8,6 +8,24 @@ class StreakStateService
 {
     private const int WARNING_HOUR = 18;
 
+    private const array STREAK_RANGES = [
+        [2, 6, '2-6'],
+        [7, 14, '7-13'],
+        [15, 21, '15-20'],
+        [22, 30, '22-29'],
+        [31, 60, '31-59'],
+        [61, 90, '61-89'],
+        [91, 120, '91-119'],
+        [121, 150, '121-149'],
+        [151, 180, '151-179'],
+        [181, 210, '181-209'],
+        [211, 240, '211-239'],
+        [241, 270, '241-269'],
+        [271, 300, '271-299'],
+        [301, 330, '301-329'],
+        [331, 364, '331-364'],
+    ];
+
     /**
      * Generate consistent cache keys for warning state tracking
      */
@@ -187,39 +205,15 @@ class StreakStateService
     {
         if ($streak === 1) {
             return 1;
-        } elseif ($streak >= 2 && $streak <= 6) {
-            return '2-6';
-        } elseif ($streak >= 7 && $streak <= 14) {
-            return '7-13';
-        } elseif ($streak >= 15 && $streak <= 21) {
-            return '15-20';
-        } elseif ($streak >= 22 && $streak <= 30) {
-            return '22-29';
-        } elseif ($streak >= 31 && $streak <= 60) {
-            return '31-59';
-        } elseif ($streak >= 61 && $streak <= 90) {
-            return '61-89';
-        } elseif ($streak >= 91 && $streak <= 120) {
-            return '91-119';
-        } elseif ($streak >= 121 && $streak <= 150) {
-            return '121-149';
-        } elseif ($streak >= 151 && $streak <= 180) {
-            return '151-179';
-        } elseif ($streak >= 181 && $streak <= 210) {
-            return '181-209';
-        } elseif ($streak >= 211 && $streak <= 240) {
-            return '211-239';
-        } elseif ($streak >= 241 && $streak <= 270) {
-            return '241-269';
-        } elseif ($streak >= 271 && $streak <= 300) {
-            return '271-299';
-        } elseif ($streak >= 301 && $streak <= 330) {
-            return '301-329';
-        } elseif ($streak >= 331 && $streak <= 364) {
-            return '331-364';
-        } else {
-            return '365+';
         }
+
+        foreach (self::STREAK_RANGES as [$min, $max, $key]) {
+            if ($streak >= $min && $streak <= $max) {
+                return $key;
+            }
+        }
+
+        return '365+';
     }
 
     /**
