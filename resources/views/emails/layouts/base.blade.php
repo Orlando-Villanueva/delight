@@ -49,12 +49,23 @@
 
         .logo {
             color: #111827;
-            font-size: 32px;
-            font-weight: 800;
+            font-size: 28px; /* Slightly smaller to balance with icon */
+            font-weight: 600; /* Decreased from 800 */
             margin: 0;
             text-decoration: none;
-            letter-spacing: -0.05em;
+            letter-spacing: -0.025em;
             display: inline-block;
+            vertical-align: middle;
+        }
+
+        .logo img {
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 12px;
+        }
+
+        .logo span {
+            vertical-align: middle;
         }
 
         /* Content */
@@ -84,7 +95,7 @@
 
         .button {
             display: inline-block;
-            background: #2563eb;
+            background: #f97316; /* accent-500 */
             color: #ffffff !important;
             text-decoration: none;
             padding: 12px 32px;
@@ -92,13 +103,13 @@
             font-weight: 600;
             font-size: 15px;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+            box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2);
             border: none;
         }
 
         .button:hover {
-            background: #1d4ed8;
-            box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3);
+            background: #ea580c; /* accent-600 */
+            box-shadow: 0 6px 8px -1px rgba(249, 115, 22, 0.3);
             transform: translateY(-1px);
         }
 
@@ -239,7 +250,10 @@
     <div class="email-container">
         <!-- Header -->
         <div class="header">
-            <a href="{{ url('/') }}" class="logo">Delight</a>
+            <a href="{{ url('/') }}" class="logo">
+                <img src="{{ asset('images/logo-64.png') }}" width="32" height="32" alt="Delight Logo">
+                <span>Delight</span>
+            </a>
         </div>
 
         <!-- Content -->

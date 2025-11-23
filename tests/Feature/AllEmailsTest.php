@@ -21,6 +21,8 @@ test('welcome email renders with new styles', function () {
     expect($html)->toContain('class="card"');
     expect($html)->not->toContain('class="notice"');
     expect($html)->toContain('background-color: #f3f4f6'); // New body bg
+    expect($html)->toContain('background: #f97316'); // New accent color
+    expect($html)->toContain('logo-64.png'); // Logo image
 
     // Check for new sections
     expect($html)->toContain('Log Your Reading');
