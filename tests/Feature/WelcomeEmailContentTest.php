@@ -38,5 +38,5 @@ test('welcome email content renders correctly', function () {
     expect($html)->toContain('Start Your Journey');
     // Verify css style of new layout
     expect($html)->toContain('border-radius: 16px'); // New card border radius
-    expect($html)->toContain('background: #2563eb'); // New button color
+    expect($html)->toContain('background: #f97316'); // Accent button color
 });
