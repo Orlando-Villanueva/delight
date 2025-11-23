@@ -159,6 +159,40 @@
             margin-bottom: 24px;
         }
 
+        .card-heading {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 9999px;
+            background: #eef2ff;
+            border: 1px solid #e5e7eb;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #2563eb;
+            flex-shrink: 0;
+        }
+
+        .card-icon svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+        }
+
+        .card-heading .card-title {
+            display: flex;
+            align-items: center;
+            min-height: 36px;
+            margin: 0;
+            line-height: 1.2;
+        }
+
         .card-title {
             font-size: 16px;
             font-weight: 700;
