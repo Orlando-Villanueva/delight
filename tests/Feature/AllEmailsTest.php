@@ -25,7 +25,6 @@ test('welcome email renders with new styles', function () {
     // Check for new sections
     expect($html)->toContain('Log Your Reading');
     expect($html)->toContain('Your Dashboard');
-    expect($html)->toContain('Weekly Journey');
 });
 
 test('password reset email renders with new styles', function () {

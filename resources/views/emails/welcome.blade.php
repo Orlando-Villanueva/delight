@@ -32,17 +32,7 @@
     <a href="{{ url('/dashboard') }}" style="text-decoration: none; display: block;">
         <span class="card-title" style="color: #2563eb;">Your Dashboard</span>
         <p class="card-text">
-            View your current streak, overall progress, and access all your reading tools in one place.
-        </p>
-    </a>
-</div>
-
-<!-- Weekly Journey Section -->
-<div class="card">
-    <a href="{{ url('/dashboard') }}" style="text-decoration: none; display: block;">
-        <span class="card-title" style="color: #2563eb;">Weekly Journey</span>
-        <p class="card-text">
-            Track your progress through the Bible week by week. See your upcoming readings and stay on track with your goals.
+            View your current streak, weekly journey progress, and access all your reading tools in one place.
         </p>
     </a>
 </div>
