@@ -21,6 +21,11 @@ test('welcome email renders with new styles', function () {
     expect($html)->toContain('class="card"');
     expect($html)->not->toContain('class="notice"');
     expect($html)->toContain('background-color: #f3f4f6'); // New body bg
+
+    // Check for new sections
+    expect($html)->toContain('Log Your Reading');
+    expect($html)->toContain('Your Dashboard');
+    expect($html)->toContain('Weekly Journey');
 });
 
 test('password reset email renders with new styles', function () {

@@ -17,12 +17,32 @@
     Here are a few ways to get the most out of your experience:
 </p>
 
+<!-- Log Reading Section -->
+<div class="card">
+    <a href="{{ url('/logs/create') }}" style="text-decoration: none; display: block;">
+        <span class="card-title" style="color: #2563eb;">Log Your Reading</span>
+        <p class="card-text">
+            Just finished a chapter? Record your daily reading quickly and keep your streak alive.
+        </p>
+    </a>
+</div>
+
+<!-- Dashboard Section -->
+<div class="card">
+    <a href="{{ url('/dashboard') }}" style="text-decoration: none; display: block;">
+        <span class="card-title" style="color: #2563eb;">Your Dashboard</span>
+        <p class="card-text">
+            View your current streak, overall progress, and access all your reading tools in one place.
+        </p>
+    </a>
+</div>
+
 <!-- Weekly Journey Section -->
 <div class="card">
     <a href="{{ url('/dashboard') }}" style="text-decoration: none; display: block;">
         <span class="card-title" style="color: #2563eb;">Weekly Journey</span>
         <p class="card-text">
-            Track your progress through the Bible week by week. See your upcoming readings and stay on track with your goals on your Dashboard.
+            Track your progress through the Bible week by week. See your upcoming readings and stay on track with your goals.
         </p>
     </a>
 </div>
