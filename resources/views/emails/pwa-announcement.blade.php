@@ -10,40 +10,40 @@
     Get instant access to your Bible reading tracker right from your home screen!
 </p>
 
-<div class="notice notice-success">
-    <p class="notice-title">🎉 New Feature Available</p>
-    <p class="notice-text">
+<div class="alert alert-success">
+    <span class="alert-title">🎉 New Feature Available</span>
+    <p class="alert-text">
         Install Delight as a Progressive Web App - no app store needed!
     </p>
 </div>
 
-<div class="content-card">
-    <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #111827;">Why Install on Your Home Screen?</h3>
+<div class="card">
+    <span class="card-title">Why Install on Your Home Screen?</span>
 
     <div style="margin-bottom: 16px;">
         <strong style="color: #374151;">⚡ Instant Access:</strong>
-        <span style="color: #6b7280;">No more hunting for browser tabs - tap the icon and you're in!</span>
+        <span class="text-muted">No more hunting for browser tabs - tap the icon and you're in!</span>
     </div>
 
     <div style="margin-bottom: 16px;">
         <strong style="color: #374151;">🔥 Quick Streak Checking:</strong>
-        <span style="color: #6b7280;">See your reading progress and maintain your streak faster than ever.</span>
+        <span class="text-muted">See your reading progress and maintain your streak faster than ever.</span>
     </div>
 
     <div style="margin-bottom: 16px;">
         <strong style="color: #374151;">📊 Faster Progress Updates:</strong>
-        <span style="color: #6b7280;">Log your daily reading and view your book completion grid instantly.</span>
+        <span class="text-muted">Log your daily reading and view your book completion grid instantly.</span>
     </div>
 
     <div>
         <strong style="color: #374151;">📱 App-Like Experience:</strong>
-        <span style="color: #6b7280;">Feels like a native app without taking up extra storage space.</span>
+        <span class="text-muted">Feels like a native app without taking up extra storage space.</span>
     </div>
 </div>
 
-<div class="notice notice-info">
-    <p class="notice-title">📋 How to Install</p>
-    <p class="notice-text">
+<div class="alert alert-info">
+    <span class="alert-title">📋 How to Install</span>
+    <p class="alert-text">
         <strong>Important:</strong> You must visit Delight in your web browser first, then install from there.<br><br>
         <strong>iPhone/iPad (Safari):</strong> Tap the Share button (□↑) → "Add to Home Screen"<br>
         <strong>Android (Chrome):</strong> Tap the menu (⋮) → "Install app" or "Add to Home Screen"<br>
@@ -60,13 +60,13 @@
     Tap it anytime to quickly log your reading and keep your streak alive!
 </p>
 
-<div class="content-card">
-    <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #111827;">See It in Action</h3>
-    <p style="margin: 0 0 16px 0; color: #6b7280;">
+<div class="card">
+    <span class="card-title">See It in Action</span>
+    <p class="text-muted" style="margin: 0 0 16px 0;">
         Watch this quick tutorial showing how easy installation is:
     </p>
     
-    <div style="text-align: center; margin: 16px 0;">
+    <div class="text-center" style="margin: 16px 0;">
         <a href="https://twitter.com/SaintAriyel/status/1963013173403124047?ref_src=twsrc%5Etfw" style="display: inline-block; background: #1da1f2; color: white !important; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
             🎥 Watch Tutorial Video
         </a>
@@ -75,29 +75,29 @@
 
 <hr class="divider">
 
-<p class="message text-small text-muted">
+<p class="message text-sm text-muted">
     This update makes building your Bible reading habit even more convenient. 
     Install today and never miss logging your daily progress!
 </p>
 
-<div class="content-card">
-    <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #111827;">Need More Help?</h3>
+<div class="card">
+    <span class="card-title">Need More Help?</span>
     
     <div style="margin-bottom: 12px;">
         <strong style="color: #374151;">🟢 Chrome Guide:</strong>
-        <a href="https://support.google.com/chrome/answer/9658361" class="text-link" style="color: #3366CC;">Install web apps</a>
+        <a href="https://support.google.com/chrome/answer/9658361" class="link-primary">Install web apps</a>
     </div>
     
     <div>
         <strong style="color: #374151;">📖 General PWA Guide:</strong>
-        <a href="https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Installing" class="text-link" style="color: #3366CC;">Installing PWAs (Mozilla)</a>
+        <a href="https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Installing" class="link-primary">Installing PWAs (Mozilla)</a>
     </div>
 </div>
 @endsection
 
 @section('footer-extra')
 <p class="footer-text">
-    <a href="{{ url('/dashboard') }}" class="footer-link">Go to Dashboard</a> |
-    <a href="{{ url('/logs') }}" class="footer-link">View Reading History</a>
+    <a href="{{ url('/dashboard') }}" class="link">Go to Dashboard</a> |
+    <a href="{{ url('/logs') }}" class="link">View Reading History</a>
 </p>
 @endsection
