@@ -32,8 +32,8 @@ class FeedbackController extends Controller
         $data['user_name'] = $user->name;
         $data['user_email'] = $user->email;
 
-        // Use MAIL_FROM_ADDRESS as the admin email if not configured otherwise
-        $recipient = config('mail.from.address');
+        // Use configured admin address
+        $recipient = config('mail.admin_address');
 
         $this->emailService->sendWithErrorHandling(function () use ($recipient, $data) {
             Mail::to($recipient)->send(new FeedbackReceived($data));

@@ -35,7 +35,8 @@ test('feedback can be submitted', function () {
     $response->assertSessionHas('success');
 
     Mail::assertSent(FeedbackReceived::class, function ($mail) use ($user) {
-        return $mail->data['user_id'] === $user->id &&
+        return $mail->hasTo(config('mail.admin_address')) &&
+               $mail->data['user_id'] === $user->id &&
                $mail->data['category'] === 'feature' &&
                $mail->data['message'] === 'I want a dark mode toggle.';
     });
