@@ -24,8 +24,8 @@
             padding: 0;
             width: 100% !important;
             min-width: 100%;
-            background-color: #f9fafb;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             line-height: 1.6;
             color: #374151;
         }
@@ -33,47 +33,40 @@
         /* Container */
         .email-container {
             max-width: 600px;
-            margin: 0 auto;
+            margin: 40px auto;
             background-color: #ffffff;
-            border-radius: 12px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
 
         /* Header */
         .header {
-            background: #3366CC;
-            padding: 32px 24px;
+            background: #ffffff;
+            padding: 40px 32px 24px 32px;
             text-align: center;
         }
 
         .logo {
-            color: #ffffff;
-            font-size: 28px;
-            font-weight: 700;
+            color: #111827;
+            font-size: 32px;
+            font-weight: 800;
             margin: 0;
             text-decoration: none;
-            letter-spacing: -0.025em;
-        }
-
-        .tagline {
-            color: #dbeafe;
-            font-size: 14px;
-            margin: 8px 0 0 0;
-            font-weight: 400;
+            letter-spacing: -0.05em;
+            display: inline-block;
         }
 
         /* Content */
         .content {
-            padding: 32px 24px;
+            padding: 0 32px 40px 32px;
         }
 
         .greeting {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 600;
             color: #111827;
             margin: 0 0 16px 0;
-            letter-spacing: -0.025em;
         }
 
         .message {
@@ -91,173 +84,126 @@
 
         .button {
             display: inline-block;
-            background: #3366CC;
+            background: #2563eb;
             color: #ffffff !important;
             text-decoration: none;
-            padding: 12px 24px;
-            border-radius: 8px;
+            padding: 12px 32px;
+            border-radius: 9999px;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 15px;
             transition: all 0.2s ease;
-            border: 1px solid #3366CC;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+            border: none;
         }
 
         .button:hover {
-            background: #2c5aa0;
-            border-color: #2c5aa0;
+            background: #1d4ed8;
+            box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(51, 102, 204, 0.25);
         }
 
-        /* Notice boxes */
-        .notice {
-            border-radius: 8px;
-            padding: 16px;
+        /* Alerts (New Standard) */
+        .alert {
+            border-radius: 12px;
+            padding: 20px;
             margin: 24px 0;
-            border-left: 4px solid;
+            border: 1px solid transparent;
         }
 
-        .notice-security {
-            background-color: #fffbeb;
-            border-left-color: #f59e0b;
-            border: 1px solid #fde68a;
-            border-left: 4px solid #f59e0b;
-        }
-
-        .notice-info {
+        .alert-info {
             background-color: #eff6ff;
-            border-left-color: #3366CC;
-            border: 1px solid #bfdbfe;
-            border-left: 4px solid #3366CC;
-        }
-
-        .notice-success {
-            background-color: #f0fdf4;
-            border-left-color: #66CC99;
-            border: 1px solid #bbf7d0;
-            border-left: 4px solid #66CC99;
-        }
-
-        .notice-title {
-            font-weight: 600;
-            margin: 0 0 8px 0;
-            font-size: 14px;
-        }
-
-        .notice-security .notice-title {
-            color: #92400e;
-        }
-
-        .notice-info .notice-title {
+            border-color: #bfdbfe;
             color: #1e40af;
         }
 
-        .notice-success .notice-title {
+        .alert-success {
+            background-color: #f0fdf4;
+            border-color: #bbf7d0;
             color: #166534;
         }
 
-        .notice-text {
+        .alert-warning {
+            background-color: #fffbeb;
+            border-color: #fde68a;
+            color: #92400e;
+        }
+
+        .alert-title {
+            font-weight: 700;
+            margin-bottom: 4px;
+            display: block;
+            font-size: 14px;
+        }
+
+        .alert-text {
             font-size: 14px;
             margin: 0;
-            line-height: 1.5;
         }
 
-        .notice-security .notice-text {
-            color: #a16207;
+        /* Cards (New Standard) */
+        .card {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
         }
 
-        .notice-info .notice-text {
-            color: #1d4ed8;
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0 0 8px 0;
+            display: block;
         }
 
-        .notice-success .notice-text {
-            color: #15803d;
+        .card-text {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 0;
         }
 
         /* Footer */
         .footer {
             background-color: #f9fafb;
-            padding: 24px;
+            padding: 32px;
             text-align: center;
             border-top: 1px solid #e5e7eb;
         }
 
         .footer-text {
-            font-size: 13px;
-            color: #6b7280;
+            font-size: 12px;
+            color: #9ca3af;
             margin: 0 0 8px 0;
             line-height: 1.5;
         }
 
-        .footer-link {
-            color: #3366CC;
-            text-decoration: none;
-        }
-
-        .footer-link:hover {
-            color: #2c5aa0;
-            text-decoration: underline;
-        }
-
-        /* Utility classes */
-        .text-center {
-            text-align: center;
-        }
-
-        .text-small {
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
-        .text-muted {
-            color: #6b7280;
-        }
-
-        .text-link {
-            color: #3366CC;
-            text-decoration: none;
-        }
-
-        .text-link:hover {
-            color: #2c5aa0;
-            text-decoration: underline;
-        }
-
-        .mb-0 {
-            margin-bottom: 0;
-        }
-
-        .mb-8 {
-            margin-bottom: 8px;
-        }
-
-        .mb-16 {
-            margin-bottom: 16px;
-        }
-
-        .mb-24 {
-            margin-bottom: 24px;
-        }
-
-        .mb-32 {
-            margin-bottom: 32px;
-        }
-
-        /* Card-like content sections */
-        .content-card {
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 16px 0;
-        }
-
-        /* Divider */
+        /* Utilities */
         .divider {
             height: 1px;
             background: #e5e7eb;
-            margin: 24px 0;
+            margin: 32px 0;
             border: none;
+        }
+
+        .text-center { text-align: center; }
+        .text-sm { font-size: 13px; line-height: 1.5; }
+        .text-muted { color: #6b7280; }
+
+        .link {
+            color: #6b7280;
+            text-decoration: underline;
+            transition: color 0.2s;
+        }
+        .link:hover {
+            color: #374151;
+        }
+
+        .link-primary {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        .link-primary:hover {
+            text-decoration: underline;
         }
 
         /* Responsive */
@@ -269,31 +215,21 @@
             }
             
             .header {
-                padding: 24px 16px !important;
+                padding: 32px 20px 16px 20px !important;
             }
             
             .content {
-                padding: 24px 16px !important;
+                padding: 24px 20px 32px 20px !important;
             }
             
             .footer {
-                padding: 20px 16px !important;
-            }
-            
-            .greeting {
-                font-size: 20px;
+                padding: 24px 20px !important;
             }
             
             .button {
-                padding: 12px 20px;
-                font-size: 14px;
-                width: auto;
-                display: inline-block;
-            }
-            
-            .notice {
-                padding: 12px;
-                margin: 16px 0;
+                width: 100%;
+                box-sizing: border-box;
+                text-align: center;
             }
         }
     </style>
@@ -303,8 +239,7 @@
     <div class="email-container">
         <!-- Header -->
         <div class="header">
-            <h1 class="logo">Delight</h1>
-            <p class="tagline">Find delight in your daily Bible reading</p>
+            <a href="{{ url('/') }}" class="logo">Delight</a>
         </div>
 
         <!-- Content -->
@@ -315,11 +250,11 @@
         <!-- Footer -->
         <div class="footer">
             <p class="footer-text">
-                This email was sent from Delight, your Bible reading habit tracker.
+                &copy; {{ date('Y') }} Delight. All rights reserved.
             </p>
             <p class="footer-text">
-                Questions? Contact us at 
-                <a href="mailto:{{ config('mail.from.address') }}" class="footer-link">{{ config('mail.from.address') }}</a>
+                Have ideas to improve Delight?
+                <a href="{{ url('/feedback') }}" class="link">Send us Feedback</a>
             </p>
             @yield('footer-extra')
         </div>

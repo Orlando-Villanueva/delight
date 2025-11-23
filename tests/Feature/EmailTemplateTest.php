@@ -20,8 +20,8 @@ class EmailTemplateTest extends TestCase
         $this->assertStringContainsString('Reset Your Password', $rendered);
         $this->assertStringContainsString('Reset My Password', $rendered);
         $this->assertStringContainsString($resetUrl, $rendered);
-        $this->assertStringContainsString('Find delight in your daily Bible reading', $rendered);
         $this->assertStringContainsString('Security Notice', $rendered);
+        $this->assertStringContainsString('Send us Feedback', $rendered);
 
         // Test that the email has proper HTML structure
         $this->assertStringContainsString('<!DOCTYPE html>', $rendered);
