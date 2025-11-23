@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\GoogleOAuthController;
 use App\Http\Controllers\Auth\XOAuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
@@ -74,4 +75,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/logs/{readingLog}/notes', [ReadingLogController::class, 'updateNotes'])->name('logs.notes.update');
     Route::delete('/logs/batch', [ReadingLogController::class, 'batchDestroy'])->name('logs.batchDestroy');
     Route::delete('/logs/{readingLog}', [ReadingLogController::class, 'destroy'])->name('logs.destroy');
+
+    // Feedback Routes
+    Route::get('/feedback', [FeedbackController::class, 'create'])->name('feedback.create');
+    Route::post('/feedback', [FeedbackController::class, 'store'])->name('feedback.store');
 });

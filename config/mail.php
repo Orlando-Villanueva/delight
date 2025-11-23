@@ -108,4 +108,16 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Address
+    |--------------------------------------------------------------------------
+    |
+    | This address is used as the recipient for administrative emails,
+    | such as user feedback and bug reports.
+    |
+    */
+
+    'admin_address' => env('ADMIN_EMAIL', 'hello@delight.app'),
+
 ];
