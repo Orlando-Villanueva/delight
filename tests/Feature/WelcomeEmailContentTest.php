@@ -26,7 +26,7 @@ test('welcome email content renders correctly', function () {
     expect($html)->toContain(url('/feedback'));
 
     // Verify Section Titles
-    expect($html)->toContain('Weekly Journey');
+    expect($html)->toContain('Your Dashboard');
     expect($html)->toContain('History Logs');
     expect($html)->toContain('We Value Your Feedback');
 
