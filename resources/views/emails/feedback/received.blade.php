@@ -1,32 +1,26 @@
 @extends('emails.layouts.base')
 
-@section('title', 'New Feedback Received')
+@section('title', 'Feedback Received')
 
 @section('content')
-<h2 class="greeting">New Feedback Received</h2>
+<h2>Feedback Received</h2>
 
-<div class="card">
-    <div style="margin-bottom: 12px;">
-        <strong>User:</strong> <span class="text-muted">{{ $data['user_name'] }} (ID: {{ $data['user_id'] }})</span>
-    </div>
-    <div style="margin-bottom: 12px;">
-        <strong>Email:</strong> <a href="mailto:{{ $data['user_email'] }}" class="link-primary">{{ $data['user_email'] }}</a>
-    </div>
-    <div>
-        <strong>Category:</strong> <span class="text-muted">{{ ucfirst($data['category']) }}</span>
-    </div>
-</div>
+<p>
+    <strong>User:</strong> {{ $data['user_name'] }} (ID: {{ $data['user_id'] }})<br>
+    <strong>Email:</strong> {{ $data['user_email'] }}<br>
+    <strong>Category:</strong> {{ ucfirst($data['category']) }}
+</p>
 
-<div class="alert alert-info">
-    <span class="alert-title">Message Content</span>
-    <p class="alert-text" style="white-space: pre-wrap;">{{ $data['message'] }}</p>
-</div>
+<p>
+    <strong>Message:</strong><br>
+    <span style="white-space: pre-wrap;">{{ $data['message'] }}</span>
+</p>
 
-<div class="button-container">
-    <a href="{{ config('app.url') }}" class="button">Open App</a>
-</div>
+<p>
+    Open app: {{ config('app.url') }}
+</p>
 
-<p class="message text-sm text-muted text-center">
+<p>
     Sent from Delight Feedback System
 </p>
 @endsection
