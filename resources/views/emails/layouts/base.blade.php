@@ -164,6 +164,9 @@
             align-items: center;
             gap: 12px;
             margin-bottom: 8px;
+            /* Fallback for email clients that strip flexbox */
+            display: table;
+            width: 100%;
         }
 
         .card-icon {
@@ -177,12 +180,19 @@
             justify-content: center;
             color: #2563eb;
             flex-shrink: 0;
+            /* table fallback */
+            display: table-cell;
+            vertical-align: middle;
+            text-align: center;
+            line-height: 36px;
         }
 
         .card-icon svg {
             width: 20px;
             height: 20px;
             stroke: currentColor;
+            display: inline-block;
+            vertical-align: middle;
         }
 
         .card-heading .card-title {
@@ -191,6 +201,9 @@
             min-height: 36px;
             margin: 0;
             line-height: 1.2;
+            /* table fallback */
+            display: table-cell;
+            vertical-align: middle;
         }
 
         .card-title {
