@@ -160,50 +160,32 @@
         }
 
         .card-heading {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 8px;
-            /* Fallback for email clients that strip flexbox */
             display: table;
             width: 100%;
+            margin-bottom: 8px;
+            border-collapse: collapse;
+            border-spacing: 0;
         }
 
         .card-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 9999px;
-            background: #eef2ff;
-            border: 1px solid #e5e7eb;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            color: #2563eb;
-            flex-shrink: 0;
-            /* table fallback */
             display: table-cell;
+            width: 22px;
+            font-size: 18px;
+            line-height: 1;
+            color: #2563eb;
             vertical-align: middle;
             text-align: center;
-            line-height: 36px;
-        }
-
-        .card-icon svg {
-            width: 20px;
-            height: 20px;
-            stroke: currentColor;
-            display: inline-block;
-            vertical-align: middle;
+            padding: 0;
+            margin: 0;
         }
 
         .card-heading .card-title {
-            display: flex;
-            align-items: center;
+            display: table-cell;
+            vertical-align: middle;
+            padding-left: 12px;
             min-height: 36px;
             margin: 0;
             line-height: 1.2;
-            /* table fallback */
-            display: table-cell;
-            vertical-align: middle;
         }
 
         .card-title {
