@@ -1,17 +1,26 @@
-<x-mail::message>
-# New Feedback Received
+@extends('emails.layouts.base')
 
-**User:** {{ $data['user_name'] }} (ID: {{ $data['user_id'] }})
-**Email:** {{ $data['user_email'] }}
-**Category:** {{ ucfirst($data['category']) }}
+@section('title', 'Feedback Received')
 
-**Message:**
-{{ $data['message'] }}
+@section('content')
+<h2>Feedback Received</h2>
 
-<x-mail::button :url="config('app.url')">
-Open App
-</x-mail::button>
+<p>
+    <strong>User:</strong> {{ $data['user_name'] }} (ID: {{ $data['user_id'] }})<br>
+    <strong>Email:</strong> {{ $data['user_email'] }}<br>
+    <strong>Category:</strong> {{ ucfirst($data['category']) }}
+</p>
 
-Thanks,<br>
-{{ config('app.name') }}
-</x-mail::message>
+<p>
+    <strong>Message:</strong><br>
+    <span style="white-space: pre-wrap;">{{ $data['message'] }}</span>
+</p>
+
+<p>
+    Open app: {{ config('app.url') }}
+</p>
+
+<p>
+    Sent from Delight Feedback System
+</p>
+@endsection
