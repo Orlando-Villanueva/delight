@@ -74,9 +74,11 @@ test('feedback received email renders with new styles', function () {
     $view = View::make('emails.feedback.received', ['data' => $data]);
     $html = $view->render();
 
-    expect($html)->toContain('New Feedback Received');
-    expect($html)->toContain('Test User');
-    expect($html)->toContain('class="card"');
-    expect($html)->toContain('class="alert alert-info"');
+    expect($html)->toContain('<h2>Feedback Received</h2>');
+    expect($html)->toContain('Test User (ID: 1)');
+    expect($html)->toContain('test@example.com');
+    expect($html)->toContain('Category:</strong> Bug');
+    expect($html)->toContain('Open app: ' . config('app.url'));
+    expect($html)->toContain('Sent from Delight Feedback System');
     expect($html)->not->toContain('x-mail::message');
 });
