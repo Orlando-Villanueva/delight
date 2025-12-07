@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\GoogleOAuthController;
 use App\Http\Controllers\Auth\XOAuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DelightRewindController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\SitemapController;
@@ -79,4 +80,7 @@ Route::middleware('auth')->group(function () {
     // Feedback Routes
     Route::get('/feedback', [FeedbackController::class, 'create'])->name('feedback.create');
     Route::post('/feedback', [FeedbackController::class, 'store'])->name('feedback.store');
+
+    // Delight Rewind
+    Route::get('/rewind', [DelightRewindController::class, 'index'])->name('rewind.index');
 });
