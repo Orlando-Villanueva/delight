@@ -204,6 +204,14 @@
         </div>
     </div>
 
+    <!-- Toast Notification -->
+    <div x-show="showToast" x-transition.opacity.duration.300ms
+         class="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 bg-white text-black px-6 py-2 rounded-full shadow-lg font-bold flex items-center gap-2"
+         x-cloak>
+        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        Copied to clipboard!
+    </div>
+
     <!-- Floating Footer Controls -->
     <div class="fixed bottom-10 inset-x-0 flex justify-center gap-4 z-50">
         <button @click="share" class="px-6 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition flex items-center gap-2 shadow-lg">
@@ -221,6 +229,7 @@
             Alpine.data('rewind', () => ({
                 currentSlide: 0,
                 totalSlides: 6,
+                showToast: false,
 
                 next() {
                     if (this.currentSlide < this.totalSlides - 1) {
@@ -256,30 +265,51 @@
 
                 async share() {
                     const slideElement = document.getElementById('slide-' + this.currentSlide);
-                    if (navigator.share) {
-                        try {
-                            const canvas = await html2canvas(slideElement, {
-                                backgroundColor: null, // Capture background gradient
-                                scale: 2,
-                                ignoreElements: (element) => {
-                                    return element.tagName === 'BUTTON' || element.tagName === 'A'; // Don't capture buttons
-                                }
-                            });
-                            canvas.toBlob(async (blob) => {
+
+                    try {
+                        const canvas = await html2canvas(slideElement, {
+                            backgroundColor: null, // Capture background gradient
+                            scale: 2,
+                            ignoreElements: (element) => {
+                                return element.tagName === 'BUTTON' || element.tagName === 'A'; // Don't capture buttons
+                            }
+                        });
+
+                        canvas.toBlob(async (blob) => {
+                            if (!blob) {
+                                console.error('Canvas to Blob failed');
+                                return;
+                            }
+
+                            // 1. Try Native Share (Mobile)
+                            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'test.png', { type: 'image/png' })] })) {
                                 const file = new File([blob], 'delight-rewind.png', { type: 'image/png' });
                                 await navigator.share({
                                     title: 'My Delight Rewind',
                                     text: 'Check out my Bible reading journey this year!',
                                     files: [file]
                                 });
-                            });
-                        } catch (err) {
-                            console.error('Share failed:', err);
-                            // Fallback
-                            this.download();
-                        }
-                    } else {
-                        this.download();
+                            }
+                            // 2. Try Clipboard (Desktop)
+                            else if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+                                try {
+                                    await navigator.clipboard.write([
+                                        new ClipboardItem({ 'image/png': blob })
+                                    ]);
+                                    this.showToast = true;
+                                    setTimeout(() => this.showToast = false, 3000);
+                                } catch (clipboardErr) {
+                                    console.warn('Clipboard write failed, falling back to download', clipboardErr);
+                                    this.download();
+                                }
+                            }
+                            // 3. Fallback to Download
+                            else {
+                                this.download();
+                            }
+                        });
+                    } catch (err) {
+                        console.error('Share generation failed:', err);
                     }
                 },
 

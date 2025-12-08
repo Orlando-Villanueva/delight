@@ -18,19 +18,18 @@ class DelightRewindService
         $startDate = Carbon::create($year, 1, 1)->startOfDay();
         $endDate = Carbon::create($year, 12, 31)->endOfDay();
 
-        // Base query for the year (clone for each use to avoid stateful mutations)
-        $baseLogsQuery = $user->readingLogs()
+        // Base query for the year
+        $logsQuery = $user->readingLogs()
             ->whereBetween('date_read', [$startDate, $endDate]);
 
-        $totalChapters = (clone $baseLogsQuery)->count();
-        $totalBooksRead = (clone $baseLogsQuery)->distinct('book_id')->count('book_id');
+        $totalChapters = $logsQuery->count();
+        $totalBooksRead = $logsQuery->distinct('book_id')->count('book_id');
 
         // Most Read Book
-        $mostReadBookId = (clone $baseLogsQuery)
+        $mostReadBookId = $logsQuery->clone()
             ->select('book_id', DB::raw('count(*) as total'))
             ->groupBy('book_id')
             ->orderByDesc('total')
-            ->orderBy('book_id') // deterministic tie-break and required by Postgres when using distinct/on ordering
             ->value('book_id');
 
         $mostReadBook = $mostReadBookId
@@ -38,7 +37,7 @@ class DelightRewindService
             : null;
 
         // Most Read Testament
-        $logsWithBooks = (clone $baseLogsQuery)->get(); // We need to iterate to map book_id to testament/genre
+        $logsWithBooks = $logsQuery->get(); // We need to iterate to map book_id to testament/genre
 
         $testamentCounts = ['old' => 0, 'new' => 0];
         $genreCounts = [];

@@ -8,7 +8,7 @@
     <div class="w-full p-4 lg:p-6 pb-20 lg:pb-6">
 
         <!-- Delight Rewind Banner (December Only) -->
-        @if((now()->month == 12 && now()->day >= 25) || app()->environment(['local', 'staging']))
+        @if(now()->month == 12 && now()->day >= 25 || app()->environment('local'))
         <div class="mb-6 relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-900 to-blue-900 shadow-xl text-white">
             <div class="absolute inset-0 opacity-20">
                 <svg class="h-full w-full" fill="currentColor" viewBox="0 0 100 100" preserveAspectRatio="none">
