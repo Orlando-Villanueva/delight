@@ -20,7 +20,7 @@ class DelightRewindController extends Controller
 
         // Access Control
         $isDec25OrLater = now()->month === 12 && now()->day >= 25;
-        $isLocal = app()->environment('local', 'testing');
+        $isLocal = app()->environment('local', 'staging');
         $forceRewind = $request->has('force_rewind');
 
         if (! $isDec25OrLater && ! $isLocal && ! $forceRewind) {
