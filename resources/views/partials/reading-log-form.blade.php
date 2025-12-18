@@ -205,8 +205,8 @@
             </x-ui.button>
         </div>
         
-        @if(session('success'))
-            <p class="form-success mt-4">✅ {{ session('success') }}</p>
+        @if(isset($successMessage) || session('success'))
+            <p class="form-success mt-4">✅ {{ $successMessage ?? session('success') }}</p>
         @endif
     </div>
 </form>
