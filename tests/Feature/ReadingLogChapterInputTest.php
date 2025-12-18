@@ -28,8 +28,10 @@ class ReadingLogChapterInputTest extends TestCase
 
         $response = $this->actingAs($user)->post('/logs', $readingData);
 
-        // Assert validation error
-        $response->assertSessionHasErrors(['start_chapter']);
+        // Assert validation error - controller passes errors to view, not session
+        $response->assertViewHas('errors');
+        $errors = $response->viewData('errors');
+        $this->assertTrue($errors->has('start_chapter'));
 
         // Ensure no log was created
         $this->assertDatabaseCount('reading_logs', 0);
