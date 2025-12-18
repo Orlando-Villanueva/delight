@@ -73,9 +73,11 @@ class ReadingLogController extends Controller
             $start = (int) $validated['start_chapter'];
             $end = isset($validated['end_chapter']) ? (int) $validated['end_chapter'] : $start;
 
-            // Ensure start <= end
+            // Ensure start <= end (unless end was not provided, in which case it defaulted to start)
             if ($start > $end) {
-                [$start, $end] = [$end, $start];
+                throw ValidationException::withMessages([
+                    'start_chapter' => 'Invalid chapter range for the selected book.',
+                ]);
             }
 
             // Validate chapter range using service

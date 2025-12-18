@@ -116,9 +116,9 @@ class ReadingLogChapterInputTest extends TestCase
     }
 
     /**
-     * Test that range input where start > end swaps them correctly.
+     * Test that validation fails if start chapter is greater than end chapter.
      */
-    public function test_range_input_swaps_inverted_range(): void
+    public function test_range_input_fails_if_start_greater_than_end(): void
     {
         $user = User::factory()->create();
 
@@ -130,13 +130,17 @@ class ReadingLogChapterInputTest extends TestCase
         ];
 
         $response = $this->actingAs($user)->post('/logs', $readingData);
-        $response->assertStatus(200);
 
-        // Should be 3 logs (18, 19, 20)
-        $this->assertDatabaseCount('reading_logs', 3);
+        // Assert validation error
+        $response->assertViewHas('errors');
+        $errors = $response->viewData('errors');
+        $this->assertTrue($errors->has('start_chapter'));
+        $this->assertEquals(
+            'Invalid chapter range for the selected book.',
+            $errors->first('start_chapter')
+        );
 
-        $this->assertDatabaseHas('reading_logs', ['chapter' => 18]);
-        $this->assertDatabaseHas('reading_logs', ['chapter' => 19]);
-        $this->assertDatabaseHas('reading_logs', ['chapter' => 20]);
+        // Ensure no log was created
+        $this->assertDatabaseCount('reading_logs', 0);
     }
 }

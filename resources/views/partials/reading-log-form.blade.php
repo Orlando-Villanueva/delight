@@ -144,27 +144,32 @@
     </div>
 
     <!-- Chapter Input -->
-    <div class="grid grid-cols-2 gap-4 max-w-md">
-        <x-ui.input
-            name="start_chapter"
-            label="Start Chapter"
-            inputmode="numeric"
-            pattern="[0-9]*"
-            x-bind:placeholder="startChapterPlaceholder"
-            :value="old('start_chapter')"
-            required
-            :error="$errors->first('start_chapter')"
-        />
+    <div class="max-w-md">
+        <div class="grid grid-cols-2 gap-4">
+            <x-ui.input
+                name="start_chapter"
+                label="Start Chapter"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                x-bind:placeholder="startChapterPlaceholder"
+                :value="old('start_chapter')"
+                required
+            />
 
-        <x-ui.input
-            name="end_chapter"
-            label="End Chapter (Optional)"
-            inputmode="numeric"
-            pattern="[0-9]*"
-            x-bind:placeholder="endChapterPlaceholder"
-            :value="old('end_chapter')"
-            :error="$errors->first('end_chapter')"
-        />
+            <x-ui.input
+                name="end_chapter"
+                label="End Chapter (Optional)"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                x-bind:placeholder="endChapterPlaceholder"
+                :value="old('end_chapter')"
+                :error="$errors->first('end_chapter')"
+            />
+        </div>
+
+        @if($errors->first('start_chapter'))
+            <p class="form-error mt-2">{{ $errors->first('start_chapter') }}</p>
+        @endif
     </div>
 
     <!-- Notes Section -->
