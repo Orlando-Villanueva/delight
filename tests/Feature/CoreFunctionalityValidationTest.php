@@ -159,7 +159,7 @@ class CoreFunctionalityValidationTest extends TestCase
         // Test successful reading log creation
         $readingData = [
             'book_id' => 1, // Genesis
-            'chapter_input' => '1',
+            'start_chapter' => '1',
             'date_read' => today()->toDateString(),
             'notes_text' => 'Great chapter about creation',
         ];
@@ -196,7 +196,8 @@ class CoreFunctionalityValidationTest extends TestCase
         // Test chapter range input
         $readingData = [
             'book_id' => 1, // Genesis
-            'chapter_input' => '1-3',
+            'start_chapter' => '1',
+            'end_chapter' => '3',
             'date_read' => today()->toDateString(),
             'notes_text' => 'Read multiple chapters',
         ];
@@ -343,7 +344,7 @@ class CoreFunctionalityValidationTest extends TestCase
         // Test invalid reading log data
         $invalidData = [
             'book_id' => 999, // Invalid book ID
-            'chapter_input' => 'invalid',
+            'start_chapter' => 'invalid',
             'date_read' => 'invalid-date',
         ];
 

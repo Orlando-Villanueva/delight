@@ -136,7 +136,7 @@ class WeeklyGoalDashboardIntegrationTest extends TestCase
         // Create a reading log (which should trigger cache invalidation)
         $response = $this->post('/logs', [
             'book_id' => 1,
-            'chapter_input' => '1',
+            'start_chapter' => '1',
             'date_read' => today()->toDateString(),
             'notes_text' => 'Test passage',
         ]);

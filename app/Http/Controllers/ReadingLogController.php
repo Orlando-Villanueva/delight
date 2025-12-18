@@ -64,37 +64,45 @@ class ReadingLogController extends Controller
 
             $validated = $request->validate([
                 'book_id' => 'required|integer|min:1|max:66',
-                'chapter_input' => ['required', 'string', 'regex:/^(\d+|\d+-\d+)$/'],
+                'start_chapter' => 'required|integer|min:1',
+                'end_chapter' => 'nullable|integer|min:1',
                 'date_read' => "required|date|in:{$today},{$yesterday}",
                 'notes_text' => 'nullable|string|max:1000',
             ]);
 
-            // Parse chapter input (single or range)
-            $chapterData = $this->bibleReferenceService->parseChapterInput($validated['chapter_input']);
+            $start = (int) $validated['start_chapter'];
+            $end = isset($validated['end_chapter']) ? (int) $validated['end_chapter'] : $start;
+
+            // Ensure start <= end (unless end was not provided, in which case it defaulted to start)
+            if ($start > $end) {
+                throw ValidationException::withMessages([
+                    'start_chapter' => 'Invalid chapter range for the selected book.',
+                ]);
+            }
 
             // Validate chapter range using service
             if (! $this->bibleReferenceService->validateChapterRange(
                 $validated['book_id'],
-                $chapterData['start'],
-                $chapterData['end']
+                $start,
+                $end
             )) {
                 throw ValidationException::withMessages([
-                    'chapter_input' => 'Invalid chapter range for the selected book.',
+                    'start_chapter' => 'Invalid chapter range for the selected book.',
                 ]);
             }
 
             // Format passage text using service
             $validated['passage_text'] = $this->bibleReferenceService->formatBibleReferenceRange(
                 $validated['book_id'],
-                $chapterData['start'],
-                $chapterData['end']
+                $start,
+                $end
             );
 
             // Add chapter data for service
-            if ($chapterData['type'] === 'range') {
-                $validated['chapters'] = $chapterData['chapters'];
+            if ($start !== $end) {
+                $validated['chapters'] = range($start, $end);
             } else {
-                $validated['chapter'] = $chapterData['start'];
+                $validated['chapter'] = $start;
             }
 
             // Create reading log using service
@@ -144,7 +152,7 @@ class ReadingLogController extends Controller
             $books = $this->bibleReferenceService->listBibleBooks(null, 'en');
 
             // Create error bag for form display
-            $errors = new MessageBag(['chapter_input' => [$e->getMessage()]]);
+            $errors = new MessageBag(['start_chapter' => [$e->getMessage()]]);
 
             // Get form context data (yesterday logic, streak info)
             $formContext = $this->readingFormService->getFormContextData($request->user());
@@ -163,7 +171,7 @@ class ReadingLogController extends Controller
                 $books = $this->bibleReferenceService->listBibleBooks(null, 'en');
 
                 // Create error bag for form display
-                $errors = new MessageBag(['chapter_input' => ['You have already logged one or more of these chapters for today.']]);
+                $errors = new MessageBag(['start_chapter' => ['You have already logged one or more of these chapters for today.']]);
 
                 // Get form context data (yesterday logic, streak info)
                 $formContext = $this->readingFormService->getFormContextData($request->user());
