@@ -1,0 +1,71 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class HtmxValidationDisplayTest extends TestCase
+{
+    use RefreshDatabase;
+
+    /**
+     * Test that HTMX success response passes message as variable, not session flash.
+     */
+    public function test_htmx_success_uses_variable_not_flash()
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post('/logs', [
+            'book_id' => 1, // Genesis
+            'start_chapter' => '1',
+            'date_read' => today()->toDateString(),
+        ], ['HX-Request' => 'true']);
+
+        $response->assertStatus(200);
+
+        // Assert the view has the successMessage variable
+        $response->assertViewHas('successMessage');
+
+        // Assert the session does NOT have the 'success' key flashed for the next request
+        $this->assertFalse(session()->has('success'), 'Session should not have success key flashed for HTMX requests');
+
+        // Assert the response HTML contains the success message
+        $response->assertSee('Genesis 1 recorded');
+    }
+
+    /**
+     * Test that subsequent HTMX failure does not show success message.
+     */
+    public function test_htmx_validation_failure_clears_success_message()
+    {
+        $user = User::factory()->create();
+
+        // 1. Successful Request
+        $this->actingAs($user)->post('/logs', [
+            'book_id' => 1, // Genesis
+            'start_chapter' => '1',
+            'date_read' => today()->toDateString(),
+        ], ['HX-Request' => 'true']);
+
+        // 2. Failed Request (Invalid Range)
+        $response = $this->actingAs($user)->post('/logs', [
+            'book_id' => 1, // Genesis
+            'start_chapter' => '10',
+            'end_chapter' => '5', // Invalid range
+            'date_read' => today()->toDateString(),
+        ], ['HX-Request' => 'true']);
+
+        $response->assertStatus(200); // HTMX returns 200 with error form
+
+        // Assert errors are present
+        $response->assertViewHas('errors');
+        $this->assertTrue($response->viewData('errors')->has('start_chapter'));
+
+        // Assert success message is NOT present in the view data or HTML
+        $response->assertViewMissing('successMessage');
+        $response->assertDontSee('✅');
+        $response->assertSee('Invalid chapter range');
+    }
+}
