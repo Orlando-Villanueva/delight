@@ -144,17 +144,28 @@
     </div>
 
     <!-- Chapter Input -->
-    <x-ui.input 
-        name="chapter_input" 
-        label="Chapter(s)" 
-        inputmode="tel"
-        pattern="\d+(-\d+)?"
-        x-bind:placeholder="chapterPlaceholder"
-        :value="old('chapter_input')"
-        required
-        :error="$errors->first('chapter_input')"
-        class="max-w-md"
-    />
+    <div class="grid grid-cols-2 gap-4 max-w-md">
+        <x-ui.input
+            name="start_chapter"
+            label="Start Chapter"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            x-bind:placeholder="startChapterPlaceholder"
+            :value="old('start_chapter')"
+            required
+            :error="$errors->first('start_chapter')"
+        />
+
+        <x-ui.input
+            name="end_chapter"
+            label="End Chapter (Optional)"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            x-bind:placeholder="endChapterPlaceholder"
+            :value="old('end_chapter')"
+            :error="$errors->first('end_chapter')"
+        />
+    </div>
 
     <!-- Notes Section -->
     <x-ui.textarea 
@@ -218,7 +229,8 @@
             testamentLabel: config.initialTestament === 'old' ? '📜 Old Testament' : '✝️ New Testament',
             books: config.books,
             selectedBook: config.initialBookId,
-            chapterPlaceholder: 'e.g., 3 or 1-5',
+            startChapterPlaceholder: 'e.g. 1',
+            endChapterPlaceholder: 'e.g. 5',
 
             init() {
                 this.updateChapterPlaceholder(this.selectedBook);
@@ -226,7 +238,8 @@
 
             updateChapterPlaceholder(bookId) {
                 if (!bookId) {
-                    this.chapterPlaceholder = 'e.g., 3 or 1-5';
+                    this.startChapterPlaceholder = 'e.g. 1';
+                    this.endChapterPlaceholder = 'e.g. 5';
                     return;
                 }
 
@@ -234,9 +247,11 @@
                 const book = allBooks.find(b => b.id == bookId);
 
                 if (book) {
-                    this.chapterPlaceholder = `1-${book.chapters}`;
+                    this.startChapterPlaceholder = '1';
+                    this.endChapterPlaceholder = `${book.chapters}`;
                 } else {
-                    this.chapterPlaceholder = 'e.g., 3 or 1-5';
+                    this.startChapterPlaceholder = 'e.g. 1';
+                    this.endChapterPlaceholder = 'e.g. 5';
                 }
             },
 
