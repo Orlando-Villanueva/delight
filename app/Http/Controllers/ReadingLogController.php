@@ -116,12 +116,13 @@ class ReadingLogController extends Controller
                 $formContext = $this->readingFormService->getFormContextData($request->user());
 
                 // Set success message
-                session()->flash('success', "{$log->passage_text} recorded for {$log->date_read->format('M d, Y')}");
+                // Set success message for HTMX response (don't flash to session to avoid persistence issues)
+                $successMessage = "{$log->passage_text} recorded for {$log->date_read->format('M d, Y')}";
 
                 // Return just the form container with success message and reset form
                 return response()
                     ->view('partials.reading-log-form', array_merge(
-                        compact('books', 'errors'),
+                        compact('books', 'errors', 'successMessage'),
                         $formContext
                     ))
                     ->header('HX-Trigger', 'readingLogAdded');
@@ -287,7 +288,7 @@ class ReadingLogController extends Controller
         }
 
         $dates = $logs
-            ->map(fn ($log) => $log->date_read->format('Y-m-d'))
+            ->map(fn($log) => $log->date_read->format('Y-m-d'))
             ->unique()
             ->values();
 
@@ -298,7 +299,7 @@ class ReadingLogController extends Controller
         );
 
         $orderedResponses = $dates
-            ->mapWithKeys(fn ($date) => [$date => $dayResponses[$date] ?? null])
+            ->mapWithKeys(fn($date) => [$date => $dayResponses[$date] ?? null])
             ->all();
 
         if ($request->header('HX-Request')) {
@@ -365,8 +366,8 @@ class ReadingLogController extends Controller
     public function batchDestroy(Request $request)
     {
         $ids = collect($request->input('ids', []))
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
             ->unique();
 
         if ($ids->isEmpty()) {
@@ -381,7 +382,7 @@ class ReadingLogController extends Controller
             ->whereIn('id', $ids)
             ->get();
 
-        $dates = $logs->map(fn ($log) => $log->date_read->format('Y-m-d'))->unique()->values();
+        $dates = $logs->map(fn($log) => $log->date_read->format('Y-m-d'))->unique()->values();
 
         foreach ($logs as $log) {
             $this->readingLogService->deleteReadingLog($log);
@@ -395,7 +396,7 @@ class ReadingLogController extends Controller
             );
 
             $orderedResponses = $dates
-                ->mapWithKeys(fn ($date) => [$date => $dayResponses[$date] ?? null])
+                ->mapWithKeys(fn($date) => [$date => $dayResponses[$date] ?? null])
                 ->all();
 
             return view('partials.reading-log-update-response', [
