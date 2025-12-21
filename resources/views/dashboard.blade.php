@@ -123,5 +123,4 @@
         </div>
     </div>
     @endfragment
-    </div>
 @endsection
