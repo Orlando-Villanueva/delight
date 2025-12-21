@@ -4,8 +4,6 @@ use App\Mail\FeedbackReceived;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 
-
-
 test('feedback page is accessible', function () {
     $user = User::factory()->create();
 

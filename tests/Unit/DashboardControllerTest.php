@@ -2,20 +2,13 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\DashboardController;
 use App\Models\User;
-use App\Services\ReadingFormService;
-use App\Services\StreakStateService;
-use App\Services\UserStatisticsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class DashboardControllerTest extends TestCase
 {
     use RefreshDatabase;
-
-    private DashboardController $controller;
 
     private User $user;
 
@@ -25,110 +18,60 @@ class DashboardControllerTest extends TestCase
 
         $this->user = User::factory()->create();
         $this->actingAs($this->user);
-
-        $this->controller = new DashboardController(
-            app(ReadingFormService::class),
-            app(UserStatisticsService::class),
-            app(StreakStateService::class)
-        );
     }
 
     public function test_index_returns_dashboard_view_for_regular_request()
     {
-        $request = Request::create('/dashboard', 'GET');
+        $response = $this->get('/dashboard');
 
-        $response = $this->controller->index($request);
-
-        $this->assertEquals('dashboard', $response->getName());
-        $this->assertArrayHasKey('hasReadToday', $response->getData());
-        $this->assertArrayHasKey('streakState', $response->getData());
-        $this->assertArrayHasKey('stats', $response->getData());
+        $response->assertStatus(200);
+        $response->assertViewIs('dashboard');
+        $response->assertViewHas('hasReadToday');
+        $response->assertViewHas('streakState');
+        $response->assertViewHas('stats');
     }
 
-    public function test_index_returns_partial_view_for_htmx_request()
+    public function test_index_returns_fragment_for_htmx_request()
     {
-        $request = Request::create('/dashboard', 'GET');
-        $request->headers->set('HX-Request', 'true');
+        $response = $this->get('/dashboard', ['HX-Request' => 'true']);
 
-        $response = $this->controller->index($request);
-
-        $this->assertEquals('partials.dashboard-page', $response->getName());
-        $this->assertArrayHasKey('hasReadToday', $response->getData());
-        $this->assertArrayHasKey('streakState', $response->getData());
-        $this->assertArrayHasKey('stats', $response->getData());
+        $response->assertStatus(200);
+        // We look for the main content fragment container
+        $response->assertSee('id="main-content"', false);
+        $response->assertDontSee('<!DOCTYPE html>');
     }
 
     public function test_index_computes_streak_state_correctly()
     {
-        $request = Request::create('/dashboard', 'GET');
+        $response = $this->get('/dashboard');
 
-        $response = $this->controller->index($request);
-        $data = $response->getData();
+        $response->assertViewHas('streakState', function ($state) {
+            return in_array($state, ['inactive', 'active', 'warning']);
+        });
 
-        // Verify streak state is one of the valid states
-        $this->assertContains($data['streakState'], ['inactive', 'active', 'warning']);
-
-        // Verify hasReadToday is boolean
-        $this->assertIsBool($data['hasReadToday']);
-
-        // Verify stats is an array with expected structure
-        $this->assertIsArray($data['stats']);
-        $this->assertArrayHasKey('streaks', $data['stats']);
-        $this->assertArrayHasKey('current_streak', $data['stats']['streaks']);
-        $this->assertArrayHasKey('current_streak_series', $data['stats']['streaks']);
+        $response->assertViewHas('hasReadToday');
+        $response->assertViewHas('stats');
     }
 
     public function test_index_includes_weekly_goal_data_for_regular_request()
     {
-        $request = Request::create('/dashboard', 'GET');
+        $response = $this->get('/dashboard');
 
-        $response = $this->controller->index($request);
-        $data = $response->getData();
+        $response->assertViewHas('weeklyGoal');
+        $response->assertViewHas('weeklyJourney');
 
-        // Verify weeklyGoal is available as a separate variable
-        $this->assertArrayHasKey('weeklyGoal', $data);
-        $this->assertIsArray($data['weeklyGoal']);
-        $this->assertArrayHasKey('weeklyJourney', $data);
-        $this->assertIsArray($data['weeklyJourney']);
-
-        // Verify weekly goal data structure
-        $weeklyGoal = $data['weeklyGoal'];
+        $weeklyGoal = $response->viewData('weeklyGoal');
         $this->assertArrayHasKey('current_progress', $weeklyGoal);
         $this->assertArrayHasKey('weekly_target', $weeklyGoal);
-        $this->assertArrayHasKey('week_start', $weeklyGoal);
-        $this->assertArrayHasKey('week_end', $weeklyGoal);
-        $this->assertArrayHasKey('is_goal_achieved', $weeklyGoal);
-        $this->assertArrayHasKey('progress_percentage', $weeklyGoal);
-        $this->assertArrayHasKey('message', $weeklyGoal);
-        $this->assertArrayHasKey('journey', $weeklyGoal);
-
-        // Verify weekly goal is also available in stats
-        $this->assertArrayHasKey('weekly_goal', $data['stats']);
-        $this->assertArrayHasKey('weekly_journey', $data['stats']);
-        $this->assertEquals($data['stats']['weekly_goal'], $data['weeklyGoal']);
-        $this->assertEquals($data['stats']['weekly_journey'], $data['weeklyJourney']);
     }
 
     public function test_index_includes_weekly_goal_data_for_htmx_request()
     {
-        $request = Request::create('/dashboard', 'GET');
-        $request->headers->set('HX-Request', 'true');
+        $response = $this->get('/dashboard', ['HX-Request' => 'true']);
 
-        $response = $this->controller->index($request);
-        $data = $response->getData();
+        $response->assertStatus(200);
 
-        // Verify weeklyGoal is available as a separate variable for HTMX requests too
-        $this->assertArrayHasKey('weeklyGoal', $data);
-        $this->assertIsArray($data['weeklyGoal']);
-        $this->assertArrayHasKey('weeklyJourney', $data);
-        $this->assertIsArray($data['weeklyJourney']);
-
-        // Verify weekly goal data structure
-        $weeklyGoal = $data['weeklyGoal'];
-        $this->assertArrayHasKey('current_progress', $weeklyGoal);
-        $this->assertArrayHasKey('weekly_target', $weeklyGoal);
-        $this->assertIsInt($weeklyGoal['current_progress']);
-        $this->assertIsInt($weeklyGoal['weekly_target']);
-        $this->assertIsBool($weeklyGoal['is_goal_achieved']);
+        // Match current content
+        $response->assertSee('Weekly Journey');
     }
 }

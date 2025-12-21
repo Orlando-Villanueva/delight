@@ -28,7 +28,7 @@ class AppServiceProvider extends ServiceProvider
                 return response(view($view, $data)->fragment($fragment));
             }
 
-            return response(view($view, $data));
+            return view($view, $data);
         });
     }
 }

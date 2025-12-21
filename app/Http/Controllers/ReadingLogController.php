@@ -269,7 +269,7 @@ class ReadingLogController extends Controller
         }
 
         $dates = $logs
-            ->map(fn($log) => $log->date_read->format('Y-m-d'))
+            ->map(fn ($log) => $log->date_read->format('Y-m-d'))
             ->unique()
             ->values();
 
@@ -280,7 +280,7 @@ class ReadingLogController extends Controller
         );
 
         $orderedResponses = $dates
-            ->mapWithKeys(fn($date) => [$date => $dayResponses[$date] ?? null])
+            ->mapWithKeys(fn ($date) => [$date => $dayResponses[$date] ?? null])
             ->all();
 
         if ($request->header('HX-Request')) {
@@ -347,8 +347,8 @@ class ReadingLogController extends Controller
     public function batchDestroy(Request $request)
     {
         $ids = collect($request->input('ids', []))
-            ->map(fn($id) => (int) $id)
-            ->filter(fn($id) => $id > 0)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
             ->unique();
 
         if ($ids->isEmpty()) {
@@ -363,7 +363,7 @@ class ReadingLogController extends Controller
             ->whereIn('id', $ids)
             ->get();
 
-        $dates = $logs->map(fn($log) => $log->date_read->format('Y-m-d'))->unique()->values();
+        $dates = $logs->map(fn ($log) => $log->date_read->format('Y-m-d'))->unique()->values();
 
         foreach ($logs as $log) {
             $this->readingLogService->deleteReadingLog($log);
@@ -377,7 +377,7 @@ class ReadingLogController extends Controller
             );
 
             $orderedResponses = $dates
-                ->mapWithKeys(fn($date) => [$date => $dayResponses[$date] ?? null])
+                ->mapWithKeys(fn ($date) => [$date => $dayResponses[$date] ?? null])
                 ->all();
 
             return view('partials.reading-log-update-response', [
