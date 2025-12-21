@@ -46,19 +46,19 @@ class UserStatisticsService
         $currentStreak = Cache::remember(
             "user_current_streak_{$user->id}",
             3600, // 60 minutes TTL - expensive walking calculation
-            fn () => $this->readingLogService->calculateCurrentStreak($user)
+            fn() => $this->readingLogService->calculateCurrentStreak($user)
         );
 
         $longestStreak = Cache::remember(
             "user_longest_streak_{$user->id}",
             3600, // 60 minutes TTL - most expensive full history analysis
-            fn () => $this->readingLogService->calculateLongestStreak($user)
+            fn() => $this->readingLogService->calculateLongestStreak($user)
         );
 
         $currentStreakSeries = Cache::remember(
             "user_current_streak_series_{$user->id}",
             3600,
-            fn () => $this->readingLogService->getCurrentStreakSeries($user)
+            fn() => $this->readingLogService->getCurrentStreakSeries($user)
         );
 
         $currentStreakStartDate = null;
@@ -129,18 +129,22 @@ class UserStatisticsService
      */
     public function getReadingSummary(User $user): array
     {
-        $totalReadings = $user->readingLogs()->count();
-        $firstReading = $user->readingLogs()->oldest()->first();
-        $lastReading = $user->readingLogs()->latest()->first();
+        $summary = $user->readingLogs()
+            ->selectRaw('count(*) as total, min(date_read) as first_date, max(date_read) as last_date')
+            ->first();
 
-        $daysSinceFirst = $firstReading
-            ? Carbon::parse($firstReading->date_read)->diffInDays(now()) + 1
+        $totalReadings = (int) ($summary->total ?? 0);
+        $firstReadingDate = $summary->first_date;
+        $lastReadingDate = $summary->last_date;
+
+        $daysSinceFirst = $firstReadingDate
+            ? Carbon::parse($firstReadingDate)->diffInDays(now()) + 1
             : 0;
 
         return [
             'total_readings' => $totalReadings,
-            'first_reading_date' => $firstReading?->date_read,
-            'last_reading_date' => $lastReading?->date_read,
+            'first_reading_date' => $firstReadingDate,
+            'last_reading_date' => $lastReadingDate,
             'days_since_first_reading' => $daysSinceFirst,
             'total_reading_days' => $this->getTotalReadingDays($user),
             'average_chapters_per_day' => $this->getAverageChaptersPerDay($user, $totalReadings, $daysSinceFirst),
@@ -157,7 +161,7 @@ class UserStatisticsService
         return Cache::remember(
             "user_total_reading_days_{$user->id}",
             3600, // 60 minutes TTL - expensive distinct count query
-            fn () => $user->readingLogs()->distinct('date_read')->count('date_read')
+            fn() => $user->readingLogs()->distinct('date_read')->count('date_read')
         );
     }
 
@@ -236,7 +240,7 @@ class UserStatisticsService
             ->get()
             ->unique(function ($log) {
                 // Use a safer separator that won't appear in passage text
-                return $log->passage_text.'::'.$log->date_read;
+                return $log->passage_text . '::' . $log->date_read;
             })
             ->take($limit);
 
@@ -262,21 +266,19 @@ class UserStatisticsService
             "user_calendar_{$user->id}_{$year}",
             3600, // 60 minutes TTL - processes full year of data
             function () use ($user, $year) {
-                $startDate = Carbon::create($year, 1, 1);
-                $endDate = Carbon::create($year, 12, 31);
+                $startDate = Carbon::create($year, 1, 1)->startOfDay();
+                $endDate = Carbon::create($year, 12, 31)->endOfDay();
 
-                // Get all reading logs for the year and group by date using collections
-                $readingLogs = $user->readingLogs()
+                // Group by date and count readings per date using database-level grouping
+                $readingData = $user->readingLogs()
                     ->whereBetween('date_read', [$startDate, $endDate])
-                    ->get(['date_read']);
-
-                // Group by date and count readings per date
-                $readingData = $readingLogs
-                    ->groupBy(function ($log) {
-                        return Carbon::parse($log->date_read)->toDateString();
-                    })
-                    ->map(function ($readings) {
-                        return $readings->count();
+                    ->selectRaw('date_read, count(*) as count')
+                    ->groupBy('date_read')
+                    ->get()
+                    ->mapWithKeys(function ($item) {
+                        $date = $item->date_read;
+                        $dateString = ($date instanceof Carbon) ? $date->toDateString() : Carbon::parse($date)->toDateString();
+                        return [$dateString => (int) $item->count];
                     })
                     ->toArray();
 
@@ -315,7 +317,7 @@ class UserStatisticsService
         return Cache::remember(
             "user_monthly_calendar_{$user->id}_{$monthKey}",
             900, // 15 minutes TTL - lighter than full year
-            fn () => $this->buildMonthlyCalendarData($user, $year, $month, $targetDate)
+            fn() => $this->buildMonthlyCalendarData($user, $year, $month, $targetDate)
         );
     }
 
