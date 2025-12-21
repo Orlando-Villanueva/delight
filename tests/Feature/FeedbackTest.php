@@ -1,10 +1,10 @@
 <?php
 
-namespace Tests\Feature;
-
 use App\Mail\FeedbackReceived;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
+
+
 
 test('feedback page is accessible', function () {
     $user = User::factory()->create();
@@ -36,10 +36,10 @@ test('feedback can be submitted', function () {
 
     Mail::assertSent(FeedbackReceived::class, function ($mail) use ($user) {
         return $mail->hasTo(config('mail.admin_address')) &&
-               $mail->hasReplyTo($user->email) &&
-               $mail->data['user_id'] === $user->id &&
-               $mail->data['category'] === 'feature' &&
-               $mail->data['message'] === 'I want a dark mode toggle.';
+            $mail->hasReplyTo($user->email) &&
+            $mail->data['user_id'] === $user->id &&
+            $mail->data['category'] === 'feature' &&
+            $mail->data['message'] === 'I want a dark mode toggle.';
     });
 });
 
@@ -62,5 +62,6 @@ test('feedback page returns partial for HTMX requests', function () {
     ]);
 
     $response->assertStatus(200);
-    $response->assertViewIs('partials.feedback-page');
+    $response->assertSee('id="feedback-form-container"', false);
+    $response->assertDontSee('<!DOCTYPE html>');
 });

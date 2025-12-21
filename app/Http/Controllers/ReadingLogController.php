@@ -43,13 +43,7 @@ class ReadingLogController extends Controller
         $data = array_merge(compact('books', 'errors'), $formContext);
 
         // Return appropriate view based on request type
-        if ($request->header('HX-Request')) {
-            // For HTMX requests, return the page container partial
-            return view('partials.reading-log-create-page', $data);
-        }
-
-        // For direct page access, return the full page template
-        return view('logs.create', $data);
+        return response()->htmx('logs.create', 'page-content', $data);
     }
 
     /**
@@ -115,17 +109,14 @@ class ReadingLogController extends Controller
                 $errors = new MessageBag;
                 $formContext = $this->readingFormService->getFormContextData($request->user());
 
-                // Set success message
                 // Set success message for HTMX response (don't flash to session to avoid persistence issues)
                 $successMessage = "{$log->passage_text} recorded for {$log->date_read->format('M d, Y')}";
 
-                // Return just the form container with success message and reset form
-                return response()
-                    ->view('partials.reading-log-form', array_merge(
-                        compact('books', 'errors', 'successMessage'),
-                        $formContext
-                    ))
-                    ->header('HX-Trigger', 'readingLogAdded');
+                // Return just the form fragment with success message and reset form
+                return response()->htmx('logs.create', 'reading-form', array_merge(
+                    compact('books', 'errors', 'successMessage'),
+                    $formContext
+                ))->header('HX-Trigger', 'readingLogAdded');
             } else {
                 // For non-HTMX requests (tests, direct submissions), return the success message
                 // This maintains backwards compatibility with existing tests
@@ -141,10 +132,8 @@ class ReadingLogController extends Controller
             // Get form context data (yesterday logic, streak info)
             $formContext = $this->readingFormService->getFormContextData($request->user());
 
-            // Return appropriate partial based on request type
-            $partial = $request->header('HX-Request') ? 'partials.reading-log-form' : 'logs.create';
-
-            return view($partial, array_merge(
+            // Return appropriate fragment or view based on request type
+            return response()->htmx('logs.create', 'reading-form', array_merge(
                 compact('books', 'errors'),
                 $formContext
             ));
@@ -158,10 +147,8 @@ class ReadingLogController extends Controller
             // Get form context data (yesterday logic, streak info)
             $formContext = $this->readingFormService->getFormContextData($request->user());
 
-            // Return appropriate partial based on request type
-            $partial = $request->header('HX-Request') ? 'partials.reading-log-form' : 'logs.create';
-
-            return view($partial, array_merge(
+            // Return appropriate fragment or view based on request type
+            return response()->htmx('logs.create', 'reading-form', array_merge(
                 compact('books', 'errors'),
                 $formContext
             ));
@@ -177,10 +164,8 @@ class ReadingLogController extends Controller
                 // Get form context data (yesterday logic, streak info)
                 $formContext = $this->readingFormService->getFormContextData($request->user());
 
-                // Return appropriate partial based on request type
-                $partial = $request->header('HX-Request') ? 'partials.reading-log-create-page' : 'logs.create';
-
-                return view($partial, array_merge(
+                // Return appropriate fragment or view based on request type
+                return response()->htmx('logs.create', 'reading-form', array_merge(
                     compact('books', 'errors'),
                     $formContext
                 ));
@@ -199,7 +184,6 @@ class ReadingLogController extends Controller
     {
         $logs = $this->readingLogService->getPaginatedDayGroupsFor($request, $this->userStatisticsService);
 
-        // Return appropriate view based on request type
         if ($request->header('HX-Request')) {
             // If it's an infinite scroll request (has page parameter), return just the new cards
             if ($request->has('page') && $request->get('page') > 1) {
@@ -212,13 +196,10 @@ class ReadingLogController extends Controller
             if ($request->has('refresh')) {
                 return view('partials.reading-log-list', compact('logs'));
             }
-
-            // Otherwise, return the page container for HTMX navigation
-            return view('partials.logs-page', compact('logs'));
         }
 
-        // Return full page for direct access (browser URL)
-        return view('logs.index', compact('logs'));
+        // Return full page for direct access or page container for HTMX navigation
+        return response()->htmx('logs.index', 'page-content', compact('logs'));
     }
 
     /**

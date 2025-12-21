@@ -54,7 +54,7 @@ The project follows a service layer architecture, with a clear separation of con
     ```
 
 6.  **Run the Application:**
-    This project is set up to use Laravel Herd. Once you have placed the project in your Herd directory, it will be available at `http://biblehabit.test`.
+    This project is set up to use Laravel Herd. Once you have placed the project in your Herd directory, it will be available at `http://delight.test`.
 
 ### Testing
 
