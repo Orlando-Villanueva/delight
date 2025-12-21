@@ -55,12 +55,7 @@ class DashboardController extends Controller
         $streakMessage = $messagePayload['message'];
         $streakMessageTone = $messagePayload['tone'] ?? 'default';
 
-        // Return partial for HTMX navigation, full page for direct access
-        if ($request->header('HX-Request')) {
-            return view('partials.dashboard-page', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData'));
-        }
-
-        // Return full page for direct access (browser URL)
-        return view('dashboard', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData'));
+        // Return appropriate view based on request type
+        return response()->htmx('dashboard', 'dashboard-content', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData'));
     }
 }

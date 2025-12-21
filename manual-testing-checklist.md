@@ -1,7 +1,7 @@
 # Core Functionality Validation - Manual Testing Checklist
 
 ## Test Environment
-- **URL**: https://biblehabit.test
+- **URL**: https://delight.test
 - **Test Date**: July 23, 2025
 - **Status**: ✅ All automated tests passing (96 tests, 323 assertions)
 

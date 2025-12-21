@@ -3,8 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Notifications\WelcomeNotification;
-use Illuminate\Container\Container;
 use Illuminate\Support\Facades\View;
 
 // Mock for notification classes that might not exist or be hard to instantiate
@@ -68,7 +66,7 @@ test('feedback received email renders with new styles', function () {
         'user_id' => 1,
         'user_email' => 'test@example.com',
         'category' => 'bug',
-        'message' => 'This is a test message.'
+        'message' => 'This is a test message.',
     ];
 
     $view = View::make('emails.feedback.received', ['data' => $data]);
@@ -78,7 +76,7 @@ test('feedback received email renders with new styles', function () {
     expect($html)->toContain('Test User (ID: 1)');
     expect($html)->toContain('test@example.com');
     expect($html)->toContain('Category:</strong> Bug');
-    expect($html)->toContain('Open app: ' . config('app.url'));
+    expect($html)->toContain('Open app: '.config('app.url'));
     expect($html)->toContain('Sent from Delight Feedback System');
     expect($html)->not->toContain('x-mail::message');
 });

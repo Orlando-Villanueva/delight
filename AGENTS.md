@@ -17,7 +17,7 @@
 ## Coding Style & Naming Conventions
 - Follow PSR-12 with 4-space indentation (`.editorconfig` enforced); run `./vendor/bin/pint` before opening a pull request.
 - Structure services as `App\Services\{Domain}Service`; keep action classes verb-oriented (e.g., `LogDailyReading`).
-- Blade files should stay HTMX-first: prefer `hx-*` attributes over custom JS and keep modal fragments in `resources/views/components/modals`.
+- Blade files should stay HTMX-first: prefer `hx-*` attributes and use **Blade Fragments** (`@fragment`) for partial page updates over separate partial files.
 - Lean on Tailwind utilities; avoid custom CSS unless a technical constraint demands it.
 
 ## Testing Guidelines

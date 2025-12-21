@@ -14,7 +14,7 @@
                 "${USERPROFILE}/.config/herd/bin/herd-mcp.phar"
             ],
             "env": {
-                "SITE_PATH": "W:\\Projects\\Herd\\biblehabit"
+                "SITE_PATH": "W:\\Projects\\Herd\\delight"
             }
         }
     }

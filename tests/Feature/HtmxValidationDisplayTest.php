@@ -25,8 +25,8 @@ class HtmxValidationDisplayTest extends TestCase
 
         $response->assertStatus(200);
 
-        // Assert the view has the successMessage variable
-        $response->assertViewHas('successMessage');
+        // Assert the response HTML contains the success message
+        $response->assertSee('Genesis 1 recorded');
 
         // Assert the session does NOT have the 'success' key flashed for the next request
         $this->assertFalse(session()->has('success'), 'Session should not have success key flashed for HTMX requests');
@@ -59,12 +59,11 @@ class HtmxValidationDisplayTest extends TestCase
 
         $response->assertStatus(200); // HTMX returns 200 with error form
 
-        // Assert errors are present
-        $response->assertViewHas('errors');
-        $this->assertTrue($response->viewData('errors')->has('start_chapter'));
+        // Assert error message is present in the HTML
+        $response->assertSee('Invalid chapter range');
 
-        // Assert success message is NOT present in the view data or HTML
-        $response->assertViewMissing('successMessage');
+        // Assert success message is NOT present in the HTML
+        $response->assertDontSee('Genesis 1 recorded');
         $response->assertDontSee('✅');
         $response->assertSee('Invalid chapter range');
     }

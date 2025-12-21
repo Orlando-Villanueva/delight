@@ -32,7 +32,7 @@ A web application designed to help users build and maintain a consistent Bible r
 - **Database**: 
   - **Local Development**: SQLite for simplicity and ease of setup
   - **Production**: Laravel Cloud's Serverless Postgres (PostgreSQL 17) with denormalized BookProgress table for efficient tracking
-- **Frontend**: HTMX + Alpine.js for server-driven interactivity
+- **Frontend**: HTMX + Alpine.js for server-driven interactivity, using Laravel Blade Fragments for efficient partial updates
 - **Caching**: Redis (in production)
 - **Bible Reference System**: Static configuration approach via config files
 - **Internationalization**: Laravel's built-in localization system
@@ -61,13 +61,13 @@ Laravel Herd is a fast, native Laravel development environment for macOS and Win
 #### Usage
 
 1. **Open Herd and add your project directory**  
-   Click "Add Project" and select your cloned `biblehabit` directory.
+   Click "Add Project" and select your cloned `delight` directory.
 
 2. **Set up your local domain (optional but recommended):**  
-   Herd can automatically configure a `.test` domain (e.g., http://biblehabit.test).
+   Herd can automatically configure a `.test` domain (e.g., http://delight.test).
    Update your `.env`:
    ```
-   APP_URL=http://biblehabit.test
+   APP_URL=http://delight.test
    ```
 
 3. **Database Configuration:**  
@@ -78,7 +78,7 @@ Laravel Herd is a fast, native Laravel development environment for macOS and Win
    ```
    On Windows, use:
    ```
-   DB_DATABASE=W:/Projects/Herd/biblehabit/database/database.sqlite
+   DB_DATABASE=W:/Projects/Herd/delight/database/database.sqlite
    ```
 
 4. **Run migrations and seeders:**  
@@ -87,7 +87,7 @@ Laravel Herd is a fast, native Laravel development environment for macOS and Win
    ```
 
 5. **Access your app:**  
-   Open http://biblehabit.test in your browser.
+   Open http://delight.test in your browser.
 
 #### Notes
 
@@ -99,7 +99,7 @@ Laravel Herd is a fast, native Laravel development environment for macOS and Win
 1. **Clone the repository**
    ```bash
    git clone [repository-url]
-   cd biblehabit
+   cd delight
    ```
 
 2. **Install PHP dependencies**
@@ -124,7 +124,7 @@ Laravel Herd is a fast, native Laravel development environment for macOS and Win
    
    On Windows, use the full path in .env:
    ```
-   DB_DATABASE=W:/Projects/Herd/biblehabit/database/database.sqlite
+   DB_DATABASE=W:/Projects/Herd/delight/database/database.sqlite
    ```
 
 5. **Environment Setup**
@@ -148,7 +148,7 @@ Laravel Herd is a fast, native Laravel development environment for macOS and Win
    php artisan serve
    ```
    - Access at http://localhost:8000
-   - Or use Laravel Herd: open http://biblehabit.test (if configured)
+   - Or use Laravel Herd: open http://delight.test (if configured)
 
 ## Production Setup (Laravel Cloud)
 

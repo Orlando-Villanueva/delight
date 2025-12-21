@@ -46,19 +46,19 @@ class UserStatisticsService
         $currentStreak = Cache::remember(
             "user_current_streak_{$user->id}",
             3600, // 60 minutes TTL - expensive walking calculation
-            fn() => $this->readingLogService->calculateCurrentStreak($user)
+            fn () => $this->readingLogService->calculateCurrentStreak($user)
         );
 
         $longestStreak = Cache::remember(
             "user_longest_streak_{$user->id}",
             3600, // 60 minutes TTL - most expensive full history analysis
-            fn() => $this->readingLogService->calculateLongestStreak($user)
+            fn () => $this->readingLogService->calculateLongestStreak($user)
         );
 
         $currentStreakSeries = Cache::remember(
             "user_current_streak_series_{$user->id}",
             3600,
-            fn() => $this->readingLogService->getCurrentStreakSeries($user)
+            fn () => $this->readingLogService->getCurrentStreakSeries($user)
         );
 
         $currentStreakStartDate = null;
@@ -161,7 +161,7 @@ class UserStatisticsService
         return Cache::remember(
             "user_total_reading_days_{$user->id}",
             3600, // 60 minutes TTL - expensive distinct count query
-            fn() => $user->readingLogs()->distinct('date_read')->count('date_read')
+            fn () => $user->readingLogs()->distinct('date_read')->count('date_read')
         );
     }
 
@@ -240,7 +240,7 @@ class UserStatisticsService
             ->get()
             ->unique(function ($log) {
                 // Use a safer separator that won't appear in passage text
-                return $log->passage_text . '::' . $log->date_read;
+                return $log->passage_text.'::'.$log->date_read;
             })
             ->take($limit);
 
@@ -278,6 +278,7 @@ class UserStatisticsService
                     ->mapWithKeys(function ($item) {
                         $date = $item->date_read;
                         $dateString = ($date instanceof Carbon) ? $date->toDateString() : Carbon::parse($date)->toDateString();
+
                         return [$dateString => (int) $item->count];
                     })
                     ->toArray();
@@ -317,7 +318,7 @@ class UserStatisticsService
         return Cache::remember(
             "user_monthly_calendar_{$user->id}_{$monthKey}",
             900, // 15 minutes TTL - lighter than full year
-            fn() => $this->buildMonthlyCalendarData($user, $year, $month, $targetDate)
+            fn () => $this->buildMonthlyCalendarData($user, $year, $month, $targetDate)
         );
     }
 

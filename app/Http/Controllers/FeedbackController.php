@@ -16,11 +16,7 @@ class FeedbackController extends Controller
 
     public function create(Request $request)
     {
-        if ($request->header('HX-Request')) {
-            return view('partials.feedback-page');
-        }
-
-        return view('feedback.create');
+        return response()->htmx('feedback.create', 'page-content');
     }
 
     public function store(FeedbackRequest $request)
@@ -40,7 +36,7 @@ class FeedbackController extends Controller
         }, 'feedback_submission');
 
         if ($request->header('HX-Request')) {
-             return view('partials.feedback-success');
+            return response()->htmx('feedback.create', 'success-message', ['success' => true]);
         }
 
         return redirect()->route('dashboard')->with('success', 'Thank you for your feedback!');
