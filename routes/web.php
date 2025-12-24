@@ -79,4 +79,17 @@ Route::middleware('auth')->group(function () {
     // Feedback Routes
     Route::get('/feedback', [FeedbackController::class, 'create'])->name('feedback.create');
     Route::post('/feedback', [FeedbackController::class, 'store'])->name('feedback.store');
+
+    // Notifications (HTMX)
+    Route::get('/notifications', [\App\Http\Controllers\Dashboard\NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{announcement}/read', [\App\Http\Controllers\Dashboard\NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
 });
+
+// Admin Routes (Protected by check logic in middleware)
+Route::middleware(['auth', \App\Http\Middleware\EnsureUserIsAdmin::class])->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('announcements', \App\Http\Controllers\Admin\AnnouncementController::class);
+});
+
+// Public Announcements
+Route::get('/updates', [\App\Http\Controllers\PublicAnnouncementController::class, 'index'])->name('announcements.index');
+Route::get('/updates/{slug}', [\App\Http\Controllers\PublicAnnouncementController::class, 'show'])->name('announcements.show');

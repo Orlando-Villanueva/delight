@@ -96,4 +96,33 @@ class User extends Authenticatable
     {
         $this->notify(new CustomResetPasswordNotification($token));
     }
+
+    /**
+     * Check if the user is an admin.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->email === config('mail.admin_address');
+    }
+
+    /**
+     * The announcements that the user has read.
+     */
+    public function announcements()
+    {
+        return $this->belongsToMany(Announcement::class)
+            ->withPivot('read_at')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get unread announcements for the user.
+     */
+    public function unreadAnnouncements()
+    {
+        return Announcement::visible()
+            ->whereDoesntHave('users', function ($query) {
+                $query->where('user_id', $this->id);
+            });
+    }
 }

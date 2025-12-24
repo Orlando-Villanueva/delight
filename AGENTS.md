@@ -13,6 +13,7 @@
 - `npm run dev` – launch the Vite dev server; pair with Herd or `php artisan serve`.
 - `npm run build` – compile production-ready assets.
 - `php artisan test` or `composer test` – run the Pest-powered suite.
+- `mailpit` – run the local email server (view at http://localhost:8025).
 
 ## Coding Style & Naming Conventions
 - Follow PSR-12 with 4-space indentation (`.editorconfig` enforced); run `./vendor/bin/pint` before opening a pull request.

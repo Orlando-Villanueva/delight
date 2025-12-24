@@ -21,6 +21,9 @@
                     Log Reading
                 </button>
 
+                <!-- Notification Bell -->
+                <x-ui.notification-bell />
+
                 <!-- Profile Dropdown -->
                 <x-navigation.profile-dropdown dropdown-id="dropdown-user" size="default" />
             </div>
