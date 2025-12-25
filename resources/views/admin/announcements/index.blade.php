@@ -36,11 +36,11 @@
                                         Title
                                     </th>
                                     <th scope="col"
-                                        class="px-3 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        class="hidden sm:table-cell px-3 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                         Type
                                     </th>
                                     <th scope="col"
-                                        class="px-3 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        class="hidden md:table-cell px-3 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                         Publish Date</th>
                                     <th scope="col"
                                         class="px-3 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -68,12 +68,12 @@
                                     @endphp
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                         <td
-                                            class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
+                                            class="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
                                             {{ $announcement->title }}
                                             <div class="text-xs text-gray-500 dark:text-gray-500 font-normal">
                                                 /{{ $announcement->slug }}</div>
                                         </td>
-                                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                                        <td class="hidden sm:table-cell whitespace-nowrap px-3 py-4 text-sm">
                                             <span
                                                 class="inline-flex rounded-full px-2 text-xs font-medium leading-5 
                                                                             {{ $announcement->type === 'warning' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : '' }}
@@ -82,7 +82,8 @@
                                                 {{ ucfirst($announcement->type) }}
                                             </span>
                                         </td>
-                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-600 dark:text-gray-400">
+                                        <td
+                                            class="hidden md:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-600 dark:text-gray-400">
                                             {{ $announcement->starts_at ? $announcement->starts_at->format('M j, Y H:i') : 'Draft' }}
                                         </td>
                                         <td class="whitespace-nowrap px-3 py-4 text-sm">
