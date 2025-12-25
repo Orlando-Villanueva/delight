@@ -11,24 +11,23 @@
             </div>
             <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
                 <a href="{{ route('admin.announcements.create') }}"
-                    class="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto transition-colors">
+                    class="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto transition-colors dark:hover:bg-blue-500">
                     New Announcement
                 </a>
             </div>
         </div>
 
-        <div class="mt-8 flex flex-col">
-            <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-                    @if(session('success'))
+        <div class="mt-4 flex flex-col">
+            <div class="overflow-x-auto rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                <div class="inline-block min-w-full align-middle">
+                    @if (session('success'))
                         <div
-                            class="mb-6 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg shadow-sm">
+                            class="px-6 py-4 bg-green-50 dark:bg-green-900/30 border-b border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
                             {{ session('success') }}
                         </div>
                     @endif
 
-                    <div
-                        class="overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800">
+                    <div class="overflow-hidden bg-white dark:bg-gray-800">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-700">
                                 <tr>
@@ -53,12 +52,15 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                                @foreach($announcements as $announcement)
+                                @foreach ($announcements as $announcement)
                                     @php
                                         $status = 'Draft';
                                         if ($announcement->starts_at && $announcement->starts_at->isFuture()) {
                                             $status = 'Scheduled';
-                                        } elseif ($announcement->starts_at && (!$announcement->ends_at || $announcement->ends_at->isFuture())) {
+                                        } elseif (
+                                            $announcement->starts_at &&
+                                            (!$announcement->ends_at || $announcement->ends_at->isFuture())
+                                        ) {
                                             $status = 'Active';
                                         } elseif ($announcement->ends_at && $announcement->ends_at->isPast()) {
                                             $status = 'Expired';
@@ -94,7 +96,8 @@
                                         </td>
                                         <td
                                             class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                            <a href="{{ route('announcements.show', $announcement->slug) }}" target="_blank"
+                                            <a href="{{ route('announcements.show', $announcement->slug) }}"
+                                                target="_blank"
                                                 class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">View</a>
                                         </td>
                                     </tr>
@@ -102,10 +105,10 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="mt-6">
-                        {{ $announcements->links() }}
-                    </div>
                 </div>
+            </div>
+            <div class="mt-6">
+                {{ $announcements->links() }}
             </div>
         </div>
     </div>
