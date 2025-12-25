@@ -5,8 +5,8 @@
 
 @section('content')
     @fragment('page-content')
-        <div class="flex-1 p-4 xl:p-6 pb-5 md:pb-20 lg:pb-6">
-            <div id="main-content" class="h-full">
+        <div class="flex-1">
+            <div id="main-content">
                 <div class="max-w-2xl mx-auto sm:px-20 lg:px-32">
                     @fragment('reading-form')
                         <div id="reading-log-form-container">
@@ -25,9 +25,8 @@
                                 }
                             @endphp
 
-                            <form hx-post="{{ route('logs.store') }}" hx-target="#reading-log-form-container"
-                                hx-swap="outerHTML" class="space-y-6"
-                                x-data="readingLogForm({
+                            <form hx-post="{{ route('logs.store') }}" hx-target="#reading-log-form-container" hx-swap="outerHTML"
+                                class="space-y-6" x-data="readingLogForm({
                                     initialTestament: '{{ $initialTestament }}',
                                     initialBookId: '{{ old('book_id') }}',
                                     books: {
@@ -74,7 +73,12 @@
                                                 <label
                                                     class="ml-3 block text-sm font-medium text-gray-400 dark:text-gray-500 cursor-not-allowed">
                                                     📅 Yesterday ({{ today()->subDay()->format('M d, Y') }}) -
-                                                    @if (isset($hasReadYesterday) && !$hasReadYesterday && isset($currentStreak) && $currentStreak > 0 && isset($hasReadToday) && !$hasReadToday)
+                                                    @if (isset($hasReadYesterday) &&
+                                                            !$hasReadYesterday &&
+                                                            isset($currentStreak) &&
+                                                            $currentStreak > 0 &&
+                                                            isset($hasReadToday) &&
+                                                            !$hasReadToday)
                                                         <span class="italic">Would break your
                                                             {{ $currentStreak }}-day streak</span>
                                                     @else
@@ -103,8 +107,8 @@
                                             class="shrink-0 inline-flex items-center py-2 px-4 text-sm font-medium text-center text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-s-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:z-10 dark:focus:ring-primary-600 shadow-sm z-10"
                                             type="button">
                                             <span x-text="testamentLabel"></span>
-                                            <svg class="w-2.5 h-2.5 ms-2.5" aria-hidden="true"
-                                                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                            <svg class="w-2.5 h-2.5 ms-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                                                fill="none" viewBox="0 0 10 6">
                                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
                                                     stroke-width="2" d="m1 1 4 4 4-4" />
                                             </svg>
@@ -158,9 +162,8 @@
                                 <!-- Chapter Input -->
                                 <div class="max-w-md">
                                     <div class="grid grid-cols-2 gap-4">
-                                        <x-ui.input name="start_chapter" label="Start Chapter" inputmode="numeric"
-                                            pattern="[0-9]*" x-bind:placeholder="startChapterPlaceholder" :value="old('start_chapter')"
-                                            required />
+                                        <x-ui.input name="start_chapter" label="Start Chapter" inputmode="numeric" pattern="[0-9]*"
+                                            x-bind:placeholder="startChapterPlaceholder" :value="old('start_chapter')" required />
 
                                         <x-ui.input name="end_chapter" label="End Chapter (Optional)" inputmode="numeric"
                                             pattern="[0-9]*" x-bind:placeholder="endChapterPlaceholder" :value="old('end_chapter')"
@@ -174,15 +177,13 @@
 
                                 <!-- Notes Section -->
                                 <x-ui.textarea name="notes_text" label="Notes (Optional)"
-                                    placeholder="Share any thoughts, insights, or questions from your reading..."
-                                    :value="old('notes_text')" rows="4" maxlength="1000" :showCounter="true"
-                                    :error="$errors->first('notes_text')" />
+                                    placeholder="Share any thoughts, insights, or questions from your reading..." :value="old('notes_text')"
+                                    rows="4" maxlength="1000" :showCounter="true" :error="$errors->first('notes_text')" />
 
                                 <!-- Form Actions -->
                                 <div class="pt-6 border-t border-gray-200 dark:border-gray-600">
                                     <div class="flex items-start">
-                                        <x-ui.button type="submit" variant="accent" size="lg"
-                                            hx-indicator="#save-loading"
+                                        <x-ui.button type="submit" variant="accent" size="lg" hx-indicator="#save-loading"
                                             class="w-full sm:w-auto px-6 py-3 text-base font-medium shadow-sm">
                                             <span id="save-loading" class="htmx-indicator hidden">
                                                 <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"

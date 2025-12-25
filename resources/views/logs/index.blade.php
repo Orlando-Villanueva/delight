@@ -5,9 +5,9 @@
 
 @section('content')
     @fragment('page-content')
-        <div class="flex-1 p-4 lg:p-6 lg:pb-6 container">
-            <div id="main-content" class="h-full">
-                <div class="max-w-4xl mx-auto pb-10 md:pb-4">
+        <div class="flex-1 container">
+            <div id="main-content">
+                <div class="max-w-4xl mx-auto">
                     {{-- Reading Log Content Container --}}
                     <div id="reading-content" class="relative">
                         {{-- Loading Indicator - Only covers the logs area --}}

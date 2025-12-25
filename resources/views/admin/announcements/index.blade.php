@@ -3,7 +3,7 @@
 @section('page-title', 'Manage Announcements')
 
 @section('content')
-    <div class="px-4 py-8 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+    <div class="max-w-5xl w-full mx-auto">
         <div class="sm:flex sm:items-center">
             <div class="sm:flex-auto">
                 <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">Announcements</h1>

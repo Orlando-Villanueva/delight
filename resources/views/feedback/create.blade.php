@@ -5,7 +5,7 @@
 
 @section('content')
     @fragment('page-content')
-        <div class="flex-1 p-4 xl:p-6 pb-5 md:pb-20 lg:pb-6">
+        <div class="flex-1">
             <div class="max-w-2xl mx-auto sm:px-20 lg:px-32">
                 @include('partials.feedback-form')
             </div>
@@ -13,9 +13,10 @@
     @endfragment
 
     {{-- For successful submissions, we provide the success message as a fragment --}}
-    @if(isset($success) && $success)
+    @if (isset($success) && $success)
         @fragment('success-message')
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700 text-center">
+            <div
+                class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700 text-center">
                 <div
                     class="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 p-2 flex items-center justify-center mx-auto mb-4">
                     <svg class="w-8 h-8 text-green-500 dark:text-green-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
