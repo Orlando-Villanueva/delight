@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Announcement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -10,7 +11,7 @@ class AnnouncementController extends Controller
 {
     public function index()
     {
-        $announcements = \App\Models\Announcement::latest()->paginate(20);
+        $announcements = Announcement::latest()->paginate(20);
 
         return view('admin.announcements.index', compact('announcements'));
     }
@@ -37,9 +38,7 @@ class AnnouncementController extends Controller
 
         $validated['slug'] = Str::slug($validated['title']) . '-' . now()->timestamp;
 
-        $announcement = \App\Models\Announcement::create($validated);
-
-        // TODO: Handle Email Notification here if we add that checkbox later
+        Announcement::create($validated);
 
         return redirect()->route('admin.announcements.index')
             ->with('success', 'Announcement created successfully.');

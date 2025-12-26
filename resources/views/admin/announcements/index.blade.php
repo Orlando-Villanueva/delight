@@ -75,7 +75,7 @@
                                         </td>
                                         <td class="hidden sm:table-cell whitespace-nowrap px-3 py-4 text-sm">
                                             <span
-                                                class="inline-flex rounded-full px-2 text-xs font-medium leading-5 
+                                                class="inline-flex rounded-full px-2 text-xs font-medium leading-5
                                                                             {{ $announcement->type === 'warning' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : '' }}
                                                                             {{ $announcement->type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : '' }}
                                                                             {{ $announcement->type === 'info' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : '' }}">
@@ -88,7 +88,7 @@
                                         </td>
                                         <td class="whitespace-nowrap px-3 py-4 text-sm">
                                             <span
-                                                class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium 
+                                                class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
                                                                             {{ $status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : '' }}
                                                                             {{ $status === 'Scheduled' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : '' }}
                                                                             {{ $status === 'Expired' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' : '' }}">

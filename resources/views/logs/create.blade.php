@@ -37,9 +37,9 @@
                                 @csrf
 
                                 <!-- Date Selection: Today or Yesterday -->
-                                <div class="space-y-2">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">When did you
-                                        read?</label>
+                                <fieldset class="space-y-2">
+                                    <legend class="block text-sm font-medium text-gray-700 dark:text-gray-300">When did you
+                                        read?</legend>
                                     <div class="space-y-3">
                                         <div class="flex items-center">
                                             <input type="radio" id="today" name="date_read"
@@ -68,9 +68,9 @@
                                         @elseif(isset($allowYesterday))
                                             {{-- Show why yesterday is not available --}}
                                             <div class="flex items-center opacity-50">
-                                                <input type="radio" disabled
+                                                <input type="radio" id="yesterday-disabled" disabled
                                                     class="h-4 w-4 text-gray-400 border-gray-300 dark:border-gray-600 cursor-not-allowed">
-                                                <label
+                                                <label for="yesterday-disabled"
                                                     class="ml-3 block text-sm font-medium text-gray-400 dark:text-gray-500 cursor-not-allowed">
                                                     📅 Yesterday ({{ today()->subDay()->format('M d, Y') }}) -
                                                     @if (isset($hasReadYesterday) &&
@@ -92,11 +92,11 @@
                                         💡 <strong>Grace Period:</strong> You can log today's reading or catch up on
                                         yesterday if you forgot.
                                     </div>
-                                </div>
+                                </fieldset>
 
                                 <!-- Bible Book Selection -->
                                 <div class="space-y-2 max-w-md">
-                                    <label class="form-label">
+                                    <label for="book_id" class="form-label">
                                         📚 Bible Book
                                     </label>
 
@@ -140,7 +140,7 @@
 
                                         <!-- Book Select List -->
                                         <div class="flex-1 relative focus-within:z-20">
-                                            <select name="book_id" required class="form-input rounded-s-none -ml-px w-full"
+                                            <select id="book_id" name="book_id" required class="form-input rounded-s-none -ml-px w-full"
                                                 aria-label="Select Bible book" x-model="selectedBook"
                                                 @change="updateChapterPlaceholder($event.target.value)">
                                                 <option value="">Select a book...</option>
