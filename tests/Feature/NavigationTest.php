@@ -314,14 +314,14 @@ describe('Accessibility Features', function () {
         $response->assertSee('aria-expanded', false);
     });
 
-    it('includes role attributes in dropdown menu', function () {
+    it('includes accessible label for dropdown button', function () {
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)->get('/dashboard');
 
         $response->assertSuccessful();
-        $response->assertSee('role="none"', false);
-        $response->assertSee('role="menuitem"', false);
+        $response->assertSee('sr-only', false);
+        $response->assertSee('Open user menu', false);
     });
 });
 

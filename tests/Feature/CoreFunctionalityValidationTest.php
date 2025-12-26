@@ -294,7 +294,7 @@ class CoreFunctionalityValidationTest extends TestCase
 
         // Check for responsive grid classes
         $response->assertSee('grid-cols-1', false);
-        $response->assertSee('lg:grid-cols-2', false);
+        $response->assertSee('sm:grid-cols-2', false);
         $response->assertSee('2xl:grid-cols-3', false);
         $response->assertSee('xl:grid-cols-4', false);
 

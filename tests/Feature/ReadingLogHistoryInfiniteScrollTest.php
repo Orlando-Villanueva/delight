@@ -35,7 +35,7 @@ class ReadingLogHistoryInfiniteScrollTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('id="reading-day-', false);
-        $response->assertSee('class="mb-10 ms-6"', false);
+        $response->assertSee('class="ms-6"', false);
         $response->assertSee('id="infinite-scroll-sentinel"', false);
         $response->assertSee('hx-target="this"', false);
         $response->assertSee('hx-swap="outerHTML"', false);
