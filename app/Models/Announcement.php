@@ -26,7 +26,8 @@ class Announcement extends Model
     ];
 
     /**
-     * Scope a query to only include published announcements (active or expired).
+     * Scope a query to include published announcements even if they are expired,
+     * so direct URLs remain available while lists can still hide expired items.
      */
     public function scopePublished($query)
     {

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Announcement;
+
 class PublicAnnouncementController extends Controller
 {
     public function index()
     {
-        $announcements = \App\Models\Announcement::visible()
+        $announcements = Announcement::visible()
             ->orderBy('starts_at', 'desc')
             ->paginate(10);
 
@@ -15,7 +17,9 @@ class PublicAnnouncementController extends Controller
 
     public function show($slug)
     {
-        $announcement = \App\Models\Announcement::published()
+        // Use published() so expired announcements remain reachable by direct URL
+        // even though they are hidden from in-app lists.
+        $announcement = Announcement::published()
             ->where('slug', $slug)
             ->firstOrFail();
 
