@@ -93,7 +93,8 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', EnsureUserIsAdmin::class])->prefix('admin')->name('admin.')->group(function () {
     Route::post('announcements/preview', [AnnouncementController::class, 'preview'])
         ->name('announcements.preview');
-    Route::resource('announcements', AnnouncementController::class);
+    Route::resource('announcements', AnnouncementController::class)
+        ->only(['index', 'create', 'store']);
 });
 
 // Public Announcements
