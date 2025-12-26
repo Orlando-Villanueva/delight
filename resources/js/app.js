@@ -46,6 +46,21 @@ if (typeof document !== 'undefined') {
 
         document.body.addEventListener('htmx:afterSwap', initFlowbiteWithPatches);
 
+        // Close all Flowbite dropdowns when a major HTMX navigation occurs
+        document.body.addEventListener('htmx:beforeRequest', (event) => {
+            const target = event.detail.target;
+            if (target?.id === 'page-container' && typeof FlowbiteInstances !== 'undefined') {
+                const dropdowns = FlowbiteInstances.getInstances('Dropdown');
+                if (dropdowns) {
+                    Object.values(dropdowns).forEach(instance => {
+                        if (typeof instance.hide === 'function') {
+                            instance.hide();
+                        }
+                    });
+                }
+            }
+        });
+
         document.body.addEventListener('hideModal', (event) => {
             const modalId = event?.detail?.id ?? event?.detail;
 

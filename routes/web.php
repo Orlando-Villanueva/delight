@@ -1,11 +1,15 @@
 <?php
 
+use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Auth\GoogleOAuthController;
 use App\Http\Controllers\Auth\XOAuthController;
+use App\Http\Controllers\Dashboard\NotificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedbackController;
+use App\Http\Controllers\PublicAnnouncementController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Support\Facades\Route;
 
 // Development Routes (Local Development Only)
@@ -79,4 +83,20 @@ Route::middleware('auth')->group(function () {
     // Feedback Routes
     Route::get('/feedback', [FeedbackController::class, 'create'])->name('feedback.create');
     Route::post('/feedback', [FeedbackController::class, 'store'])->name('feedback.store');
+
+    // Notifications (HTMX)
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{announcement}/read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
 });
+
+// Admin Routes (Protected by check logic in middleware)
+Route::middleware(['auth', EnsureUserIsAdmin::class])->prefix('admin')->name('admin.')->group(function () {
+    Route::post('announcements/preview', [AnnouncementController::class, 'preview'])
+        ->name('announcements.preview');
+    Route::resource('announcements', AnnouncementController::class)
+        ->only(['index', 'create', 'store']);
+});
+
+// Public Announcements
+Route::get('/updates', [PublicAnnouncementController::class, 'index'])->name('announcements.index');
+Route::get('/updates/{slug}', [PublicAnnouncementController::class, 'show'])->name('announcements.show');

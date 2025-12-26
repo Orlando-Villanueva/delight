@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\BibleReferenceService;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,6 +30,12 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return view($view, $data);
+        });
+
+        View::composer('components.ui.notification-bell', function ($view) {
+            if (auth()->check()) {
+                $view->with('unreadCount', auth()->user()->unreadAnnouncements()->count());
+            }
         });
     }
 }

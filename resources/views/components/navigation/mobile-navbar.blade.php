@@ -6,11 +6,9 @@
         <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
                 <div class="w-8 h-8 rounded-lg flex items-center justify-center">
-                    <img
-                        src="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}"
+                    <img src="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}"
                         srcset="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }} 1x, {{ asset('images/logo-64-2x.png') }}?v={{ config('app.asset_version') }} 2x"
-                        alt="{{ config('app.name') }} Logo"
-                        class="w-full h-full object-contain" />
+                        alt="{{ config('app.name') }} Logo" class="w-full h-full object-contain" />
                 </div>
                 <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
                     {{ config('app.name') }}
@@ -18,7 +16,10 @@
             </div>
 
             <!-- Mobile User Menu -->
-            <x-navigation.profile-dropdown dropdown-id="dropdown-user-mobile" size="small" />
+            <div class="flex items-center gap-3">
+                <x-ui.notification-bell dropdown-id="dropdown-notifications-mobile" size="small" />
+                <x-navigation.profile-dropdown dropdown-id="dropdown-user-mobile" size="small" />
+            </div>
         </div>
     </div>
 </nav>

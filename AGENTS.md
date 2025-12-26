@@ -10,14 +10,24 @@
 ## Build, Test, and Development Commands
 - `composer install` / `npm install` – install PHP and JS dependencies.
 - `php artisan migrate --seed` – apply schema changes and load Bible data.
-- `npm run dev` – launch the Vite dev server; pair with Herd or `php artisan serve`.
+- `npm run dev` – launch the Vite dev server (handles Tailwind v4); pair with Herd.
 - `npm run build` – compile production-ready assets.
 - `php artisan test` or `composer test` – run the Pest-powered suite.
+- `mailpit` – run the local email server (view at http://localhost:8025).
+
+## Visual Language & UI Design
+- **Aesthetics**: Aim for a "Premium & Focused" feel. Use rounded-xl (12px) for cards and rounded-lg (8px) for inputs.
+- **Color Palette**: 
+    - Dark mode is primary: Cards use `dark:bg-gray-800` with `dark:border-gray-700`.
+    - Accent colors: Primary Blue (`blue-600`), Success Green, Warning Yellow.
+- **Flowbite**: Most complex components (Drawers, Modals, Dropdowns) are based on Flowbite. Refer to `resources/views/components/ui` for local wrappers.
+- **Responsiveness**: Always test mobile (mobile-first approach). Many users log readings on the go.
 
 ## Coding Style & Naming Conventions
-- Follow PSR-12 with 4-space indentation (`.editorconfig` enforced); run `./vendor/bin/pint` before opening a pull request.
-- Structure services as `App\Services\{Domain}Service`; keep action classes verb-oriented (e.g., `LogDailyReading`).
+- Follow PSR-12 with 4-space indentation; run `./vendor/bin/pint` before committing.
+- Structure services as `App\Services\{Domain}Service`; keep action classes verb-oriented.
 - Blade files should stay HTMX-first: prefer `hx-*` attributes and use **Blade Fragments** (`@fragment`) for partial page updates over separate partial files.
+- Admin Styling: Align all admin forms with the "Feedback Form" style found in `resources/views/partials/feedback-form.blade.php`.
 - Lean on Tailwind utilities; avoid custom CSS unless a technical constraint demands it.
 
 ## Testing Guidelines

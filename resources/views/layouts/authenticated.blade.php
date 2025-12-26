@@ -62,12 +62,17 @@
         </div>
 
         <!-- Main Content -->
-        <div class="flex-1 flex flex-col lg:overflow-hidden lg:pt-14">
+        <div class="flex-1 flex flex-col lg:overflow-hidden lg:pt-16">
             <!-- Mobile: Navbar (scrolls with content) -->
             <x-navigation.mobile-navbar class="lg:hidden" />
 
             <main class="flex-1 lg:overflow-y-auto">
-                <div id="page-container" class="lg:flex lg:h-full container mx-auto">
+                {{-- Standardized page container with:
+                     - Standard horizontal and top padding
+                     - Vertical clearance for mobile bottom navigation (pb-24)
+                --}}
+                <div id="page-container"
+                    class="container mx-auto px-4 pt-4 pb-24 md:pb-4 lg:min-h-full lg:flex lg:flex-col">
                     @yield('content')
                 </div>
             </main>
@@ -98,12 +103,19 @@
             // Reset both the window and the scrollable <main> container so that
             // navigating from a long page (like the history logs) to a shorter
             // page always starts at the top.
-            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+            window.scrollTo({
+                top: 0,
+                left: 0,
+                behavior: 'auto'
+            });
 
             const mainContent = document.querySelector('main.flex-1');
             if (mainContent) {
                 if (typeof mainContent.scrollTo === 'function') {
-                    mainContent.scrollTo({ top: 0, left: 0 });
+                    mainContent.scrollTo({
+                        top: 0,
+                        left: 0
+                    });
                 } else {
                     mainContent.scrollTop = 0;
                 }
