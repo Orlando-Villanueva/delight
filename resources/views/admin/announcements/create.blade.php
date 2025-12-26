@@ -24,7 +24,7 @@
                 class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden flex-1 flex flex-col">
                 <div class="p-6 sm:p-8 grid grid-cols-1 xl:grid-cols-4 gap-8 flex-1">
                     <!-- Main Content (Left) -->
-                    <div class="xl:col-span-3 space-y-6 flex flex-col">
+                    <div class="xl:col-span-3 space-y-6 flex flex-col min-h-0">
                         <!-- Title -->
                         <div>
                             <label for="title"
@@ -35,13 +35,56 @@
                         </div>
 
                         <!-- Content -->
-                        <div class="flex-1 flex flex-col">
-                            <label for="content"
-                                class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Content
-                                (Markdown)</label>
-                            <textarea id="content" name="content" rows="20"
-                                class="block p-4 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 font-mono flex-1"
-                                placeholder="# Hello World..." required></textarea>
+                        <div class="flex-1 flex flex-col min-h-0" x-data="{ mode: 'write' }">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <label for="content"
+                                    class="block text-sm font-medium text-gray-900 dark:text-white">Content
+                                    (Markdown)</label>
+                                <div class="inline-flex items-center rounded-lg border border-gray-200 bg-white p-1 text-xs font-medium text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                                    <button type="button"
+                                        class="rounded-md px-3 py-1.5 transition-colors"
+                                        :class="mode === 'write' ? 'bg-gray-100 text-gray-900 dark:bg-gray-600 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white'"
+                                        :aria-pressed="mode === 'write'"
+                                        @click="mode = 'write'">
+                                        Write
+                                    </button>
+                                    <button type="button"
+                                        class="rounded-md px-3 py-1.5 transition-colors"
+                                        :class="mode === 'preview' ? 'bg-gray-100 text-gray-900 dark:bg-gray-600 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white'"
+                                        :aria-pressed="mode === 'preview'"
+                                        @click="mode = 'preview'"
+                                        hx-post="{{ route('admin.announcements.preview') }}"
+                                        hx-target="#announcement-preview"
+                                        hx-swap="innerHTML"
+                                        hx-include="closest form">
+                                        Preview
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 flex-1 min-h-0 relative">
+                                <textarea id="content" name="content" rows="20"
+                                    class="absolute inset-0 block h-full w-full p-4 text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 font-mono resize-none"
+                                    placeholder="# Hello World..." required
+                                    x-show="mode === 'write'" x-cloak></textarea>
+
+                                <div id="announcement-preview"
+                                    class="absolute inset-0 h-full w-full overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 text-gray-900 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                    x-show="mode === 'preview'" x-cloak>
+                                    @fragment('announcement-preview')
+                                        @if(!($previewIsEmpty ?? true))
+                                            <div class="prose prose-blue prose-lg max-w-none dark:prose-invert">
+                                                {!! $previewHtml !!}
+                                            </div>
+                                        @else
+                                            <div class="text-sm text-gray-500 dark:text-gray-300">
+                                                Nothing to preview yet. Add some Markdown to see the formatted output.
+                                            </div>
+                                        @endif
+                                    @endfragment
+                                </div>
+                            </div>
+
                             <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Supports standard Markdown formatting.
                             </p>
                         </div>

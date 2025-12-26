@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class AnnouncementController extends Controller
 {
@@ -18,10 +20,10 @@ class AnnouncementController extends Controller
         return view('admin.announcements.create');
     }
 
-    public function store(\Illuminate\Http\Request $request)
+    public function store(Request $request)
     {
         // Default to now() if starts_at is empty (meaning "Publish Now")
-        if (!$request->filled('starts_at')) {
+        if (! $request->filled('starts_at')) {
             $request->merge(['starts_at' => now()]);
         }
 
@@ -33,7 +35,7 @@ class AnnouncementController extends Controller
             'ends_at' => 'nullable|date|after:starts_at',
         ]);
 
-        $validated['slug'] = \Illuminate\Support\Str::slug($validated['title']) . '-' . now()->timestamp;
+        $validated['slug'] = Str::slug($validated['title']) . '-' . now()->timestamp;
 
         $announcement = \App\Models\Announcement::create($validated);
 
@@ -41,5 +43,17 @@ class AnnouncementController extends Controller
 
         return redirect()->route('admin.announcements.index')
             ->with('success', 'Announcement created successfully.');
+    }
+
+    public function preview(Request $request)
+    {
+        $content = (string) $request->input('content', '');
+        $trimmedContent = trim($content);
+        $previewHtml = $trimmedContent !== '' ? Str::markdown($content) : '';
+
+        return response()->htmx('admin.announcements.create', 'announcement-preview', [
+            'previewHtml' => $previewHtml,
+            'previewIsEmpty' => $trimmedContent === '',
+        ]);
     }
 }
