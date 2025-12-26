@@ -38,8 +38,9 @@
 @section('content')
     <article class="prose prose-blue prose-lg mx-auto dark:prose-invert">
         <header class="mb-10 text-center not-prose">
-            @if($announcement->type !== 'info')
-                <span class="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium
+            @if ($announcement->type !== 'info')
+                <span
+                    class="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium
                                                     {{ $announcement->type === 'success' ? 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20' : '' }}
                                                     {{ $announcement->type === 'warning' ? 'bg-yellow-50 text-yellow-800 ring-1 ring-inset ring-yellow-600/20' : '' }}
                                                 ">
