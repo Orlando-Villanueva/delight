@@ -17,7 +17,7 @@
 
             <!-- Mobile User Menu -->
             <div class="flex items-center gap-3">
-                <x-ui.notification-bell dropdown-id="dropdown-notifications-mobile" />
+                <x-ui.notification-bell dropdown-id="dropdown-notifications-mobile" size="small" />
                 <x-navigation.profile-dropdown dropdown-id="dropdown-user-mobile" size="small" />
             </div>
         </div>

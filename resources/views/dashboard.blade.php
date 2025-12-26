@@ -29,14 +29,13 @@
                     @endphp
 
                     <!-- Main Dashboard Layout (responsive grid) -->
-                    <div class="grid grid-cols-1 xl:grid-cols-4 gap-6 lg:gap-4 xl:gap-6">
+                    <div class="grid grid-cols-1 xl:grid-cols-4 gap-6 lg:gap-4">
 
                         <!-- Left Column - Main Content (responsive width) -->
-                        <div class="xl:col-span-3 space-y-4 xl:space-y-6">
+                        <div class="xl:col-span-3 space-y-4">
 
                             <!-- Cards Grid: 2x2 on tablet (shares row with calendar), 2-up until ultra-wide, 3-up on 2xl -->
-                            <div
-                                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-4 xl:gap-6">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-4">
                                 <!-- Weekly Journey - Primary Focus -->
                                 <div class="sm:col-span-1 lg:col-span-1 xl:col-span-1">
                                     <x-ui.weekly-journey-card :currentProgress="$weeklyJourneyCard['currentProgress']" :days="$weeklyJourneyCard['days']" :weekRangeText="$weeklyJourneyCard['weekRangeText']"
@@ -69,7 +68,7 @@
                         </div>
 
                         <!-- Right Column - Desktop Sidebar (responsive width) -->
-                        <div class="hidden xl:block xl:col-span-1 space-y-6 xl:space-y-6" id="dashboard-sidebar"
+                        <div class="hidden xl:block xl:col-span-1 space-y-4" id="dashboard-sidebar"
                             hx-trigger="readingLogAdded from:body" hx-get="{{ route('dashboard') }}" hx-target="this"
                             hx-swap="outerHTML" hx-select="#dashboard-sidebar">
 
@@ -81,26 +80,28 @@
 
 
                             <!-- Recent Readings -->
-                            @if (!empty($stats['recent_activity']))
-                                <x-ui.card
-                                    class="bg-white dark:bg-gray-800 border border-[#D1D7E0] dark:border-gray-700 transition-colors shadow-lg">
-                                    <div class="p-4 lg:p-3 xl:p-4">
-                                        <h3 class="font-semibold text-[#4A5568] dark:text-gray-200 mb-3">Recent Readings</h3>
-                                        <div class="space-y-2">
-                                            @foreach (array_slice($stats['recent_activity'], 0, 5) as $reading)
-                                                <div class="text-sm">
-                                                    <div class="font-medium text-[#4A5568] dark:text-gray-200">
-                                                        {{ $reading['passage_text'] }}
-                                                    </div>
-                                                    <div class="text-gray-500 dark:text-gray-400 text-xs">
-                                                        {{ $reading['time_ago'] }}
-                                                    </div>
+                            <x-ui.card
+                                class="bg-white dark:bg-gray-800 border border-[#D1D7E0] dark:border-gray-700 transition-colors shadow-lg">
+                                <div class="p-4 lg:p-3 xl:p-4">
+                                    <h3 class="font-semibold text-[#4A5568] dark:text-gray-200 mb-3">Recent Activity</h3>
+                                    <div class="space-y-2">
+                                        @forelse (array_slice($stats['recent_activity'], 0, 10) as $reading)
+                                            <div class="text-sm">
+                                                <div class="font-medium text-[#4A5568] dark:text-gray-200">
+                                                    {{ $reading['passage_text'] }}
                                                 </div>
-                                            @endforeach
-                                        </div>
+                                                <div class="text-gray-500 dark:text-gray-400 text-xs">
+                                                    {{ $reading['time_ago'] }}
+                                                </div>
+                                            </div>
+                                        @empty
+                                            <div class="text-sm text-gray-500 dark:text-gray-400 italic py-2">
+                                                Your recent readings will appear here.
+                                            </div>
+                                        @endforelse
                                     </div>
-                                </x-ui.card>
-                            @endif
+                                </div>
+                            </x-ui.card>
                         </div>
                     </div>
 

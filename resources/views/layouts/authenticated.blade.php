@@ -72,7 +72,7 @@
                      - Vertical clearance for mobile bottom navigation (pb-24)
                 --}}
                 <div id="page-container"
-                    class="container mx-auto px-4 pt-8 pb-24 sm:px-6 lg:px-8 md:pb-6 lg:min-h-full lg:flex lg:flex-col">
+                    class="container mx-auto px-4 pt-4 pb-24 md:pb-4 lg:min-h-full lg:flex lg:flex-col">
                     @yield('content')
                 </div>
             </main>

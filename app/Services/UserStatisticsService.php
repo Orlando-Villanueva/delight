@@ -228,7 +228,7 @@ class UserStatisticsService
     /**
      * Get recent reading activity.
      */
-    public function getRecentActivity(User $user, int $limit = 5): array
+    public function getRecentActivity(User $user, int $limit = 10): array
     {
         // Apply limit at database level to avoid loading all records into memory
         // Use a more efficient query with specific index
