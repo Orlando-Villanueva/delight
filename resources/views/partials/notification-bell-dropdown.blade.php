@@ -3,8 +3,7 @@
     Notifications
 </div>
 
-<div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-96 overflow-y-auto" hx-boost="true"
-    hx-target="#page-container" hx-swap="innerHTML">
+<div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-96 overflow-y-auto">
     @forelse($announcements as $announcement)
         @php
             $isUnread = in_array($announcement->id, $unreadIds);
@@ -45,7 +44,7 @@
     @endforelse
 </div>
 
-<div hx-boost="true" hx-target="#page-container" hx-swap="innerHTML">
+<div>
     <a href="{{ route('announcements.index') }}"
         class="block py-3 text-xs font-semibold text-center text-gray-900 bg-gray-50/50 hover:bg-gray-100/80 dark:bg-gray-800/50 dark:hover:bg-gray-700/80 dark:text-white rounded-b-xl border-t border-gray-100 dark:border-gray-700 transition-colors">
         <div class="inline-flex items-center gap-1.5">
