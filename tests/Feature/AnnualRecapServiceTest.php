@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\AnnualRecap;
 use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\AnnualRecapService;
+use App\Services\ReadingLogService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class AnnualRecapServiceTest extends TestCase
@@ -97,5 +100,60 @@ class AnnualRecapServiceTest extends TestCase
         $this->assertEquals(2, $recap['yearly_streak']['count']);
         $this->assertEquals('Jan 31', $recap['yearly_streak']['start']);
         $this->assertEquals('Feb 1', $recap['yearly_streak']['end']);
+    }
+
+    public function test_past_year_recap_is_persisted(): void
+    {
+        $user = User::factory()->create();
+        $year = now()->year - 1;
+
+        ReadingLog::factory()->for($user)->create([
+            'date_read' => "{$year}-02-01",
+        ]);
+
+        $service = app(AnnualRecapService::class);
+        $service->getRecap($user, $year);
+
+        $recap = AnnualRecap::query()
+            ->where('user_id', $user->id)
+            ->where('year', $year)
+            ->first();
+
+        $this->assertNotNull($recap);
+        $this->assertNotEmpty($recap->snapshot);
+    }
+
+    public function test_current_year_recap_is_cached(): void
+    {
+        $user = User::factory()->create();
+        $year = now()->year;
+
+        ReadingLog::factory()->for($user)->create([
+            'date_read' => now()->startOfYear()->addDay()->toDateString(),
+        ]);
+
+        $service = app(AnnualRecapService::class);
+        $service->getRecap($user, $year);
+
+        $this->assertTrue(Cache::has(AnnualRecapService::cacheKeyFor($user, $year)));
+    }
+
+    public function test_reading_log_creation_invalidates_current_year_recap_cache(): void
+    {
+        $user = User::factory()->create();
+        $year = now()->year;
+        $cacheKey = AnnualRecapService::cacheKeyFor($user, $year);
+
+        Cache::put($cacheKey, ['cached' => true], 3600);
+        $this->assertTrue(Cache::has($cacheKey));
+
+        $readingLogService = app(ReadingLogService::class);
+        $readingLogService->logReading($user, [
+            'book_id' => 1,
+            'chapter' => 1,
+            'date_read' => now()->toDateString(),
+        ]);
+
+        $this->assertFalse(Cache::has($cacheKey));
     }
 }

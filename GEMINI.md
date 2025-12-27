@@ -15,7 +15,7 @@ The project follows a **Service Layer Architecture**, ensuring controllers remai
 -   **Frontend:** HTMX, Alpine.js, Tailwind CSS v4 (Vite), Vite
 -   **UI Components:** Flowbite
 -   **Database:** SQLite (local), PostgreSQL (production)
--   **Features:** PWA support, Announcement System, User Feedback, Weekly Journey tracking.
+-   **Features:** PWA support, Announcement System, User Feedback, Weekly Journey tracking, Annual Recap.
 -   **Testing:** Pest
 
 ## Building and Running
@@ -100,13 +100,23 @@ The system features a native announcement engine.
 -   **Users:** Receive updates via the notification bell (mapped in `AppServiceProvider`).
 -   **Persistence:** Read/Unread states are tracked per-user in the `announcement_user` table.
 
-### 5. Testing
+### 5. Annual Recap
+
+A "Spotify Wrapped"-style year-in-review feature for Bible reading.
+
+-   **Route:** `/recap/{year?}` — defaults to the latest available year.
+-   **Service:** `AnnualRecapService` calculates stats (streaks, top books, heatmap, reader personality).
+-   **Caching:** Current year is cached until end-of-day; past years are persisted to `annual_recaps` table as immutable snapshots.
+-   **Views:** Year-specific templates live in `resources/views/annual-recap/{year}/show.blade.php`.
+-   **Theming:** Uses the `reader` layout with a `cosmic` theme for a dark, visually striking presentation.
+
+### 6. Testing
 
 We use **Pest**.
 
 -   Feature tests should cover high-level HTMX flows.
 -   Unit tests should cover complex logic in services (especially Statistics and Streaks).
 
-### 6. Code Interaction
+### 7. Code Interaction
 
 -   **Respect Manual Changes:** NEVER remove code manually added by the user during a chat session unless explicitly instructed. If a manual change seems incorrect or conflicting, PROMPT the user for clarification before modifying or removing it.

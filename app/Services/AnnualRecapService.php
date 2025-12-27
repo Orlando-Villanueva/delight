@@ -210,9 +210,6 @@ class AnnualRecapService
     /**
      * Determine a fun personality type based on reading habits.
      */
-    /**
-     * Determine a fun personality type based on reading habits.
-     */
     private function determineReaderPersonality(Collection $logs): array
     {
         $count = $logs->count();
