@@ -6,6 +6,7 @@ use App\Models\AnnualRecap;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class AnnualRecapService
 {
@@ -19,7 +20,7 @@ class AnnualRecapService
     public function getRecap(User $user, int $year): array
     {
         if ($year >= now()->year) {
-            return $this->calculateRecap($user, $year);
+            return $this->getLiveRecap($user, $year);
         }
 
         $existingRecap = AnnualRecap::query()
@@ -43,6 +44,23 @@ class AnnualRecapService
         }
 
         return $recap;
+    }
+
+    public static function cacheKeyFor(User $user, int $year): string
+    {
+        return "user_annual_recap_{$user->id}_{$year}";
+    }
+
+    private function getLiveRecap(User $user, int $year): array
+    {
+        if ($year !== now()->year) {
+            return $this->calculateRecap($user, $year);
+        }
+
+        $cacheKey = self::cacheKeyFor($user, $year);
+        $ttl = now()->endOfDay();
+
+        return Cache::remember($cacheKey, $ttl, fn () => $this->calculateRecap($user, $year));
     }
 
     private function calculateRecap(User $user, int $year): array
