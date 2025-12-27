@@ -159,24 +159,30 @@ class AnnualRecapServiceTest extends TestCase
 
     public function test_personality_uses_percentage_thresholds_for_partial_year(): void
     {
-        $user = User::factory()->create();
-        $year = 2025;
+        Carbon::setTestNow(Carbon::create(2025, 12, 31, 12, 0, 0));
 
-        // Simulate 130 out of 153 available days (Aug 1 - Dec 31) = 85% consistency
-        // Should earn "Daily Devotee" (>=80% threshold)
-        $startDate = Carbon::create(2025, 8, 1);
+        try {
+            $user = User::factory()->create();
+            $year = 2025;
 
-        for ($i = 0; $i < 130; $i++) {
-            ReadingLog::factory()->create([
-                'user_id' => $user->id,
-                'date_read' => $startDate->copy()->addDays($i)->toDateString(),
-            ]);
+            // Simulate 130 out of 153 available days (Aug 1 - Dec 31) = 85% consistency
+            // Should earn "Daily Devotee" (>=80% threshold)
+            $startDate = Carbon::create(2025, 8, 1);
+
+            for ($i = 0; $i < 130; $i++) {
+                ReadingLog::factory()->create([
+                    'user_id' => $user->id,
+                    'date_read' => $startDate->copy()->addDays($i)->toDateString(),
+                ]);
+            }
+
+            $service = app(AnnualRecapService::class);
+            $recap = $service->getRecap($user, $year);
+
+            $this->assertEquals('Daily Devotee', $recap['reader_personality']['name']);
+            $this->assertStringContainsString('85%', $recap['reader_personality']['stats']);
+        } finally {
+            Carbon::setTestNow();
         }
-
-        $service = app(AnnualRecapService::class);
-        $recap = $service->getRecap($user, $year);
-
-        $this->assertEquals('Daily Devotee', $recap['reader_personality']['name']);
-        $this->assertStringContainsString('85%', $recap['reader_personality']['stats']);
     }
 }
