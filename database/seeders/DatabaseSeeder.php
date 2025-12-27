@@ -54,55 +54,85 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * Create a 60-day active streak ending today for the seed user.
-     * Each day carries 1-10 readings to exercise streak and volume stats.
+     * Create a year's worth of realistic reading data.
+     * Includes bias towards specific books to generate clear "Top Books".
      */
     private function createTestReadingLogs(User $user): void
     {
         $faker = FakerFactory::create();
-        $faker->seed(12345); // Fixed seed ensures consistent daily counts
+        $faker->seed(12345);
 
         $today = Carbon::today();
         $bibleService = app(BibleReferenceService::class);
 
-        // Build a guaranteed 60-day active streak ending today with 1-10 readings per day
-        for ($i = 0; $i < 60; $i++) {
+        // Books to bias towards (e.g., Psalms, Matthew, Genesis)
+        $favoriteBooks = [19, 40, 1];
+
+        // Generate logs for the past 365 days
+        for ($i = 0; $i < 365; $i++) {
             $readingDate = $today->copy()->subDays($i);
-            $logsForDay = $faker->numberBetween(1, 10);
 
-            $combos = [];
-            $attempts = 0;
+            // 70% chance to read on any given day (creates streaks and gaps)
+            if ($faker->boolean(70)) {
+                $logsForDay = $faker->numberBetween(1, 5); // 1-5 chapters per sitting
 
-            // Ensure unique (book, chapter) per day to satisfy DB unique constraint
-            while (count($combos) < $logsForDay && $attempts < 50) {
-                $attempts++;
-                $bookId = $faker->numberBetween(1, 66);
-                $maxChapters = $bibleService->getBookChapterCount($bookId);
-                $chapter = $faker->numberBetween(1, $maxChapters);
+                // Occasional "Deep Dive" days (e.g., Sundays)
+                if ($readingDate->isSunday()) {
+                    $logsForDay = $faker->numberBetween(5, 10);
+                }
 
-                $key = "{$bookId}-{$chapter}";
-                if (! in_array($key, $combos)) {
-                    $combos[] = $key;
+                $combos = [];
+                $attempts = 0;
 
-                    $loggedAt = $readingDate->copy()
-                        ->addHours($faker->numberBetween(0, 6))
-                        ->addMinutes($faker->numberBetween(0, 59));
+                while (count($combos) < $logsForDay && $attempts < 50) {
+                    $attempts++;
 
-                    ReadingLog::create([
-                        'user_id' => $user->id,
-                        'book_id' => $bookId,
-                        'chapter' => $chapter,
-                        'passage_text' => $bibleService->formatBibleReference($bookId, $chapter),
-                        'date_read' => $readingDate->toDateString(),
-                        'notes_text' => $faker->optional()->sentence(),
-                        'created_at' => $loggedAt,
-                        'updated_at' => $loggedAt,
-                    ]);
+                    // 50% chance to pick a favorite book, otherwise random
+                    if ($faker->boolean(50)) {
+                        $bookId = $faker->randomElement($favoriteBooks);
+                    } else {
+                        $bookId = $faker->numberBetween(1, 66);
+                    }
+
+                    $maxChapters = $bibleService->getBookChapterCount($bookId);
+                    $chapter = $faker->numberBetween(1, $maxChapters);
+
+                    $key = "{$bookId}-{$chapter}";
+
+                    // Check if this specific chapter has been read by user EVER (simulate progress)
+                    // For simplicity in seeder, we just check local combos to avoid dups in same day
+                    if (! in_array($key, $combos)) {
+
+                        // Check uniqueness against DB to avoid constraint violation if seeding multiple batches
+                        $exists = ReadingLog::where('user_id', $user->id)
+                            ->where('book_id', $bookId)
+                            ->where('chapter', $chapter)
+                            ->exists();
+
+                        if (! $exists) {
+                            $combos[] = $key;
+
+                            $loggedAt = $readingDate->copy()
+                                ->addHours($faker->numberBetween(6, 22))
+                                ->addMinutes($faker->numberBetween(0, 59));
+
+                            ReadingLog::create([
+                                'user_id' => $user->id,
+                                'book_id' => $bookId,
+                                'chapter' => $chapter,
+                                'passage_text' => $bibleService->formatBibleReference($bookId, $chapter),
+                                'date_read' => $readingDate->toDateString(),
+                                'notes_text' => $faker->optional(0.2)->sentence(), // 20% chance of notes
+                                'created_at' => $loggedAt,
+                                'updated_at' => $loggedAt,
+                            ]);
+                        }
+                    }
                 }
             }
         }
 
-        $this->command->info("Created guaranteed 60-day active streak for {$user->name}");
+        $this->command->info("Created realistic yearly reading history for {$user->name}");
     }
 
     /**

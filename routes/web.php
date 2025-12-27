@@ -87,6 +87,9 @@ Route::middleware('auth')->group(function () {
     // Notifications (HTMX)
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{announcement}/read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+
+    // Annual Recap
+    Route::get('/recap/{year?}', [\App\Http\Controllers\AnnualRecapController::class, 'show'])->name('recap.show');
 });
 
 // Admin Routes (Protected by check logic in middleware)

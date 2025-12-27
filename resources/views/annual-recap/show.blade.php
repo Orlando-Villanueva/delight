@@ -1,0 +1,258 @@
+@extends('layouts.reader')
+
+@section('title', "Your $year in Word - Delight")
+
+@section('meta')
+    <meta name="description" content="Your {{ $year }} Year in Review">
+@endsection
+
+@section('content')
+    <!-- Fixed Background Layer -->
+    <div class="fixed inset-0 z-[-1] pointer-events-none">
+        <!-- Base Color -->
+        <div class="absolute inset-0 bg-[#0F1115]"></div>
+        <!-- Gradients -->
+        <div
+            class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-purple-900/20 via-[#0F1115] to-[#0F1115]">
+        </div>
+        <div
+            class="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-transparent">
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="relative z-10 text-white font-sans selection:bg-purple-500 selection:text-white">
+        <div class="w-full">
+            <!-- Header -->
+            <header class="mb-12 text-center">
+                <h1
+                    class="text-4xl md:text-5xl font-bold tracking-tight mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 dark:from-purple-400 dark:via-pink-400 dark:to-blue-400">
+                    Your {{ $year }} in Word
+                </h1>
+                <p class="text-lg text-gray-600 dark:text-gray-400">A look back at your journey through Scripture.</p>
+            </header>
+
+            @if (empty($stats))
+                <div class="bg-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-12 text-center">
+                    <div class="text-6xl mb-6">📖</div>
+                    <h2 class="text-2xl font-bold mb-4">No Data Found for {{ $year }}</h2>
+                    <p class="text-gray-400 mb-8 max-w-lg mx-auto">
+                        It looks like you didn't have any reading activity recorded in {{ $year }}.
+                        Start reading today to see your stats here next year!
+                    </p>
+                    <a href="{{ route('dashboard') }}"
+                        class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-full text-white bg-purple-600 hover:bg-purple-700 transition-all shadow-lg hover:shadow-purple-500/25">
+                        Go to Dashboard
+                    </a>
+                </div>
+            @else
+                <!-- Bento Grid -->
+                <!-- Bento Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-6 gap-6 mb-12">
+
+                    <!-- Reader Personality (3/6 width) -->
+                    <div
+                        class="col-span-1 lg:col-span-3 bg-indigo-900/50 border border-indigo-700/50 rounded-3xl p-8 relative overflow-hidden group">
+                        <!-- Background Glow -->
+                        <div
+                            class="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl group-hover:bg-indigo-500/30 transition-all duration-700">
+                        </div>
+
+                        <div class="relative z-10 h-full flex flex-col">
+                            <div>
+                                <div class="flex justify-between items-start mb-4">
+                                    <p class="text-indigo-300 font-medium uppercase tracking-wider text-sm">Reader Style
+                                    </p>
+                                    @if (isset($stats['reader_personality']['stats']))
+                                        <div
+                                            class="inline-flex items-center px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-sm font-medium backdrop-blur-sm whitespace-nowrap ml-2 -mt-1">
+                                            {{ $stats['reader_personality']['stats'] }}
+                                        </div>
+                                    @endif
+                                </div>
+                                <div class="text-2xl lg:text-3xl font-bold text-white mb-4 leading-tight">
+                                    {{ $stats['reader_personality']['name'] }}
+                                </div>
+                            </div>
+
+                            <p class="text-indigo-200 text-lg leading-relaxed max-w-md">
+                                {{ $stats['reader_personality']['description'] }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Top Books (3/6 width) -->
+                    <div class="col-span-1 lg:col-span-3 bg-gray-800/80 border border-gray-700/50 rounded-3xl p-8">
+                        <div class="flex items-center justify-between mb-4">
+                            <p class="text-gray-400 font-medium uppercase tracking-wider text-sm">Top Books</p>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-yellow-500" fill="currentColor"
+                                viewBox="0 0 16 16" aria-hidden="true">
+                                <path
+                                    d="M2.5.5A.5.5 0 0 1 3 0h10a.5.5 0 0 1 .5.5q0 .807-.034 1.536a3 3 0 1 1-1.133 5.89c-.79 1.865-1.878 2.777-2.833 3.011v2.173l1.425.356c.194.048.377.135.537.255L13.3 15.1a.5.5 0 0 1-.3.9H3a.5.5 0 0 1-.3-.9l1.838-1.379c.16-.12.343-.207.537-.255L6.5 13.11v-2.173c-.955-.234-2.043-1.146-2.833-3.012a3 3 0 1 1-1.132-5.89A33 33 0 0 1 2.5.5m.099 2.54a2 2 0 0 0 .72 3.935c-.333-1.05-.588-2.346-.72-3.935m10.083 3.935a2 2 0 0 0 .72-3.935c-.133 1.59-.388 2.885-.72 3.935" />
+                            </svg>
+                        </div>
+
+                        @if ($stats['top_books']->isNotEmpty())
+                            <div class="space-y-2">
+                                @foreach ($stats['top_books'] as $index => $book)
+                                    @php
+                                        $isFirst = $index === 0;
+                                        $isLong = true; // strlen($book['name']) > 12;
+                                        $rankColor = match ($index) {
+                                            0 => 'bg-yellow-500/10 text-yellow-500',
+                                            1 => 'bg-gray-700/50 text-gray-400',
+                                            2 => 'bg-orange-900/20 text-orange-700',
+                                            default => 'bg-gray-800 text-gray-600',
+                                        };
+
+                                        // Dynamic font size for top spot
+                                        if ($isFirst) {
+                                            $sizeClass = $isLong ? 'text-xl' : 'text-2xl';
+                                            $textColor = "text-white $sizeClass font-bold";
+                                        } else {
+                                            $textColor = 'text-gray-400 text-lg font-medium';
+                                        }
+
+                                        $countColor = $isFirst ? 'text-white text-xl' : 'text-gray-500 text-base';
+                                    @endphp
+                                    <div class="flex items-center justify-between group">
+                                        <div class="flex items-center gap-4 min-w-0">
+                                            <span
+                                                class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm {{ $rankColor }}">
+                                                {{ $index + 1 }}
+                                            </span>
+                                            <h3 class="{{ $textColor }} truncate transition-colors">
+                                                {{ $book['name'] }}
+                                            </h3>
+                                        </div>
+                                        <div class="text-right flex-shrink-0 ml-4">
+                                            <span class="{{ $countColor }} font-bold">{{ $book['count'] }}</span>
+                                            <span class="text-gray-600 text-xs block">chaps</span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <div class="text-center py-8">
+                                <p class="text-gray-500">Go read some books!</p>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Total Chapters (2/6 width) -->
+                    <div
+                        class="col-span-1 lg:col-span-2 bg-gray-800/80 border border-gray-700/50 rounded-3xl p-8 relative group">
+                        <div class="flex items-center justify-between mb-4">
+                            <p class="text-gray-400 font-medium uppercase tracking-wider text-sm">Total Chapters</p>
+                            <span class="text-gray-600 group-hover:text-red-500 transition-colors duration-300">
+                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 512 512">
+                                    <path
+                                        d="M47.6 300.4L228.3 469.1c7.5 7 17.4 10.9 27.7 10.9s20.2-3.9 27.7-10.9L464.4 300.4c30.4-28.3 47.6-68 47.6-109.5v-5.8c0-69.9-50.5-129.5-119.4-141C347 36.5 300.6 51.4 268 84l-12 12-12-12c-32.6-32.6-79-47.5-124.6-39.9C50.5 55.6 0 115.2 0 185.1v5.8c0 41.5 17.2 81.2 47.6 109.5z" />
+                                </svg>
+                            </span>
+                        </div>
+                        <div class="text-5xl font-bold text-white mb-2">
+                            {{ number_format($stats['total_chapters_read']) }}
+                        </div>
+                        <p class="text-sm text-gray-500">Across {{ number_format($stats['active_days_count']) }} active
+                            days
+                        </p>
+                    </div>
+
+                    <!-- Best Streak (2/6 width) -->
+                    <div class="col-span-1 lg:col-span-2 bg-gray-800/80 border border-gray-700/50 rounded-3xl p-8">
+                        <div class="flex items-center justify-between mb-4">
+                            <p class="text-gray-400 font-medium uppercase tracking-wider text-sm">Best Streak</p>
+                            <!-- Fire Icon -->
+                            <span class="text-orange-500">
+                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 384 512">
+                                    <path
+                                        d="M216 23.86c0-23.8-30.65-32.77-44.15-13.04C48 191.85 224 200 224 288c0 35.63-29.11 64.46-64.85 63.99-35.17-.45-63.15-29.77-63.15-64.94v-85.51c0-21.7-26.47-32.4-41.6-16.9C21.22 216.4 0 268.2 0 320c0 105.87 86.13 192 192 192s192-86.13 192-192c0-170.29-168-193.17-168-296.14z" />
+                                </svg>
+                            </span>
+                        </div>
+                        <div class="text-5xl font-bold text-white mb-2">
+                            {{ $stats['yearly_streak']['count'] }} <span
+                                class="text-2xl text-gray-500 font-normal">days</span>
+                        </div>
+                        <p class="text-xs text-gray-500 truncate"
+                            title="{{ $stats['yearly_streak']['start'] }} - {{ $stats['yearly_streak']['end'] }}">
+                            {{ $stats['yearly_streak']['start'] }} - {{ $stats['yearly_streak']['end'] }}
+                        </p>
+                    </div>
+                    <!-- Books Completed (2/6 width) -->
+                    <div class="col-span-1 lg:col-span-2 bg-gray-800/80 border border-gray-700/50 rounded-3xl p-8">
+                        @if ($stats['books_completed_count'] > 0)
+                            <div class="flex items-center justify-between mb-4">
+                                <p class="text-gray-400 font-medium uppercase tracking-wider text-sm">Books Completed</p>
+                                <span class="text-green-500">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </span>
+                            </div>
+                            <div class="text-5xl font-bold text-white mb-2">
+                                {{ $stats['books_completed_count'] }}
+                            </div>
+                            <p class="text-sm text-gray-500">Full books finished</p>
+                        @endif
+                    </div>
+
+                    <!-- Heatmap (Full Width: 6/6) -->
+                    <div class="col-span-1 lg:col-span-6 bg-gray-800/80 border border-gray-700/50 rounded-3xl p-8">
+                        <p class="text-gray-400 font-medium uppercase tracking-wider text-sm mb-6">Daily Activity</p>
+
+                        <div class="flex flex-wrap gap-1 justify-center md:justify-start">
+                            @php
+                                $startDate = \Carbon\Carbon::create($year, 1, 1);
+                                $endDate = \Carbon\Carbon::create($year, 12, 31);
+                                $current = $startDate->copy()->startOfWeek(\Carbon\Carbon::SUNDAY);
+                                $end = $endDate->copy()->endOfWeek(\Carbon\Carbon::SUNDAY);
+                            @endphp
+
+                            @for ($date = $current->copy(); $date->lte($end); $date->addDay())
+                                @if ($date->lt($startDate) || $date->gt($endDate))
+                                    <div class="w-3 h-3 m-[1px]"></div>
+                                @else
+                                    @php
+                                        $dateStr = $date->format('Y-m-d');
+                                        $count = $stats['heatmap_data'][$dateStr] ?? 0;
+                                        $colorClass = 'bg-gray-800';
+                                        if ($count > 0) {
+                                            $colorClass = 'bg-purple-900';
+                                        }
+                                        if ($count > 2) {
+                                            $colorClass = 'bg-purple-700';
+                                        }
+                                        if ($count > 5) {
+                                            $colorClass = 'bg-purple-500';
+                                        }
+                                        if ($count > 8) {
+                                            $colorClass = 'bg-purple-300';
+                                        }
+                                    @endphp
+                                    <div title="{{ $date->format('M d, Y') }}: {{ $count }} chapters"
+                                        class="w-3 h-3 m-[1px] rounded-sm {{ $colorClass }} hover:opacity-80 transition-opacity">
+                                    </div>
+                                @endif
+                            @endfor
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Share / Footnote -->
+                <div class="text-center">
+                    <p class="text-gray-500 text-sm mb-6">Generated on {{ now()->format('F j, Y') }} • delight.app</p>
+                    <div class="flex gap-4 justify-center">
+                        <button onclick="window.print()"
+                            class="px-6 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-sm font-medium transition-colors">
+                            Save as PDF
+                        </button>
+                        <!-- Future: Add Share Image Generation -->
+                    </div>
+                </div>
+            @endif
+        </div>
+    </div>
+@endsection
