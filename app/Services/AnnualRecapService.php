@@ -29,7 +29,7 @@ class AnnualRecapService
             ->first();
 
         if ($existingRecap) {
-            return $existingRecap->snapshot ?? [];
+            return $this->normalizeRecap($existingRecap->snapshot ?? []);
         }
 
         $recap = $this->calculateRecap($user, $year);
@@ -43,7 +43,7 @@ class AnnualRecapService
             ]);
         }
 
-        return $recap;
+        return $this->normalizeRecap($recap);
     }
 
     public static function cacheKeyFor(User $user, int $year): string
@@ -54,13 +54,15 @@ class AnnualRecapService
     private function getLiveRecap(User $user, int $year): array
     {
         if ($year !== now()->year) {
-            return $this->calculateRecap($user, $year);
+            return $this->normalizeRecap($this->calculateRecap($user, $year));
         }
 
         $cacheKey = self::cacheKeyFor($user, $year);
         $ttl = now()->endOfDay();
 
-        return Cache::remember($cacheKey, $ttl, fn () => $this->calculateRecap($user, $year));
+        return $this->normalizeRecap(
+            Cache::remember($cacheKey, $ttl, fn () => $this->calculateRecap($user, $year))
+        );
     }
 
     private function calculateRecap(User $user, int $year): array
@@ -89,6 +91,17 @@ class AnnualRecapService
             'first_reading' => $logs->sortBy('date_read')->first()?->date_read,
             'last_reading' => $logs->sortByDesc('date_read')->first()?->date_read,
         ];
+    }
+
+    private function normalizeRecap(array $recap): array
+    {
+        if (empty($recap)) {
+            return [];
+        }
+
+        $recap['top_books'] = collect($recap['top_books'] ?? []);
+
+        return $recap;
     }
 
     /**
