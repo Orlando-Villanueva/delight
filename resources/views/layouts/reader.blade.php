@@ -55,6 +55,8 @@
         default
             => 'font-sans antialiased bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col',
     };
+
+    $showUpdatesNav = ! request()->routeIs('recap.show');
 @endphp
 
 <!DOCTYPE html>
@@ -90,11 +92,13 @@
                         <span class="{{ $logoTextClasses }}">Delight</span>
                     </a>
 
-                    <span class="{{ $separatorClasses }}"></span>
+                    @if ($showUpdatesNav)
+                        <span class="{{ $separatorClasses }}"></span>
 
-                    <a href="{{ route('announcements.index') }}" class="{{ $updatesLinkClasses }}">
-                        Updates
-                    </a>
+                        <a href="{{ route('announcements.index') }}" class="{{ $updatesLinkClasses }}">
+                            Updates
+                        </a>
+                    @endif
                 </div>
 
                 <!-- Actions -->
