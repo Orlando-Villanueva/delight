@@ -13,23 +13,25 @@ class AnnualRecapController extends Controller
 
     public function show(Request $request, ?int $year = null)
     {
-        // Default to the current year if not specified
-        // If it's early January (e.g. up to Jan 31st), and no year is specified,
-        // we might defaults to previous year, but for simplicity let's default to 2025 as requested
-        // or just the current year from system time.
-        // Given the prompt context "It's already December 26th", defaults to current year is correct.
+        // Keep latest available recap first in the list.
+        $availableYears = [2025];
+        $latestYear = $availableYears[0];
+        $viewMap = [
+            2025 => 'annual-recap.2025.show',
+        ];
 
-        $year ??= now()->year;
+        if ($year === null) {
+            return redirect()->route('recap.show', ['year' => $latestYear]);
+        }
 
-        // Prevent peeking into future years or way past years
-        if ($year > now()->year) {
-            return redirect()->route('recap.show', ['year' => now()->year]);
+        if (! in_array($year, $availableYears, true)) {
+            return redirect()->route('recap.show', ['year' => $latestYear]);
         }
 
         $stats = $this->recapService->getRecap($request->user(), $year);
 
         // If no stats found (e.g. new user), show a "Not enough data" view or handle in the blade
-        return view('annual-recap.show', [
+        return view($viewMap[$year], [
             'stats' => $stats,
             'year' => $year,
             'user' => $request->user(),

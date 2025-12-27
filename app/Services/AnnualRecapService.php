@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\AnnualRecap;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 
 class AnnualRecapService
 {
@@ -18,14 +18,31 @@ class AnnualRecapService
      */
     public function getRecap(User $user, int $year): array
     {
-        // Cache the recap for 1 hour since it's an expensive calculation
-        // and historical years won't change, though current year might.
-        // For the current year, a shorter cache might be better, but 1 hour is safe for a "wrapped" style feature.
-        return Cache::remember(
-            "user_recap_{$user->id}_{$year}",
-            3600,
-            fn() => $this->calculateRecap($user, $year)
-        );
+        if ($year >= now()->year) {
+            return $this->calculateRecap($user, $year);
+        }
+
+        $existingRecap = AnnualRecap::query()
+            ->where('user_id', $user->id)
+            ->where('year', $year)
+            ->first();
+
+        if ($existingRecap) {
+            return $existingRecap->snapshot ?? [];
+        }
+
+        $recap = $this->calculateRecap($user, $year);
+
+        if (! empty($recap)) {
+            AnnualRecap::create([
+                'user_id' => $user->id,
+                'year' => $year,
+                'snapshot' => $recap,
+                'generated_at' => now(),
+            ]);
+        }
+
+        return $recap;
     }
 
     private function calculateRecap(User $user, int $year): array
@@ -64,11 +81,11 @@ class AnnualRecapService
     private function calculateYearlyStreak(Collection $logs): array
     {
         $dates = $logs->pluck('date_read')
-            ->map(fn($date) => Carbon::parse($date)->startOfDay()->format('Y-m-d'))
+            ->map(fn ($date) => Carbon::parse($date)->startOfDay()->format('Y-m-d'))
             ->unique()
             ->sort()
             ->values()
-            ->map(fn($date) => Carbon::parse($date));
+            ->map(fn ($date) => Carbon::parse($date));
 
         if ($dates->isEmpty()) {
             return [
@@ -133,7 +150,7 @@ class AnnualRecapService
         }
 
         return $logs->groupBy('book_id')
-            ->sortByDesc(fn($group) => $group->count())
+            ->sortByDesc(fn ($group) => $group->count())
             ->take($limit)
             ->map(function ($group, $bookId) {
                 return [
@@ -174,17 +191,17 @@ class AnnualRecapService
         if ($uniqueDays > 300) {
             $name = 'Daily Devotee';
             $description = 'Your consistency is inspiring. You made the Word a daily habit.';
-            $stats = $uniqueDays . ' days read';
+            $stats = $uniqueDays.' days read';
         } elseif ($uniqueDays > 200) {
             // 2. Faithful Follower: High consistency
             $name = 'Faithful Follower';
             $description = 'You showed up consistently throughout the year. Well done!';
-            $stats = $uniqueDays . ' days read';
+            $stats = $uniqueDays.' days read';
         } elseif ($count > 300) {
             // 3. Deep Diver: High volume but perhaps bunched up (batch reader)
             $name = 'Deep Diver';
             $description = 'When you read, you go deep. You cover a lot of ground in each sitting.';
-            $stats = round($count / max($uniqueDays, 1), 1) . ' chapters / day';
+            $stats = round($count / max($uniqueDays, 1), 1).' chapters / day';
         } else {
             // 4. Weekend Warrior: Reads mostly on Sat/Sun
             $weekendReads = $logs->filter(function ($log) {
@@ -196,12 +213,12 @@ class AnnualRecapService
             if ($count > 20 && ($weekendReads / $count) > 0.4) {
                 $name = 'Weekend Warrior';
                 $description = 'You prefer to spend your weekends soaking in the Scriptures.';
-                $stats = $weekendReads . ' weekend chapters';
+                $stats = $weekendReads.' weekend chapters';
             } else {
                 // Default: Steady Seeker
                 $name = 'Steady Seeker';
                 $description = 'You are on a journey, seeking God at your own steady pace.';
-                $stats = $uniqueDays . ' active days';
+                $stats = $uniqueDays.' active days';
             }
         }
 
@@ -217,8 +234,8 @@ class AnnualRecapService
      */
     private function generateHeatmapData(Collection $logs): array
     {
-        return $logs->groupBy(fn($log) => Carbon::parse($log->date_read)->format('Y-m-d'))
-            ->map(fn($group) => $group->count())
+        return $logs->groupBy(fn ($log) => Carbon::parse($log->date_read)->format('Y-m-d'))
+            ->map(fn ($group) => $group->count())
             ->toArray();
     }
 }
