@@ -43,21 +43,23 @@ class UserStatisticsService
      */
     public function getStreakStatistics(User $user): array
     {
+        $ttl = now()->endOfDay();
+
         $currentStreak = Cache::remember(
             "user_current_streak_{$user->id}",
-            3600, // 60 minutes TTL - expensive walking calculation
+            $ttl, // Cache until end of day (invalidated on log changes)
             fn () => $this->readingLogService->calculateCurrentStreak($user)
         );
 
         $longestStreak = Cache::remember(
             "user_longest_streak_{$user->id}",
-            3600, // 60 minutes TTL - most expensive full history analysis
+            $ttl, // Cache until end of day (invalidated on log changes)
             fn () => $this->readingLogService->calculateLongestStreak($user)
         );
 
         $currentStreakSeries = Cache::remember(
             "user_current_streak_series_{$user->id}",
-            3600,
+            $ttl, // Cache until end of day (invalidated on log changes)
             fn () => $this->readingLogService->getCurrentStreakSeries($user)
         );
 
@@ -160,7 +162,7 @@ class UserStatisticsService
     {
         return Cache::remember(
             "user_total_reading_days_{$user->id}",
-            3600, // 60 minutes TTL - expensive distinct count query
+            now()->endOfDay(), // Cache until end of day (invalidated on log changes)
             fn () => $user->readingLogs()->distinct('date_read')->count('date_read')
         );
     }
@@ -172,7 +174,7 @@ class UserStatisticsService
     {
         return Cache::remember(
             "user_avg_chapters_per_day_{$user->id}",
-            3600, // 60 minutes TTL - calculation based on cached values
+            now()->endOfDay(), // Cache until end of day (invalidated on log changes)
             function () use ($totalReadings, $daysSinceFirst) {
                 if ($totalReadings === 0 || $daysSinceFirst === 0) {
                     return 0.0;
@@ -264,7 +266,7 @@ class UserStatisticsService
 
         return Cache::remember(
             "user_calendar_{$user->id}_{$year}",
-            3600, // 60 minutes TTL - processes full year of data
+            now()->endOfDay(), // Cache until end of day (invalidated on log changes)
             function () use ($user, $year) {
                 $startDate = Carbon::create($year, 1, 1)->startOfDay();
                 $endDate = Carbon::create($year, 12, 31)->endOfDay();

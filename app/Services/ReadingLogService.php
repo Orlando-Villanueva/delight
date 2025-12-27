@@ -460,6 +460,7 @@ class ReadingLogService
         Cache::forget("user_total_reading_days_{$user->id}");
         Cache::forget("user_avg_chapters_per_day_{$user->id}");
         Cache::forget("user_current_streak_series_{$user->id}");
+        Cache::forget(AnnualRecapService::cacheKeyFor($user, $currentYear));
 
         // Smart invalidation - only invalidate on first reading of the day
         if ($isFirstReadingOfDay) {

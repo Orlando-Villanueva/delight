@@ -7,6 +7,9 @@
 - HTTP entry points are defined in `routes/web.php`, while background tasks and listeners live in `app/Console` and `app/Listeners`.
 - Record decisions in `docs/` and pair schema changes with matching migrations and seeders.
 
+## Annual Recap Year Roll-Forward
+- See `docs/annual-recap/README.md` for the yearly setup checklist and examples.
+
 ## Build, Test, and Development Commands
 - `composer install` / `npm install` – install PHP and JS dependencies.
 - `php artisan migrate --seed` – apply schema changes and load Bible data.

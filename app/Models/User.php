@@ -66,6 +66,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get annual recaps for the user.
+     */
+    public function annualRecaps(): HasMany
+    {
+        return $this->hasMany(AnnualRecap::class);
+    }
+
+    /**
      * Get reading logs ordered by date (most recent first).
      */
     public function recentReadingLogs(): HasMany

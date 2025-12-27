@@ -9,6 +9,7 @@ use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\PublicAnnouncementController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\AnnualRecapController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -87,6 +88,9 @@ Route::middleware('auth')->group(function () {
     // Notifications (HTMX)
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{announcement}/read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+
+    // Annual Recap
+    Route::get('/recap/{year?}', [AnnualRecapController::class, 'show'])->name('recap.show');
 });
 
 // Admin Routes (Protected by check logic in middleware)
