@@ -13,7 +13,7 @@
         <div class="absolute inset-0 bg-[#0F1115]"></div>
         <!-- Gradients -->
         <div
-            class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-purple-900/20 via-[#0F1115] to-[#0F1115]">
+            class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-blue-900/20 via-[#0F1115] to-[#0F1115]">
         </div>
         <div
             class="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-transparent">
@@ -21,15 +21,17 @@
     </div>
 
     <!-- Content -->
-    <div class="relative z-10 text-white font-sans selection:bg-purple-500 selection:text-white">
+    <div class="relative z-10 text-white font-sans selection:bg-blue-500 selection:text-white">
         <div class="w-full">
             <!-- Header -->
             <header class="mb-12 text-center">
                 <h1
-                    class="text-4xl md:text-5xl font-bold tracking-tight mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 dark:from-purple-400 dark:via-pink-400 dark:to-blue-400">
+                    class="text-4xl md:text-5xl font-bold tracking-tight mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500">
                     Your {{ $year }} in Word
                 </h1>
-                <p class="text-lg text-gray-600 dark:text-gray-400">A look back at your journey through Scripture.</p>
+                <p class="text-lg text-gray-400">
+                    Your first year with Delight — a look back at your journey through Scripture.
+                </p>
             </header>
 
             @if (empty($stats))
@@ -41,7 +43,7 @@
                         Start reading today to see your stats here next year!
                     </p>
                     <a href="{{ route('dashboard') }}"
-                        class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-full text-white bg-purple-600 hover:bg-purple-700 transition-all shadow-lg hover:shadow-purple-500/25">
+                        class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-full text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-500/25">
                         Go to Dashboard
                     </a>
                 </div>
@@ -52,20 +54,20 @@
 
                     <!-- Reader Personality (3/6 width) -->
                     <div
-                        class="col-span-1 lg:col-span-3 bg-indigo-900/50 border border-indigo-700/50 rounded-3xl p-8 relative overflow-hidden group">
+                        class="col-span-1 lg:col-span-3 bg-blue-900/50 border border-blue-700/50 rounded-3xl p-8 relative overflow-hidden group">
                         <!-- Background Glow -->
                         <div
-                            class="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl group-hover:bg-indigo-500/30 transition-all duration-700">
+                            class="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl group-hover:bg-blue-500/30 transition-all duration-700">
                         </div>
 
                         <div class="relative z-10 h-full flex flex-col">
                             <div>
                                 <div class="flex justify-between items-start mb-4">
-                                    <p class="text-indigo-300 font-medium uppercase tracking-wider text-sm">Reader Style
+                                    <p class="text-blue-300 font-medium uppercase tracking-wider text-sm">Reader Style
                                     </p>
                                     @if (isset($stats['reader_personality']['stats']))
                                         <div
-                                            class="inline-flex items-center px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-sm font-medium backdrop-blur-sm whitespace-nowrap ml-2 -mt-1">
+                                            class="inline-flex items-center px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-sm font-medium backdrop-blur-sm whitespace-nowrap ml-2 -mt-1">
                                             {{ $stats['reader_personality']['stats'] }}
                                         </div>
                                     @endif
@@ -75,7 +77,7 @@
                                 </div>
                             </div>
 
-                            <p class="text-indigo-200 text-lg leading-relaxed max-w-md">
+                            <p class="text-blue-200 text-lg leading-relaxed max-w-md">
                                 {{ $stats['reader_personality']['description'] }}
                             </p>
                         </div>
@@ -205,7 +207,8 @@
 
                         <div class="flex flex-wrap gap-1 justify-center md:justify-start">
                             @php
-                                $startDate = \Carbon\Carbon::create($year, 1, 1);
+                                // Start heatmap from launch date for 2025
+                                $startDate = \Carbon\Carbon::create($year, 8, 1);
                                 $endDate = \Carbon\Carbon::create($year, 12, 31);
                                 $current = $startDate->copy()->startOfWeek(\Carbon\Carbon::SUNDAY);
                                 $end = $endDate->copy()->endOfWeek(\Carbon\Carbon::SUNDAY);
@@ -220,16 +223,16 @@
                                         $count = $stats['heatmap_data'][$dateStr] ?? 0;
                                         $colorClass = 'bg-gray-800';
                                         if ($count > 0) {
-                                            $colorClass = 'bg-purple-900';
+                                            $colorClass = 'bg-blue-900';
                                         }
                                         if ($count > 2) {
-                                            $colorClass = 'bg-purple-700';
+                                            $colorClass = 'bg-blue-700';
                                         }
                                         if ($count > 5) {
-                                            $colorClass = 'bg-purple-500';
+                                            $colorClass = 'bg-blue-500';
                                         }
                                         if ($count > 8) {
-                                            $colorClass = 'bg-purple-300';
+                                            $colorClass = 'bg-blue-300';
                                         }
                                     @endphp
                                     <div title="{{ $date->format('M d, Y') }}: {{ $count }} chapters"

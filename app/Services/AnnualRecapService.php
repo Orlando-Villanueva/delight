@@ -10,6 +10,11 @@ use Illuminate\Support\Facades\Cache;
 
 class AnnualRecapService
 {
+    /**
+     * The date the app launched. Used to calculate available reading days for partial years.
+     */
+    public const LAUNCH_DATE = '2025-08-01';
+
     public function __construct(
         private BibleReferenceService $bibleService
     ) {}
@@ -86,7 +91,7 @@ class AnnualRecapService
             'yearly_streak' => $this->calculateYearlyStreak($logs),
             'top_books' => $this->calculateTopBooks($logs),
             'books_completed_count' => $this->calculateBooksCompleted($user, $year),
-            'reader_personality' => $this->determineReaderPersonality($logs),
+            'reader_personality' => $this->determineReaderPersonality($logs, $year),
             'heatmap_data' => $this->generateHeatmapData($logs),
             'first_reading' => $logs->sortBy('date_read')->first()?->date_read,
             'last_reading' => $logs->sortByDesc('date_read')->first()?->date_read,
@@ -209,27 +214,53 @@ class AnnualRecapService
 
     /**
      * Determine a fun personality type based on reading habits.
+     * Uses percentage-based thresholds to account for partial years (e.g., 2025 launch).
      */
-    private function determineReaderPersonality(Collection $logs): array
+    private function determineReaderPersonality(Collection $logs, int $year): array
     {
         $count = $logs->count();
         $uniqueDays = $logs->pluck('date_read')->unique()->count();
 
-        // 1. Daily Devotee: Very high consistency
-        if ($uniqueDays > 300) {
+        // Calculate available days based on launch date or start of year
+        $yearStart = Carbon::create($year, 1, 1);
+        $launchDate = Carbon::parse(self::LAUNCH_DATE);
+        $effectiveStart = $launchDate->year === $year && $launchDate->gt($yearStart)
+            ? $launchDate
+            : $yearStart;
+        $yearEnd = Carbon::create($year, 12, 31);
+        $today = Carbon::today();
+        $effectiveEnd = $year === $today->year ? $today : $yearEnd;
+        $availableDays = $effectiveEnd->lt($effectiveStart)
+            ? 0
+            : $effectiveStart->diffInDays($effectiveEnd) + 1;
+
+        // Calculate consistency rate and chapters per day
+        $consistencyRate = $availableDays > 0 ? $uniqueDays / $availableDays : 0;
+        $chaptersPerDay = $uniqueDays > 0 ? $count / $uniqueDays : 0;
+
+        // Determine if this is the launch year for special messaging
+        $isLaunchYear = $launchDate->year === $year;
+        $monthsAvailable = $isLaunchYear ? (int) ceil($availableDays / 30) : 12;
+
+        // 1. Daily Devotee: ≥80% consistency
+        if ($consistencyRate >= 0.80) {
             $name = 'Daily Devotee';
-            $description = 'Your consistency is inspiring. You made the Word a daily habit.';
-            $stats = $uniqueDays.' days read';
-        } elseif ($uniqueDays > 200) {
-            // 2. Faithful Follower: High consistency
+            $description = $isLaunchYear
+                ? "In just {$monthsAvailable} months, you made the Word a daily habit."
+                : 'Your consistency is inspiring. You made the Word a daily habit.';
+            $stats = round($consistencyRate * 100).'% consistency';
+        } elseif ($consistencyRate >= 0.55) {
+            // 2. Faithful Follower: ≥55% consistency
             $name = 'Faithful Follower';
-            $description = 'You showed up consistently throughout the year. Well done!';
-            $stats = $uniqueDays.' days read';
-        } elseif ($count > 300) {
-            // 3. Deep Diver: High volume but perhaps bunched up (batch reader)
+            $description = $isLaunchYear
+                ? 'You showed up consistently since we launched. Well done!'
+                : 'You showed up consistently throughout the year. Well done!';
+            $stats = round($consistencyRate * 100).'% consistency';
+        } elseif ($chaptersPerDay >= 2.0) {
+            // 3. Deep Diver: ≥2 chapters per active day
             $name = 'Deep Diver';
             $description = 'When you read, you go deep. You cover a lot of ground in each sitting.';
-            $stats = round($count / max($uniqueDays, 1), 1).' chapters / day';
+            $stats = round($chaptersPerDay, 1).' chapters / day';
         } else {
             // 4. Weekend Warrior: Reads mostly on Sat/Sun
             $weekendReads = $logs->filter(function ($log) {

@@ -54,7 +54,7 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * Create a year's worth of realistic reading data.
+     * Create reading data from launch date onwards.
      * Includes bias towards specific books to generate clear "Top Books".
      */
     private function createTestReadingLogs(User $user): void
@@ -63,14 +63,23 @@ class DatabaseSeeder extends Seeder
         $faker->seed(12345);
 
         $today = Carbon::today();
+        $launchDate = Carbon::parse('2025-08-01');
         $bibleService = app(BibleReferenceService::class);
 
         // Books to bias towards (e.g., Psalms, Matthew, Genesis)
         $favoriteBooks = [19, 40, 1];
 
-        // Generate logs for the past 365 days
-        for ($i = 0; $i < 365; $i++) {
-            $readingDate = $today->copy()->subDays($i);
+        // Calculate days since launch (or 0 if before launch)
+        $daysSinceLaunch = max(0, $launchDate->diffInDays($today));
+
+        // Generate logs from launch date to today
+        for ($i = 0; $i <= $daysSinceLaunch; $i++) {
+            $readingDate = $launchDate->copy()->addDays($i);
+
+            // Skip future dates
+            if ($readingDate->gt($today)) {
+                break;
+            }
 
             // 70% chance to read on any given day (creates streaks and gaps)
             if ($faker->boolean(70)) {
@@ -132,7 +141,7 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        $this->command->info("Created realistic yearly reading history for {$user->name}");
+        $this->command->info("Created reading history from launch date (Aug 1, 2025) for {$user->name}");
     }
 
     /**
