@@ -62,6 +62,18 @@ class AnnualRecapService
         $start = Carbon::create($year, 12, 1)->startOfDay();
         $end = Carbon::create($year, 12, 31)->endOfDay()->addWeek();
 
+        if (! $now->between($start, $end)) {
+            $previousYear = $year - 1;
+            $previousStart = Carbon::create($previousYear, 12, 1)->startOfDay();
+            $previousEnd = Carbon::create($previousYear, 12, 31)->endOfDay()->addWeek();
+
+            if ($now->between($previousStart, $previousEnd)) {
+                $year = $previousYear;
+                $start = $previousStart;
+                $end = $previousEnd;
+            }
+        }
+
         $isInWindow = $now->between($start, $end);
         $viewExists = View::exists("annual-recap.{$year}.show");
 
