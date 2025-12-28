@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Announcement;
 use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\BibleReferenceService;
@@ -20,10 +21,9 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        $seedUser = User::factory()->create([
-            'name' => 'Seed User',
-            'email' => 'seed.user@example.com',
-        ]);
+        $this->createAnnualRecapAnnouncement();
+
+        $seedUser = $this->getOrCreateSeedUser('Seed User', 'seed.user@example.com');
 
         // Create varied reading logs for testing filters
         $this->createTestReadingLogs($seedUser);
@@ -35,10 +35,7 @@ class DatabaseSeeder extends Seeder
         $this->command->info("Synced {$stats['processed_logs']} reading logs and updated {$stats['updated_books_count']} books with book progress.");
 
         // Create test user with 3 reading days this week
-        $seedUser2 = User::factory()->create([
-            'name' => 'Seed User 2',
-            'email' => 'seed.user2@example.com',
-        ]);
+        $seedUser2 = $this->getOrCreateSeedUser('Seed User 2', 'seed.user2@example.com');
 
         $this->createCurrentWeekTestData($seedUser2);
 
@@ -51,6 +48,57 @@ class DatabaseSeeder extends Seeder
         $this->command->info('Clearing application caches...');
         cache()->flush();
         $this->command->info('All caches cleared.');
+    }
+
+    private function getOrCreateSeedUser(string $name, string $email): User
+    {
+        $existingUser = User::where('email', $email)->first();
+
+        if ($existingUser) {
+            $existingUser->update(['name' => $name]);
+
+            return $existingUser;
+        }
+
+        return User::factory()->create([
+            'name' => $name,
+            'email' => $email,
+        ]);
+    }
+
+    /**
+     * Create the Annual Recap release announcement.
+     */
+    private function createAnnualRecapAnnouncement(): void
+    {
+        $title = 'Your 2025 Annual Recap is here';
+
+        $content = <<<'MD'
+### Your 2025 Annual Recap is ready
+
+Relive your first year with Delight with:
+- Your reader style and top books
+- Total chapters read and active days
+- Best streak and books completed
+- A daily activity heatmap
+
+Your recap will keep updating through December 31, 2025 - keep reading to shape the final story.
+
+[View your recap](/recap/2025)
+
+Thank you for reading with us - here's to 2026!
+MD;
+
+        Announcement::updateOrCreate(
+            ['slug' => 'annual-recap-2025'],
+            [
+                'title' => $title,
+                'content' => $content,
+                'type' => 'success',
+                'starts_at' => now(),
+                'ends_at' => null,
+            ]
+        );
     }
 
     /**

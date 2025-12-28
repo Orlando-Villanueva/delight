@@ -246,7 +246,7 @@
 
                 <!-- Share / Footnote -->
                 <div class="text-center">
-                    <p class="text-gray-500 text-sm mb-6">Generated on {{ now()->format('F j, Y') }} • delight.app</p>
+                    <p class="text-gray-500 text-sm mb-6">Generated on {{ now()->format('F j, Y') }}</p>
                     <div class="flex gap-4 justify-center">
                         <button onclick="window.print()"
                             class="px-6 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-sm font-medium transition-colors">
