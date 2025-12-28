@@ -51,7 +51,7 @@
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({
                     files: [file],
-                    title: 'My {{ $year }} in Word',
+                    title: 'My {{ $year }} in the Word',
                     text: 'Check out my Delight annual recap.'
                 });
                 return;

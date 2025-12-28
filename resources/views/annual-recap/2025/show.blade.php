@@ -1,6 +1,6 @@
 @extends('layouts.reader')
 
-@section('title', "Your $year in Word - Delight")
+@section('title', "Your $year in the Word - Delight")
 
 @section('meta')
     <meta name="description" content="Your {{ $year }} Year in Review">
@@ -27,7 +27,7 @@
             <header class="mb-12 text-center">
                 <h1
                     class="text-4xl md:text-5xl font-bold tracking-tight mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500">
-                    Your {{ $year }} in Word
+                    Your {{ $year }} in the Word
                 </h1>
                 <p class="text-lg text-gray-400">
                     Your first year with Delight — a look back at your journey through Scripture.

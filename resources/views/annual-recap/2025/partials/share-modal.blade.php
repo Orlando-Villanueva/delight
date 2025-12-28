@@ -35,7 +35,7 @@
                                 <div class="text-center mb-12">
                                     <h1
                                         class="text-8xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 mb-5">
-                                        Your {{ $year }} in Word
+                                        Your {{ $year }} in the Word
                                     </h1>
                                     <p class="text-3xl text-gray-400">A look back at your journey through
                                         Scripture</p>
