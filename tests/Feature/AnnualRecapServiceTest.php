@@ -185,4 +185,31 @@ class AnnualRecapServiceTest extends TestCase
             Carbon::setTestNow();
         }
     }
+
+    public function test_dashboard_card_state_is_visible_during_december(): void
+    {
+        $service = app(AnnualRecapService::class);
+        $state = $service->getDashboardCardState(Carbon::create(2025, 12, 15, 12, 0, 0));
+
+        $this->assertTrue($state['show']);
+        $this->assertEquals(2025, $state['year']);
+        $this->assertEquals('Dec 31, 2025', $state['end_label']);
+    }
+
+    public function test_dashboard_card_state_is_hidden_before_december(): void
+    {
+        $service = app(AnnualRecapService::class);
+        $state = $service->getDashboardCardState(Carbon::create(2025, 11, 30, 12, 0, 0));
+
+        $this->assertFalse($state['show']);
+    }
+
+    public function test_dashboard_card_state_is_hidden_when_view_missing(): void
+    {
+        $service = app(AnnualRecapService::class);
+        $state = $service->getDashboardCardState(Carbon::create(2024, 12, 15, 12, 0, 0));
+
+        $this->assertFalse($state['show']);
+        $this->assertEquals(2024, $state['year']);
+    }
 }

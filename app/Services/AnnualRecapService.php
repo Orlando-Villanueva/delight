@@ -7,6 +7,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\View;
 
 class AnnualRecapService
 {
@@ -54,6 +55,26 @@ class AnnualRecapService
     public static function cacheKeyFor(User $user, int $year): string
     {
         return "user_annual_recap_{$user->id}_{$year}";
+    }
+
+    /**
+     * Get the seasonal dashboard card state for the annual recap.
+     */
+    public function getDashboardCardState(?Carbon $now = null): array
+    {
+        $now = $now?->copy() ?? now();
+        $year = $now->year;
+        $start = Carbon::create($year, 12, 1)->startOfDay();
+        $end = Carbon::create($year, 12, 31)->endOfDay();
+
+        $isInWindow = $now->between($start, $end);
+        $viewExists = View::exists("annual-recap.{$year}.show");
+
+        return [
+            'show' => $isInWindow && $viewExists,
+            'year' => $year,
+            'end_label' => $end->format('M j, Y'),
+        ];
     }
 
     private function getLiveRecap(User $user, int $year): array

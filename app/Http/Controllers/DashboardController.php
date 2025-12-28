@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\AnnualRecapService;
 use App\Services\ReadingFormService;
 use App\Services\StreakStateService;
 use App\Services\UserStatisticsService;
@@ -12,7 +13,8 @@ class DashboardController extends Controller
     public function __construct(
         private ReadingFormService $readingFormService,
         private UserStatisticsService $statisticsService,
-        private StreakStateService $streakStateService
+        private StreakStateService $streakStateService,
+        private AnnualRecapService $recapService
     ) {}
 
     /**
@@ -55,7 +57,12 @@ class DashboardController extends Controller
         $streakMessage = $messagePayload['message'];
         $streakMessageTone = $messagePayload['tone'] ?? 'default';
 
+        $recapCard = $this->recapService->getDashboardCardState();
+        $showRecapCard = $recapCard['show'];
+        $recapCardYear = $recapCard['year'];
+        $recapCardEndLabel = $recapCard['end_label'];
+
         // Return appropriate view based on request type
-        return response()->htmx('dashboard', 'dashboard-content', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData'));
+        return response()->htmx('dashboard', 'dashboard-content', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData', 'showRecapCard', 'recapCardYear', 'recapCardEndLabel'));
     }
 }
