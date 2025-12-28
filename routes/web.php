@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AnnouncementController;
+use App\Http\Controllers\AnnualRecapController;
 use App\Http\Controllers\Auth\GoogleOAuthController;
 use App\Http\Controllers\Auth\XOAuthController;
 use App\Http\Controllers\Dashboard\NotificationController;
@@ -16,6 +17,10 @@ use Illuminate\Support\Facades\Route;
 if (app()->environment('local') || app()->environment('staging')) {
     Route::get('/telescope', function () {
         return redirect('/telescope/requests');
+    });
+
+    Route::get('/dev/social-previews', function () {
+        return view('dev.social-previews');
     });
 }
 
@@ -87,6 +92,9 @@ Route::middleware('auth')->group(function () {
     // Notifications (HTMX)
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{announcement}/read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+
+    // Annual Recap
+    Route::get('/recap/{year?}', [AnnualRecapController::class, 'show'])->name('recap.show');
 });
 
 // Admin Routes (Protected by check logic in middleware)

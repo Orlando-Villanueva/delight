@@ -33,6 +33,47 @@
 
                         <!-- Left Column - Main Content (responsive width) -->
                         <div class="xl:col-span-3 space-y-4">
+                            @if ($showRecapCard ?? false)
+                                <div
+                                    class="relative overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white shadow-lg dark:border-blue-900/50 dark:from-blue-900/30 dark:via-gray-800 dark:to-gray-800">
+                                    <div class="absolute inset-y-0 left-0 w-1 bg-blue-600 dark:bg-blue-500"></div>
+                                    <div class="p-5 sm:p-6">
+                                        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                            <div class="min-w-0 space-y-2">
+                                                <div class="flex items-center justify-between gap-3">
+                                                    <p
+                                                        class="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+                                                        Annual Recap
+                                                    </p>
+                                                    <span
+                                                        class="inline-flex items-center rounded-full bg-blue-600/10 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-400/10 dark:text-blue-200 sm:hidden">
+                                                        Live
+                                                    </span>
+                                                </div>
+                                                <h2
+                                                    class="min-w-0 text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">
+                                                    Your {{ $recapCardYear ?? now()->year }} recap is live
+                                                </h2>
+                                                <p class="text-sm text-gray-600 dark:text-gray-300">
+                                                    See your reader style, top books, total chapters, and best streak.
+                                                    Updates through {{ $recapCardEndLabel ?? 'Dec 31' }} - keep reading to
+                                                    shape it.
+                                                </p>
+                                            </div>
+                                            <span
+                                                class="hidden sm:inline-flex items-center rounded-full bg-blue-600/10 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-400/10 dark:text-blue-200">
+                                                Live
+                                            </span>
+                                        </div>
+                                        <div class="mt-4 flex flex-wrap items-center gap-3">
+                                            <a href="{{ route('recap.show', ['year' => $recapCardYear ?? now()->year]) }}"
+                                                class="inline-flex items-center justify-center rounded-full bg-accent-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2">
+                                                View recap
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
 
                             <!-- Cards Grid: 2x2 on tablet (shares row with calendar), 2-up until ultra-wide, 3-up on 2xl -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-4">

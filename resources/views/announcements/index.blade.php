@@ -3,6 +3,11 @@
 @section('title', 'Product Updates - Delight')
 @section('meta')
     <meta name="description" content="Latest news, updates, and feature releases from Delight.">
+
+    <!-- Social -->
+    <meta property="og:image" content="{{ asset('images/social-updates.png') }}">
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:image" content="{{ asset('images/social-updates.png') }}">
 @endsection
 
 @section('content')
@@ -24,7 +29,7 @@
                         </time>
                         @if ($announcement->type !== 'info')
                             <span
-                                class="relative z-10 rounded-full px-3 py-1.5 font-medium 
+                                class="relative z-10 rounded-full px-3 py-1.5 font-medium
                                                         {{ $announcement->type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : '' }}
                                                         {{ $announcement->type === 'warning' ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : '' }}
                                                     ">

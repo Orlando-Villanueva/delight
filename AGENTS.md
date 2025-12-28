@@ -7,6 +7,9 @@
 - HTTP entry points are defined in `routes/web.php`, while background tasks and listeners live in `app/Console` and `app/Listeners`.
 - Record decisions in `docs/` and pair schema changes with matching migrations and seeders.
 
+## Annual Recap Year Roll-Forward
+- See `docs/annual-recap/README.md` for the yearly setup checklist and examples.
+
 ## Build, Test, and Development Commands
 - `composer install` / `npm install` – install PHP and JS dependencies.
 - `php artisan migrate --seed` – apply schema changes and load Bible data.
@@ -14,6 +17,14 @@
 - `npm run build` – compile production-ready assets.
 - `php artisan test` or `composer test` – run the Pest-powered suite.
 - `mailpit` – run the local email server (view at http://localhost:8025).
+
+## Telescope (Local Profiling)
+- Telescope is only registered in the `local` environment; ensure `APP_ENV=local`.
+- Enable it with `TELESCOPE_ENABLED=true` in `.env`, then run `php artisan migrate` if tables are missing.
+- Visit `http://delight.test/telescope` (or `/{TELESCOPE_PATH}`) once enabled.
+- For non-local access, add allowed emails via `TELESCOPE_ADMIN_EMAILS` (comma-separated).
+- Use Telescope to inspect slow requests, N+1 queries, failing jobs, and unexpected cache/queue behavior during feature work or debugging regressions.
+- When reviewing a PR or QAing a flow, check Telescope for errors, repeated queries, or excessive response times before shipping.
 
 ## Visual Language & UI Design
 - **Aesthetics**: Aim for a "Premium & Focused" feel. Use rounded-xl (12px) for cards and rounded-lg (8px) for inputs.

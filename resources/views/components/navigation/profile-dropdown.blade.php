@@ -40,6 +40,17 @@
         </div>
         <ul class="p-2 space-y-0.5">
             <li>
+                <a href="{{ route('recap.show') }}"
+                    class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100/80 dark:text-gray-300 dark:hover:bg-gray-700/50 transition-colors rounded-lg text-left">
+                    <svg class="w-4 h-4 opacity-70" fill="currentColor" viewBox="0 0 16 16">
+                        <path
+                            d="M14 0H2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2M1 3.857C1 3.384 1.448 3 2 3h12c.552 0 1 .384 1 .857v10.286c0 .473-.448.857-1 .857H2c-.552 0-1-.384-1-.857z" />
+                        <path d="M7 10a1 1 0 0 0 0-2H1v2zm2-3h6V5H9a1 1 0 0 0 0 2" />
+                    </svg>
+                    Annual Recap
+                </a>
+            </li>
+            <li>
                 <button type="button" hx-get="{{ route('feedback.create') }}" hx-target="#page-container"
                     hx-swap="innerHTML" hx-push-url="true"
                     class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100/80 dark:text-gray-300 dark:hover:bg-gray-700/50 transition-colors rounded-lg text-left cursor-pointer">
