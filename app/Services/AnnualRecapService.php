@@ -239,9 +239,6 @@ class AnnualRecapService
      */
     private function determineReaderPersonality(Collection $logs, int $year): array
     {
-        $count = $logs->count();
-        $uniqueDays = $logs->pluck('date_read')->unique()->count();
-
         // Calculate available days based on launch date or start of year
         $yearStart = Carbon::create($year, 1, 1);
         $launchDate = Carbon::parse(self::LAUNCH_DATE);
@@ -255,9 +252,17 @@ class AnnualRecapService
             ? 0
             : $effectiveStart->diffInDays($effectiveEnd) + 1;
 
-        // Calculate consistency rate and chapters per day
-        $consistencyRate = $availableDays > 0 ? $uniqueDays / $availableDays : 0;
-        $chaptersPerDay = $uniqueDays > 0 ? $count / $uniqueDays : 0;
+        $windowedLogs = $logs->filter(function ($log) use ($effectiveStart, $effectiveEnd) {
+            $date = Carbon::parse($log->date_read)->startOfDay();
+
+            return $date->gte($effectiveStart) && $date->lte($effectiveEnd);
+        });
+        $windowedCount = $windowedLogs->count();
+        $windowedUniqueDays = $windowedLogs->pluck('date_read')->unique()->count();
+
+        // Calculate consistency rate and chapters per day within the effective window.
+        $consistencyRate = $availableDays > 0 ? $windowedUniqueDays / $availableDays : 0;
+        $chaptersPerDay = $windowedUniqueDays > 0 ? $windowedCount / $windowedUniqueDays : 0;
 
         // Determine if this is the launch year for special messaging
         $isLaunchYear = $launchDate->year === $year;
@@ -284,13 +289,13 @@ class AnnualRecapService
             $stats = round($chaptersPerDay, 1).' chapters / day';
         } else {
             // 4. Weekend Warrior: Reads mostly on Sat/Sun
-            $weekendReads = $logs->filter(function ($log) {
+            $weekendReads = $windowedLogs->filter(function ($log) {
                 $dayOfWeek = Carbon::parse($log->date_read)->dayOfWeek;
 
                 return $dayOfWeek === Carbon::SATURDAY || $dayOfWeek === Carbon::SUNDAY;
             })->count();
 
-            if ($count > 20 && ($weekendReads / $count) > 0.4) {
+            if ($windowedCount > 20 && ($weekendReads / $windowedCount) > 0.4) {
                 $name = 'Weekend Warrior';
                 $description = 'You prefer to spend your weekends soaking in the Scriptures.';
                 $stats = $weekendReads.' weekend chapters';
@@ -298,7 +303,7 @@ class AnnualRecapService
                 // Default: Steady Seeker
                 $name = 'Steady Seeker';
                 $description = 'You are on a journey, seeking God at your own steady pace.';
-                $stats = $uniqueDays.' active days';
+                $stats = $windowedUniqueDays.' active days';
             }
         }
 
