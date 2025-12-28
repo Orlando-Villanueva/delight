@@ -11,11 +11,6 @@ use Illuminate\Support\Facades\View;
 
 class AnnualRecapService
 {
-    /**
-     * The date the app launched. Used to calculate available reading days for partial years.
-     */
-    public const LAUNCH_DATE = '2025-08-01';
-
     public function __construct(
         private BibleReferenceService $bibleService
     ) {}
@@ -93,12 +88,30 @@ class AnnualRecapService
 
     private function calculateRecap(User $user, int $year): array
     {
-        $startDate = Carbon::create($year, 1, 1)->startOfDay();
-        $endDate = Carbon::create($year, 12, 31)->endOfDay();
+        $yearStart = Carbon::create($year, 1, 1)->startOfDay();
+        $yearEnd = Carbon::create($year, 12, 31)->endOfDay();
+        $userStart = Carbon::parse($user->created_at)->startOfDay();
+        $today = Carbon::today();
+        $firstLogDate = $user->readingLogs()
+            ->whereBetween('date_read', [$yearStart, $yearEnd])
+            ->min('date_read');
 
-        // Get all logs for the year
+        if (! $firstLogDate) {
+            return [];
+        }
+
+        $logStart = Carbon::parse($firstLogDate)->startOfDay();
+        $earliestStart = $logStart->lt($userStart) ? $logStart : $userStart;
+        $effectiveStart = $earliestStart->gt($yearStart) ? $earliestStart : $yearStart;
+        $effectiveEnd = $year === $today->year ? $today : $yearEnd;
+
+        if ($effectiveEnd->lt($effectiveStart)) {
+            return [];
+        }
+
+        // Get all logs for the recap window
         $logs = $user->readingLogs()
-            ->whereBetween('date_read', [$startDate, $endDate])
+            ->whereBetween('date_read', [$effectiveStart, $effectiveEnd])
             ->get();
 
         if ($logs->isEmpty()) {
@@ -111,8 +124,8 @@ class AnnualRecapService
             'active_days_count' => $logs->pluck('date_read')->unique()->count(),
             'yearly_streak' => $this->calculateYearlyStreak($logs),
             'top_books' => $this->calculateTopBooks($logs),
-            'books_completed_count' => $this->calculateBooksCompleted($user, $year),
-            'reader_personality' => $this->determineReaderPersonality($logs, $year),
+            'books_completed_count' => $this->calculateBooksCompleted($user, $year, $effectiveStart, $effectiveEnd),
+            'reader_personality' => $this->determineReaderPersonality($logs, $year, $effectiveStart, $effectiveEnd),
             'heatmap_data' => $this->generateHeatmapData($logs),
             'first_reading' => $logs->sortBy('date_read')->first()?->date_read,
             'last_reading' => $logs->sortByDesc('date_read')->first()?->date_read,
@@ -220,66 +233,58 @@ class AnnualRecapService
     }
 
     /**
-     * Calculate how many books were completed in the given year.
-     * Uses BookProgress but filters by last_updated in the target year.
+     * Calculate how many books were completed in the recap window.
+     * Uses BookProgress but filters by last_updated in the effective window.
      * Note: This is an approximation as BookProgress only stores "last_updated",
      * but for a recap it's a "good enough" proxy for recent achievements.
      */
-    private function calculateBooksCompleted(User $user, int $year): int
+    private function calculateBooksCompleted(User $user, int $year, Carbon $effectiveStart, Carbon $effectiveEnd): int
     {
         return $user->bookProgress()
             ->where('is_completed', true)
-            ->whereYear('last_updated', $year)
+            ->whereBetween('last_updated', [$effectiveStart, $effectiveEnd])
             ->count();
     }
 
     /**
      * Determine a fun personality type based on reading habits.
-     * Uses percentage-based thresholds to account for partial years (e.g., 2025 launch).
+     * Uses percentage-based thresholds to account for partial years.
      */
-    private function determineReaderPersonality(Collection $logs, int $year): array
-    {
-        // Calculate available days based on launch date or start of year
+    private function determineReaderPersonality(
+        Collection $logs,
+        int $year,
+        Carbon $effectiveStart,
+        Carbon $effectiveEnd
+    ): array {
+        // Calculate available days based on the effective window (signup or year start).
         $yearStart = Carbon::create($year, 1, 1);
-        $launchDate = Carbon::parse(self::LAUNCH_DATE);
-        $effectiveStart = $launchDate->year === $year && $launchDate->gt($yearStart)
-            ? $launchDate
-            : $yearStart;
-        $yearEnd = Carbon::create($year, 12, 31);
-        $today = Carbon::today();
-        $effectiveEnd = $year === $today->year ? $today : $yearEnd;
         $availableDays = $effectiveEnd->lt($effectiveStart)
             ? 0
             : $effectiveStart->diffInDays($effectiveEnd) + 1;
 
-        $windowedLogs = $logs->filter(function ($log) use ($effectiveStart, $effectiveEnd) {
-            $date = Carbon::parse($log->date_read)->startOfDay();
-
-            return $date->gte($effectiveStart) && $date->lte($effectiveEnd);
-        });
-        $windowedCount = $windowedLogs->count();
-        $windowedUniqueDays = $windowedLogs->pluck('date_read')->unique()->count();
+        $windowedCount = $logs->count();
+        $windowedUniqueDays = $logs->pluck('date_read')->unique()->count();
 
         // Calculate consistency rate and chapters per day within the effective window.
         $consistencyRate = $availableDays > 0 ? $windowedUniqueDays / $availableDays : 0;
         $chaptersPerDay = $windowedUniqueDays > 0 ? $windowedCount / $windowedUniqueDays : 0;
 
-        // Determine if this is the launch year for special messaging
-        $isLaunchYear = $launchDate->year === $year;
-        $monthsAvailable = $isLaunchYear ? (int) ceil($availableDays / 30) : 12;
+        $yearEnd = Carbon::create($year, 12, 31);
+        $isPartialYear = $effectiveStart->gt($yearStart) || $effectiveEnd->lt($yearEnd);
+        $monthsAvailable = $isPartialYear ? (int) ceil($availableDays / 30) : 12;
 
         // 1. Daily Devotee: ≥80% consistency
         if ($consistencyRate >= 0.80) {
             $name = 'Daily Devotee';
-            $description = $isLaunchYear
+            $description = $isPartialYear
                 ? "In just {$monthsAvailable} months, you made the Word a daily habit."
                 : 'Your consistency is inspiring. You made the Word a daily habit.';
             $stats = round($consistencyRate * 100).'% consistency';
         } elseif ($consistencyRate >= 0.55) {
             // 2. Faithful Follower: ≥55% consistency
             $name = 'Faithful Follower';
-            $description = $isLaunchYear
-                ? 'You showed up consistently since we launched. Well done!'
+            $description = $isPartialYear
+                ? 'You showed up consistently since you started tracking. Well done!'
                 : 'You showed up consistently throughout the year. Well done!';
             $stats = round($consistencyRate * 100).'% consistency';
         } elseif ($chaptersPerDay >= 2.0) {
@@ -289,7 +294,7 @@ class AnnualRecapService
             $stats = round($chaptersPerDay, 1).' chapters / day';
         } else {
             // 4. Weekend Warrior: Reads mostly on Sat/Sun
-            $weekendReads = $windowedLogs->filter(function ($log) {
+            $weekendReads = $logs->filter(function ($log) {
                 $dayOfWeek = Carbon::parse($log->date_read)->dayOfWeek;
 
                 return $dayOfWeek === Carbon::SATURDAY || $dayOfWeek === Carbon::SUNDAY;

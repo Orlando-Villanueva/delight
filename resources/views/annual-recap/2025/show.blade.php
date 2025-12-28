@@ -60,27 +60,23 @@
                             class="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl group-hover:bg-blue-500/30 transition-all duration-700">
                         </div>
 
-                        <div class="relative z-10 h-full flex flex-col">
-                            <div>
-                                <div class="flex justify-between items-start mb-4">
-                                    <p class="text-blue-300 font-medium uppercase tracking-wider text-sm">Reader Style
-                                    </p>
-                                    @if (isset($stats['reader_personality']['stats']))
-                                        <div
-                                            class="inline-flex items-center px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-sm font-medium backdrop-blur-sm whitespace-nowrap ml-2 -mt-1">
-                                            {{ $stats['reader_personality']['stats'] }}
-                                        </div>
-                                    @endif
-                                </div>
-                                <div class="text-2xl lg:text-3xl font-bold text-white mb-4 leading-tight">
-                                    {{ $stats['reader_personality']['name'] }}
-                                </div>
+                        <div class="relative z-10 flex flex-col gap-4">
+                            <div class="flex justify-between items-start">
+                                <p class="text-blue-300 font-medium uppercase tracking-wider text-sm">Reader Style</p>
+                                @if (isset($stats['reader_personality']['stats']))
+                                    <div
+                                        class="inline-flex items-center px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-sm font-medium backdrop-blur-sm whitespace-nowrap ml-2 -mt-1">
+                                        {{ $stats['reader_personality']['stats'] }}
+                                    </div>
+                                @endif
                             </div>
+                            <div class="text-2xl lg:text-3xl font-bold text-white leading-tight">
+                                {{ $stats['reader_personality']['name'] }}
+                            </div>
+                            <p class="text-blue-200 text-lg leading-relaxed max-w-md">
+                                {{ $stats['reader_personality']['description'] }}
+                            </p>
                         </div>
-
-                        <p class="text-blue-200 text-lg leading-relaxed max-w-md">
-                            {{ $stats['reader_personality']['description'] }}
-                        </p>
                     </div>
 
                 <!-- Top Books (3/6 width) -->
