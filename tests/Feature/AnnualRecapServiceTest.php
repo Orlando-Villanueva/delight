@@ -193,7 +193,7 @@ class AnnualRecapServiceTest extends TestCase
 
         $this->assertTrue($state['show']);
         $this->assertEquals(2025, $state['year']);
-        $this->assertEquals('Dec 31, 2025', $state['end_label']);
+        $this->assertEquals('Jan 7, 2026', $state['end_label']);
     }
 
     public function test_dashboard_card_state_is_hidden_before_december(): void
