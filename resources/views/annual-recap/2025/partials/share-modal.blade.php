@@ -54,7 +54,7 @@
                                                 Reader Style</p>
                                             @if (isset($stats['reader_personality']['stats']))
                                                 <div
-                                                    class="px-5 py-2.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-xl font-medium">
+                                                    class="px-9 py-4 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-3xl font-semibold">
                                                     {{ $stats['reader_personality']['stats'] }}
                                                 </div>
                                             @endif
