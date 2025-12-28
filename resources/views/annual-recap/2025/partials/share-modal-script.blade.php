@@ -19,7 +19,8 @@
             width: 1080,
             height: 1920,
             pixelRatio: 1,
-            backgroundColor: '#0F1115'
+            backgroundColor: '#0F1115',
+            skipFonts: true
         };
     }
 
@@ -58,6 +59,9 @@
 
             await downloadShareCard();
         } catch (error) {
+            if (error?.name === 'AbortError') {
+                return;
+            }
             console.error('Error sharing image:', error);
             alert('Error sharing image. Please try again.');
         }
