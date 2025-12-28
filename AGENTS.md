@@ -18,6 +18,14 @@
 - `php artisan test` or `composer test` – run the Pest-powered suite.
 - `mailpit` – run the local email server (view at http://localhost:8025).
 
+## Telescope (Local Profiling)
+- Telescope is only registered in the `local` environment; ensure `APP_ENV=local`.
+- Enable it with `TELESCOPE_ENABLED=true` in `.env`, then run `php artisan migrate` if tables are missing.
+- Visit `http://delight.test/telescope` (or `/{TELESCOPE_PATH}`) once enabled.
+- For non-local access, add allowed emails via `TELESCOPE_ADMIN_EMAILS` (comma-separated).
+- Use Telescope to inspect slow requests, N+1 queries, failing jobs, and unexpected cache/queue behavior during feature work or debugging regressions.
+- When reviewing a PR or QAing a flow, check Telescope for errors, repeated queries, or excessive response times before shipping.
+
 ## Visual Language & UI Design
 - **Aesthetics**: Aim for a "Premium & Focused" feel. Use rounded-xl (12px) for cards and rounded-lg (8px) for inputs.
 - **Color Palette**: 

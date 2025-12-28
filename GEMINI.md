@@ -64,6 +64,21 @@ The project follows a **Service Layer Architecture**, ensuring controllers remai
     -   Mail: `mailpit` (interface at `http://localhost:8025`)
     -   DB: `http://delight.test/telescope` (if enabled)
 
+### Telescope
+
+Telescope is available only in the `local` environment and is off by default.
+
+1.  Set `APP_ENV=local` and `TELESCOPE_ENABLED=true` in `.env`.
+2.  Run `php artisan migrate` if the Telescope tables are missing.
+3.  Visit `http://delight.test/telescope` (or `/{TELESCOPE_PATH}` if customized).
+
+For non-local access, allow users by email via `TELESCOPE_ADMIN_EMAILS` (comma-separated).
+
+**When to use it:**
+
+-   Debugging slow pages, N+1 query spikes, or unexpected queue/cache behavior.
+-   QA passes before release to spot errors, repeated queries, or latency hotspots.
+
 ### Testing
 
 Run the test suite with:

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AnnouncementController;
+use App\Http\Controllers\AnnualRecapController;
 use App\Http\Controllers\Auth\GoogleOAuthController;
 use App\Http\Controllers\Auth\XOAuthController;
 use App\Http\Controllers\Dashboard\NotificationController;
@@ -9,7 +10,6 @@ use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\PublicAnnouncementController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\SitemapController;
-use App\Http\Controllers\AnnualRecapController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +17,10 @@ use Illuminate\Support\Facades\Route;
 if (app()->environment('local') || app()->environment('staging')) {
     Route::get('/telescope', function () {
         return redirect('/telescope/requests');
+    });
+
+    Route::get('/dev/social-previews', function () {
+        return view('dev.social-previews');
     });
 }
 

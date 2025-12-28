@@ -10,6 +10,11 @@
     <meta property="og:url" content="{{ route('announcements.show', $announcement->slug) }}">
     <meta property="article:published_time" content="{{ $announcement->starts_at->toIso8601String() }}">
 
+    <!-- Social -->
+    <meta property="og:image" content="{{ asset('images/social-article.png') }}">
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:image" content="{{ asset('images/social-article.png') }}">
+
     <!-- JSON-LD Schema -->
     <script type="application/ld+json">
                     {

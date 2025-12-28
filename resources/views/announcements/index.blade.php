@@ -3,6 +3,11 @@
 @section('title', 'Product Updates - Delight')
 @section('meta')
     <meta name="description" content="Latest news, updates, and feature releases from Delight.">
+
+    <!-- Social -->
+    <meta property="og:image" content="{{ asset('images/social-updates.png') }}">
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:image" content="{{ asset('images/social-updates.png') }}">
 @endsection
 
 @section('content')
