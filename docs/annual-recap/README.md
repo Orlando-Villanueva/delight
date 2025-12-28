@@ -18,3 +18,7 @@ Use this checklist each year when adding the next recap (example: 2026).
 4) Seed or create data for local testing
 - Create reading logs dated in the new year so the recap has data to render.
 - Example: use a factory or seeder to add logs in 2026.
+
+5) Confirm dashboard card visibility window
+- The recap card shows from Dec 1 through Jan 7 for the corresponding year.
+- During early January, the card should still point to the prior year's recap.
