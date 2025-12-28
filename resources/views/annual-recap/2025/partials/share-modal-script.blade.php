@@ -12,23 +12,65 @@
         document.body.style.overflow = '';
     }
 
+    const shareFileName = 'my-{{ $year }}-in-word.png';
+
+    function getShareCardOptions() {
+        return {
+            width: 1080,
+            height: 1920,
+            pixelRatio: 1,
+            backgroundColor: '#0F1115'
+        };
+    }
+
     async function downloadShareCard() {
         const element = document.getElementById('shareCard');
         try {
-            const dataUrl = await htmlToImage.toPng(element, {
-                width: 1080,
-                height: 1920,
-                pixelRatio: 1,
-                backgroundColor: '#0F1115'
-            });
+            const dataUrl = await htmlToImage.toPng(element, getShareCardOptions());
 
             const link = document.createElement('a');
-            link.download = 'my-{{ $year }}-in-word.png';
+            link.download = shareFileName;
             link.href = dataUrl;
             link.click();
         } catch (error) {
             console.error('Error generating image:', error);
             alert('Error generating image. Please try again.');
+        }
+    }
+
+    async function shareShareCard() {
+        const element = document.getElementById('shareCard');
+        try {
+            const blob = await htmlToImage.toBlob(element, getShareCardOptions());
+            if (!blob) {
+                throw new Error('Share image generation returned empty blob.');
+            }
+
+            const file = new File([blob], shareFileName, { type: 'image/png' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: 'My {{ $year }} in Word',
+                    text: 'Check out my Delight annual recap.'
+                });
+                return;
+            }
+
+            await downloadShareCard();
+        } catch (error) {
+            console.error('Error sharing image:', error);
+            alert('Error sharing image. Please try again.');
+        }
+    }
+
+    function updateShareButtonVisibility() {
+        const shareButton = document.getElementById('shareImageButton');
+        if (!shareButton) return;
+
+        if (navigator.share) {
+            shareButton.classList.remove('hidden');
+        } else {
+            shareButton.classList.add('hidden');
         }
     }
 
@@ -41,4 +83,6 @@
     document.getElementById('shareModal')?.addEventListener('click', (e) => {
         if (e.target.id === 'shareModal') closeShareModal();
     });
+
+    updateShareButtonVisibility();
 </script>

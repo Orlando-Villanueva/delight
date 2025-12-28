@@ -39,27 +39,31 @@
                                     <div class="absolute inset-y-0 left-0 w-1 bg-blue-600 dark:bg-blue-500"></div>
                                     <div class="p-5 sm:p-6">
                                         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                            <div class="min-w-0">
-                                                <p
-                                                    class="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
-                                                    Annual Recap
-                                                </p>
+                                            <div class="min-w-0 space-y-2">
+                                                <div class="flex items-center justify-between gap-3">
+                                                    <p
+                                                        class="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+                                                        Annual Recap
+                                                    </p>
+                                                    <span
+                                                        class="inline-flex items-center rounded-full bg-blue-600/10 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-400/10 dark:text-blue-200 sm:hidden">
+                                                        Live
+                                                    </span>
+                                                </div>
                                                 <h2
-                                                    class="mt-2 text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">
+                                                    class="min-w-0 text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">
                                                     Your {{ $recapCardYear ?? now()->year }} recap is live
                                                 </h2>
-                                                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                                <p class="text-sm text-gray-600 dark:text-gray-300">
                                                     See your reader style, top books, total chapters, and best streak.
                                                     Updates through {{ $recapCardEndLabel ?? 'Dec 31' }} - keep reading to
                                                     shape it.
                                                 </p>
                                             </div>
-                                            <div class="flex items-start gap-2 shrink-0">
-                                                <span
-                                                    class="inline-flex items-center rounded-full bg-blue-600/10 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-400/10 dark:text-blue-200">
-                                                    Live
-                                                </span>
-                                            </div>
+                                            <span
+                                                class="hidden sm:inline-flex items-center rounded-full bg-blue-600/10 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-400/10 dark:text-blue-200">
+                                                Live
+                                            </span>
                                         </div>
                                         <div class="mt-4 flex flex-wrap items-center gap-3">
                                             <a href="{{ route('recap.show', ['year' => $recapCardYear ?? now()->year]) }}"

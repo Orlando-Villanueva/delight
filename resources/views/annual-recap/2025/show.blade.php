@@ -242,15 +242,15 @@
 
         <!-- Share / Footnote -->
         <div class="text-center">
-            <p class="text-gray-500 text-sm mb-6">Generated on {{ now()->format('F j, Y') }}</p>
             <div class="flex gap-4 justify-center">
                 <button onclick="openShareModal()"
-                    class="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-sm font-medium transition-colors flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    class="px-8 py-3 text-base bg-blue-600 hover:bg-blue-500 rounded-full font-medium transition-colors flex items-center gap-2 sm:px-6 sm:py-2 sm:text-sm">
+                    <svg class="w-5 h-5 sm:w-4 sm:h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24"
+                        height="24" fill="none" viewBox="0 0 24 24">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-width="2"
+                            d="M7.926 10.898 15 7.727m-7.074 5.39L15 16.29M8 12a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Zm12 5.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Zm0-11a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z"/>
                     </svg>
-                    Share Story
+                    Share Recap
                 </button>
             </div>
         </div>
