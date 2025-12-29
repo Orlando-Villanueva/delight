@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UpdateReadingNotesRequest;
 use App\Models\ReadingLog;
 use App\Services\BibleReferenceService;
 use App\Services\ReadingFormService;
@@ -9,7 +10,6 @@ use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\MessageBag;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -29,10 +29,7 @@ class ReadingLogController extends Controller
      */
     public function create(Request $request)
     {
-        // TEMPORARY: Test French support by loading French book names
-        // You can change 'fr' to 'en' to switch back to English
-        $locale = $request->get('lang', 'en'); // Allow testing via ?lang=fr
-        $books = $this->bibleReferenceService->listBibleBooks(null, $locale);
+        $books = $this->bibleReferenceService->listBibleBooks(null, 'en');
 
         // Pass empty error bag for consistent template behavior
         $errors = new MessageBag;
@@ -205,43 +202,10 @@ class ReadingLogController extends Controller
     /**
      * Update the notes associated with a reading log (or grouped logs).
      */
-    public function updateNotes(Request $request, ReadingLog $readingLog)
+    public function updateNotes(UpdateReadingNotesRequest $request, ReadingLog $readingLog)
     {
-        if ($request->user()->id !== $readingLog->user_id) {
-            abort(403, 'Unauthorized to update this reading log.');
-        }
-
         $user = $request->user();
-
-        $validator = Validator::make($request->all(), [
-            'notes_text' => 'nullable|string|max:1000',
-            'log_ids' => 'nullable|array',
-            'log_ids.*' => 'integer',
-        ]);
-
-        if ($validator->fails()) {
-            $errors = new MessageBag($validator->errors()->toArray());
-            $notesText = $request->input('notes_text', '');
-            $allLogs = $this->readingLogService->getLogsForNoteUpdate(
-                $user,
-                $readingLog,
-                $request->input('log_ids', [])
-            );
-
-            return response()
-                ->view('components.modals.partials.edit-reading-note-form', [
-                    'log' => $readingLog,
-                    'modalId' => "edit-note-{$readingLog->id}",
-                    'dateKey' => $readingLog->date_read->format('Y-m-d'),
-                    'allLogs' => $allLogs,
-                    'notesText' => $notesText,
-                    'errors' => $errors,
-                ], 422)
-                ->header('HX-Retarget', "#edit-note-form-container-{$readingLog->id}")
-                ->header('HX-Reswap', 'outerHTML');
-        }
-
-        $data = $validator->validated();
+        $data = $request->validated();
         $notesText = array_key_exists('notes_text', $data) ? (string) $data['notes_text'] : null;
 
         if ($notesText !== null) {

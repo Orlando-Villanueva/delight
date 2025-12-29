@@ -129,8 +129,12 @@ A "Spotify Wrapped"-style year-in-review feature for Bible reading.
 
 We use **Pest**.
 
--   Feature tests should cover high-level HTMX flows.
+-   Feature tests should cover high-level HTMX flows and full HTTP request behavior (endpoint coverage).
+-   FormRequest authorization and validation are covered via Feature tests hitting the route.
 -   Unit tests should cover complex logic in services (especially Statistics and Streaks).
+-   When controller behavior changes, add or update Feature tests; if controllers grow, extract logic to services/actions and test those units.
+-   Prefer Pest function-style tests with `beforeEach` for shared setup in new/updated feature specs.
+-   When building or updating end-to-end features, always create or adapt Feature tests to cover the behavior change.
 
 ### 7. Code Interaction
 

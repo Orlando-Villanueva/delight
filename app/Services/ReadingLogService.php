@@ -152,8 +152,8 @@ class ReadingLogService
             return 0;
         }
 
-        $today = Carbon::today();
-        $yesterday = Carbon::yesterday();
+        $today = today();
+        $yesterday = today()->subDay();
 
         // Check if user has read recently (today or yesterday - grace period)
         $hasRecentReading = $readingDates->contains(fn ($date) => $date->equalTo($today) || $date->equalTo($yesterday)
@@ -211,8 +211,8 @@ class ReadingLogService
             return [];
         }
 
-        $today = Carbon::today();
-        $yesterday = Carbon::yesterday();
+        $today = today();
+        $yesterday = today()->subDay();
 
         $todayKey = $today->toDateString();
         $yesterdayKey = $yesterday->toDateString();
