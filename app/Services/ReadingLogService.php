@@ -545,11 +545,51 @@ class ReadingLogService
 
     public function getPaginatedDayGroupsFor(Request $request, UserStatisticsService $statisticsService, int $perPage = 8): LengthAwarePaginator
     {
-        $groupedLogs = $this->buildGroupedLogsForUser($request->user(), $statisticsService);
-
+        $user = $request->user();
         $currentPage = max(1, (int) $request->get('page', 1));
+
+        // 1. Get distinct dates, paginated
+        // We use a subquery or distinct on date_read to identify which days to show
+        $datesPaginator = $user->readingLogs()
+            ->select('date_read')
+            ->distinct()
+            ->orderBy('date_read', 'desc')
+            ->paginate($perPage, ['date_read'], 'page', $currentPage);
+
+        // 2. Extract dates for the current page
+        $dates = collect($datesPaginator->items())->map(function ($item) {
+            return $item->date_read instanceof Carbon ? $item->date_read->format('Y-m-d') : $item->date_read;
+        });
+
+        if ($dates->isEmpty()) {
+            $groupedLogs = collect();
+        } else {
+            // 3. Fetch logs ONLY for these dates
+            // This avoids loading thousands of logs into memory when we only need a few days
+            $logs = $user->readingLogs()
+                ->whereIn('date_read', $dates->all())
+                ->orderBy('date_read', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // 4. Group and prepare
+            $groupedLogs = $logs
+                ->groupBy(fn ($log) => $log->date_read->format('Y-m-d'))
+                ->map(fn ($logsForDay) => $this->prepareDisplayLogs($logsForDay, $statisticsService))
+                ->sortByDesc(fn ($logsForDay, $date) => $date);
+        }
+
+        // 5. Construct Paginator
         $basePath = $request->routeIs('logs.index') ? $request->url() : route('logs.index');
-        $paginator = $this->paginateGroupedLogs($groupedLogs, $currentPage, $perPage, $basePath);
+
+        $paginator = new LengthAwarePaginator(
+            $groupedLogs,
+            $datesPaginator->total(),
+            $perPage,
+            $currentPage,
+            ['path' => $basePath, 'pageName' => 'page']
+        );
+
         $paginator->appends($request->query());
 
         return $paginator;
