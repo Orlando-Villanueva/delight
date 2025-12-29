@@ -548,18 +548,20 @@ class ReadingLogService
         $user = $request->user();
         $currentPage = max(1, (int) $request->get('page', 1));
 
-        // 1. Get distinct dates, paginated
-        // We use a subquery or distinct on date_read to identify which days to show
-        $datesPaginator = $user->readingLogs()
+        // 1. Count distinct dates manually for accurate pagination
+        $totalDates = $user->readingLogs()->distinct()->count('date_read');
+
+        // 2. Fetch dates for the current page
+        $dates = $user->readingLogs()
             ->select('date_read')
             ->distinct()
             ->orderBy('date_read', 'desc')
-            ->paginate($perPage, ['date_read'], 'page', $currentPage);
-
-        // 2. Extract dates for the current page
-        $dates = collect($datesPaginator->items())->map(function ($item) {
-            return $item->date_read instanceof Carbon ? $item->date_read->format('Y-m-d') : $item->date_read;
-        });
+            ->forPage($currentPage, $perPage)
+            ->get()
+            ->pluck('date_read')
+            ->map(function ($date) {
+                return $date instanceof Carbon ? $date->format('Y-m-d') : (string) $date;
+            });
 
         if ($dates->isEmpty()) {
             $groupedLogs = collect();
@@ -584,7 +586,7 @@ class ReadingLogService
 
         $paginator = new LengthAwarePaginator(
             $groupedLogs,
-            $datesPaginator->total(),
+            $totalDates,
             $perPage,
             $currentPage,
             ['path' => $basePath, 'pageName' => 'page']
