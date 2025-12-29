@@ -4,15 +4,15 @@ This document outlines all available monitoring capabilities for Delight in prod
 
 ## 🖥️ Server & Infrastructure Monitoring
 
-### **Laravel Forge Dashboard**
-- **Access**: [forge.laravel.com](https://forge.laravel.com) → Your Server
+### **Laravel Cloud Dashboard**
+- **Access**: Laravel Cloud dashboard → Your Project
 - **Monitors**: CPU, Memory, Disk usage, Load average
 - **Alerts**: Automatic notifications for server issues
 
 ### **Key Server Metrics**
 ```bash
-# SSH into production server
-ssh forge@your-server-ip
+# SSH into production server (if applicable)
+ssh your-user@your-server-ip
 
 # Check server resources
 htop                    # CPU and memory usage
@@ -151,7 +151,7 @@ ps aux --sort=-%mem | head -10    # Top memory processes
 
 # Check disk usage
 df -h
-du -sh /home/forge/mydelight.app/* | sort -hr
+du -sh /var/www/mydelight.app/* | sort -hr
 ```
 
 ### **Database Issues**
@@ -200,12 +200,12 @@ php artisan tinker
 
 # 4. Email delivery stats (check Mailgun dashboard)
 
-# 5. Server resource trends (check Forge dashboard)
+# 5. Server resource trends (check Laravel Cloud dashboard)
 ```
 
 ## 🔔 Alert Setup Recommendations
 
-### **Forge Alerts (Already Available)**
+### **Laravel Cloud Alerts (If Available)**
 - Server down alerts
 - High CPU/memory usage
 - Disk space warnings
@@ -263,7 +263,7 @@ php artisan tinker
 ## 📞 Emergency Contacts & Resources
 
 ### **Service Dashboards**
-- **Laravel Forge**: [forge.laravel.com](https://forge.laravel.com)
+- **Laravel Cloud**: Laravel Cloud dashboard
 - **Mailgun**: [mailgun.com](https://mailgun.com)
 - **Domain DNS**: Your domain registrar
 

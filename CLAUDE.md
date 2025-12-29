@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Tech Stack:**
 - **Backend:** Laravel 12 with Service Layer Pattern
 - **Frontend:** HTMX + Alpine.js with server-driven architecture
-- **Database:** SQLite (local development), PostgreSQL (production via Laravel Forge)
+- **Database:** SQLite (local development), PostgreSQL (production via Laravel Cloud)
 - **Authentication:** Laravel Fortify with standard Laravel forms
 - **Styling:** Tailwind CSS 4.0
 - **Testing:** Pest (PHPUnit)
@@ -228,7 +228,7 @@ resources/views/
 - Composite indexes on `(user_id, date_read)` for calendar queries
 - Denormalized book_progress table reduces complex joins
 - Query optimization for streak calculations
-- Production PostgreSQL hosted on Laravel Forge
+- Production PostgreSQL hosted on Laravel Cloud
 
 ## Common Patterns
 

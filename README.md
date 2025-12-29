@@ -1,7 +1,5 @@
 # Delight
 
-[![Laravel Forge Site Deployment Status](https://img.shields.io/endpoint?url=https%3A%2F%2Fforge.laravel.com%2Fsite-badges%2Fc25df3da-e1dc-4bd9-9f2c-2a0596933e0c%3Fdate%3D1%26label%3D1&style=plastic)](https://forge.laravel.com/servers/940835/sites/2789193)
-
 A web application designed to help users build and maintain a consistent Bible reading habit through tracking, streaks, and visual progress indicators.
 
 ## Features
