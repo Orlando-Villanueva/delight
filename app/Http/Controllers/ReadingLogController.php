@@ -29,10 +29,7 @@ class ReadingLogController extends Controller
      */
     public function create(Request $request)
     {
-        // TEMPORARY: Test French support by loading French book names
-        // You can change 'fr' to 'en' to switch back to English
-        $locale = $request->get('lang', 'en'); // Allow testing via ?lang=fr
-        $books = $this->bibleReferenceService->listBibleBooks(null, $locale);
+        $books = $this->bibleReferenceService->listBibleBooks(null, 'en');
 
         // Pass empty error bag for consistent template behavior
         $errors = new MessageBag;
