@@ -103,7 +103,7 @@ class AnnualRecapService
         $yearStart = Carbon::create($year, 1, 1)->startOfDay();
         $yearEnd = Carbon::create($year, 12, 31)->endOfDay();
         $userStart = Carbon::parse($user->created_at)->startOfDay();
-        $today = Carbon::today();
+        $today = today();
         $firstLogDate = $user->readingLogs()
             ->whereBetween('date_read', [$yearStart, $yearEnd])
             ->min('date_read');
