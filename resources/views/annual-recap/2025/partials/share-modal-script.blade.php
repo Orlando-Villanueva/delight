@@ -14,19 +14,26 @@
 
     const shareFileName = 'my-{{ $year }}-in-word.png';
 
+    async function ensureShareFontsLoaded() {
+        if (document.fonts?.ready) {
+            await document.fonts.ready;
+        }
+    }
+
     function getShareCardOptions() {
         return {
             width: 1080,
             height: 1920,
             pixelRatio: 1,
             backgroundColor: '#0F1115',
-            skipFonts: true
+            skipFonts: false
         };
     }
 
     async function downloadShareCard() {
         const element = document.getElementById('shareCard');
         try {
+            await ensureShareFontsLoaded();
             const dataUrl = await htmlToImage.toPng(element, getShareCardOptions());
 
             const link = document.createElement('a');
@@ -42,6 +49,7 @@
     async function shareShareCard() {
         const element = document.getElementById('shareCard');
         try {
+            await ensureShareFontsLoaded();
             const blob = await htmlToImage.toBlob(element, getShareCardOptions());
             if (!blob) {
                 throw new Error('Share image generation returned empty blob.');

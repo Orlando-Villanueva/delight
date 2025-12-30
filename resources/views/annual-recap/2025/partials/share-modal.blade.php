@@ -20,7 +20,7 @@
                     <div class="w-[1080px] h-[1920px] origin-top-left"
                         style="transform: scale(var(--share-scale));">
                         <div id="shareCard"
-                            class="w-[1080px] h-[1920px] bg-[#0F1115] relative overflow-hidden flex flex-col text-white">
+                            class="w-[1080px] h-[1920px] bg-[#0F1115] relative overflow-hidden flex flex-col text-white font-sans antialiased">
                             <!-- Background -->
                             <div
                                 class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-blue-900/30 via-[#0F1115] to-[#0F1115]">
