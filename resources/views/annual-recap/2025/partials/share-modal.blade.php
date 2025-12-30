@@ -32,11 +32,11 @@
                             <!-- Content - Single Column Layout -->
                             <!-- NOTE: Vertical padding reduced (py-20 -> py-14) and shrink-0 added to children
                                  to prevent layout breaking on Windows where font rendering is slightly larger/taller. -->
-                            <div class="relative z-10 flex flex-col h-full px-12 py-14">
+                            <div class="relative z-10 flex flex-col h-full px-12 py-14 justify-center">
                                 <!-- Header -->
                                 <div class="text-center mb-10 shrink-0">
                                     <h1
-                                        class="text-8xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 mb-5">
+                                        class="text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 mb-5">
                                         Your {{ $year }} in the Word
                                     </h1>
                                     <p class="text-3xl text-gray-400">A look back at your journey through
@@ -227,15 +227,11 @@
                                     </div>
                                 </div>
 
-                                <div class="flex-grow"></div>
-
                                 <!-- Footer -->
                                 <div class="text-center shrink-0 pt-8 flex items-center justify-center gap-5">
                                     <img src="{{ asset('images/logo-512.png') }}" class="w-14 h-14" alt="Delight">
                                     <p class="text-gray-400 text-3xl font-semibold tracking-wide">mydelight.app</p>
                                 </div>
-
-                                <div class="flex-grow"></div>
                             </div>
                         </div>
                     </div>
