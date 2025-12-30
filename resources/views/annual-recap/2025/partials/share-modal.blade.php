@@ -30,6 +30,8 @@
                             </div>
 
                             <!-- Content - Single Column Layout -->
+                            <!-- NOTE: Vertical padding reduced (py-20 -> py-14) and shrink-0 added to children
+                                 to prevent layout breaking on Windows where font rendering is slightly larger/taller. -->
                             <div class="relative z-10 flex flex-col h-full px-12 py-14">
                                 <!-- Header -->
                                 <div class="text-center mb-10 shrink-0">
