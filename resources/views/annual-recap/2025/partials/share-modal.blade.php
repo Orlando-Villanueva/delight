@@ -30,9 +30,9 @@
                             </div>
 
                             <!-- Content - Single Column Layout -->
-                            <div class="relative z-10 flex flex-col h-full px-12 py-20">
+                            <div class="relative z-10 flex flex-col h-full px-12 py-14">
                                 <!-- Header -->
-                                <div class="text-center mb-12">
+                                <div class="text-center mb-10 shrink-0">
                                     <h1
                                         class="text-8xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 mb-5">
                                         Your {{ $year }} in the Word
@@ -43,7 +43,7 @@
 
                                 <!-- Reader Personality - Full Width -->
                                 <div
-                                    class="bg-blue-900/50 border border-blue-700/50 rounded-[2.5rem] p-12 mb-8 relative overflow-hidden">
+                                    class="bg-blue-900/50 border border-blue-700/50 rounded-[2.5rem] p-12 mb-6 relative overflow-hidden shrink-0">
                                     <div
                                         class="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl">
                                     </div>
@@ -67,7 +67,7 @@
                                 </div>
 
                                 <!-- Top Books - 2 Column Layout -->
-                                <div class="bg-gray-800/80 border border-gray-700/50 rounded-[2.5rem] p-12 mb-8">
+                                <div class="bg-gray-800/80 border border-gray-700/50 rounded-[2.5rem] p-12 mb-6 shrink-0">
                                     <div class="flex items-center justify-between mb-8">
                                         <p class="text-gray-400 font-semibold uppercase tracking-widest text-2xl">
                                             Top Books</p>
@@ -122,7 +122,7 @@
                                 </div>
 
                                 <!-- Stats Grid - 2x2 -->
-                                <div class="grid grid-cols-2 gap-6 mb-8">
+                                <div class="grid grid-cols-2 gap-6 mb-6 shrink-0">
                                     <!-- Total Chapters -->
                                     <div class="bg-gray-800/80 border border-gray-700/50 rounded-[2rem] p-10">
                                         <div class="flex items-center justify-between mb-5">
@@ -188,7 +188,7 @@
                                 </div>
 
                                 <!-- Heatmap - Fixed size, no flex-1 -->
-                                <div class="bg-gray-800/80 border border-gray-700/50 rounded-[2rem] p-8">
+                                <div class="bg-gray-800/80 border border-gray-700/50 rounded-[2rem] p-8 shrink-0">
                                     <p class="text-gray-400 font-semibold uppercase tracking-widest text-2xl mb-6">
                                         Daily Activity</p>
                                     <div class="flex flex-wrap gap-[6px] justify-center">
