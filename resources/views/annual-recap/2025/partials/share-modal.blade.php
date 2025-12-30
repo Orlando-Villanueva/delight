@@ -227,11 +227,15 @@
                                     </div>
                                 </div>
 
+                                <div class="flex-grow"></div>
+
                                 <!-- Footer -->
-                                <div class="text-center mt-auto pt-8 flex items-center justify-center gap-5">
+                                <div class="text-center shrink-0 pt-8 flex items-center justify-center gap-5">
                                     <img src="{{ asset('images/logo-512.png') }}" class="w-14 h-14" alt="Delight">
                                     <p class="text-gray-400 text-3xl font-semibold tracking-wide">mydelight.app</p>
                                 </div>
+
+                                <div class="flex-grow"></div>
                             </div>
                         </div>
                     </div>
