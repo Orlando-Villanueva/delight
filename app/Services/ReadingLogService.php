@@ -558,7 +558,12 @@ class ReadingLogService
             ->paginate($perPage, ['date_read'], 'page', $currentPage);
 
         // Step 2: Get the logs for these specific dates
-        $dates = collect($paginatedDates->items())->pluck('date_read')->map(fn ($d) => $d->format('Y-m-d'));
+        $dates = collect($paginatedDates->items())->map(function ($item) {
+            // Ensure we handle both Model objects (with casting) and stdClass objects (raw)
+            $date = $item->date_read;
+
+            return $date instanceof Carbon ? $date->format('Y-m-d') : $date;
+        });
 
         if ($dates->isEmpty()) {
             $groupedLogs = collect();
