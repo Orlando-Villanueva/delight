@@ -562,7 +562,12 @@ class ReadingLogService
             // Ensure we handle both Model objects (with casting) and stdClass objects (raw)
             $date = $item->date_read;
 
-            return $date instanceof Carbon ? $date->format('Y-m-d') : $date;
+            if ($date instanceof Carbon) {
+                return $date->format('Y-m-d');
+            }
+
+            // Fallback for raw strings or other formats - force standard Y-m-d
+            return Carbon::parse($date)->format('Y-m-d');
         });
 
         if ($dates->isEmpty()) {

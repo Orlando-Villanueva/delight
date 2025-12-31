@@ -29,8 +29,6 @@ class ReadingLogPaginationTest extends TestCase
                 'date_read' => $today->copy()->subDays($i)->toDateString(),
                 'book_id' => 1,
                 'chapter' => $i + 1,
-                // Ensure unique passage text or other fields if needed,
-                // but factory handles basic ones.
             ]);
         }
 
@@ -52,32 +50,49 @@ class ReadingLogPaginationTest extends TestCase
         $this->assertEquals(20, $paginator->total()); // Total 20 days
         $this->assertTrue($paginator->hasMorePages());
 
-        // Verify the content is correct (dates)
-        $firstGroup = $paginator->items()[0];
-        // date_read in the group object is likely a Carbon object or string depending on implementation
-        // The service sets keys as 'Y-m-d' strings in the collection, but sortByDesc might mess keys up?
-        // Wait, $groupedLogs is a Collection of prepared logs.
-        // buildGroupedLogsForUser: returns collection of logs.
-        // prepareDisplayLogs returns a collection of logs with 'display_passage_text' etc.
-        // The items in paginator are the grouped logs for each day.
-
-        // Let's verify the query count to ensure optimization
-        // We expect:
-        // 1. Pagination count query (select count(distinct date_read)...)
-        // 2. Pagination selection query (select distinct date_read ...)
-        // 3. Data selection query (select * from reading_logs where date_read in (...))
-        // 4. Potentially some user stats queries if not cached/mocked, but main point is data query.
-
-        // If it was the OLD way:
-        // 1. Select * from reading_logs ... (loading ALL rows)
-
-        // The key is that we have a 'limit' in the date selection query.
+        // Check for efficient query (limit + distinct)
         $hasLimitedDateQuery = collect($queries)->contains(function ($query) {
             return str_contains($query['query'], 'limit') && str_contains($query['query'], 'distinct');
         });
 
-        // Depending on DB driver, distinct + limit might be handled differently,
-        // but Laravel's paginate() usually produces a limit.
         $this->assertTrue($hasLimitedDateQuery, 'Should have a query with limit and distinct for pagination');
+    }
+
+    public function test_pagination_sentinel_logic_reproduction()
+    {
+        // Reproduction of ReadingLogHistoryInfiniteScrollTest logic
+        $user = User::factory()->create();
+        $today = Carbon::today();
+
+        // Create 17 consecutive days of logs
+        // Page size 8.
+        // Page 1: 1-8. Page 2: 9-16. Page 3: 17.
+        foreach (range(0, 16) as $offset) {
+            ReadingLog::factory()->create([
+                'user_id' => $user->id,
+                'book_id' => 1,
+                'chapter' => $offset + 1,
+                'date_read' => $today->copy()->subDays($offset)->toDateString(),
+            ]);
+        }
+
+        $service = app(ReadingLogService::class);
+        $statsService = app(UserStatisticsService::class);
+
+        // Request page 2
+        // Default perPage is 8 in the service method signature
+        $request = request()->merge(['page' => 2]);
+
+        $paginator = $service->getPaginatedDayGroupsFor($request, $statsService); // Use default perPage=8
+
+        // Verify total and pages
+        $this->assertEquals(17, $paginator->total());
+        $this->assertEquals(8, $paginator->perPage());
+        $this->assertEquals(2, $paginator->currentPage());
+        $this->assertEquals(3, $paginator->lastPage());
+        $this->assertTrue($paginator->hasMorePages(), 'Page 2 of 3 should have more pages');
+
+        // Verify items count on page 2
+        $this->assertCount(8, $paginator->items());
     }
 }
