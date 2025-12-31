@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class ReadingLogService
@@ -551,14 +552,19 @@ class ReadingLogService
 
         // Step 1: Paginate the unique dates first
         // This is much more efficient than loading all logs into memory
-        $paginatedDates = $user->readingLogs()
+        $dateQuery = $user->readingLogs()
             ->select('date_read')
             ->distinct()
-            ->orderBy('date_read', 'desc')
-            ->paginate($perPage, ['date_read'], 'page', $currentPage);
+            ->orderBy('date_read', 'desc');
+
+        $totalDates = (clone $dateQuery)->count('date_read');
+
+        $paginatedDates = (clone $dateQuery)
+            ->forPage($currentPage, $perPage)
+            ->get();
 
         // Step 2: Get the logs for these specific dates
-        $dates = collect($paginatedDates->items())->map(function ($item) {
+        $dates = collect($paginatedDates)->map(function ($item) {
             // Ensure we handle both Model objects (with casting) and stdClass objects (raw)
             $date = $item->date_read;
 
@@ -574,7 +580,7 @@ class ReadingLogService
             $groupedLogs = collect();
         } else {
             $logs = $user->readingLogs()
-                ->whereIn('date_read', $dates)
+                ->whereIn(DB::raw('date(date_read)'), $dates)
                 ->orderBy('date_read', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -589,7 +595,7 @@ class ReadingLogService
         // Step 4: Create Paginator preserving the original dates pagination meta
         $paginator = new LengthAwarePaginator(
             $groupedLogs,
-            $paginatedDates->total(),
+            $totalDates,
             $perPage,
             $currentPage,
             ['path' => $basePath, 'pageName' => 'page']

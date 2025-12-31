@@ -22,6 +22,8 @@ class ReadingLogPaginationTest extends TestCase
         $today = Carbon::today();
         $user = User::factory()->create();
 
+        $this->actingAs($user);
+
         // Create logs for 20 different days
         for ($i = 0; $i < 20; $i++) {
             ReadingLog::factory()->create([
@@ -32,9 +34,19 @@ class ReadingLogPaginationTest extends TestCase
             ]);
         }
 
+        // Add a second log on the most recent day to ensure distinct counting by date
+        ReadingLog::factory()->create([
+            'user_id' => $user->id,
+            'date_read' => $today->toDateString(),
+            'book_id' => 1,
+            'chapter' => 100,
+        ]);
+
         $service = app(ReadingLogService::class);
         $statsService = app(UserStatisticsService::class);
-        $request = request()->merge(['page' => 1]);
+        $request = request();
+        $request->merge(['page' => 1]);
+        $request->setUserResolver(fn () => $user);
 
         // Enable query logging
         DB::enableQueryLog();
@@ -64,6 +76,8 @@ class ReadingLogPaginationTest extends TestCase
         $user = User::factory()->create();
         $today = Carbon::today();
 
+        $this->actingAs($user);
+
         // Create 17 consecutive days of logs
         // Page size 8.
         // Page 1: 1-8. Page 2: 9-16. Page 3: 17.
@@ -81,7 +95,9 @@ class ReadingLogPaginationTest extends TestCase
 
         // Request page 2
         // Default perPage is 8 in the service method signature
-        $request = request()->merge(['page' => 2]);
+        $request = request();
+        $request->merge(['page' => 2]);
+        $request->setUserResolver(fn () => $user);
 
         $paginator = $service->getPaginatedDayGroupsFor($request, $statsService); // Use default perPage=8
 
