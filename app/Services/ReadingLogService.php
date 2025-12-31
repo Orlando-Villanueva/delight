@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class ReadingLogService
@@ -545,11 +546,61 @@ class ReadingLogService
 
     public function getPaginatedDayGroupsFor(Request $request, UserStatisticsService $statisticsService, int $perPage = 8): LengthAwarePaginator
     {
-        $groupedLogs = $this->buildGroupedLogsForUser($request->user(), $statisticsService);
-
+        $user = $request->user();
         $currentPage = max(1, (int) $request->get('page', 1));
         $basePath = $request->routeIs('logs.index') ? $request->url() : route('logs.index');
-        $paginator = $this->paginateGroupedLogs($groupedLogs, $currentPage, $perPage, $basePath);
+
+        // Step 1: Paginate the unique dates first
+        // This is much more efficient than loading all logs into memory
+        $dateQuery = $user->readingLogs()
+            ->select('date_read')
+            ->distinct()
+            ->orderBy('date_read', 'desc');
+
+        $totalDates = (clone $dateQuery)->count('date_read');
+
+        $paginatedDates = (clone $dateQuery)
+            ->forPage($currentPage, $perPage)
+            ->get();
+
+        // Step 2: Get the logs for these specific dates
+        $dates = collect($paginatedDates)->map(function ($item) {
+            // Ensure we handle both Model objects (with casting) and stdClass objects (raw)
+            $date = $item->date_read;
+
+            if ($date instanceof Carbon) {
+                return $date->format('Y-m-d');
+            }
+
+            // Fallback for raw strings or other formats - force standard Y-m-d
+            return Carbon::parse($date)->format('Y-m-d');
+        });
+
+        if ($dates->isEmpty()) {
+            $groupedLogs = collect();
+        } else {
+            $logs = $user->readingLogs()
+                ->whereIn(DB::raw('date(date_read)'), $dates)
+                ->orderBy('date_read', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Step 3: Group and prepare logs for display
+            $groupedLogs = $logs
+                ->groupBy(fn ($log) => $log->date_read->format('Y-m-d'))
+                ->map(fn ($logsForDay) => $this->prepareDisplayLogs($logsForDay, $statisticsService))
+                ->sortByDesc(fn ($logsForDay, $date) => $date);
+        }
+
+        // Step 4: Create Paginator preserving the original dates pagination meta
+        $paginator = new LengthAwarePaginator(
+            $groupedLogs,
+            $totalDates,
+            $perPage,
+            $currentPage,
+            ['path' => $basePath, 'pageName' => 'page']
+        );
+
         $paginator->appends($request->query());
 
         return $paginator;
@@ -621,6 +672,9 @@ class ReadingLogService
         return $user->readingLogs()->exists();
     }
 
+    /**
+     * @deprecated Use getPaginatedDayGroupsFor directly for better performance.
+     */
     public function buildGroupedLogsForUser(User $user, UserStatisticsService $statisticsService): Collection
     {
         return $user->readingLogs()->recentFirst()
@@ -630,6 +684,9 @@ class ReadingLogService
             ->sortByDesc(fn ($logsForDay, $date) => $date);
     }
 
+    /**
+     * @deprecated Use getPaginatedDayGroupsFor directly.
+     */
     public function paginateGroupedLogs(Collection $groupedLogs, int $currentPage, int $perPage, string $path): LengthAwarePaginator
     {
         $currentPage = max(1, $currentPage);
