@@ -61,8 +61,9 @@ class DashboardController extends Controller
         $showRecapCard = $recapCard['show'];
         $recapCardYear = $recapCard['year'];
         $recapCardEndLabel = $recapCard['end_label'];
+        $recapCardIsFinal = $recapCard['is_final'];
 
         // Return appropriate view based on request type
-        return response()->htmx('dashboard', 'dashboard-content', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData', 'showRecapCard', 'recapCardYear', 'recapCardEndLabel'));
+        return response()->htmx('dashboard', 'dashboard-content', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData', 'showRecapCard', 'recapCardYear', 'recapCardEndLabel', 'recapCardIsFinal'));
     }
 }

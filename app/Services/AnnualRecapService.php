@@ -80,11 +80,13 @@ class AnnualRecapService
         $isInWindow = $now->between($start, $windowEnd);
         $viewExists = View::exists("annual-recap.{$year}.show");
         $labelEnd = $now->lt($yearEnd) ? $now : $yearEnd;
+        $isFinal = $now->gt($yearEnd);
 
         return [
             'show' => $isInWindow && $viewExists,
             'year' => $year,
             'end_label' => $labelEnd->format('M j, Y'),
+            'is_final' => $isFinal,
         ];
     }
 
