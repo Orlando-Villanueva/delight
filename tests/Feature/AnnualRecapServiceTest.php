@@ -193,7 +193,7 @@ class AnnualRecapServiceTest extends TestCase
 
         $this->assertTrue($state['show']);
         $this->assertEquals(2025, $state['year']);
-        $this->assertEquals('Jan 7, 2026', $state['end_label']);
+        $this->assertEquals('Dec 15, 2025', $state['end_label']);
     }
 
     public function test_dashboard_card_state_is_visible_during_january_grace_period(): void
@@ -203,7 +203,7 @@ class AnnualRecapServiceTest extends TestCase
 
         $this->assertTrue($state['show']);
         $this->assertEquals(2025, $state['year']);
-        $this->assertEquals('Jan 7, 2026', $state['end_label']);
+        $this->assertEquals('Dec 31, 2025', $state['end_label']);
     }
 
     public function test_dashboard_card_state_is_hidden_after_january_grace_period(): void
