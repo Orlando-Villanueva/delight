@@ -56,8 +56,12 @@
                                                 </h2>
                                                 <p class="text-sm text-gray-600 dark:text-gray-300">
                                                     See your reader style, top books, total chapters, and best streak.
-                                                    Updates through {{ $recapCardEndLabel ?? 'Dec 31' }} - keep reading to
-                                                    shape it.
+                                                    @if ($recapCardIsFinal ?? false)
+                                                        Based on your reading through {{ $recapCardEndLabel ?? 'Dec 31' }}.
+                                                    @else
+                                                        Updates through {{ $recapCardEndLabel ?? 'Dec 31' }} - keep reading to
+                                                        shape it.
+                                                    @endif
                                                 </p>
                                             </div>
                                             <span

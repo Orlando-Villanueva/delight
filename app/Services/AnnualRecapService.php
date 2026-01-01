@@ -60,27 +60,33 @@ class AnnualRecapService
         $now = $now?->copy() ?? now();
         $year = $now->year;
         $start = Carbon::create($year, 12, 1)->startOfDay();
-        $end = Carbon::create($year, 12, 31)->endOfDay()->addWeek();
+        $yearEnd = Carbon::create($year, 12, 31)->endOfDay();
+        $windowEnd = $yearEnd->copy()->addWeek();
 
-        if (! $now->between($start, $end)) {
+        if (! $now->between($start, $windowEnd)) {
             $previousYear = $year - 1;
             $previousStart = Carbon::create($previousYear, 12, 1)->startOfDay();
-            $previousEnd = Carbon::create($previousYear, 12, 31)->endOfDay()->addWeek();
+            $previousYearEnd = Carbon::create($previousYear, 12, 31)->endOfDay();
+            $previousWindowEnd = $previousYearEnd->copy()->addWeek();
 
-            if ($now->between($previousStart, $previousEnd)) {
+            if ($now->between($previousStart, $previousWindowEnd)) {
                 $year = $previousYear;
                 $start = $previousStart;
-                $end = $previousEnd;
+                $yearEnd = $previousYearEnd;
+                $windowEnd = $previousWindowEnd;
             }
         }
 
-        $isInWindow = $now->between($start, $end);
+        $isInWindow = $now->between($start, $windowEnd);
         $viewExists = View::exists("annual-recap.{$year}.show");
+        $labelEnd = $now->lt($yearEnd) ? $now : $yearEnd;
+        $isFinal = $now->gt($yearEnd);
 
         return [
             'show' => $isInWindow && $viewExists,
             'year' => $year,
-            'end_label' => $end->format('M j, Y'),
+            'end_label' => $labelEnd->format('M j, Y'),
+            'is_final' => $isFinal,
         ];
     }
 
