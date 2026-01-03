@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\PublicAnnouncementController;
 use App\Http\Controllers\ReadingLogController;
+use App\Http\Controllers\ReadingPlanController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Support\Facades\Route;
@@ -95,6 +96,15 @@ Route::middleware('auth')->group(function () {
 
     // Annual Recap
     Route::get('/recap/{year?}', [AnnualRecapController::class, 'show'])->name('recap.show');
+
+    // Reading Plans
+    Route::get('/plans', [ReadingPlanController::class, 'index'])->name('plans.index');
+    Route::get('/plans/today', [ReadingPlanController::class, 'today'])->name('plans.today');
+    Route::get('/plans/{plan:slug}', [ReadingPlanController::class, 'show'])->name('plans.show');
+    Route::post('/plans/{plan:slug}/subscribe', [ReadingPlanController::class, 'subscribe'])->name('plans.subscribe');
+    Route::delete('/plans/{plan:slug}/unsubscribe', [ReadingPlanController::class, 'unsubscribe'])->name('plans.unsubscribe');
+    Route::post('/plans/today/log-chapter', [ReadingPlanController::class, 'logChapter'])->name('plans.logChapter');
+    Route::post('/plans/today/log-all', [ReadingPlanController::class, 'logAll'])->name('plans.logAll');
 });
 
 // Admin Routes (Protected by check logic in middleware)
