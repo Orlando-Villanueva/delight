@@ -526,24 +526,6 @@ class ReadingLogService
         return $readingLog;
     }
 
-    /**
-     * Render reading log cards HTML for infinite scroll responses.
-     * Takes a collection of grouped logs and returns concatenated card HTML.
-     * Includes infinite scroll sentinel if there are more pages.
-     */
-    public function renderReadingLogCardsHtml($logs): string
-    {
-        return view('partials.reading-log-items', [
-            'logs' => $logs,
-            'includeEmptyToday' => false,
-        ])->render()
-        .view('partials.reading-log-modals', [
-            'logs' => $logs,
-            'modalsOutOfBand' => true,
-            'swapMethod' => 'beforeend',
-        ])->render();
-    }
-
     public function getPaginatedDayGroupsFor(Request $request, UserStatisticsService $statisticsService, int $perPage = 8): LengthAwarePaginator
     {
         $user = $request->user();
