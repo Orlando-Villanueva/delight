@@ -2,12 +2,24 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ReadingPlanSubscription extends Model
 {
+    /**
+     * Cached completed days count for the current request.
+     */
+    protected ?int $completedDaysCount = null;
+
+    /**
+     * Reset the cached completed days count for the current request.
+     */
+    public function resetCompletedDaysCountCache(): void
+    {
+        $this->completedDaysCount = null;
+    }
+
     /**
      * The attributes that are mass assignable.
      *
@@ -48,33 +60,91 @@ class ReadingPlanSubscription extends Model
     }
 
     /**
-     * Get the current day number based on start date.
-     * Day 1 is the subscription start date.
+     * Get the current day number based on completed plan days.
+     * Day 1 is the first incomplete day.
      */
-    public function getDayNumber(?Carbon $forDate = null): int
+    public function getDayNumber(): int
     {
-        $date = $forDate ?? Carbon::today();
-        $dayNumber = $this->started_at->diffInDays($date) + 1;
-
-        // Clamp to plan length
         $maxDays = $this->plan->getDaysCount();
 
-        return min($dayNumber, $maxDays);
+        if ($maxDays === 0) {
+            return 0;
+        }
+
+        $completedDays = $this->getCompletedDaysCount();
+
+        return min($completedDays + 1, $maxDays);
     }
 
     /**
-     * Get today's reading from the plan.
+     * Get reading for the current day (or a specific day).
      */
-    public function getTodaysReading(?Carbon $forDate = null): ?array
+    public function getTodaysReading(?int $dayNumber = null): ?array
     {
-        $dayNumber = $this->getDayNumber($forDate);
+        $dayNumber = $dayNumber ?? $this->getDayNumber();
 
         return $this->plan->getDayReading($dayNumber);
     }
 
     /**
+     * Get the number of completed days from the start of the plan.
+     */
+    public function getCompletedDaysCount(): int
+    {
+        if ($this->completedDaysCount !== null) {
+            return $this->completedDaysCount;
+        }
+
+        $totalDays = $this->plan->getDaysCount();
+
+        if ($totalDays === 0) {
+            return $this->completedDaysCount = 0;
+        }
+
+        $logsByDay = ReadingLog::where('reading_plan_subscription_id', $this->id)
+            ->whereNotNull('reading_plan_day')
+            ->get(['reading_plan_day', 'book_id', 'chapter'])
+            ->groupBy('reading_plan_day');
+
+        $completedDays = 0;
+
+        for ($day = 1; $day <= $totalDays; $day++) {
+            $reading = $this->plan->getDayReading($day);
+
+            if (! $reading) {
+                break;
+            }
+
+            $chapters = $reading['chapters'] ?? [];
+
+            if (count($chapters) === 0) {
+                $completedDays++;
+
+                continue;
+            }
+
+            $expectedKeys = array_map(function ($chapter) {
+                return $chapter['book_id'].'-'.$chapter['chapter'];
+            }, $chapters);
+
+            $loggedKeys = $logsByDay->get($day, collect())
+                ->map(fn ($log) => $log->book_id.'-'.$log->chapter)
+                ->unique()
+                ->toArray();
+
+            if (count(array_diff($expectedKeys, $loggedKeys)) === 0) {
+                $completedDays++;
+            } else {
+                break;
+            }
+        }
+
+        return $this->completedDaysCount = $completedDays;
+    }
+
+    /**
      * Get the progress percentage (0-100).
-     * Progress is based on completed days (days before today).
+     * Progress is based on completed days.
      */
     public function getProgress(): float
     {
@@ -84,8 +154,7 @@ class ReadingPlanSubscription extends Model
             return 0;
         }
 
-        // Completed days = current day - 1 (Day 1 = 0 completed, Day 2 = 1 completed, etc.)
-        $completedDays = max(0, $this->getDayNumber() - 1);
+        $completedDays = $this->getCompletedDaysCount();
 
         return round(($completedDays / $totalDays) * 100, 1);
     }
@@ -95,6 +164,6 @@ class ReadingPlanSubscription extends Model
      */
     public function isComplete(): bool
     {
-        return $this->getDayNumber() >= $this->plan->getDaysCount();
+        return $this->getCompletedDaysCount() >= $this->plan->getDaysCount();
     }
 }

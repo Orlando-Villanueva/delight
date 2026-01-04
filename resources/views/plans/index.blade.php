@@ -51,7 +51,7 @@
                                                     <a href="{{ route('plans.today') }}" hx-get="{{ route('plans.today') }}"
                                                         hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                                         class="text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400">
-                                                        View today's reading →
+                                                        View current day →
                                                     </a>
                                                 </div>
                                             @else

@@ -133,7 +133,14 @@ class ReadingPlanController extends Controller
                 ->with('info', 'Subscribe to a reading plan to see your daily reading.');
         }
 
-        $viewData = $this->getTodayViewData($subscription);
+        $totalDays = $subscription->plan->getDaysCount();
+        $currentDay = $subscription->getDayNumber();
+        $requestedDay = (int) $request->query('day', $currentDay);
+        $viewDay = $totalDays > 0
+            ? min(max($requestedDay, 1), $totalDays)
+            : 0;
+
+        $viewData = $this->getTodayViewData($subscription, $viewDay, $currentDay);
 
         if ($request->header('HX-Request')) {
             return response()->htmx('plans.today', 'content', $viewData);
@@ -147,11 +154,6 @@ class ReadingPlanController extends Controller
      */
     public function logChapter(Request $request)
     {
-        $validated = $request->validate([
-            'book_id' => 'required|integer|min:1|max:66',
-            'chapter' => 'required|integer|min:1',
-        ]);
-
         $user = $request->user();
         $subscription = $user->activeReadingPlan();
 
@@ -159,15 +161,34 @@ class ReadingPlanController extends Controller
             return response()->json(['error' => 'No active subscription'], 400);
         }
 
+        $maxDay = $subscription->plan->getDaysCount();
+        $validated = $request->validate([
+            'book_id' => 'required|integer|min:1|max:66',
+            'chapter' => 'required|integer|min:1',
+            'day' => 'required|integer|min:1|max:'.$maxDay,
+        ]);
+
+        $dayNumber = min(max($validated['day'], 1), $maxDay);
+
         $chapter = [
             'book_id' => $validated['book_id'],
             'chapter' => $validated['chapter'],
         ];
 
-        $this->planService->logChapter($user, $chapter, Carbon::today());
+        $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
+
+        if (! $reading) {
+            return response()->json(['error' => 'Invalid plan day'], 404);
+        }
+
+        if ($reading && $reading['all_completed']) {
+            return response()->json(['error' => 'Plan day already complete'], 409);
+        }
+
+        $this->planService->logChapter($user, $subscription, $dayNumber, $chapter, Carbon::today());
 
         // Return updated today view
-        $viewData = $this->getTodayViewData($subscription);
+        $viewData = $this->getTodayViewData($subscription, $dayNumber);
 
         return response()->htmx('plans.today', 'reading-list', $viewData);
     }
@@ -184,7 +205,20 @@ class ReadingPlanController extends Controller
             return response()->json(['error' => 'No active subscription'], 400);
         }
 
-        $reading = $this->planService->getTodaysReadingWithStatus($subscription);
+        $maxDay = $subscription->plan->getDaysCount();
+        $validated = $request->validate([
+            'day' => 'required|integer|min:1|max:'.$maxDay,
+        ]);
+        $dayNumber = min(max($validated['day'], 1), $maxDay);
+        $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
+
+        if (! $reading) {
+            return response()->json(['error' => 'Invalid plan day'], 404);
+        }
+
+        if ($reading && $reading['all_completed']) {
+            return response()->json(['error' => 'Plan day already complete'], 409);
+        }
 
         if ($reading) {
             $chaptersToLog = array_filter(
@@ -192,11 +226,11 @@ class ReadingPlanController extends Controller
                 fn ($ch) => ! $ch['completed']
             );
 
-            $this->planService->logAllChapters($user, $chaptersToLog, Carbon::today());
+            $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, Carbon::today());
         }
 
         // Return updated today view
-        $viewData = $this->getTodayViewData($subscription);
+        $viewData = $this->getTodayViewData($subscription, $dayNumber);
 
         return response()->htmx('plans.today', 'reading-list', $viewData);
     }
@@ -204,17 +238,25 @@ class ReadingPlanController extends Controller
     /**
      * Get today's reading view data.
      */
-    private function getTodayViewData($subscription): array
+    private function getTodayViewData($subscription, ?int $dayNumber = null, ?int $currentDay = null): array
     {
-        $reading = $this->planService->getTodaysReadingWithStatus($subscription);
+        $totalDays = $subscription->plan->getDaysCount();
+        $currentDay = $currentDay ?? $subscription->getDayNumber();
+        $dayNumber = $dayNumber ?? $currentDay;
+        $dayNumber = $totalDays > 0
+            ? min(max($dayNumber, 1), $totalDays)
+            : 0;
+        $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
 
         return [
             'subscription' => $subscription,
             'plan' => $subscription->plan,
             'reading' => $reading,
-            'day_number' => $subscription->getDayNumber(),
-            'total_days' => $subscription->plan->getDaysCount(),
+            'day_number' => $dayNumber,
+            'current_day' => $currentDay,
+            'total_days' => $totalDays,
             'progress' => $subscription->getProgress(),
+            'is_complete' => $subscription->isComplete(),
         ];
     }
 
