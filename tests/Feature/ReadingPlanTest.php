@@ -243,6 +243,30 @@ describe('Chapter Logging', function () {
             ->count())->toBe(3);
     });
 
+    it('it_can_apply_todays_readings_without_creating_new_logs', function () {
+        Carbon::setTestNow('2026-01-02');
+
+        $log = ReadingLog::create([
+            'user_id' => $this->user->id,
+            'book_id' => 1,
+            'chapter' => 1,
+            'passage_text' => 'Genesis 1',
+            'date_read' => Carbon::today(),
+        ]);
+
+        $this->actingAs($this->user)
+            ->post(route('plans.applyTodaysReadings'), [
+                'day' => 1,
+            ])
+            ->assertOk();
+
+        expect(ReadingLog::count())->toBe(1);
+        expect($log->fresh()->reading_plan_subscription_id)->toBe($this->subscription->id);
+        expect($log->fresh()->reading_plan_day)->toBe(1);
+
+        Carbon::setTestNow();
+    });
+
     it('it_can_reject_logging_for_missing_plan_days', function () {
         $plan = ReadingPlan::create([
             'slug' => 'missing-day-plan',

@@ -102,7 +102,7 @@
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                         </svg>
-                                                        Mark All Read
+                                                        Mark day complete
                                                     </button>
                                                 </form>
                                             @else
@@ -121,6 +121,26 @@
                                         <p class="text-gray-600 dark:text-gray-400 mb-4">
                                             {{ $reading['label'] }}
                                         </p>
+
+                                        @if ($unlinked_today_chapters_count > 0)
+                                            <div
+                                                class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200/60 bg-blue-50/50 px-3 py-2 text-blue-900 dark:border-blue-900/30 dark:bg-blue-900/10 dark:text-blue-100">
+                                                <p class="text-xs leading-none text-blue-800 dark:text-blue-200">
+                                                    Found {{ $unlinked_today_chapters_count }} of
+                                                    {{ $unlinked_today_chapters_total }} chapters from today.
+                                                </p>
+                                                <form hx-post="{{ route('plans.applyTodaysReadings') }}"
+                                                    hx-target="#reading-list-container" hx-swap="outerHTML"
+                                                    class="flex items-center">
+                                                    @csrf
+                                                    <input type="hidden" name="day" value="{{ $day_number }}">
+                                                    <button type="submit"
+                                                        class="inline-flex items-center text-xs font-medium leading-none text-primary-600 hover:text-primary-500 dark:text-primary-400">
+                                                        Apply to this day
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        @endif
 
                                         {{-- Chapter List --}}
                                         <div class="space-y-2">
@@ -158,7 +178,7 @@
                                                             <input type="hidden" name="chapter" value="{{ $chapter['chapter'] }}">
                                                             <button type="submit"
                                                                 class="inline-flex items-center px-3 py-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md transition-colors">
-                                                                Log
+                                                                Mark read
                                                             </button>
                                                         </form>
                                                     @endif

@@ -105,6 +105,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('/plans/{plan:slug}/unsubscribe', [ReadingPlanController::class, 'unsubscribe'])->name('plans.unsubscribe');
     Route::post('/plans/today/log-chapter', [ReadingPlanController::class, 'logChapter'])->name('plans.logChapter');
     Route::post('/plans/today/log-all', [ReadingPlanController::class, 'logAll'])->name('plans.logAll');
+    Route::post('/plans/today/apply-readings', [ReadingPlanController::class, 'applyTodaysReadings'])
+        ->name('plans.applyTodaysReadings');
 });
 
 // Admin Routes (Protected by check logic in middleware)

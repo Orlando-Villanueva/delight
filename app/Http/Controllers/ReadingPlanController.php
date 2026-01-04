@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Services\ReadingPlanService;
 use Carbon\Carbon;
@@ -236,6 +237,53 @@ class ReadingPlanController extends Controller
     }
 
     /**
+     * Apply today's existing logs to the current plan day.
+     */
+    public function applyTodaysReadings(Request $request)
+    {
+        $user = $request->user();
+        $subscription = $user->activeReadingPlan();
+
+        if (! $subscription) {
+            return response()->json(['error' => 'No active subscription'], 400);
+        }
+
+        $maxDay = $subscription->plan->getDaysCount();
+        $validated = $request->validate([
+            'day' => 'required|integer|min:1|max:'.$maxDay,
+        ]);
+        $dayNumber = min(max($validated['day'], 1), $maxDay);
+        $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
+
+        if (! $reading) {
+            return response()->json(['error' => 'Invalid plan day'], 404);
+        }
+
+        $chapters = $reading['chapters'] ?? [];
+        $unlinkedKeys = $this->getUnlinkedTodayChapterKeys($user->id, $chapters);
+
+        if (! empty($unlinkedKeys)) {
+            $chaptersToApply = array_values(array_filter($chapters, function ($chapter) use ($unlinkedKeys) {
+                return in_array($chapter['book_id'].'-'.$chapter['chapter'], $unlinkedKeys, true);
+            }));
+
+            if (! empty($chaptersToApply)) {
+                $this->planService->logAllChapters(
+                    $user,
+                    $subscription,
+                    $dayNumber,
+                    $chaptersToApply,
+                    Carbon::today()
+                );
+            }
+        }
+
+        $viewData = $this->getTodayViewData($subscription, $dayNumber);
+
+        return response()->htmx('plans.today', 'reading-list', $viewData);
+    }
+
+    /**
      * Get today's reading view data.
      */
     private function getTodayViewData($subscription, ?int $dayNumber = null, ?int $currentDay = null): array
@@ -247,6 +295,14 @@ class ReadingPlanController extends Controller
             ? min(max($dayNumber, 1), $totalDays)
             : 0;
         $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
+        $unlinkedTodayChapterKeys = [];
+        $unlinkedTodayTotal = 0;
+
+        if ($reading) {
+            $chapters = $reading['chapters'] ?? [];
+            $unlinkedTodayTotal = count($chapters);
+            $unlinkedTodayChapterKeys = $this->getUnlinkedTodayChapterKeys($subscription->user_id, $chapters);
+        }
 
         return [
             'subscription' => $subscription,
@@ -257,7 +313,38 @@ class ReadingPlanController extends Controller
             'total_days' => $totalDays,
             'progress' => $subscription->getProgress(),
             'is_complete' => $subscription->isComplete(),
+            'unlinked_today_chapters_count' => count($unlinkedTodayChapterKeys),
+            'unlinked_today_chapters_total' => $unlinkedTodayTotal,
         ];
+    }
+
+    /**
+     * Get today's unlinked chapter keys for the provided plan chapters.
+     *
+     * @return array<int, string>
+     */
+    private function getUnlinkedTodayChapterKeys(int $userId, array $chapters): array
+    {
+        if (empty($chapters)) {
+            return [];
+        }
+
+        $query = ReadingLog::where('user_id', $userId)
+            ->whereDate('date_read', Carbon::today())
+            ->whereNull('reading_plan_subscription_id')
+            ->where(function ($query) use ($chapters) {
+                foreach ($chapters as $chapter) {
+                    $query->orWhere(function ($query) use ($chapter) {
+                        $query->where('book_id', $chapter['book_id'])
+                            ->where('chapter', $chapter['chapter']);
+                    });
+                }
+            })
+            ->select(['book_id', 'chapter'])
+            ->distinct()
+            ->get();
+
+        return $query->map(fn ($log) => $log->book_id.'-'.$log->chapter)->unique()->values()->toArray();
     }
 
     /**
