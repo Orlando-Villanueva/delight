@@ -7,7 +7,14 @@
     @fragment('content')
         <div class="flex-1">
             <div id="main-content">
-                <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+                <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
+                    {{-- Page Header --}}
+                    <div class="mb-6">
+                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Reading Plans</h1>
+                        <p class="mt-1 text-gray-600 dark:text-gray-400">Structured guides to help you read the Bible
+                            consistently</p>
+                    </div>
+
                     <div class="space-y-6">
                         @forelse ($plans as $planData)
                             @php
@@ -19,34 +26,17 @@
                             <div
                                 class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
                                 <div class="p-6">
-                                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                         <div class="flex-1">
-                                            <h3
-                                                class="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                                <svg class="w-5 h-5 text-primary-500" aria-hidden="true"
-                                                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M12 6.03v13m0-13c-2.819-.831-4.715-1.076-8.029-1.023A.99.99 0 0 0 3 6v11c0 .563.466 1.014 1.03 1.007 3.122-.043 5.018.212 7.97 1.023m0-13c2.819-.831 4.715-1.076 8.029-1.023A.99.99 0 0 1 21 6v11c0 .563-.466 1.014-1.03 1.007-3.122-.043-5.018.212-7.97 1.023" />
-                                                </svg>
+                                            <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
                                                 {{ $plan->name }}
                                             </h3>
                                             <p class="mt-2 text-gray-600 dark:text-gray-400">
                                                 {{ $plan->description }}
                                             </p>
-                                            <div class="mt-3 flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                                                <span class="flex items-center gap-1">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                        viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                    </svg>
-                                                    {{ $plan->getDaysCount() }} days
-                                                </span>
-                                            </div>
                                         </div>
 
-                                        <div class="flex-shrink-0">
+                                        <div class="w-full sm:w-auto sm:flex-shrink-0">
                                             @if ($isSubscribed)
                                                 <div class="flex flex-col items-end gap-2">
                                                     <span
@@ -66,10 +56,10 @@
                                                 </div>
                                             @else
                                                 <form hx-post="{{ route('plans.subscribe', $plan) }}"
-                                                    hx-target="#page-container" hx-swap="innerHTML">
+                                                    hx-target="#page-container" hx-swap="innerHTML" class="w-full sm:w-auto">
                                                     @csrf
                                                     <button type="submit"
-                                                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-800">
+                                                        class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-800">
                                                         Start Plan
                                                     </button>
                                                 </form>

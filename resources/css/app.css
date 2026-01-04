@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import 'flowbite/src/themes/default';
+@import "tailwindcss";
+@import "flowbite/src/themes/default";
 @plugin '@tailwindcss/typography';
 @plugin 'flowbite/plugin';
 
@@ -20,7 +20,7 @@
     --color-primary-200: #bfdbfe;
     --color-primary-300: #93c5fd;
     --color-primary-400: #60a5fa;
-    --color-primary-500: #3366CC;
+    --color-primary-500: #3366cc;
     --color-primary-600: #2c5aa0;
     --color-primary-700: #1d4ed8;
     --color-primary-800: #1e40af;
@@ -32,7 +32,7 @@
     --color-success-200: #bbf7d0;
     --color-success-300: #86efac;
     --color-success-400: #4ade80;
-    --color-success-500: #66CC99;
+    --color-success-500: #66cc99;
     --color-success-600: #16a34a;
     --color-success-700: #15803d;
     --color-success-800: #166534;
@@ -136,19 +136,17 @@ html {
     .btn {
         border-width: 2px;
     }
-    
+
     .card {
         border-width: 2px;
     }
 }
 
-
 /* Essential Component Classes - Only what we actually use */
 @layer components {
-
     /* Button variants - using Bible Habit colors */
     .btn {
-        @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md border border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
+        @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
     }
 
     .btn-primary {
@@ -241,18 +239,18 @@ html {
         outline-offset: 2px;
         box-shadow: 0 0 0 2px var(--color-primary-500);
     }
-    
+
     /* Ensure minimum touch target size */
     .touch-target {
         min-height: 44px;
         min-width: 44px;
     }
-    
+
     /* High contrast text for better readability */
     .text-high-contrast {
         color: #1a1a1a;
     }
-    
+
     /* Ensure proper spacing for screen readers */
     .sr-spacing > * + * {
         margin-top: 0.5rem;

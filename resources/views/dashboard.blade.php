@@ -85,7 +85,7 @@
                                 <div class="sm:col-span-1 lg:col-span-1 xl:col-span-1">
                                     <x-ui.weekly-journey-card :currentProgress="$weeklyJourneyCard['currentProgress']" :days="$weeklyJourneyCard['days']" :weekRangeText="$weeklyJourneyCard['weekRangeText']"
                                         :weeklyTarget="$weeklyJourneyCard['weeklyTarget']" :ctaEnabled="$weeklyJourneyCard['ctaEnabled']" :ctaVisible="$weeklyJourneyCard['ctaVisible']" :status="$weeklyJourneyCard['status']"
-                                        :journeyAltText="$weeklyJourneyCard['journeyAltText']" class="h-full" />
+                                        :journeyAltText="$weeklyJourneyCard['journeyAltText']" :planCta="$planCta ?? []" class="h-full" />
                                 </div>
 
                                 <!-- Daily Streak - Secondary Achievement -->
