@@ -6,6 +6,7 @@ use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Services\ReadingPlanService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ReadingPlanController extends Controller
@@ -166,7 +167,7 @@ class ReadingPlanController extends Controller
         $validated = $request->validate([
             'book_id' => 'required|integer|min:1|max:66',
             'chapter' => 'required|integer|min:1',
-            'day' => 'required|integer|min:1|max:'.$maxDay,
+            'day' => 'required|integer|min:1|max:' . $maxDay,
         ]);
 
         $dayNumber = min(max($validated['day'], 1), $maxDay);
@@ -199,36 +200,24 @@ class ReadingPlanController extends Controller
      */
     public function logAll(Request $request)
     {
-        $user = $request->user();
-        $subscription = $user->activeReadingPlan();
+        $result = $this->getValidatedDayReading($request);
 
-        if (! $subscription) {
-            return response()->json(['error' => 'No active subscription'], 400);
+        if ($result instanceof JsonResponse) {
+            return $result;
         }
 
-        $maxDay = $subscription->plan->getDaysCount();
-        $validated = $request->validate([
-            'day' => 'required|integer|min:1|max:'.$maxDay,
-        ]);
-        $dayNumber = min(max($validated['day'], 1), $maxDay);
-        $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
+        ['user' => $user, 'subscription' => $subscription, 'dayNumber' => $dayNumber, 'reading' => $reading] = $result;
 
-        if (! $reading) {
-            return response()->json(['error' => 'Invalid plan day'], 404);
-        }
-
-        if ($reading && $reading['all_completed']) {
+        if ($reading['all_completed']) {
             return response()->json(['error' => 'Plan day already complete'], 409);
         }
 
-        if ($reading) {
-            $chaptersToLog = array_filter(
-                $reading['chapters'],
-                fn ($ch) => ! $ch['completed']
-            );
+        $chaptersToLog = array_filter(
+            $reading['chapters'],
+            fn($ch) => ! $ch['completed']
+        );
 
-            $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, Carbon::today());
-        }
+        $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, Carbon::today());
 
         // Return updated today view
         $viewData = $this->getTodayViewData($subscription, $dayNumber);
@@ -241,30 +230,20 @@ class ReadingPlanController extends Controller
      */
     public function applyTodaysReadings(Request $request)
     {
-        $user = $request->user();
-        $subscription = $user->activeReadingPlan();
+        $result = $this->getValidatedDayReading($request);
 
-        if (! $subscription) {
-            return response()->json(['error' => 'No active subscription'], 400);
+        if ($result instanceof JsonResponse) {
+            return $result;
         }
 
-        $maxDay = $subscription->plan->getDaysCount();
-        $validated = $request->validate([
-            'day' => 'required|integer|min:1|max:'.$maxDay,
-        ]);
-        $dayNumber = min(max($validated['day'], 1), $maxDay);
-        $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
-
-        if (! $reading) {
-            return response()->json(['error' => 'Invalid plan day'], 404);
-        }
+        ['user' => $user, 'subscription' => $subscription, 'dayNumber' => $dayNumber, 'reading' => $reading] = $result;
 
         $chapters = $reading['chapters'] ?? [];
         $unlinkedKeys = $this->getUnlinkedTodayChapterKeys($user->id, $chapters);
 
         if (! empty($unlinkedKeys)) {
             $chaptersToApply = array_values(array_filter($chapters, function ($chapter) use ($unlinkedKeys) {
-                return in_array($chapter['book_id'].'-'.$chapter['chapter'], $unlinkedKeys, true);
+                return in_array($chapter['book_id'] . '-' . $chapter['chapter'], $unlinkedKeys, true);
             }));
 
             if (! empty($chaptersToApply)) {
@@ -281,6 +260,34 @@ class ReadingPlanController extends Controller
         $viewData = $this->getTodayViewData($subscription, $dayNumber);
 
         return response()->htmx('plans.today', 'reading-list', $viewData);
+    }
+
+    /**
+     * Validate and retrieve the reading for a given day from the request.
+     *
+     * @return array{user: \App\Models\User, subscription: \App\Models\ReadingPlanSubscription, dayNumber: int, reading: array}|JsonResponse
+     */
+    private function getValidatedDayReading(Request $request): array|JsonResponse
+    {
+        $user = $request->user();
+        $subscription = $user->activeReadingPlan();
+
+        if (! $subscription) {
+            return response()->json(['error' => 'No active subscription'], 400);
+        }
+
+        $maxDay = $subscription->plan->getDaysCount();
+        $validated = $request->validate([
+            'day' => 'required|integer|min:1|max:' . $maxDay,
+        ]);
+        $dayNumber = min(max($validated['day'], 1), $maxDay);
+        $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
+
+        if (! $reading) {
+            return response()->json(['error' => 'Invalid plan day'], 404);
+        }
+
+        return compact('user', 'subscription', 'dayNumber', 'reading');
     }
 
     /**
@@ -344,7 +351,7 @@ class ReadingPlanController extends Controller
             ->distinct()
             ->get();
 
-        return $query->map(fn ($log) => $log->book_id.'-'.$log->chapter)->unique()->values()->toArray();
+        return $query->map(fn($log) => $log->book_id . '-' . $log->chapter)->unique()->values()->toArray();
     }
 
     /**

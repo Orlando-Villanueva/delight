@@ -11,35 +11,48 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-beforeEach(function () {
-    $this->user = User::factory()->create();
+/**
+ * Create a test reading plan with optional attribute overrides.
+ */
+function createTestPlan(array $overrides = []): ReadingPlan
+{
+    $defaultDays = [
+        [
+            'day' => 1,
+            'label' => 'Genesis 1-3',
+            'chapters' => [
+                ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 1],
+                ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 2],
+                ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 3],
+            ],
+        ],
+        [
+            'day' => $overrides['second_day_number'] ?? 2,
+            'label' => 'Genesis 4-6',
+            'chapters' => [
+                ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 4],
+                ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 5],
+                ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 6],
+            ],
+        ],
+    ];
 
-    $this->plan = ReadingPlan::create([
+    // Remove our custom key before merging
+    unset($overrides['second_day_number']);
+
+    return ReadingPlan::create(array_merge([
         'slug' => 'test-plan',
         'name' => 'Test Reading Plan',
         'description' => 'A test plan',
-        'days' => [
-            [
-                'day' => 1,
-                'label' => 'Genesis 1-3',
-                'chapters' => [
-                    ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 1],
-                    ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 2],
-                    ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 3],
-                ],
-            ],
-            [
-                'day' => 2,
-                'label' => 'Genesis 4-6',
-                'chapters' => [
-                    ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 4],
-                    ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 5],
-                    ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 6],
-                ],
-            ],
-        ],
+        'days' => $defaultDays,
         'is_active' => true,
-    ]);
+    ], $overrides));
+}
+
+beforeEach(function () {
+    $this->user = User::factory()->create();
+
+    $this->plan = createTestPlan();
 });
 
 describe('Reading Plans Index', function () {
@@ -268,31 +281,11 @@ describe('Chapter Logging', function () {
     });
 
     it('it_can_reject_logging_for_missing_plan_days', function () {
-        $plan = ReadingPlan::create([
+        $plan = createTestPlan([
             'slug' => 'missing-day-plan',
             'name' => 'Missing Day Plan',
             'description' => 'A plan with a missing day',
-            'days' => [
-                [
-                    'day' => 1,
-                    'label' => 'Genesis 1-3',
-                    'chapters' => [
-                        ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 1],
-                        ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 2],
-                        ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 3],
-                    ],
-                ],
-                [
-                    'day' => 3,
-                    'label' => 'Genesis 4-6',
-                    'chapters' => [
-                        ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 4],
-                        ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 5],
-                        ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 6],
-                    ],
-                ],
-            ],
-            'is_active' => true,
+            'second_day_number' => 3, // Creates a gap: day 1, day 3 (no day 2)
         ]);
 
         ReadingPlanSubscription::create([
