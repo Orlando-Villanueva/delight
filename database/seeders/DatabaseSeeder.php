@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
 
         $this->createAnnualRecapAnnouncement();
 
+        $this->call(ReadingPlanSeeder::class);
+
         $seedUser = $this->getOrCreateSeedUser('Seed User', 'seed.user@example.com');
 
         // Create varied reading logs for testing filters
