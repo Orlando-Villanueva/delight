@@ -100,7 +100,6 @@ Route::middleware('auth')->group(function () {
     // Reading Plans
     Route::get('/plans', [ReadingPlanController::class, 'index'])->name('plans.index');
     Route::get('/plans/today', [ReadingPlanController::class, 'today'])->name('plans.today');
-    Route::get('/plans/{plan:slug}', [ReadingPlanController::class, 'show'])->name('plans.show');
     Route::post('/plans/{plan:slug}/subscribe', [ReadingPlanController::class, 'subscribe'])->name('plans.subscribe');
     Route::delete('/plans/{plan:slug}/unsubscribe', [ReadingPlanController::class, 'unsubscribe'])->name('plans.unsubscribe');
     Route::post('/plans/today/log-chapter', [ReadingPlanController::class, 'logChapter'])->name('plans.logChapter');

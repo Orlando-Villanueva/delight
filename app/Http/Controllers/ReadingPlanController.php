@@ -48,36 +48,6 @@ class ReadingPlanController extends Controller
         return view('plans.index', $viewData);
     }
 
-    /**
-     * Display a specific reading plan.
-     * Redirects to today's reading if already subscribed.
-     */
-    public function show(Request $request, ReadingPlan $plan)
-    {
-        $user = $request->user();
-        $subscription = $this->planService->getSubscription($user, $plan);
-
-        // If already subscribed, redirect to today's reading
-        if ($subscription) {
-            if ($request->header('HX-Request')) {
-                return response()
-                    ->htmx('plans.today', 'content', $this->getTodayViewData($subscription))
-                    ->header('HX-Push-Url', route('plans.today'));
-            }
-
-            return redirect()->route('plans.today');
-        }
-
-        $viewData = [
-            'plan' => $plan,
-        ];
-
-        if ($request->header('HX-Request')) {
-            return response()->htmx('plans.show', 'content', $viewData);
-        }
-
-        return view('plans.show', $viewData);
-    }
 
     /**
      * Subscribe to a reading plan.
