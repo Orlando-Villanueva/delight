@@ -37,5 +37,15 @@ class AppServiceProvider extends ServiceProvider
                 $view->with('unreadCount', auth()->user()->unreadAnnouncements()->count());
             }
         });
+
+        // Smart routing for Reading Plans navigation
+        // Users with active plans go directly to today's reading
+        View::composer(['components.navigation.mobile-bottom-bar', 'components.navigation.desktop-sidebar'], function ($view) {
+            $smartPlansRoute = 'plans.index';
+            if (auth()->check() && auth()->user()->activeReadingPlan()) {
+                $smartPlansRoute = 'plans.today';
+            }
+            $view->with('smartPlansRoute', $smartPlansRoute);
+        });
     }
 }

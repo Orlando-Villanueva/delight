@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\AnnualRecapService;
 use App\Services\ReadingFormService;
+use App\Services\ReadingPlanService;
 use App\Services\StreakStateService;
 use App\Services\UserStatisticsService;
 use Illuminate\Http\Request;
@@ -14,7 +15,8 @@ class DashboardController extends Controller
         private ReadingFormService $readingFormService,
         private UserStatisticsService $statisticsService,
         private StreakStateService $streakStateService,
-        private AnnualRecapService $recapService
+        private AnnualRecapService $recapService,
+        private ReadingPlanService $planService
     ) {}
 
     /**
@@ -63,7 +65,35 @@ class DashboardController extends Controller
         $recapCardEndLabel = $recapCard['end_label'];
         $recapCardIsFinal = $recapCard['is_final'];
 
+        // Check for active reading plan with incomplete today's reading
+        $planCta = $this->getReadingPlanCtaData($user);
+
         // Return appropriate view based on request type
-        return response()->htmx('dashboard', 'dashboard-content', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData', 'showRecapCard', 'recapCardYear', 'recapCardEndLabel', 'recapCardIsFinal'));
+        return response()->htmx('dashboard', 'dashboard-content', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData', 'showRecapCard', 'recapCardYear', 'recapCardEndLabel', 'recapCardIsFinal', 'planCta'));
+    }
+
+    /**
+     * Get reading plan CTA data for dashboard.
+     */
+    private function getReadingPlanCtaData($user): array
+    {
+        $subscription = $user->activeReadingPlan();
+
+        if (! $subscription) {
+            return ['showPlanCta' => false];
+        }
+
+        $reading = $this->planService->getTodaysReadingWithStatus($subscription);
+
+        if (! $reading || $reading['all_completed']) {
+            return ['showPlanCta' => false];
+        }
+
+        return [
+            'showPlanCta' => true,
+            'planLabel' => $reading['label'],
+            'completedCount' => $reading['completed_count'],
+            'totalCount' => $reading['total_count'],
+        ];
     }
 }

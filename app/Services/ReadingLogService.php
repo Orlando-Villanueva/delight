@@ -59,6 +59,8 @@ class ReadingLogService
             'passage_text' => $data['passage_text'],
             'date_read' => $dateRead,
             'notes_text' => $data['notes_text'] ?? null,
+            'reading_plan_subscription_id' => $data['reading_plan_subscription_id'] ?? null,
+            'reading_plan_day' => $data['reading_plan_day'] ?? null,
         ]);
 
         // Update book progress
@@ -87,6 +89,8 @@ class ReadingLogService
                 'passage_text' => $data['passage_text'], // Range text like "John 1-3"
                 'date_read' => $data['date_read'] ?? now()->toDateString(),
                 'notes_text' => $data['notes_text'] ?? null,
+                'reading_plan_subscription_id' => $data['reading_plan_subscription_id'] ?? null,
+                'reading_plan_day' => $data['reading_plan_day'] ?? null,
             ]);
 
             // Update book progress for each chapter

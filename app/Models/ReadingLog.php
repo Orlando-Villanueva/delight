@@ -19,6 +19,8 @@ class ReadingLog extends Model implements ReadingLogInterface
      */
     protected $fillable = [
         'user_id',
+        'reading_plan_subscription_id',
+        'reading_plan_day',
         'book_id',
         'chapter',
         'passage_text',
@@ -37,6 +39,8 @@ class ReadingLog extends Model implements ReadingLogInterface
             'date_read' => 'date',
             'book_id' => 'integer',
             'chapter' => 'integer',
+            'reading_plan_subscription_id' => 'integer',
+            'reading_plan_day' => 'integer',
         ];
     }
 
@@ -46,6 +50,14 @@ class ReadingLog extends Model implements ReadingLogInterface
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the reading plan subscription associated with this log (if any).
+     */
+    public function readingPlanSubscription(): BelongsTo
+    {
+        return $this->belongsTo(ReadingPlanSubscription::class);
     }
 
     /**

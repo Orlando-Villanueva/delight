@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
@@ -9,9 +9,9 @@
     <!-- SEO Meta Tags -->
     <title>{{ config('app.name', 'Delight') }} - Bible Reading Tracker</title>
     <meta name="description"
-        content="Make Bible reading consistency achievable with gentle tracking and motivation. Build lasting habits through streaks, reading logs, and progress visualization.">
+        content="Track your Bible reading with streaks, progress visualization, and structured reading plans. Build lasting habits with gentle motivation and a plan to guide your journey.">
     <meta name="keywords"
-        content="bible tracking app, bible reading tracker, bible habit tracker, research-based bible habits, bible reading accountability, overcome bible reading struggles, bible engagement study, scripture reading app, daily bible reading, bible progress tracker">
+        content="bible reading plan, bible reading plan app, bible tracking app, bible reading tracker, bible habit tracker, bible reading accountability, scripture reading app, daily bible reading, bible progress tracker">
     <meta name="author" content="Delight">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <link rel="canonical" href="{{ config('app.url') }}">
@@ -30,7 +30,7 @@
     <!-- Open Graph Meta Tags -->
     <meta property="og:title" content="Delight - Bible Reading Tracker for Consistency">
     <meta property="og:description"
-        content="Bible reading tracker that makes consistency achievable. Gentle motivation helps you stay engaged with Scripture for lasting transformation.">
+        content="Track your Bible reading with streaks and structured reading plans. Follow a guided plan or log freely—stay consistent with gentle motivation.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ config('app.url') }}">
     <meta property="og:image" content="{{ asset('images/screenshots/link-preview.png') }}">
@@ -40,7 +40,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Delight - Bible Tracking App for Consistency">
     <meta name="twitter:description"
-        content="Overcome Bible reading struggles with gentle accountability, streak tracking, and joyful progress visualization.">
+        content="Track Bible reading with streaks, progress visualization, and structured reading plans. Build lasting habits with gentle accountability.">
     <meta name="twitter:image" content="{{ asset('images/screenshots/link-preview.png') }}">
 
     <!-- Favicon -->
@@ -64,7 +64,7 @@
             "@context": "https://schema.org",
             "@type": "WebApplication",
             "name": "Delight",
-            "description": "Overcome Bible reading struggles with gentle accountability, streak tracking, and joyful progress visualization.",
+            "description": "Track your Bible reading with streaks, progress visualization, and structured reading plans. Build lasting habits with a guided plan to help you stay on track.",
             "url": "{{ config('app.url') }}",
             "applicationCategory": "LifestyleApplication",
             "operatingSystem": "Web Browser",
@@ -85,14 +85,15 @@
                 "@type": "Organization",
                 "name": "Delight"
             },
-            "keywords": "bible tracking app, bible reading tracker, research-based bible habits, bible reading accountability",
+            "keywords": "bible reading plan, bible reading plan app, bible tracking app, bible reading tracker, bible habit tracker",
             "screenshot": "{{ asset('images/screenshots/desktop-v3.png') }}",
             "featureList": [
+                "Reading Plans",
                 "Daily Streak Tracking",
                 "Daily Reading Log",
-                "Recent Activity Timeline",
                 "Book Completion Grid",
-                "Reading Statistics"
+                "Reading Statistics",
+                "Weekly Journey"
             ]
         }
     </script>
@@ -158,7 +159,7 @@
                         </h1>
                         <p class="text-xl text-gray-600 mb-6 leading-relaxed">
                             Delight logs each chapter in seconds, keeps your streaks and weekly momentum in view, and
-                            makes your progress obvious so you never wonder where you stand.
+                            makes your progress obvious—or follow a structured reading plan to guide your journey.
                         </p>
 
                         <!-- Primary CTA -->
@@ -176,8 +177,7 @@
                     </div>
 
                     <!-- Hero Visual -->
-                    <div class="relative" role="img"
-                        aria-label="Screenshots of Delight Bible reading tracker application">
+                    <div class="relative">
                         <!-- Desktop Screenshot - Hidden on mobile -->
                         <div class="hidden lg:block bg-white rounded-2xl shadow-2xl p-0 transform rotate-1">
                             <div class="rounded-lg overflow-hidden">
@@ -279,7 +279,60 @@
                         </x-ui.card>
                     </div>
 
-                    <!-- Feature 2: Daily Reading Log -->
+                    <!-- Feature 2: Reading Plans (Featured) -->
+                    <div role="listitem">
+                        <x-ui.card
+                            class="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 shadow-lg/20 hover:shadow-xl transition-shadow h-full">
+                            <x-ui.card-content class="space-y-3">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="flex items-center gap-3">
+                                        <span class="shrink-0 text-indigo-500" aria-hidden="true">
+                                            <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                viewBox="0 0 24 24">
+                                                <path stroke="currentColor" stroke-linecap="round"
+                                                    stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" />
+                                            </svg>
+                                        </span>
+                                        <x-ui.card-title class="mb-0">Reading Plans</x-ui.card-title>
+                                    </div>
+                                    <span
+                                        class="text-[11px] font-semibold text-indigo-700 bg-white/70 border border-indigo-100 px-2 py-1 rounded-full">New</span>
+                                </div>
+                                <p class="text-indigo-700 text-xs">Structured daily guidance</p>
+
+                                <!-- Mini preview: reading plan progress -->
+                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2 shadow-sm"
+                                    aria-label="Preview of reading plans feature">
+                                    <div class="flex items-center justify-between text-sm text-gray-800">
+                                        <span class="font-semibold">Day 42</span>
+                                        <span class="text-indigo-600 font-medium">11.5%</span>
+                                    </div>
+                                    <div class="w-full bg-indigo-100 rounded-full h-2">
+                                        <div class="bg-indigo-500 h-2 rounded-full" style="width: 11.5%"></div>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                                        <span
+                                            class="inline-flex items-center justify-center w-5 h-5 bg-success-100 text-success-600 rounded-full">
+                                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd"
+                                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                    clip-rule="evenodd" />
+                                            </svg>
+                                        </span>
+                                        <span>Genesis 1-3</span>
+                                    </div>
+                                </div>
+
+                                <p class="text-indigo-800 leading-relaxed">
+                                    Follow structured reading plans to guide your Bible journey. Track daily
+                                    progress, mark chapters complete, and never lose your place.
+                                </p>
+                            </x-ui.card-content>
+                        </x-ui.card>
+                    </div>
+
+                    <!-- Feature 3: Daily Reading Log -->
                     <div role="listitem">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content class="space-y-3">
@@ -316,54 +369,8 @@
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    Log your daily reading in 30 seconds with our intuitive book and chapter selector.
-                                    Simple tracking keeps you focused on reading, not recording.
-                                </p>
-                            </x-ui.card-content>
-                        </x-ui.card>
-                    </div>
-
-                    <!-- Feature 3: Recent Activity Timeline -->
-                    <div role="listitem">
-                        <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
-                            <x-ui.card-content class="space-y-3">
-                                <div class="flex items-center gap-3">
-                                    <span class="shrink-0 text-gray-800" aria-hidden="true">
-                                        <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" width="24"
-                                            height="24" fill="none" viewBox="0 0 24 24">
-                                            <path stroke="currentColor" stroke-linecap="round"
-                                                stroke-linejoin="round" stroke-width="2"
-                                                d="M12 8v4l3 3M3.223 14C4.132 18.008 7.717 21 12 21c4.9706 0 9-4.0294 9-9 0-4.97056-4.0294-9-9-9-3.72916 0-6.92858 2.26806-8.29409 5.5M7 9H3V5" />
-                                        </svg>
-                                    </span>
-                                    <x-ui.card-title class="mb-0">Recent Activity Timeline</x-ui.card-title>
-                                </div>
-                                <p class="text-gray-400 text-xs">Remember what you read</p>
-
-                                <!-- Mini preview: mirrors reading-log list items -->
-                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2 shadow-sm"
-                                    aria-label="Preview of recent activity timeline">
-                                    @php
-                                        $items = [
-                                            ['label' => '1 Tim 1-4', 'time' => 'just now'],
-                                            ['label' => 'Psalms 1', 'time' => '1d ago'],
-                                            ['label' => 'Proverbs 3', 'time' => '2d ago'],
-                                        ];
-                                    @endphp
-                                    @foreach ($items as $item)
-                                        <div class="flex items-center justify-between text-sm">
-                                            <span class="text-gray-800 font-medium">{{ $item['label'] }}</span>
-                                            <span class="text-gray-400 text-xs">{{ $item['time'] }}</span>
-                                        </div>
-                                        @if (!$loop->last)
-                                            <div class="h-px bg-gray-100"></div>
-                                        @endif
-                                    @endforeach
-                                </div>
-
-                                <p class="text-gray-600 leading-relaxed">
-                                    Review your latest passages and notes at a glance. Delight keeps a clear history of
-                                    your readings so you can reflect and pick up right where you left off.
+                                    Log your daily reading in seconds with our intuitive book and chapter selector.
+                                    Simple tracking that fits seamlessly into your routine.
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
@@ -468,7 +475,7 @@
                         </x-ui.card>
                     </div>
 
-                    <!-- Feature 6: Weekly Journey Widget (new) -->
+                    <!-- Feature 6: Weekly Journey Widget -->
                     <div role="listitem">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full flex flex-col">
                             <x-ui.card-content class="space-y-3">
@@ -531,8 +538,8 @@
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    Replaces the old weekly goal with a clearer, research-backed target so you can see
-                                    your week at a glance, highlight today, and keep steady momentum.
+                                    See your week at a glance with a simple, visual tracker. Highlight today,
+                                    track completed days, and build steady momentum toward your reading goals.
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
@@ -564,7 +571,7 @@
                         <h3 class="text-xl font-semibold text-gray-900 mb-3">Read & Log</h3>
                         <p class="text-gray-600 leading-relaxed">
                             Simply log which chapter you read today with our intuitive Bible reading tracker interface.
-                            Takes 30 seconds and keeps you focused on reading, not recording.
+                            Takes just seconds and fits seamlessly into your routine.
                         </p>
                     </li>
 
@@ -589,7 +596,7 @@
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-3">Stay Motivated</h3>
                         <p class="text-gray-600 leading-relaxed">
-                            Research-based gentle accountability and progress celebration keep you coming back. This
+                            Gentle accountability and progress celebration keep you coming back. This
                             Bible habit tracker helps build the consistency that transforms lives.
                         </p>
                     </li>

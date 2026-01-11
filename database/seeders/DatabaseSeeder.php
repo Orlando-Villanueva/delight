@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
 
         $this->createAnnualRecapAnnouncement();
 
+        $this->call(ReadingPlanSeeder::class);
+
         $seedUser = $this->getOrCreateSeedUser('Seed User', 'seed.user@example.com');
 
         // Create varied reading logs for testing filters
@@ -193,11 +195,13 @@ MD;
     }
 
     /**
-     * Create test data for current week with 3 reading days (goal not achieved yet)
+     * Create test data for the most recent week with 3 reading days (goal not achieved yet).
+     * If a target day would land in the future, shift it back one week.
      */
     private function createCurrentWeekTestData(User $user): void
     {
-        $currentWeekStart = Carbon::now()->startOfWeek(Carbon::SUNDAY);
+        $today = Carbon::today();
+        $currentWeekStart = $today->copy()->startOfWeek(Carbon::SUNDAY);
 
         // Create 3 reading logs in current week (Sunday, Tuesday, Thursday)
         $readingLogs = [
@@ -225,7 +229,12 @@ MD;
         ];
 
         foreach ($readingLogs as $logData) {
-            $readingDate = $logData['date'];
+            $readingDate = $logData['date']->copy();
+
+            if ($readingDate->gt($today)) {
+                $readingDate->subWeek();
+            }
+
             $loggedAt = $readingDate->copy()->addHours(2)->addMinutes(30);
 
             ReadingLog::create([
@@ -240,8 +249,8 @@ MD;
             ]);
         }
 
-        $this->command->info("Created current week test data for {$user->name}:");
-        $this->command->info('- 3 reading days this week (goal not achieved yet)');
-        $this->command->info('- Weekly streak should be 0 until 4th reading is added');
+        $this->command->info("Created recent week test data for {$user->name}:");
+        $this->command->info('- 3 reading days in the most recent week (goal not achieved yet)');
+        $this->command->info('- Weekly goal remains below target until a 4th reading is added');
     }
 }

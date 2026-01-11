@@ -133,4 +133,23 @@ class User extends Authenticatable
                 $query->where('user_id', $this->id);
             });
     }
+
+    /**
+     * Get the reading plan subscriptions for the user.
+     */
+    public function readingPlanSubscriptions(): HasMany
+    {
+        return $this->hasMany(ReadingPlanSubscription::class);
+    }
+
+    /**
+     * Get the user's active reading plan subscription.
+     */
+    public function activeReadingPlan(): ?ReadingPlanSubscription
+    {
+        return $this->readingPlanSubscriptions()
+            ->with('plan')
+            ->latest('started_at')
+            ->first();
+    }
 }

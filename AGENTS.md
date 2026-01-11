@@ -7,6 +7,10 @@
 - HTTP entry points are defined in `routes/web.php`, while background tasks and listeners live in `app/Console` and `app/Listeners`.
 - Record decisions in `docs/` and pair schema changes with matching migrations and seeders.
 
+## Migration Safety
+- Never edit existing migrations that may have run in production. If a change is needed, add a new migration.
+- If asked to edit an existing migration, warn first and confirm it has not been deployed before proceeding.
+
 ## Annual Recap Year Roll-Forward
 - See `docs/annual-recap/README.md` for the yearly setup checklist and examples.
 
