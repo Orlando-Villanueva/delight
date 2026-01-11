@@ -8,9 +8,10 @@ Reading plans provide structured daily Bible reading schedules. Users can subscr
 
 ### Current Architecture
 
--   **One active plan at a time**: Users can only have one active reading plan subscription
+-   **One active plan at a time**: The UX focuses on a single "active" plan. `User::activeReadingPlan()` returns the most recently started subscription. While the database allows multiple subscriptions, all navigation and tracking centers on this single plan.
 -   **Day-based progression**: Users complete all chapters in Day N before advancing to Day N+1
 -   **Flexible pacing**: Users can read ahead, but the "current day" only advances when completed
+-   **Plan switching**: Subscribing to a new plan makes it the "active" plan. Old subscriptions are retained (preserving progress) but become inactive.
 
 ### Routes
 
@@ -202,27 +203,36 @@ php artisan db:seed --class=ChronologicalPlanSeeder
 
 ### `reading_plan_subscriptions` table
 
-| Column          | Type      | Description                              |
-| --------------- | --------- | ---------------------------------------- |
-| id              | bigint    | Primary key                              |
-| user_id         | foreignId | User who subscribed                      |
-| reading_plan_id | foreignId | The plan                                 |
-| started_at      | date      | When user started                        |
-| current_day     | integer   | Current day number (1-indexed)           |
-| completed_at    | datetime  | When plan was completed (null if active) |
-| timestamps      |           | Created/updated timestamps               |
+| Column          | Type      | Description                |
+| --------------- | --------- | -------------------------- |
+| id              | bigint    | Primary key                |
+| user_id         | foreignId | User who subscribed        |
+| reading_plan_id | foreignId | The plan                   |
+| started_at      | date      | When user started          |
+| timestamps      |           | Created/updated timestamps |
+
+> **Note:** Progress is calculated dynamically from `reading_logs` entries, not stored in this table. The "current day" is derived from completed day counts.
 
 ---
 
 ## Future Considerations
 
-### Multiple Concurrent Plans
+### Plan Switching & History
 
-The current architecture only supports **one active plan at a time**. To support multiple concurrent plans:
+When a user subscribes to a new plan, the old subscription remains in the database. This preserves their progress if they return. Future enhancements:
+
+1. **"My Plans" view** - Show all subscriptions with status (active, paused, completed)
+2. **Explicit "Switch Plan" action** - Confirmation modal explaining progress is saved
+3. **Resume plan** - Button to re-activate a paused subscription (updates `started_at`)
+4. **Plan completion celebration** - Screen shown when all days are complete
+
+### Multiple Concurrent Plans (Future)
+
+If users request the ability to follow multiple plans simultaneously:
 
 1. **Update routes** to include plan identifier: `/plans/{slug}/today`
 2. **Update `activeReadingPlan()`** to return a collection or add a "primary plan" concept
-3. **Add a "My Plans" dashboard** to show all subscribed plans
+3. **Aggregate "Today's Reading"** - Combine readings from all active plans
 4. **Consider plan-specific bookmarks** for users to quickly access each plan
 
 ### Plan Variants
