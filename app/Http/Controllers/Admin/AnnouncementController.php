@@ -36,7 +36,7 @@ class AnnouncementController extends Controller
             'ends_at' => 'nullable|date|after:starts_at',
         ]);
 
-        $validated['slug'] = Str::slug($validated['title']) . '-' . now()->timestamp;
+        $validated['slug'] = Str::slug($validated['title']).'-'.now()->timestamp;
 
         Announcement::create($validated);
 
