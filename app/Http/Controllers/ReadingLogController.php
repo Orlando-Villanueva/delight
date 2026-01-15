@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreReadingLogRequest;
 use App\Http\Requests\UpdateReadingNotesRequest;
 use App\Models\ReadingLog;
 use App\Services\BibleReferenceService;
@@ -49,17 +50,10 @@ class ReadingLogController extends Controller
     public function store(Request $request)
     {
         try {
-            // Late Logging Grace: Only allow today or yesterday
-            $today = today()->toDateString();
-            $yesterday = today()->subDay()->toDateString();
-
-            $validated = $request->validate([
-                'book_id' => 'required|integer|min:1|max:66',
-                'start_chapter' => 'required|integer|min:1',
-                'end_chapter' => 'nullable|integer|min:1',
-                'date_read' => "required|date|in:{$today},{$yesterday}",
-                'notes_text' => 'nullable|string|max:1000',
-            ]);
+            // Use the StoreReadingLogRequest rules for validation
+            // We use manual validation here to keep the try/catch block for HTMX error handling
+            $rules = (new StoreReadingLogRequest)->rules();
+            $validated = $request->validate($rules);
 
             $start = (int) $validated['start_chapter'];
             $end = isset($validated['end_chapter']) ? (int) $validated['end_chapter'] : $start;
@@ -82,13 +76,6 @@ class ReadingLogController extends Controller
                 ]);
             }
 
-            // Format passage text using service
-            $validated['passage_text'] = $this->bibleReferenceService->formatBibleReferenceRange(
-                $validated['book_id'],
-                $start,
-                $end
-            );
-
             // Add chapter data for service
             if ($start !== $end) {
                 $validated['chapters'] = range($start, $end);
@@ -97,6 +84,7 @@ class ReadingLogController extends Controller
             }
 
             // Create reading log using service
+            // Service handles business logic validation (valid chapters for book) and formatting
             $log = $this->readingLogService->logReading($request->user(), $validated);
 
             // Check if this is an HTMX request for the form replacement
