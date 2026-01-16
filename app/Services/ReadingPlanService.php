@@ -86,7 +86,7 @@ class ReadingPlanService
 
         // Attach completion status to each chapter
         $chaptersWithStatus = array_map(function ($chapter) use ($completedChapters) {
-            $key = $chapter['book_id'] . '-' . $chapter['chapter'];
+            $key = $chapter['book_id'].'-'.$chapter['chapter'];
 
             return array_merge($chapter, [
                 'completed' => in_array($key, $completedChapters),
@@ -122,12 +122,12 @@ class ReadingPlanService
             ->where('reading_plan_day', $dayNumber)
             ->get(['book_id', 'chapter']);
 
-        $completedKeys = $completedLogs->map(fn($log) => $log->book_id . '-' . $log->chapter)->toArray();
+        $completedKeys = $completedLogs->map(fn ($log) => $log->book_id.'-'.$log->chapter)->toArray();
 
         // Filter to only chapters in our list
         $relevantKeys = [];
         foreach ($chapters as $chapter) {
-            $key = $chapter['book_id'] . '-' . $chapter['chapter'];
+            $key = $chapter['book_id'].'-'.$chapter['chapter'];
             if (in_array($key, $completedKeys)) {
                 $relevantKeys[] = $key;
             }
