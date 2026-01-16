@@ -16,25 +16,9 @@ class BibleReferenceService
     public function __construct(?array $bibleConfig = null)
     {
         // Allow injection of config for testing, otherwise load from Laravel config
-        $this->bibleConfig = $bibleConfig ?? $this->loadBibleConfig();
+        $this->bibleConfig = $bibleConfig ?? config('bible', []);
         $this->defaultLocale = $this->bibleConfig['default_locale'] ?? 'en';
         $this->supportedLocales = $this->bibleConfig['supported_locales'] ?? ['en'];
-    }
-
-    private function loadBibleConfig(): array
-    {
-        // Include the config file directly to avoid dependency on Laravel's config system during tests
-        $configPath = __DIR__.'/../../config/bible.php';
-        if (file_exists($configPath)) {
-            return include $configPath;
-        }
-
-        // Fallback: try to load from Laravel's config system
-        if (function_exists('config')) {
-            return config('bible', []);
-        }
-
-        return [];
     }
 
     /**
