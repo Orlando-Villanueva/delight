@@ -68,8 +68,27 @@ class DashboardController extends Controller
         // Check for active reading plan with incomplete today's reading
         $planCta = $this->getReadingPlanCtaData($user);
 
+        // Check if user needs onboarding
+        $showOnboarding = $user->needsOnboarding();
+
         // Return appropriate view based on request type
-        return response()->htmx('dashboard', 'dashboard-content', compact('hasReadToday', 'streakState', 'streakStateClasses', 'streakMessage', 'streakMessageTone', 'stats', 'weeklyGoal', 'weeklyJourney', 'calendarData', 'showRecapCard', 'recapCardYear', 'recapCardEndLabel', 'recapCardIsFinal', 'planCta'));
+        return response()->htmx('dashboard', 'dashboard-content', compact(
+            'hasReadToday',
+            'streakState',
+            'streakStateClasses',
+            'streakMessage',
+            'streakMessageTone',
+            'stats',
+            'weeklyGoal',
+            'weeklyJourney',
+            'calendarData',
+            'showRecapCard',
+            'recapCardYear',
+            'recapCardEndLabel',
+            'recapCardIsFinal',
+            'planCta',
+            'showOnboarding'
+        ));
     }
 
     /**
