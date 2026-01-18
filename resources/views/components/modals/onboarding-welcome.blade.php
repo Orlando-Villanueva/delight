@@ -6,6 +6,7 @@
             <button type="button"
                 class="absolute top-4 right-4 text-gray-400 bg-transparent hover:bg-gray-100 hover:text-gray-900 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center dark:hover:bg-gray-700 dark:hover:text-white transition-colors"
                 hx-post="{{ route('onboarding.dismiss') }}"
+                hx-headers='{"X-CSRF-TOKEN": "{{ csrf_token() }}"}'
                 hx-swap="none"
                 data-modal-hide="onboarding-modal">
                 <svg class="w-3.5 h-3.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
