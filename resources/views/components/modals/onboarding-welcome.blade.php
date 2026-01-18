@@ -91,6 +91,16 @@
             });
             modal.show();
             
+            // If not available on window, try to import or use a fallback if possible
+            // But since this is specific to onboarding, we can manually apply the class if needed
+            // However, the best approach is to ensure the global patch runs or manually add the class
+            
+            // Check if the global patch has run on this modal's backdrop
+            if (modal._backdropEl && !modal._backdropEl.classList.contains('z-stack-backdrop')) {
+                modal._backdropEl.classList.add('z-stack-backdrop');
+                modal._backdropEl.classList.remove('z-40'); // Remove default Flowbite z-index
+            }
+            
             // Store modal instance on the element for later access
             modalEl._flowbiteModal = modal;
             
@@ -130,7 +140,7 @@
             const modal = document.getElementById('onboarding-modal');
             if (modal && !modal.classList.contains('hidden')) {
                 document.removeEventListener('keydown', handleOnboardingEscape);
-                htmx.ajax('POST', '{{ route('onboarding.dismiss') }}', {target: '#onboarding-modal', swap: 'outerHTML'});
+                htmx.ajax('POST', "{{ route('onboarding.dismiss') }}", {target: '#onboarding-modal', swap: 'outerHTML'});
             }
         }
     }
