@@ -160,7 +160,7 @@ class User extends Authenticatable
      */
     public function needsOnboarding(): bool
     {
-        return $this->readingLogs()->count() === 0
-            && $this->onboarding_dismissed_at === null;
+        return $this->onboarding_dismissed_at === null
+            && !$this->readingLogs()->exists();
     }
 }
