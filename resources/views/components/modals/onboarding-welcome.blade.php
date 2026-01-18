@@ -127,10 +127,10 @@
     // Handle ESC key to dismiss onboarding server-side too
     function handleOnboardingEscape(e) {
         if (e.key === 'Escape') {
-            const modal = document.getElementById('onboarding-welcome-modal');
+            const modal = document.getElementById('onboarding-modal');
             if (modal && !modal.classList.contains('hidden')) {
                 document.removeEventListener('keydown', handleOnboardingEscape);
-                htmx.ajax('POST', '{{ route('onboarding.dismiss') }}', {target: '#onboarding-welcome-modal', swap: 'outerHTML'});
+                htmx.ajax('POST', '{{ route('onboarding.dismiss') }}', {target: '#onboarding-modal', swap: 'outerHTML'});
             }
         }
     }
