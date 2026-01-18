@@ -33,7 +33,7 @@ class UserStatisticsCacheTest extends TestCase
         $firstResult = $this->service->getDashboardStatistics($this->user);
 
         // Verify cache key exists
-        $this->assertTrue(Cache::has("user_dashboard_stats_{$this->user->id}"));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyDashboardStats($this->user->id)));
 
         // Second call should return cached results
         $secondResult = $this->service->getDashboardStatistics($this->user);
@@ -47,8 +47,8 @@ class UserStatisticsCacheTest extends TestCase
         $this->service->getStreakStatistics($this->user);
 
         // Verify individual streak caches exist
-        $this->assertTrue(Cache::has("user_current_streak_{$this->user->id}"));
-        $this->assertTrue(Cache::has("user_longest_streak_{$this->user->id}"));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyCurrentStreak($this->user->id)));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyLongestStreak($this->user->id)));
     }
 
     public function test_get_calendar_data_caches_results()
@@ -59,7 +59,7 @@ class UserStatisticsCacheTest extends TestCase
         $firstResult = $this->service->getCalendarData($this->user, $year);
 
         // Verify cache key exists
-        $this->assertTrue(Cache::has("user_calendar_{$this->user->id}_{$year}"));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyCalendar($this->user->id, $year)));
 
         // Second call should return cached results
         $secondResult = $this->service->getCalendarData($this->user, $year);
@@ -79,25 +79,25 @@ class UserStatisticsCacheTest extends TestCase
         $this->service->getCalendarData($this->user, $previousYear);
 
         // Verify caches exist
-        $this->assertTrue(Cache::has("user_dashboard_stats_{$this->user->id}"));
-        $this->assertTrue(Cache::has("user_current_streak_{$this->user->id}"));
-        $this->assertTrue(Cache::has("user_longest_streak_{$this->user->id}"));
-        $this->assertTrue(Cache::has("user_calendar_{$this->user->id}_{$currentYear}"));
-        $this->assertTrue(Cache::has("user_calendar_{$this->user->id}_{$previousYear}"));
-        $this->assertTrue(Cache::has("user_total_reading_days_{$this->user->id}"));
-        $this->assertTrue(Cache::has("user_avg_chapters_per_day_{$this->user->id}"));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyDashboardStats($this->user->id)));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyCurrentStreak($this->user->id)));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyLongestStreak($this->user->id)));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyCalendar($this->user->id, $currentYear)));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyCalendar($this->user->id, $previousYear)));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyTotalReadingDays($this->user->id)));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyAvgChaptersPerDay($this->user->id)));
 
         // Invalidate cache
         $this->service->invalidateUserCache($this->user);
 
         // Verify all caches are cleared
-        $this->assertFalse(Cache::has("user_dashboard_stats_{$this->user->id}"));
-        $this->assertFalse(Cache::has("user_current_streak_{$this->user->id}"));
-        $this->assertFalse(Cache::has("user_longest_streak_{$this->user->id}"));
-        $this->assertFalse(Cache::has("user_calendar_{$this->user->id}_{$currentYear}"));
-        $this->assertFalse(Cache::has("user_calendar_{$this->user->id}_{$previousYear}"));
-        $this->assertFalse(Cache::has("user_total_reading_days_{$this->user->id}"));
-        $this->assertFalse(Cache::has("user_avg_chapters_per_day_{$this->user->id}"));
+        $this->assertFalse(Cache::has(UserStatisticsService::cacheKeyDashboardStats($this->user->id)));
+        $this->assertFalse(Cache::has(UserStatisticsService::cacheKeyCurrentStreak($this->user->id)));
+        $this->assertFalse(Cache::has(UserStatisticsService::cacheKeyLongestStreak($this->user->id)));
+        $this->assertFalse(Cache::has(UserStatisticsService::cacheKeyCalendar($this->user->id, $currentYear)));
+        $this->assertFalse(Cache::has(UserStatisticsService::cacheKeyCalendar($this->user->id, $previousYear)));
+        $this->assertFalse(Cache::has(UserStatisticsService::cacheKeyTotalReadingDays($this->user->id)));
+        $this->assertFalse(Cache::has(UserStatisticsService::cacheKeyAvgChaptersPerDay($this->user->id)));
     }
 
     public function test_cache_has_different_tt_ls()
@@ -110,12 +110,12 @@ class UserStatisticsCacheTest extends TestCase
         $this->service->getCalendarData($this->user);
 
         // All caches should exist after creation
-        $this->assertTrue(Cache::has("user_dashboard_stats_{$this->user->id}"));
-        $this->assertTrue(Cache::has("user_current_streak_{$this->user->id}"));
-        $this->assertTrue(Cache::has("user_longest_streak_{$this->user->id}"));
-        $this->assertTrue(Cache::has("user_calendar_{$this->user->id}_".now()->year));
-        $this->assertTrue(Cache::has("user_total_reading_days_{$this->user->id}"));
-        $this->assertTrue(Cache::has("user_avg_chapters_per_day_{$this->user->id}"));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyDashboardStats($this->user->id)));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyCurrentStreak($this->user->id)));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyLongestStreak($this->user->id)));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyCalendar($this->user->id, now()->year)));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyTotalReadingDays($this->user->id)));
+        $this->assertTrue(Cache::has(UserStatisticsService::cacheKeyAvgChaptersPerDay($this->user->id)));
     }
 
     public function test_reading_summary_includes_new_stats()

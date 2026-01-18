@@ -15,13 +15,66 @@ class UserStatisticsService
         private WeeklyJourneyService $weeklyJourneyService
     ) {}
 
+    public static function cacheKeyDashboardStats(int $userId): string
+    {
+        return "user_dashboard_stats_{$userId}";
+    }
+
+    public static function cacheKeyCurrentStreak(int $userId): string
+    {
+        return "user_current_streak_{$userId}";
+    }
+
+    public static function cacheKeyLongestStreak(int $userId): string
+    {
+        return "user_longest_streak_{$userId}";
+    }
+
+    public static function cacheKeyCurrentStreakSeries(int $userId): string
+    {
+        return "user_current_streak_series_{$userId}";
+    }
+
+    public static function cacheKeyWeeklyGoalV2(int $userId, string $weekStart): string
+    {
+        return "user_weekly_goal_v2_{$userId}_{$weekStart}";
+    }
+
+    /**
+     * @deprecated Use cacheKeyWeeklyGoalV2 instead. Retained for backward compatibility/cache clearing.
+     */
+    public static function cacheKeyWeeklyGoal(int $userId, string $weekStart): string
+    {
+        return "user_weekly_goal_{$userId}_{$weekStart}";
+    }
+
+    public static function cacheKeyTotalReadingDays(int $userId): string
+    {
+        return "user_total_reading_days_{$userId}";
+    }
+
+    public static function cacheKeyAvgChaptersPerDay(int $userId): string
+    {
+        return "user_avg_chapters_per_day_{$userId}";
+    }
+
+    public static function cacheKeyCalendar(int $userId, string|int $year): string
+    {
+        return "user_calendar_{$userId}_{$year}";
+    }
+
+    public static function cacheKeyMonthlyCalendar(int $userId, string $monthKey): string
+    {
+        return "user_monthly_calendar_{$userId}_{$monthKey}";
+    }
+
     /**
      * Get comprehensive dashboard statistics for a user.
      */
     public function getDashboardStatistics(User $user): array
     {
         return Cache::remember(
-            "user_dashboard_stats_{$user->id}",
+            self::cacheKeyDashboardStats($user->id),
             300, // 5 minutes TTL
             function () use ($user) {
                 $weeklyGoal = $this->getWeeklyGoalStatistics($user);
@@ -46,19 +99,19 @@ class UserStatisticsService
         $ttl = now()->endOfDay();
 
         $currentStreak = Cache::remember(
-            "user_current_streak_{$user->id}",
+            self::cacheKeyCurrentStreak($user->id),
             $ttl, // Cache until end of day (invalidated on log changes)
             fn () => $this->readingLogService->calculateCurrentStreak($user)
         );
 
         $longestStreak = Cache::remember(
-            "user_longest_streak_{$user->id}",
+            self::cacheKeyLongestStreak($user->id),
             $ttl, // Cache until end of day (invalidated on log changes)
             fn () => $this->readingLogService->calculateLongestStreak($user)
         );
 
         $currentStreakSeries = Cache::remember(
-            "user_current_streak_series_{$user->id}",
+            self::cacheKeyCurrentStreakSeries($user->id),
             $ttl, // Cache until end of day (invalidated on log changes)
             fn () => $this->readingLogService->getCurrentStreakSeries($user)
         );
@@ -108,7 +161,7 @@ class UserStatisticsService
         $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
 
         return Cache::remember(
-            "user_weekly_goal_v2_{$user->id}_{$weekStart}",
+            self::cacheKeyWeeklyGoalV2($user->id, $weekStart),
             900, // 15 minutes TTL - light query with date range filter
             function () use ($user) {
                 $weeklyGoalData = $this->weeklyGoalService->getWeeklyGoalData($user);
@@ -161,7 +214,7 @@ class UserStatisticsService
     private function getTotalReadingDays(User $user): int
     {
         return Cache::remember(
-            "user_total_reading_days_{$user->id}",
+            self::cacheKeyTotalReadingDays($user->id),
             now()->endOfDay(), // Cache until end of day (invalidated on log changes)
             fn () => $user->readingLogs()->distinct('date_read')->count('date_read')
         );
@@ -173,7 +226,7 @@ class UserStatisticsService
     private function getAverageChaptersPerDay(User $user, int $totalReadings, int $daysSinceFirst): float
     {
         return Cache::remember(
-            "user_avg_chapters_per_day_{$user->id}",
+            self::cacheKeyAvgChaptersPerDay($user->id),
             now()->endOfDay(), // Cache until end of day (invalidated on log changes)
             function () use ($totalReadings, $daysSinceFirst) {
                 if ($totalReadings === 0 || $daysSinceFirst === 0) {
@@ -265,7 +318,7 @@ class UserStatisticsService
         $year = $year ?? now()->year;
 
         return Cache::remember(
-            "user_calendar_{$user->id}_{$year}",
+            self::cacheKeyCalendar($user->id, $year),
             now()->endOfDay(), // Cache until end of day (invalidated on log changes)
             function () use ($user, $year) {
                 $startDate = Carbon::create($year, 1, 1)->startOfDay();
@@ -318,7 +371,7 @@ class UserStatisticsService
         $monthKey = $targetDate->format('Y-m');
 
         return Cache::remember(
-            "user_monthly_calendar_{$user->id}_{$monthKey}",
+            self::cacheKeyMonthlyCalendar($user->id, $monthKey),
             900, // 15 minutes TTL - lighter than full year
             fn () => $this->buildMonthlyCalendarData($user, $year, $month, $targetDate)
         );
@@ -488,16 +541,16 @@ class UserStatisticsService
         $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
 
         // Clear all user-specific caches
-        Cache::forget("user_dashboard_stats_{$user->id}");
-        Cache::forget("user_current_streak_{$user->id}");
-        Cache::forget("user_longest_streak_{$user->id}");
-        Cache::forget("user_weekly_goal_v2_{$user->id}_{$weekStart}");
-        Cache::forget("user_weekly_goal_{$user->id}_{$weekStart}");
-        Cache::forget("user_calendar_{$user->id}_{$currentYear}");
-        Cache::forget("user_calendar_{$user->id}_{$previousYear}");
-        Cache::forget("user_monthly_calendar_{$user->id}_{$currentMonth}");
-        Cache::forget("user_total_reading_days_{$user->id}");
-        Cache::forget("user_avg_chapters_per_day_{$user->id}");
+        Cache::forget(self::cacheKeyDashboardStats($user->id));
+        Cache::forget(self::cacheKeyCurrentStreak($user->id));
+        Cache::forget(self::cacheKeyLongestStreak($user->id));
+        Cache::forget(self::cacheKeyWeeklyGoalV2($user->id, $weekStart));
+        Cache::forget(self::cacheKeyWeeklyGoal($user->id, $weekStart));
+        Cache::forget(self::cacheKeyCalendar($user->id, $currentYear));
+        Cache::forget(self::cacheKeyCalendar($user->id, $previousYear));
+        Cache::forget(self::cacheKeyMonthlyCalendar($user->id, $currentMonth));
+        Cache::forget(self::cacheKeyTotalReadingDays($user->id));
+        Cache::forget(self::cacheKeyAvgChaptersPerDay($user->id));
     }
 
     /**
