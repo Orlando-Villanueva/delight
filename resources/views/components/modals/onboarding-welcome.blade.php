@@ -125,12 +125,14 @@
     });
 
     // Handle ESC key to dismiss onboarding server-side too
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            const modalEl = document.getElementById('onboarding-modal');
-            if (modalEl && !modalEl.classList.contains('hidden')) {
-                htmx.ajax('POST', "{{ route('onboarding.dismiss') }}", {swap: 'none'});
+    function handleOnboardingEscape(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('onboarding-welcome-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+                document.removeEventListener('keydown', handleOnboardingEscape);
+                htmx.ajax('POST', '{{ route('onboarding.dismiss') }}', {target: '#onboarding-welcome-modal', swap: 'outerHTML'});
             }
         }
-    });
+    }
+    document.addEventListener('keydown', handleOnboardingEscape);
 </script>
