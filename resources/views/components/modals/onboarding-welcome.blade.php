@@ -6,7 +6,6 @@
             <button type="button"
                 class="absolute top-4 right-4 text-gray-400 bg-transparent hover:bg-gray-100 hover:text-gray-900 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center dark:hover:bg-gray-700 dark:hover:text-white transition-colors"
                 hx-post="{{ route('onboarding.dismiss') }}"
-                hx-headers='{"X-CSRF-TOKEN": "{{ csrf_token() }}"}'
                 hx-swap="none"
                 data-modal-hide="onboarding-modal">
                 <svg class="w-3.5 h-3.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
@@ -92,16 +91,6 @@
             });
             modal.show();
             
-            // If not available on window, try to import or use a fallback if possible
-            // But since this is specific to onboarding, we can manually apply the class if needed
-            // However, the best approach is to ensure the global patch runs or manually add the class
-            
-            // Check if the global patch has run on this modal's backdrop
-            if (modal._backdropEl && !modal._backdropEl.classList.contains('z-stack-backdrop')) {
-                modal._backdropEl.classList.add('z-stack-backdrop');
-                modal._backdropEl.classList.remove('z-40'); // Remove default Flowbite z-index
-            }
-            
             // Store modal instance on the element for later access
             modalEl._flowbiteModal = modal;
             
@@ -136,14 +125,12 @@
     });
 
     // Handle ESC key to dismiss onboarding server-side too
-    function handleOnboardingEscape(e) {
-        if (e.key === 'Escape') {
-            const modal = document.getElementById('onboarding-modal');
-            if (modal && !modal.classList.contains('hidden')) {
-                document.removeEventListener('keydown', handleOnboardingEscape);
-                htmx.ajax('POST', "{{ route('onboarding.dismiss') }}", {target: '#onboarding-modal', swap: 'outerHTML'});
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const modalEl = document.getElementById('onboarding-modal');
+            if (modalEl && !modalEl.classList.contains('hidden')) {
+                htmx.ajax('POST', "{{ route('onboarding.dismiss') }}", {swap: 'none'});
             }
         }
-    }
-    document.addEventListener('keydown', handleOnboardingEscape);
+    });
 </script>
