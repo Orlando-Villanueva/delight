@@ -24,6 +24,7 @@ class User extends Authenticatable
         'email',
         'password',
         'avatar_url',
+        'onboarding_dismissed_at',
     ];
 
     /**
@@ -46,6 +47,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'onboarding_dismissed_at' => 'datetime',
         ];
     }
 
@@ -151,5 +153,14 @@ class User extends Authenticatable
             ->with('plan')
             ->latest('started_at')
             ->first();
+    }
+
+    /**
+     * Check if the user needs to see the onboarding flow.
+     */
+    public function needsOnboarding(): bool
+    {
+        return $this->onboarding_dismissed_at === null
+            && !$this->readingLogs()->exists();
     }
 }

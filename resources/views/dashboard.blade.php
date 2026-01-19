@@ -31,6 +31,10 @@
                     <!-- Main Dashboard Layout (responsive grid) -->
                     <div class="grid grid-cols-1 xl:grid-cols-4 gap-6 lg:gap-4">
 
+                        @if ($showOnboarding ?? false)
+                            <x-modals.onboarding-welcome />
+                        @endif
+
                         <!-- Left Column - Main Content (responsive width) -->
                         <div class="xl:col-span-3 space-y-4">
                             @if ($showRecapCard ?? false)

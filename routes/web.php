@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\XOAuthController;
 use App\Http\Controllers\Dashboard\NotificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedbackController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PublicAnnouncementController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\ReadingPlanController;
@@ -106,6 +107,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/plans/today/log-all', [ReadingPlanController::class, 'logAll'])->name('plans.logAll');
     Route::post('/plans/today/apply-readings', [ReadingPlanController::class, 'applyTodaysReadings'])
         ->name('plans.applyTodaysReadings');
+
+    // Onboarding
+    Route::post('/onboarding/dismiss', [OnboardingController::class, 'dismiss'])
+        ->name('onboarding.dismiss');
 });
 
 // Admin Routes (Protected by check logic in middleware)

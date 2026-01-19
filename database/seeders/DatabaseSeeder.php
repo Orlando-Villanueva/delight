@@ -41,6 +41,10 @@ class DatabaseSeeder extends Seeder
 
         $this->createCurrentWeekTestData($seedUser2);
 
+        // Create brand-new user with no readings yet
+        $newUser = $this->getOrCreateSeedUser('New Seed User', 'seed.user.new@example.com');
+        $this->command->info("Created new seed user with no readings: {$newUser->email}");
+
         // Sync book progress for seeduser2
         $this->command->info('Syncing book progress for seeduser2...');
         $stats2 = $syncService->syncBookProgressForUser($seedUser2);
