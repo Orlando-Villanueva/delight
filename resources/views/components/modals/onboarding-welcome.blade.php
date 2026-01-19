@@ -138,10 +138,17 @@
     // Handle ESC key to dismiss onboarding server-side too
     function handleOnboardingEscape(e) {
         if (e.key === 'Escape') {
-            const modal = document.getElementById('onboarding-modal');
-            if (modal && !modal.classList.contains('hidden')) {
+            const modalEl = document.getElementById('onboarding-modal');
+            if (modalEl) {
+                // Remove listener so we only fire once
                 document.removeEventListener('keydown', handleOnboardingEscape);
-                htmx.ajax('POST', "{{ route('onboarding.dismiss') }}", {target: '#onboarding-modal', swap: 'outerHTML'});
+                
+                // Fire dismissal regardless of current visibility (Flowbite may have already hidden it)
+                htmx.ajax('POST', "{{ route('onboarding.dismiss') }}", {
+                    target: '#onboarding-modal',
+                    swap: 'outerHTML',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                });
             }
         }
     }
