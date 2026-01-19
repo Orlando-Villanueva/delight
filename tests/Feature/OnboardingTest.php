@@ -2,11 +2,7 @@
 
 use App\Models\User;
 use App\Models\ReadingLog;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
-uses(RefreshDatabase::class);
-
-test('shows onboarding modal for new users on dashboard', function () {
+it('shows onboarding modal for new users on dashboard', function () {
     $user = User::factory()->create();
     
     $this->actingAs($user)
@@ -16,7 +12,7 @@ test('shows onboarding modal for new users on dashboard', function () {
         ->assertSee('Welcome to Delight!');
 });
 
-test('does not show onboarding for users with readings', function () {
+it('does not show onboarding for users with readings', function () {
     $user = User::factory()->create();
     ReadingLog::factory()->for($user)->create([
         'passage_text' => 'John 1',
@@ -29,7 +25,7 @@ test('does not show onboarding for users with readings', function () {
         ->assertDontSee('onboarding-modal');
 });
 
-test('dismisses onboarding and sets timestamp', function () {
+it('dismisses onboarding and sets timestamp', function () {
     $user = User::factory()->create();
     
     $this->actingAs($user)
