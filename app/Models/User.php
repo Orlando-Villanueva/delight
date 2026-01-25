@@ -146,15 +146,12 @@ class User extends Authenticatable
 
     /**
      * Get the user's active reading plan subscription.
-     *
-     * @deprecated Use readingPlanSubscriptions() directly. The concept of a single "active" plan
-     *             has been removed. Users can now be subscribed to multiple plans simultaneously.
      */
     public function activeReadingPlan(): ?ReadingPlanSubscription
     {
         return $this->readingPlanSubscriptions()
+            ->where('is_active', true)
             ->with('plan')
-            ->latest('started_at')
             ->first();
     }
 

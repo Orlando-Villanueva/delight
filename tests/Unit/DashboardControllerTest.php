@@ -2,7 +2,6 @@
 
 namespace Tests\Unit;
 
-use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
@@ -79,14 +78,14 @@ class DashboardControllerTest extends TestCase
         $response->assertSee('Weekly Journey');
     }
 
-    public function test_index_uses_latest_incomplete_plan_for_cta()
+    public function test_index_uses_active_plan_for_cta()
     {
         Carbon::setTestNow('2026-01-10');
 
-        $olderPlan = ReadingPlan::create([
-            'slug' => 'older-plan',
-            'name' => 'Older Plan',
-            'description' => 'Older plan description',
+        $inactivePlan = ReadingPlan::create([
+            'slug' => 'inactive-plan',
+            'name' => 'Inactive Plan',
+            'description' => 'Inactive plan description',
             'days' => [
                 [
                     'day' => 1,
@@ -95,21 +94,14 @@ class DashboardControllerTest extends TestCase
                         ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 1],
                     ],
                 ],
-                [
-                    'day' => 2,
-                    'label' => 'Genesis 2',
-                    'chapters' => [
-                        ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 2],
-                    ],
-                ],
             ],
             'is_active' => true,
         ]);
 
-        $newerPlan = ReadingPlan::create([
-            'slug' => 'newer-plan',
-            'name' => 'Newer Plan',
-            'description' => 'Newer plan description',
+        $activePlan = ReadingPlan::create([
+            'slug' => 'active-plan',
+            'name' => 'Active Plan',
+            'description' => 'Active plan description',
             'days' => [
                 [
                     'day' => 1,
@@ -122,33 +114,28 @@ class DashboardControllerTest extends TestCase
             'is_active' => true,
         ]);
 
+        // Inactive subscription (started earlier, explicitly inactive)
         ReadingPlanSubscription::create([
             'user_id' => $this->user->id,
-            'reading_plan_id' => $olderPlan->id,
+            'reading_plan_id' => $inactivePlan->id,
             'started_at' => Carbon::today()->subDays(2),
+            'is_active' => false,
         ]);
 
-        $newerSubscription = ReadingPlanSubscription::create([
+        // Active subscription
+        ReadingPlanSubscription::create([
             'user_id' => $this->user->id,
-            'reading_plan_id' => $newerPlan->id,
+            'reading_plan_id' => $activePlan->id,
             'started_at' => Carbon::today()->subDay(),
-        ]);
-
-        ReadingLog::create([
-            'user_id' => $this->user->id,
-            'reading_plan_subscription_id' => $newerSubscription->id,
-            'reading_plan_day' => 1,
-            'book_id' => 40,
-            'chapter' => 1,
-            'passage_text' => 'Matthew 1',
-            'date_read' => Carbon::today(),
+            'is_active' => true,
         ]);
 
         $response = $this->get('/dashboard');
 
-        $response->assertViewHas('planCta', function ($planCta) use ($olderPlan) {
+        $response->assertViewHas('planCta', function ($planCta) use ($activePlan) {
             $this->assertTrue($planCta['showPlanCta']);
-            $this->assertSame($olderPlan->id, $planCta['plan']->id);
+            $this->assertSame($activePlan->id, $planCta['plan']->id);
+            $this->assertSame('Matthew 1', $planCta['planLabel']);
 
             return true;
         });

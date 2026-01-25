@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ReadingPlanSubscription extends Model
 {
@@ -29,6 +30,7 @@ class ReadingPlanSubscription extends Model
         'user_id',
         'reading_plan_id',
         'started_at',
+        'is_active',
     ];
 
     /**
@@ -40,7 +42,16 @@ class ReadingPlanSubscription extends Model
     {
         return [
             'started_at' => 'date',
+            'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Scope a query to only include active subscriptions.
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
     }
 
     /**
@@ -57,6 +68,14 @@ class ReadingPlanSubscription extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(ReadingPlan::class, 'reading_plan_id');
+    }
+
+    /**
+     * Get the day completions for this subscription.
+     */
+    public function dayCompletions(): HasMany
+    {
+        return $this->hasMany(ReadingPlanDayCompletion::class);
     }
 
     /**
@@ -101,10 +120,15 @@ class ReadingPlanSubscription extends Model
             return $this->completedDaysCount = 0;
         }
 
-        $logsByDay = ReadingLog::where('reading_plan_subscription_id', $this->id)
-            ->whereNotNull('reading_plan_day')
-            ->get(['reading_plan_day', 'book_id', 'chapter'])
-            ->groupBy('reading_plan_day');
+        // Query completions from junction table with associated reading logs
+        $completions = $this->dayCompletions()
+            ->with('readingLog:id,book_id,chapter')
+            ->get();
+
+        $logsByDay = $completions
+            ->filter(fn ($completion) => $completion->readingLog !== null)
+            ->groupBy('reading_plan_day')
+            ->map(fn ($dayCompletions) => $dayCompletions->map(fn ($c) => $c->readingLog));
 
         $completedDays = 0;
 

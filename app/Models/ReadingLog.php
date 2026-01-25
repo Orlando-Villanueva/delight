@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ReadingLog extends Model implements ReadingLogInterface
 {
@@ -19,8 +20,6 @@ class ReadingLog extends Model implements ReadingLogInterface
      */
     protected $fillable = [
         'user_id',
-        'reading_plan_subscription_id',
-        'reading_plan_day',
         'book_id',
         'chapter',
         'passage_text',
@@ -39,8 +38,6 @@ class ReadingLog extends Model implements ReadingLogInterface
             'date_read' => 'date',
             'book_id' => 'integer',
             'chapter' => 'integer',
-            'reading_plan_subscription_id' => 'integer',
-            'reading_plan_day' => 'integer',
         ];
     }
 
@@ -53,11 +50,11 @@ class ReadingLog extends Model implements ReadingLogInterface
     }
 
     /**
-     * Get the reading plan subscription associated with this log (if any).
+     * Get the plan day completions for this reading log.
      */
-    public function readingPlanSubscription(): BelongsTo
+    public function planCompletions(): HasMany
     {
-        return $this->belongsTo(ReadingPlanSubscription::class);
+        return $this->hasMany(ReadingPlanDayCompletion::class);
     }
 
     /**

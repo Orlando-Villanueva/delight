@@ -107,6 +107,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/plans/{plan:slug}/log-all', [ReadingPlanController::class, 'logAll'])->name('plans.logAll');
     Route::post('/plans/{plan:slug}/apply-readings', [ReadingPlanController::class, 'applyTodaysReadings'])
         ->name('plans.applyTodaysReadings');
+    Route::post('/plans/{plan:slug}/activate', [ReadingPlanController::class, 'activate'])->name('plans.activate');
 
     // Onboarding
     Route::post('/onboarding/dismiss', [OnboardingController::class, 'dismiss'])

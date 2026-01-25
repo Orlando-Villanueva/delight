@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
+use App\Models\ReadingPlanSubscription;
 use App\Services\ReadingPlanService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -37,8 +38,11 @@ class ReadingPlanController extends Controller
             ];
         });
 
+        $hasActivePlan = $subscriptions->contains(fn ($sub) => $sub->is_active);
+
         $viewData = [
             'plans' => $plansWithStatus,
+            'has_active_plan' => $hasActivePlan,
         ];
 
         if ($request->header('HX-Request')) {
@@ -77,12 +81,45 @@ class ReadingPlanController extends Controller
 
         if ($request->header('HX-Request')) {
             return response()
-                ->htmx('plans.index', 'content', ['plans' => $this->getPlansWithStatus($user)])
+                ->htmx('plans.index', 'content', $this->getPlansWithStatus($user))
                 ->header('HX-Push-Url', route('plans.index'));
         }
 
         return redirect()->route('plans.index')
             ->with('success', 'You have unsubscribed from this plan.');
+    }
+
+    /**
+     * Activate (resume) a reading plan subscription.
+     */
+    public function activate(Request $request, ReadingPlan $plan)
+    {
+        $user = $request->user();
+        $subscription = $user->readingPlanSubscriptions()
+            ->where('reading_plan_id', $plan->id)
+            ->first();
+
+        if (! $subscription) {
+            if ($request->header('HX-Request')) {
+                return response()
+                    ->htmx('plans.index', 'content', $this->getPlansWithStatus($user))
+                    ->header('HX-Push-Url', route('plans.index'));
+            }
+
+            return redirect()->route('plans.index')
+                ->with('error', 'Subscription not found.');
+        }
+
+        $this->planService->activate($subscription);
+
+        if ($request->header('HX-Request')) {
+            return response()
+                ->htmx('plans.today', 'reading-list', $this->getTodayViewData($subscription->fresh()))
+                ->header('HX-Push-Url', route('plans.today', $plan));
+        }
+
+        return redirect()->route('plans.today', $plan)
+            ->with('success', "You've resumed {$plan->name}!");
     }
 
     /**
@@ -98,7 +135,7 @@ class ReadingPlanController extends Controller
         if (! $subscription) {
             if ($request->header('HX-Request')) {
                 return response()
-                    ->htmx('plans.index', 'content', ['plans' => $this->getPlansWithStatus($user)])
+                    ->htmx('plans.index', 'content', $this->getPlansWithStatus($user))
                     ->header('HX-Push-Url', route('plans.index'));
             }
 
@@ -134,6 +171,10 @@ class ReadingPlanController extends Controller
 
         if (! $subscription) {
             return response()->json(['error' => 'No subscription found'], 400);
+        }
+
+        if (! $subscription->is_active) {
+            return response()->json(['error' => 'Cannot log to inactive subscription'], 403);
         }
 
         $maxDay = $plan->getDaysCount();
@@ -212,7 +253,7 @@ class ReadingPlanController extends Controller
         ['user' => $user, 'subscription' => $subscription, 'dayNumber' => $dayNumber, 'reading' => $reading] = $result;
 
         $chapters = $reading['chapters'] ?? [];
-        $unlinkedKeys = $this->getUnlinkedTodayChapterKeys($user->id, $chapters);
+        $unlinkedKeys = $this->getUnlinkedTodayChapterKeys($user->id, $subscription->id, $chapters);
 
         if (! empty($unlinkedKeys)) {
             $chaptersToApply = array_values(array_filter($chapters, function ($chapter) use ($unlinkedKeys) {
@@ -251,6 +292,10 @@ class ReadingPlanController extends Controller
             return response()->json(['error' => 'No subscription found'], 400);
         }
 
+        if (! $subscription->is_active) {
+            return response()->json(['error' => 'Cannot log to inactive subscription'], 403);
+        }
+
         $maxDay = $plan->getDaysCount();
         $validated = $request->validate([
             'day' => 'required|integer|min:1|max:'.$maxDay,
@@ -283,8 +328,14 @@ class ReadingPlanController extends Controller
         if ($reading) {
             $chapters = $reading['chapters'] ?? [];
             $unlinkedTodayTotal = count($chapters);
-            $unlinkedTodayChapterKeys = $this->getUnlinkedTodayChapterKeys($subscription->user_id, $chapters);
+            $unlinkedTodayChapterKeys = $this->getUnlinkedTodayChapterKeys($subscription->user_id, $subscription->id, $chapters);
         }
+
+        // Check if there's another active plan (not this one)
+        $hasOtherActivePlan = ReadingPlanSubscription::where('user_id', $subscription->user_id)
+            ->where('id', '!=', $subscription->id)
+            ->where('is_active', true)
+            ->exists();
 
         return [
             'subscription' => $subscription,
@@ -295,6 +346,8 @@ class ReadingPlanController extends Controller
             'total_days' => $totalDays,
             'progress' => $subscription->getProgress(),
             'is_complete' => $subscription->isComplete(),
+            'is_active' => $subscription->is_active,
+            'has_other_active_plan' => $hasOtherActivePlan,
             'unlinked_today_chapters_count' => count($unlinkedTodayChapterKeys),
             'unlinked_today_chapters_total' => $unlinkedTodayTotal,
         ];
@@ -303,9 +356,13 @@ class ReadingPlanController extends Controller
     /**
      * Get today's unlinked chapter keys for the provided plan chapters.
      *
+     * Finds reading logs from today that match the given chapters but are NOT
+     * yet linked to the specified subscription (they may be linked to other
+     * subscriptions or completely unlinked).
+     *
      * @return array<int, string>
      */
-    private function getUnlinkedTodayChapterKeys(int $userId, array $chapters): array
+    private function getUnlinkedTodayChapterKeys(int $userId, int $subscriptionId, array $chapters): array
     {
         if (empty($chapters)) {
             return [];
@@ -313,7 +370,9 @@ class ReadingPlanController extends Controller
 
         $query = ReadingLog::where('user_id', $userId)
             ->whereDate('date_read', Carbon::today())
-            ->whereNull('reading_plan_subscription_id')
+            ->whereDoesntHave('planCompletions', function ($query) use ($subscriptionId) {
+                $query->where('reading_plan_subscription_id', $subscriptionId);
+            })
             ->where(function ($query) use ($chapters) {
                 foreach ($chapters as $chapter) {
                     $query->orWhere(function ($query) use ($chapter) {
@@ -331,8 +390,10 @@ class ReadingPlanController extends Controller
 
     /**
      * Get plans with subscription status for a user.
+     *
+     * @return array{plans: \Illuminate\Support\Collection, has_active_plan: bool}
      */
-    private function getPlansWithStatus($user)
+    private function getPlansWithStatus($user): array
     {
         $plans = ReadingPlan::active()->get();
         $subscriptions = $user->readingPlanSubscriptions()
@@ -340,12 +401,17 @@ class ReadingPlanController extends Controller
             ->get()
             ->keyBy('reading_plan_id');
 
-        return $plans->map(function ($plan) use ($subscriptions) {
+        $plansWithStatus = $plans->map(function ($plan) use ($subscriptions) {
             return [
                 'plan' => $plan,
                 'subscription' => $subscriptions->get($plan->id),
                 'is_subscribed' => $subscriptions->has($plan->id),
             ];
         });
+
+        return [
+            'plans' => $plansWithStatus,
+            'has_active_plan' => $subscriptions->contains(fn ($sub) => $sub->is_active),
+        ];
     }
 }

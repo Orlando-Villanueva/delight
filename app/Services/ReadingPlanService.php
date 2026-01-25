@@ -4,10 +4,12 @@ namespace App\Services;
 
 use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
+use App\Models\ReadingPlanDayCompletion;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ReadingPlanService
 {
@@ -17,18 +19,27 @@ class ReadingPlanService
 
     /**
      * Subscribe a user to a reading plan.
+     * Deactivates any other active subscriptions for the user.
      */
     public function subscribe(User $user, ReadingPlan $plan, ?Carbon $startDate = null): ReadingPlanSubscription
     {
-        return ReadingPlanSubscription::updateOrCreate(
-            [
-                'user_id' => $user->id,
-                'reading_plan_id' => $plan->id,
-            ],
-            [
-                'started_at' => $startDate ?? Carbon::today(),
-            ]
-        );
+        return DB::transaction(function () use ($user, $plan, $startDate) {
+            // Deactivate all existing subscriptions for this user
+            ReadingPlanSubscription::where('user_id', $user->id)
+                ->update(['is_active' => false]);
+
+            // Create or update the subscription and set it as active
+            return ReadingPlanSubscription::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'reading_plan_id' => $plan->id,
+                ],
+                [
+                    'started_at' => $startDate ?? Carbon::today(),
+                    'is_active' => true,
+                ]
+            );
+        });
     }
 
     /**
@@ -44,13 +55,35 @@ class ReadingPlanService
             return false;
         }
 
-        ReadingLog::where('reading_plan_subscription_id', $subscription->id)
-            ->update([
-                'reading_plan_subscription_id' => null,
-                'reading_plan_day' => null,
-            ]);
+        // Delete all junction table records linking logs to this subscription
+        ReadingPlanDayCompletion::where('reading_plan_subscription_id', $subscription->id)
+            ->delete();
 
-        return $subscription->delete();
+        $deleted = $subscription->delete();
+
+        // Auto-activate if only one inactive subscription remains
+        $this->autoActivateLoneSubscription($user);
+
+        return $deleted;
+    }
+
+    /**
+     * Auto-activate a user's subscription if they have exactly one and it's inactive.
+     * This prevents the scenario of having a single paused plan with nothing active.
+     */
+    public function autoActivateLoneSubscription(User $user): ?ReadingPlanSubscription
+    {
+        $subscriptions = ReadingPlanSubscription::where('user_id', $user->id)->get();
+
+        // Only auto-activate if there's exactly one subscription and it's inactive
+        if ($subscriptions->count() === 1 && ! $subscriptions->first()->is_active) {
+            $subscription = $subscriptions->first();
+            $subscription->update(['is_active' => true]);
+
+            return $subscription->fresh();
+        }
+
+        return null;
     }
 
     /**
@@ -61,6 +94,23 @@ class ReadingPlanService
         return ReadingPlanSubscription::where('user_id', $user->id)
             ->where('reading_plan_id', $plan->id)
             ->first();
+    }
+
+    /**
+     * Activate a subscription, deactivating any other active subscriptions for the user.
+     */
+    public function activate(ReadingPlanSubscription $subscription): ReadingPlanSubscription
+    {
+        return DB::transaction(function () use ($subscription) {
+            // Deactivate all subscriptions for this user
+            ReadingPlanSubscription::where('user_id', $subscription->user_id)
+                ->update(['is_active' => false]);
+
+            // Activate the specified subscription
+            $subscription->update(['is_active' => true]);
+
+            return $subscription->fresh();
+        });
     }
 
     /**
@@ -86,7 +136,7 @@ class ReadingPlanService
 
         // Attach completion status to each chapter
         $chaptersWithStatus = array_map(function ($chapter) use ($completedChapters) {
-            $key = $chapter['book_id'] . '-' . $chapter['chapter'];
+            $key = $chapter['book_id'].'-'.$chapter['chapter'];
 
             return array_merge($chapter, [
                 'completed' => in_array($key, $completedChapters),
@@ -117,17 +167,20 @@ class ReadingPlanService
             return [];
         }
 
-        // Build query to check which chapters are already logged for this plan day
-        $completedLogs = ReadingLog::where('reading_plan_subscription_id', $subscription->id)
+        // Query junction table to find completed chapters for this plan day
+        $completedLogs = ReadingPlanDayCompletion::where('reading_plan_subscription_id', $subscription->id)
             ->where('reading_plan_day', $dayNumber)
-            ->get(['book_id', 'chapter']);
+            ->with('readingLog:id,book_id,chapter')
+            ->get()
+            ->map(fn ($completion) => $completion->readingLog)
+            ->filter(); // Remove any nulls from deleted logs
 
-        $completedKeys = $completedLogs->map(fn($log) => $log->book_id . '-' . $log->chapter)->toArray();
+        $completedKeys = $completedLogs->map(fn ($log) => $log->book_id.'-'.$log->chapter)->toArray();
 
         // Filter to only chapters in our list
         $relevantKeys = [];
         foreach ($chapters as $chapter) {
-            $key = $chapter['book_id'] . '-' . $chapter['chapter'];
+            $key = $chapter['book_id'].'-'.$chapter['chapter'];
             if (in_array($key, $completedKeys)) {
                 $relevantKeys[] = $key;
             }
@@ -144,11 +197,13 @@ class ReadingPlanService
         ReadingPlanSubscription $subscription,
         int $dayNumber,
         array $chapter,
-        Carbon $date
+        Carbon $date,
+        bool $resetCache = true
     ): ReadingLog {
         $bookId = $chapter['book_id'];
         $chapterNum = $chapter['chapter'];
 
+        // Find existing log for this chapter on this date
         $existingLog = ReadingLog::where('user_id', $user->id)
             ->where('book_id', $bookId)
             ->where('chapter', $chapterNum)
@@ -156,29 +211,32 @@ class ReadingPlanService
             ->first();
 
         if ($existingLog) {
-            if ($existingLog->reading_plan_subscription_id === null) {
-                $existingLog->update([
-                    'reading_plan_subscription_id' => $subscription->id,
-                    'reading_plan_day' => $dayNumber,
-                ]);
-            }
-
-            $subscription->resetCompletedDaysCountCache();
-
-            return $existingLog;
+            $readingLog = $existingLog;
+        } else {
+            // Create new reading log (without plan fields on the log itself)
+            $readingLog = $this->readingLogService->logReading($user, [
+                'book_id' => $bookId,
+                'chapter' => $chapterNum,
+                'date_read' => $date->toDateString(),
+            ]);
         }
 
-        $log = $this->readingLogService->logReading($user, [
-            'book_id' => $bookId,
-            'chapter' => $chapterNum,
-            'date_read' => $date->toDateString(),
-            'reading_plan_subscription_id' => $subscription->id,
-            'reading_plan_day' => $dayNumber,
-        ]);
+        // Link to plan via junction table (updateOrCreate to avoid duplicates)
+        ReadingPlanDayCompletion::updateOrCreate(
+            [
+                'reading_log_id' => $readingLog->id,
+                'reading_plan_subscription_id' => $subscription->id,
+            ],
+            [
+                'reading_plan_day' => $dayNumber,
+            ]
+        );
 
-        $subscription->resetCompletedDaysCountCache();
+        if ($resetCache) {
+            $subscription->resetCompletedDaysCountCache();
+        }
 
-        return $log;
+        return $readingLog;
     }
 
     /**
@@ -194,24 +252,7 @@ class ReadingPlanService
         $logged = collect();
 
         foreach ($chapters as $chapter) {
-            $existingLog = ReadingLog::where('user_id', $user->id)
-                ->where('book_id', $chapter['book_id'])
-                ->where('chapter', $chapter['chapter'])
-                ->whereDate('date_read', $date)
-                ->first();
-
-            if ($existingLog) {
-                if ($existingLog->reading_plan_subscription_id === null) {
-                    $existingLog->update([
-                        'reading_plan_subscription_id' => $subscription->id,
-                        'reading_plan_day' => $dayNumber,
-                    ]);
-                }
-
-                continue;
-            }
-
-            $log = $this->logChapter($user, $subscription, $dayNumber, $chapter, $date);
+            $log = $this->logChapter($user, $subscription, $dayNumber, $chapter, $date, resetCache: false);
             $logged->push($log);
         }
 

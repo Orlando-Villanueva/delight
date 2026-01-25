@@ -31,19 +31,44 @@
                                         <div>
                                             {{-- Header row: Title + CTA (CTA moves to bottom on mobile) --}}
                                             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                                                <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
-                                                    {{ $plan->name }}
-                                                </h3>
-                                                <button hx-get="{{ route('plans.today', $plan) }}" hx-target="#page-container"
-                                                    hx-swap="innerHTML" hx-push-url="true"
-                                                    class="order-last sm:order-none w-full sm:w-auto flex-shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm cursor-pointer">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                        viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                                    </svg>
-                                                    Continue Reading
-                                                </button>
+                                                <div class="flex items-center gap-2">
+                                                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+                                                        {{ $plan->name }}
+                                                    </h3>
+                                                    @if (!$subscription->is_active)
+                                                        <span
+                                                            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                                                            Paused
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                @if ($subscription->is_active)
+                                                    <button hx-get="{{ route('plans.today', $plan) }}"
+                                                        hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
+                                                        class="order-last sm:order-none w-full sm:w-auto flex-shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm cursor-pointer">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                                        </svg>
+                                                        Continue Reading
+                                                    </button>
+                                                @else
+                                                    <button hx-get="{{ route('plans.today', $plan) }}"
+                                                        hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
+                                                        class="order-last sm:order-none w-full sm:w-auto flex-shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors cursor-pointer">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                            viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                        View Progress
+                                                    </button>
+                                                @endif
 
                                                 {{-- Progress info (shown between title and button on mobile) --}}
                                                 <div class="flex-1 sm:hidden">
@@ -108,6 +133,9 @@
                                                 </div>
                                                 <form hx-post="{{ route('plans.subscribe', $plan) }}"
                                                     hx-target="#page-container" hx-swap="innerHTML"
+                                                    @if ($has_active_plan)
+                                                        hx-confirm="Starting this plan will pause your current active plan. Continue?"
+                                                    @endif
                                                     class="order-last sm:order-none w-full sm:w-auto flex-shrink-0">
                                                     @csrf
                                                     <button type="submit"

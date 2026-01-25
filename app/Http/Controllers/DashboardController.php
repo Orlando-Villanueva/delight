@@ -96,33 +96,39 @@ class DashboardController extends Controller
      */
     private function getReadingPlanCtaData($user): array
     {
-        $subscriptions = $user->readingPlanSubscriptions()
+        $subscription = $user->readingPlanSubscriptions()
+            ->active()
             ->with('plan')
-            ->latest('started_at')
-            ->get();
+            ->first();
 
-        foreach ($subscriptions as $subscription) {
-            $reading = $this->planService->getTodaysReadingWithStatus($subscription);
-
-            if (! $reading || $reading['all_completed']) {
-                continue;
-            }
-
+        if (! $subscription) {
             return [
-                'showPlanCta' => true,
-                'plan' => $subscription->plan,
-                'planLabel' => $reading['label'],
-                'completedCount' => $reading['completed_count'],
-                'totalCount' => $reading['total_count'],
+                'showPlanCta' => false,
+                'plan' => null,
+                'planLabel' => null,
+                'completedCount' => null,
+                'totalCount' => null,
+            ];
+        }
+
+        $reading = $this->planService->getTodaysReadingWithStatus($subscription);
+
+        if (! $reading || $reading['all_completed']) {
+            return [
+                'showPlanCta' => false,
+                'plan' => null,
+                'planLabel' => null,
+                'completedCount' => null,
+                'totalCount' => null,
             ];
         }
 
         return [
-            'showPlanCta' => false,
-            'plan' => null,
-            'planLabel' => null,
-            'completedCount' => null,
-            'totalCount' => null,
+            'showPlanCta' => true,
+            'plan' => $subscription->plan,
+            'planLabel' => $reading['label'],
+            'completedCount' => $reading['completed_count'],
+            'totalCount' => $reading['total_count'],
         ];
     }
 }

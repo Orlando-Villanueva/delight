@@ -90,9 +90,9 @@
                                             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                                                 Day {{ $day_number }} Reading
                                             </h3>
-                                            @if (!$reading['all_completed'])
-                                                <form hx-post="{{ route('plans.logAll', $plan) }}" hx-target="#reading-list-container"
-                                                    hx-swap="outerHTML">
+                                            @if ($is_active && !$reading['all_completed'])
+                                                <form hx-post="{{ route('plans.logAll', $plan) }}"
+                                                    hx-target="#reading-list-container" hx-swap="outerHTML">
                                                     @csrf
                                                     <input type="hidden" name="day" value="{{ $day_number }}">
                                                     <button type="submit"
@@ -105,7 +105,7 @@
                                                         Mark day complete
                                                     </button>
                                                 </form>
-                                            @else
+                                            @elseif ($reading['all_completed'])
                                                 <span
                                                     class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 rounded-lg">
                                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -122,7 +122,7 @@
                                             {{ $reading['label'] }}
                                         </p>
 
-                                        @if ($unlinked_today_chapters_count > 0)
+                                        @if ($is_active && $unlinked_today_chapters_count > 0)
                                             <div
                                                 class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200/60 bg-blue-50/50 px-3 py-2 text-blue-900 dark:border-blue-900/30 dark:bg-blue-900/10 dark:text-blue-100">
                                                 <p class="text-xs leading-none text-blue-800 dark:text-blue-200">
@@ -137,6 +137,27 @@
                                                     <button type="submit"
                                                         class="inline-flex items-center text-xs font-medium leading-none text-primary-600 hover:text-primary-500 dark:text-primary-400">
                                                         Apply to this day
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        @endif
+
+                                        @if (!$is_active)
+                                            <div
+                                                class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200/60 bg-amber-50/50 px-3 py-2 text-amber-900 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-100">
+                                                <p class="text-sm leading-none text-amber-800 dark:text-amber-200">
+                                                    <span class="font-medium">Plan paused.</span> Resume to continue logging.
+                                                </p>
+                                                <form hx-post="{{ route('plans.activate', $plan) }}"
+                                                    hx-target="#reading-list-container" hx-swap="outerHTML"
+                                                    @if ($has_other_active_plan)
+                                                        hx-confirm="This will pause your current active plan. Continue?"
+                                                    @endif
+                                                    class="flex items-center">
+                                                    @csrf
+                                                    <button type="submit"
+                                                        class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors">
+                                                        Resume Plan
                                                     </button>
                                                 </form>
                                             </div>
@@ -169,13 +190,15 @@
                                                         </span>
                                                     </div>
 
-                                                    @if (!$chapter['completed'])
+                                                    @if ($is_active && !$chapter['completed'])
                                                         <form hx-post="{{ route('plans.logChapter', $plan) }}"
                                                             hx-target="#reading-list-container" hx-swap="outerHTML">
                                                             @csrf
                                                             <input type="hidden" name="day" value="{{ $day_number }}">
-                                                            <input type="hidden" name="book_id" value="{{ $chapter['book_id'] }}">
-                                                            <input type="hidden" name="chapter" value="{{ $chapter['chapter'] }}">
+                                                            <input type="hidden" name="book_id"
+                                                                value="{{ $chapter['book_id'] }}">
+                                                            <input type="hidden" name="chapter"
+                                                                value="{{ $chapter['chapter'] }}">
                                                             <button type="submit"
                                                                 class="inline-flex items-center px-3 py-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md transition-colors">
                                                                 Mark read
@@ -201,8 +224,8 @@
                                     class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
                                     <div
                                         class="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                                        <svg class="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
+                                        <svg class="w-8 h-8 text-green-600 dark:text-green-400" fill="none"
+                                            stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
@@ -220,7 +243,8 @@
                                     hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                     class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 19l-7-7 7-7" />
                                     </svg>
                                     All Plans
                                 </a>
