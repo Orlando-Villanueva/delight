@@ -2,7 +2,10 @@
 
 namespace Tests\Unit;
 
+use App\Models\ReadingPlan;
+use App\Models\ReadingPlanSubscription;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -73,5 +76,70 @@ class DashboardControllerTest extends TestCase
 
         // Match current content
         $response->assertSee('Weekly Journey');
+    }
+
+    public function test_index_uses_active_plan_for_cta()
+    {
+        Carbon::setTestNow('2026-01-10');
+
+        $inactivePlan = ReadingPlan::create([
+            'slug' => 'inactive-plan',
+            'name' => 'Inactive Plan',
+            'description' => 'Inactive plan description',
+            'days' => [
+                [
+                    'day' => 1,
+                    'label' => 'Genesis 1',
+                    'chapters' => [
+                        ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 1],
+                    ],
+                ],
+            ],
+            'is_active' => true,
+        ]);
+
+        $activePlan = ReadingPlan::create([
+            'slug' => 'active-plan',
+            'name' => 'Active Plan',
+            'description' => 'Active plan description',
+            'days' => [
+                [
+                    'day' => 1,
+                    'label' => 'Matthew 1',
+                    'chapters' => [
+                        ['book_id' => 40, 'book_name' => 'Matthew', 'chapter' => 1],
+                    ],
+                ],
+            ],
+            'is_active' => true,
+        ]);
+
+        // Inactive subscription (started earlier, explicitly inactive)
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $inactivePlan->id,
+            'started_at' => Carbon::today()->subDays(2),
+            'is_active' => false,
+        ]);
+
+        // Active subscription
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $activePlan->id,
+            'started_at' => Carbon::today()->subDay(),
+            'is_active' => true,
+        ]);
+
+        $response = $this->get('/dashboard');
+
+        $response->assertViewHas('planCta', function ($planCta) use ($activePlan) {
+            $this->assertTrue($planCta['showPlanCta']);
+            $this->assertSame($activePlan->id, $planCta['plan']->id);
+            $this->assertSame('Matthew 1', $planCta['planLabel']);
+
+            return true;
+        });
+
+        Carbon::setTestNow();
     }
 }

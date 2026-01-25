@@ -100,13 +100,27 @@ Route::middleware('auth')->group(function () {
 
     // Reading Plans
     Route::get('/plans', [ReadingPlanController::class, 'index'])->name('plans.index');
-    Route::get('/plans/today', [ReadingPlanController::class, 'today'])->name('plans.today');
     Route::post('/plans/{plan:slug}/subscribe', [ReadingPlanController::class, 'subscribe'])->name('plans.subscribe');
     Route::delete('/plans/{plan:slug}/unsubscribe', [ReadingPlanController::class, 'unsubscribe'])->name('plans.unsubscribe');
-    Route::post('/plans/today/log-chapter', [ReadingPlanController::class, 'logChapter'])->name('plans.logChapter');
-    Route::post('/plans/today/log-all', [ReadingPlanController::class, 'logAll'])->name('plans.logAll');
-    Route::post('/plans/today/apply-readings', [ReadingPlanController::class, 'applyTodaysReadings'])
+
+    // Legacy redirect for bookmarks
+    Route::get('/plans/today', function () {
+        $user = auth()->user();
+        $activePlan = $user->activeReadingPlan();
+
+        if ($activePlan && $activePlan->plan) {
+            return redirect()->route('plans.today', $activePlan->plan);
+        }
+
+        return redirect()->route('plans.index');
+    });
+
+    Route::get('/plans/{plan:slug}/today', [ReadingPlanController::class, 'today'])->name('plans.today');
+    Route::post('/plans/{plan:slug}/log-chapter', [ReadingPlanController::class, 'logChapter'])->name('plans.logChapter');
+    Route::post('/plans/{plan:slug}/log-all', [ReadingPlanController::class, 'logAll'])->name('plans.logAll');
+    Route::post('/plans/{plan:slug}/apply-readings', [ReadingPlanController::class, 'applyTodaysReadings'])
         ->name('plans.applyTodaysReadings');
+    Route::post('/plans/{plan:slug}/activate', [ReadingPlanController::class, 'activate'])->name('plans.activate');
 
     // Onboarding
     Route::post('/onboarding/dismiss', [OnboardingController::class, 'dismiss'])

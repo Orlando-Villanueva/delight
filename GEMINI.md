@@ -10,23 +10,23 @@ The project follows a **Service Layer Architecture**, ensuring controllers remai
 
 **Key Technologies:**
 
--   **Backend:** Laravel 11.x (PHP 8.2+)
--   **Authentication:** Laravel Fortify (Passwords) & Laravel Socialite (Google/X OAuth)
--   **Frontend:** HTMX, Alpine.js, Tailwind CSS v4 (Vite), Vite
--   **UI Components:** Flowbite
--   **Database:** SQLite (local), PostgreSQL (production)
--   **Features:** PWA support, Announcement System, User Feedback, Weekly Journey tracking, Annual Recap.
--   **Testing:** Pest
+- **Backend:** Laravel 11.x (PHP 8.2+)
+- **Authentication:** Laravel Fortify (Passwords) & Laravel Socialite (Google/X OAuth)
+- **Frontend:** HTMX, Alpine.js, Tailwind CSS v4 (Vite), Vite
+- **UI Components:** Flowbite
+- **Database:** SQLite (local), PostgreSQL (production)
+- **Features:** PWA support, Announcement System, User Feedback, Weekly Journey tracking, Annual Recap.
+- **Testing:** Pest
 
 ## Building and Running
 
 ### Prerequisites
 
--   PHP 8.2+
--   Composer
--   Node.js and npm
--   SQLite
--   [Mailpit](https://github.com/axllent/mailpit) (for local email testing)
+- PHP 8.2+
+- Composer
+- Node.js and npm
+- SQLite
+- [Mailpit](https://github.com/axllent/mailpit) (for local email testing)
 
 ### Local Development
 
@@ -60,9 +60,9 @@ The project follows a **Service Layer Architecture**, ensuring controllers remai
     ```
 
 5.  **Run Tools:**
-    -   App: `http://delight.test` (via Laravel Herd)
-    -   Mail: `mailpit` (interface at `http://localhost:8025`)
-    -   DB: `http://delight.test/telescope` (if enabled)
+    - App: `http://delight.test` (via Laravel Herd)
+    - Mail: `mailpit` (interface at `http://localhost:8025`)
+    - DB: `http://delight.test/telescope` (if enabled)
 
 ### Telescope
 
@@ -76,8 +76,8 @@ For non-local access, allow users by email via `TELESCOPE_ADMIN_EMAILS` (comma-s
 
 **When to use it:**
 
--   Debugging slow pages, N+1 query spikes, or unexpected queue/cache behavior.
--   QA passes before release to spot errors, repeated queries, or latency hotspots.
+- Debugging slow pages, N+1 query spikes, or unexpected queue/cache behavior.
+- QA passes before release to spot errors, repeated queries, or latency hotspots.
 
 ### Testing
 
@@ -97,45 +97,49 @@ Business logic MUST live in `app/Services`. High-level workflows should be deleg
 
 The application uses HTMX for seamless, partial page updates.
 
--   **Macro:** Use `return response()->htmx('view.name', 'fragment-name', $data)` for partial refreshes.
--   **Fragments:** Define `@fragment('name') ... @endfragment` inside Blade files to allow targeted updates.
--   **Alpine.js:** Use for local UI state (modals, toggles, client-side filtering).
+- **Macro:** Use `return response()->htmx('view.name', 'fragment-name', $data)` for partial refreshes.
+- **Fragments:** Define `@fragment('name') ... @endfragment` inside Blade files to allow targeted updates.
+- **Alpine.js:** Use for local UI state (modals, toggles, client-side filtering).
 
 ### 3. Styling & Components
 
--   **Tailwind CSS:** Primary styling engine.
--   **Flowbite:** Preferred library for UI components (Drawers, Modals, Navbars).
--   **Responsive:** Mobile-first design is critical as many users log readings on their phones.
+- **Tailwind CSS:** Primary styling engine.
+- **Flowbite:** Preferred library for UI components (Drawers, Modals, Navbars).
+- **Responsive:** Mobile-first design is critical as many users log readings on their phones.
 
 ### 4. Announcements & Notifications
 
 The system features a native announcement engine.
 
--   **Admins:** Manage news via `admin/announcements`.
--   **Users:** Receive updates via the notification bell (mapped in `AppServiceProvider`).
--   **Persistence:** Read/Unread states are tracked per-user in the `announcement_user` table.
+- **Admins:** Manage news via `admin/announcements`.
+- **Users:** Receive updates via the notification bell (mapped in `AppServiceProvider`).
+- **Persistence:** Read/Unread states are tracked per-user in the `announcement_user` table.
 
 ### 5. Annual Recap
 
 A "Spotify Wrapped"-style year-in-review feature for Bible reading.
 
--   **Route:** `/recap/{year?}` — defaults to the latest available year.
--   **Service:** `AnnualRecapService` calculates stats (streaks, top books, heatmap, reader personality).
--   **Caching:** Current year is cached until end-of-day; past years are persisted to `annual_recaps` table as immutable snapshots.
--   **Views:** Year-specific templates live in `resources/views/annual-recap/{year}/show.blade.php`.
--   **Theming:** Uses the `reader` layout with a `cosmic` theme for a dark, visually striking presentation.
+- **Route:** `/recap/{year?}` — defaults to the latest available year.
+- **Service:** `AnnualRecapService` calculates stats (streaks, top books, heatmap, reader personality).
+- **Caching:** Current year is cached until end-of-day; past years are persisted to `annual_recaps` table as immutable snapshots.
+- **Views:** Year-specific templates live in `resources/views/annual-recap/{year}/show.blade.php`.
+- **Theming:** Uses the `reader` layout with a `cosmic` theme for a dark, visually striking presentation.
 
 ### 6. Testing
 
 We use **Pest**.
 
--   Feature tests should cover high-level HTMX flows and full HTTP request behavior (endpoint coverage).
--   FormRequest authorization and validation are covered via Feature tests hitting the route.
--   Unit tests should cover complex logic in services (especially Statistics and Streaks).
--   When controller behavior changes, add or update Feature tests; if controllers grow, extract logic to services/actions and test those units.
--   Prefer Pest function-style tests with `beforeEach` for shared setup in new/updated feature specs.
--   When building or updating end-to-end features, always create or adapt Feature tests to cover the behavior change.
+- Feature tests should cover high-level HTMX flows and full HTTP request behavior (endpoint coverage).
+- FormRequest authorization and validation are covered via Feature tests hitting the route.
+- Unit tests should cover complex logic in services (especially Statistics and Streaks).
+- When controller behavior changes, add or update Feature tests; if controllers grow, extract logic to services/actions and test those units.
+- Prefer Pest function-style tests with `beforeEach` for shared setup in new/updated feature specs.
+- When building or updating end-to-end features, always create or adapt Feature tests to cover the behavior change.
 
-### 7. Code Interaction
+### 7. PHP Code Style
 
--   **Respect Manual Changes:** NEVER remove code manually added by the user during a chat session unless explicitly instructed. If a manual change seems incorrect or conflicting, PROMPT the user for clarification before modifying or removing it.
+- **Imports over global references:** Always use `use` statements at the top of the file instead of backslash-prefixed global class references. For example, use `use Throwable;` and `catch (Throwable)` instead of `catch (\Throwable)`.
+
+### 8. Code Interaction
+
+- **Respect Manual Changes:** NEVER remove code manually added by the user during a chat session unless explicitly instructed. If a manual change seems incorrect or conflicting, PROMPT the user for clarification before modifying or removing it.

@@ -44,8 +44,8 @@
                                 <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
                                     <div class="flex items-center gap-2">
                                         @if ($day_number > 1)
-                                            <a href="{{ route('plans.today', ['day' => $day_number - 1]) }}"
-                                                hx-get="{{ route('plans.today', ['day' => $day_number - 1]) }}"
+                                            <a href="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number - 1]) }}"
+                                                hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number - 1]) }}"
                                                 hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                                 class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors">
                                                 Previous Day
@@ -57,8 +57,8 @@
                                             </span>
                                         @endif
                                         @if ($day_number < $total_days)
-                                            <a href="{{ route('plans.today', ['day' => $day_number + 1]) }}"
-                                                hx-get="{{ route('plans.today', ['day' => $day_number + 1]) }}"
+                                            <a href="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number + 1]) }}"
+                                                hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number + 1]) }}"
                                                 hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                                 class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors">
                                                 Next Day
@@ -71,8 +71,8 @@
                                         @endif
                                     </div>
                                     @if ($current_day !== $day_number)
-                                        <a href="{{ route('plans.today', ['day' => $current_day]) }}"
-                                            hx-get="{{ route('plans.today', ['day' => $current_day]) }}"
+                                        <a href="{{ route('plans.today', ['plan' => $plan, 'day' => $current_day]) }}"
+                                            hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $current_day]) }}"
                                             hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                             class="inline-flex items-center text-xs font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400">
                                             Go to Current Day
@@ -90,9 +90,9 @@
                                             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                                                 Day {{ $day_number }} Reading
                                             </h3>
-                                            @if (!$reading['all_completed'])
-                                                <form hx-post="{{ route('plans.logAll') }}" hx-target="#reading-list-container"
-                                                    hx-swap="outerHTML">
+                                            @if ($is_active && !$reading['all_completed'])
+                                                <form hx-post="{{ route('plans.logAll', $plan) }}"
+                                                    hx-target="#reading-list-container" hx-swap="outerHTML">
                                                     @csrf
                                                     <input type="hidden" name="day" value="{{ $day_number }}">
                                                     <button type="submit"
@@ -105,7 +105,7 @@
                                                         Mark day complete
                                                     </button>
                                                 </form>
-                                            @else
+                                            @elseif ($reading['all_completed'])
                                                 <span
                                                     class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 rounded-lg">
                                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -122,14 +122,14 @@
                                             {{ $reading['label'] }}
                                         </p>
 
-                                        @if ($unlinked_today_chapters_count > 0)
+                                        @if ($is_active && $unlinked_today_chapters_count > 0)
                                             <div
                                                 class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200/60 bg-blue-50/50 px-3 py-2 text-blue-900 dark:border-blue-900/30 dark:bg-blue-900/10 dark:text-blue-100">
                                                 <p class="text-xs leading-none text-blue-800 dark:text-blue-200">
                                                     Found {{ $unlinked_today_chapters_count }} of
                                                     {{ $unlinked_today_chapters_total }} chapters from today.
                                                 </p>
-                                                <form hx-post="{{ route('plans.applyTodaysReadings') }}"
+                                                <form hx-post="{{ route('plans.applyTodaysReadings', $plan) }}"
                                                     hx-target="#reading-list-container" hx-swap="outerHTML"
                                                     class="flex items-center">
                                                     @csrf
@@ -137,6 +137,30 @@
                                                     <button type="submit"
                                                         class="inline-flex items-center text-xs font-medium leading-none text-primary-600 hover:text-primary-500 dark:text-primary-400">
                                                         Apply to this day
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        @endif
+
+                                        @if (!$is_active)
+                                            <div
+                                                class="mb-4 flex flex-col items-center gap-3 rounded-lg border border-gray-200/60 bg-gray-50/50 px-4 py-4 text-gray-900 dark:border-gray-700/60 dark:bg-gray-800/50 dark:text-gray-100 sm:flex-row sm:justify-between sm:gap-2 sm:px-3 sm:py-2">
+                                                <p
+                                                    class="text-center text-sm leading-relaxed text-gray-700 dark:text-gray-300 sm:text-left sm:leading-none">
+                                                    <span class="font-semibold">Plan paused.</span> Resume to continue logging.
+                                                </p>
+                                                <form hx-post="{{ route('plans.activate', $plan) }}"
+                                                    hx-target="#reading-list-container" hx-swap="outerHTML"
+                                                    @if ($has_other_active_plan) hx-confirm="This will pause your current active plan. Continue?" @endif
+                                                    class="w-full sm:w-auto">
+                                                    @csrf
+                                                    <button type="submit"
+                                                        class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 sm:w-auto sm:px-3 sm:py-1.5">
+                                                        <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 16 16">
+                                                            <path
+                                                                d="M10.804 8 5 4.633v6.734zm.792-.696a.802.802 0 0 1 0 1.392l-6.363 3.692C4.713 12.69 4 12.345 4 11.692V4.308c0-.653.713-.998 1.233-.696z" />
+                                                        </svg>
+                                                        Resume Plan
                                                     </button>
                                                 </form>
                                             </div>
@@ -169,13 +193,15 @@
                                                         </span>
                                                     </div>
 
-                                                    @if (!$chapter['completed'])
-                                                        <form hx-post="{{ route('plans.logChapter') }}"
+                                                    @if ($is_active && !$chapter['completed'])
+                                                        <form hx-post="{{ route('plans.logChapter', $plan) }}"
                                                             hx-target="#reading-list-container" hx-swap="outerHTML">
                                                             @csrf
                                                             <input type="hidden" name="day" value="{{ $day_number }}">
-                                                            <input type="hidden" name="book_id" value="{{ $chapter['book_id'] }}">
-                                                            <input type="hidden" name="chapter" value="{{ $chapter['chapter'] }}">
+                                                            <input type="hidden" name="book_id"
+                                                                value="{{ $chapter['book_id'] }}">
+                                                            <input type="hidden" name="chapter"
+                                                                value="{{ $chapter['chapter'] }}">
                                                             <button type="submit"
                                                                 class="inline-flex items-center px-3 py-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md transition-colors">
                                                                 Mark read
@@ -201,8 +227,8 @@
                                     class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
                                     <div
                                         class="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                                        <svg class="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
+                                        <svg class="w-8 h-8 text-green-600 dark:text-green-400" fill="none"
+                                            stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
@@ -216,14 +242,15 @@
 
                             {{-- Navigation --}}
                             <div class="flex justify-between items-center">
-                                <a href="{{ route('plans.index') }}" hx-get="{{ route('plans.index') }}"
-                                    hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
-                                    class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                                <button type="button" hx-get="{{ route('plans.index') }}" hx-target="#page-container"
+                                    hx-swap="innerHTML" hx-push-url="true"
+                                    class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 cursor-pointer">
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 19l-7-7 7-7" />
                                     </svg>
                                     All Plans
-                                </a>
+                                </button>
                                 <form hx-delete="{{ route('plans.unsubscribe', $plan) }}" hx-target="#page-container"
                                     hx-swap="innerHTML"
                                     hx-confirm="Are you sure you want to leave this plan? Your progress will be reset.">

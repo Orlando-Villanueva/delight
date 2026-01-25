@@ -152,7 +152,7 @@
 
         @if ($ctaIsVisible)
             @if ($showPlanCta)
-                <button type="button" hx-get="{{ route('plans.today') }}" hx-target="#page-container"
+                <button type="button" hx-get="{{ route('plans.today', $planCta['plan']) }}" hx-target="#page-container"
                     hx-swap="innerHTML" hx-push-url="true"
                     class="inline-flex w-full sm:w-auto shrink-0 items-center justify-center rounded-full bg-accent-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-500">
                     Log today's reading

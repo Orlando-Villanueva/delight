@@ -39,13 +39,23 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Smart routing for Reading Plans navigation
-        // Users with active plans go directly to today's reading
+        // If user has an active plan, bring them to today's reading. Otherwise, show the index.
         View::composer(['components.navigation.mobile-bottom-bar', 'components.navigation.desktop-sidebar'], function ($view) {
-            $smartPlansRoute = 'plans.index';
-            if (auth()->check() && auth()->user()->activeReadingPlan()) {
-                $smartPlansRoute = 'plans.today';
+            $user = auth()->user();
+            $smartPlansUrl = route('plans.index');
+
+            if ($user) {
+                $activeSubscription = $user->readingPlanSubscriptions()
+                    ->where('is_active', true)
+                    ->with('plan')
+                    ->first();
+
+                if ($activeSubscription && $activeSubscription->plan) {
+                    $smartPlansUrl = route('plans.today', $activeSubscription->plan);
+                }
             }
-            $view->with('smartPlansRoute', $smartPlansRoute);
+
+            $view->with('smartPlansUrl', $smartPlansUrl);
         });
     }
 }

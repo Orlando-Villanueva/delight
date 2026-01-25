@@ -150,8 +150,8 @@ class User extends Authenticatable
     public function activeReadingPlan(): ?ReadingPlanSubscription
     {
         return $this->readingPlanSubscriptions()
+            ->where('is_active', true)
             ->with('plan')
-            ->latest('started_at')
             ->first();
     }
 
@@ -161,6 +161,6 @@ class User extends Authenticatable
     public function needsOnboarding(): bool
     {
         return $this->onboarding_dismissed_at === null
-            && !$this->readingLogs()->exists();
+            && ! $this->readingLogs()->exists();
     }
 }
