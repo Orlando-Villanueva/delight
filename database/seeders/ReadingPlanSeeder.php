@@ -198,7 +198,7 @@ class ReadingPlanSeeder extends Seeder
             ]
         );
 
-        $this->command->info("Seeded {$name} with ".count($days).' days.');
+        $this->command->info("Seeded {$name} with " . count($days) . ' days.');
     }
 
     /**
@@ -255,7 +255,19 @@ class ReadingPlanSeeder extends Seeder
     }
 
     /**
-     * Parse a single segment like "Gen 1-3" or "Gen 50".
+     * Single-chapter book IDs that can appear without a chapter number.
+     * These books only have one chapter, so we default to chapter 1.
+     */
+    private array $singleChapterBooks = [
+        31, // Obadiah
+        57, // Philemon
+        63, // 2 John
+        64, // 3 John
+        65, // Jude
+    ];
+
+    /**
+     * Parse a single segment like "Gen 1-3" or "Gen 50" or "Jude" (single-chapter book).
      */
     private function parseSegment(string $segment): array
     {
@@ -284,6 +296,20 @@ class ReadingPlanSeeder extends Seeder
                     'chapter' => $chapter,
                 ];
             }
+
+            return $chapters;
+        }
+
+        // Fallback: Check if this is a single-chapter book without a chapter number
+        $bookId = $this->getBookId(trim($segment));
+        if ($bookId !== null && in_array($bookId, $this->singleChapterBooks, true)) {
+            return [
+                [
+                    'book_id' => $bookId,
+                    'book_name' => $this->bookNames[$bookId],
+                    'chapter' => 1,
+                ],
+            ];
         }
 
         return $chapters;
@@ -385,6 +411,6 @@ class ReadingPlanSeeder extends Seeder
             $ranges[] = $start === $end ? (string) $start : "{$start}-{$end}";
         }
 
-        return $bookName.' '.implode(', ', $ranges);
+        return $bookName . ' ' . implode(', ', $ranges);
     }
 }
