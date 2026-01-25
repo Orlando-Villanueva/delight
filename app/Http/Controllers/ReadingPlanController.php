@@ -38,7 +38,7 @@ class ReadingPlanController extends Controller
             ];
         });
 
-        $hasActivePlan = $subscriptions->contains(fn ($sub) => $sub->is_active);
+        $hasActivePlan = $subscriptions->contains(fn($sub) => $sub->is_active);
 
         $viewData = [
             'plans' => $plansWithStatus,
@@ -181,7 +181,7 @@ class ReadingPlanController extends Controller
         $validated = $request->validate([
             'book_id' => 'required|integer|min:1|max:66',
             'chapter' => 'required|integer|min:1',
-            'day' => 'required|integer|min:1|max:'.$maxDay,
+            'day' => 'required|integer|min:1|max:' . $maxDay,
         ]);
 
         $dayNumber = min(max($validated['day'], 1), $maxDay);
@@ -228,7 +228,7 @@ class ReadingPlanController extends Controller
 
         $chaptersToLog = array_filter(
             $reading['chapters'],
-            fn ($ch) => ! $ch['completed']
+            fn($ch) => ! $ch['completed']
         );
 
         $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, Carbon::today());
@@ -257,7 +257,7 @@ class ReadingPlanController extends Controller
 
         if (! empty($unlinkedKeys)) {
             $chaptersToApply = array_values(array_filter($chapters, function ($chapter) use ($unlinkedKeys) {
-                return in_array($chapter['book_id'].'-'.$chapter['chapter'], $unlinkedKeys, true);
+                return in_array($chapter['book_id'] . '-' . $chapter['chapter'], $unlinkedKeys, true);
             }));
 
             if (! empty($chaptersToApply)) {
@@ -298,7 +298,7 @@ class ReadingPlanController extends Controller
 
         $maxDay = $plan->getDaysCount();
         $validated = $request->validate([
-            'day' => 'required|integer|min:1|max:'.$maxDay,
+            'day' => 'required|integer|min:1|max:' . $maxDay,
         ]);
         $dayNumber = min(max($validated['day'], 1), $maxDay);
         $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
@@ -385,7 +385,7 @@ class ReadingPlanController extends Controller
             ->distinct()
             ->get();
 
-        return $query->map(fn ($log) => $log->book_id.'-'.$log->chapter)->unique()->values()->toArray();
+        return $query->map(fn($log) => $log->book_id . '-' . $log->chapter)->unique()->values()->toArray();
     }
 
     /**
@@ -411,7 +411,7 @@ class ReadingPlanController extends Controller
 
         return [
             'plans' => $plansWithStatus,
-            'has_active_plan' => $subscriptions->contains(fn ($sub) => $sub->is_active),
+            'has_active_plan' => $subscriptions->contains(fn($sub) => $sub->is_active),
         ];
     }
 }

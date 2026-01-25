@@ -242,15 +242,15 @@
 
                             {{-- Navigation --}}
                             <div class="flex justify-between items-center">
-                                <a href="{{ route('plans.index') }}" hx-get="{{ route('plans.index') }}"
-                                    hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
-                                    class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                                <button type="button" hx-get="{{ route('plans.index') }}" hx-target="#page-container"
+                                    hx-swap="innerHTML" hx-push-url="true"
+                                    class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 cursor-pointer">
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M15 19l-7-7 7-7" />
                                     </svg>
                                     All Plans
-                                </a>
+                                </button>
                                 <form hx-delete="{{ route('plans.unsubscribe', $plan) }}" hx-target="#page-container"
                                     hx-swap="innerHTML"
                                     hx-confirm="Are you sure you want to leave this plan? Your progress will be reset.">
