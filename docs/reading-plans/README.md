@@ -8,19 +8,22 @@ Reading plans provide structured daily Bible reading schedules. Users can subscr
 
 ### Current Architecture
 
--   **One active plan at a time**: The UX focuses on a single "active" plan. `User::activeReadingPlan()` returns the most recently started subscription. While the database allows multiple subscriptions, all navigation and tracking centers on this single plan.
+-   **Multiple concurrent plans**: Users can subscribe to multiple reading plans simultaneously and switch between them at any time
 -   **Day-based progression**: Users complete all chapters in Day N before advancing to Day N+1
 -   **Flexible pacing**: Users can read ahead, but the "current day" only advances when completed
--   **Plan switching**: Subscribing to a new plan makes it the "active" plan. Old subscriptions are retained (preserving progress) but become inactive.
+-   **Independent progress**: Each plan tracks its own progress separately
 
 ### Routes
 
-| Route                              | Description                               |
-| ---------------------------------- | ----------------------------------------- |
-| `GET /plans`                       | List all available plans (subscribe here) |
-| `GET /plans/today`                 | Today's reading for the active plan       |
-| `POST /plans/{slug}/subscribe`     | Subscribe to a plan                       |
-| `DELETE /plans/{slug}/unsubscribe` | Leave a plan                              |
+| Route                                   | Description                        |
+| --------------------------------------- | ---------------------------------- |
+| `GET /plans`                            | List all available plans           |
+| `GET /plans/{slug}/today`               | Today's reading for a specific plan |
+| `POST /plans/{slug}/subscribe`          | Subscribe to a plan                |
+| `DELETE /plans/{slug}/unsubscribe`      | Unsubscribe from a plan            |
+| `POST /plans/{slug}/log-chapter`        | Log a single chapter               |
+| `POST /plans/{slug}/log-all`            | Mark entire day as complete        |
+| `POST /plans/{slug}/apply-readings`     | Apply unlinked readings to plan    |
 
 ---
 
@@ -217,23 +220,14 @@ php artisan db:seed --class=ChronologicalPlanSeeder
 
 ## Future Considerations
 
-### Plan Switching & History
+### Plan Management
 
-When a user subscribes to a new plan, the old subscription remains in the database. This preserves their progress if they return. Future enhancements:
+Current enhancements to consider:
 
-1. **"My Plans" view** - Show all subscriptions with status (active, paused, completed)
-2. **Explicit "Switch Plan" action** - Confirmation modal explaining progress is saved
-3. **Resume plan** - Button to re-activate a paused subscription (updates `started_at`)
-4. **Plan completion celebration** - Screen shown when all days are complete
-
-### Multiple Concurrent Plans (Future)
-
-If users request the ability to follow multiple plans simultaneously:
-
-1. **Update routes** to include plan identifier: `/plans/{slug}/today`
-2. **Update `activeReadingPlan()`** to return a collection or add a "primary plan" concept
-3. **Aggregate "Today's Reading"** - Combine readings from all active plans
-4. **Consider plan-specific bookmarks** for users to quickly access each plan
+1. **"My Plans" dashboard** - Dedicated page showing all subscribed plans with progress overview
+2. **Plan completion celebration** - Special screen/animation when a plan is completed
+3. **Plan statistics** - Show completion rate, average daily reading time, etc.
+4. **Plan reminders** - Optional notifications for uncompleted daily readings
 
 ### Plan Variants
 

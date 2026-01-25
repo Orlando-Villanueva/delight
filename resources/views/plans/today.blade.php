@@ -44,8 +44,8 @@
                                 <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
                                     <div class="flex items-center gap-2">
                                         @if ($day_number > 1)
-                                            <a href="{{ route('plans.today', ['day' => $day_number - 1]) }}"
-                                                hx-get="{{ route('plans.today', ['day' => $day_number - 1]) }}"
+                                            <a href="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number - 1]) }}"
+                                                hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number - 1]) }}"
                                                 hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                                 class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors">
                                                 Previous Day
@@ -57,8 +57,8 @@
                                             </span>
                                         @endif
                                         @if ($day_number < $total_days)
-                                            <a href="{{ route('plans.today', ['day' => $day_number + 1]) }}"
-                                                hx-get="{{ route('plans.today', ['day' => $day_number + 1]) }}"
+                                            <a href="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number + 1]) }}"
+                                                hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number + 1]) }}"
                                                 hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                                 class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors">
                                                 Next Day
@@ -71,8 +71,8 @@
                                         @endif
                                     </div>
                                     @if ($current_day !== $day_number)
-                                        <a href="{{ route('plans.today', ['day' => $current_day]) }}"
-                                            hx-get="{{ route('plans.today', ['day' => $current_day]) }}"
+                                        <a href="{{ route('plans.today', ['plan' => $plan, 'day' => $current_day]) }}"
+                                            hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $current_day]) }}"
                                             hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                             class="inline-flex items-center text-xs font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400">
                                             Go to Current Day
@@ -91,7 +91,7 @@
                                                 Day {{ $day_number }} Reading
                                             </h3>
                                             @if (!$reading['all_completed'])
-                                                <form hx-post="{{ route('plans.logAll') }}" hx-target="#reading-list-container"
+                                                <form hx-post="{{ route('plans.logAll', $plan) }}" hx-target="#reading-list-container"
                                                     hx-swap="outerHTML">
                                                     @csrf
                                                     <input type="hidden" name="day" value="{{ $day_number }}">
@@ -129,7 +129,7 @@
                                                     Found {{ $unlinked_today_chapters_count }} of
                                                     {{ $unlinked_today_chapters_total }} chapters from today.
                                                 </p>
-                                                <form hx-post="{{ route('plans.applyTodaysReadings') }}"
+                                                <form hx-post="{{ route('plans.applyTodaysReadings', $plan) }}"
                                                     hx-target="#reading-list-container" hx-swap="outerHTML"
                                                     class="flex items-center">
                                                     @csrf
@@ -170,7 +170,7 @@
                                                     </div>
 
                                                     @if (!$chapter['completed'])
-                                                        <form hx-post="{{ route('plans.logChapter') }}"
+                                                        <form hx-post="{{ route('plans.logChapter', $plan) }}"
                                                             hx-target="#reading-list-container" hx-swap="outerHTML">
                                                             @csrf
                                                             <input type="hidden" name="day" value="{{ $day_number }}">

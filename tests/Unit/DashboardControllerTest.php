@@ -2,7 +2,11 @@
 
 namespace Tests\Unit;
 
+use App\Models\ReadingLog;
+use App\Models\ReadingPlan;
+use App\Models\ReadingPlanSubscription;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -73,5 +77,82 @@ class DashboardControllerTest extends TestCase
 
         // Match current content
         $response->assertSee('Weekly Journey');
+    }
+
+    public function test_index_uses_latest_incomplete_plan_for_cta()
+    {
+        Carbon::setTestNow('2026-01-10');
+
+        $olderPlan = ReadingPlan::create([
+            'slug' => 'older-plan',
+            'name' => 'Older Plan',
+            'description' => 'Older plan description',
+            'days' => [
+                [
+                    'day' => 1,
+                    'label' => 'Genesis 1',
+                    'chapters' => [
+                        ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 1],
+                    ],
+                ],
+                [
+                    'day' => 2,
+                    'label' => 'Genesis 2',
+                    'chapters' => [
+                        ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 2],
+                    ],
+                ],
+            ],
+            'is_active' => true,
+        ]);
+
+        $newerPlan = ReadingPlan::create([
+            'slug' => 'newer-plan',
+            'name' => 'Newer Plan',
+            'description' => 'Newer plan description',
+            'days' => [
+                [
+                    'day' => 1,
+                    'label' => 'Matthew 1',
+                    'chapters' => [
+                        ['book_id' => 40, 'book_name' => 'Matthew', 'chapter' => 1],
+                    ],
+                ],
+            ],
+            'is_active' => true,
+        ]);
+
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $olderPlan->id,
+            'started_at' => Carbon::today()->subDays(2),
+        ]);
+
+        $newerSubscription = ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $newerPlan->id,
+            'started_at' => Carbon::today()->subDay(),
+        ]);
+
+        ReadingLog::create([
+            'user_id' => $this->user->id,
+            'reading_plan_subscription_id' => $newerSubscription->id,
+            'reading_plan_day' => 1,
+            'book_id' => 40,
+            'chapter' => 1,
+            'passage_text' => 'Matthew 1',
+            'date_read' => Carbon::today(),
+        ]);
+
+        $response = $this->get('/dashboard');
+
+        $response->assertViewHas('planCta', function ($planCta) use ($olderPlan) {
+            $this->assertTrue($planCta['showPlanCta']);
+            $this->assertSame($olderPlan->id, $planCta['plan']->id);
+
+            return true;
+        });
+
+        Carbon::setTestNow();
     }
 }

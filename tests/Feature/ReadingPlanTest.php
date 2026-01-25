@@ -77,7 +77,7 @@ describe('Reading Plan Subscription', function () {
         $response = $this->actingAs($this->user)
             ->post(route('plans.subscribe', $this->plan));
 
-        $response->assertRedirect(route('plans.today'));
+        $response->assertRedirect(route('plans.today', $this->plan));
 
         $this->assertDatabaseHas('reading_plan_subscriptions', [
             'user_id' => $this->user->id,
@@ -134,7 +134,7 @@ describe('Reading Plan Subscription', function () {
 describe("Today's Reading", function () {
     it('redirects to plans index if not subscribed', function () {
         $response = $this->actingAs($this->user)
-            ->get(route('plans.today'));
+            ->get(route('plans.today', $this->plan));
 
         $response->assertRedirect(route('plans.index'));
     });
@@ -147,7 +147,7 @@ describe("Today's Reading", function () {
         ]);
 
         $response = $this->actingAs($this->user)
-            ->get(route('plans.today'));
+            ->get(route('plans.today', $this->plan));
 
         $response->assertOk();
         $response->assertSee('Genesis 1-3');
@@ -162,7 +162,7 @@ describe("Today's Reading", function () {
         ]);
 
         $response = $this->actingAs($this->user)
-            ->get(route('plans.today'));
+            ->get(route('plans.today', $this->plan));
 
         $response->assertOk();
         $response->assertSee('Genesis 1-3');
@@ -189,7 +189,7 @@ describe("Today's Reading", function () {
         }
 
         $response = $this->actingAs($this->user)
-            ->get(route('plans.today'));
+            ->get(route('plans.today', $this->plan));
 
         $response->assertOk();
         $response->assertSee('Genesis 4-6');
@@ -204,7 +204,7 @@ describe("Today's Reading", function () {
         ]);
 
         $response = $this->actingAs($this->user)
-            ->get(route('plans.today', ['day' => 2]));
+            ->get(route('plans.today', ['plan' => $this->plan, 'day' => 2]));
 
         $response->assertOk();
         $response->assertSee('Genesis 4-6');
@@ -223,7 +223,7 @@ describe('Chapter Logging', function () {
 
     it('logs a single chapter', function () {
         $response = $this->actingAs($this->user)
-            ->post(route('plans.logChapter'), [
+            ->post(route('plans.logChapter', $this->plan), [
                 'book_id' => 1,
                 'chapter' => 1,
                 'day' => 1,
@@ -244,7 +244,7 @@ describe('Chapter Logging', function () {
 
     it('logs all chapters at once', function () {
         $response = $this->actingAs($this->user)
-            ->post(route('plans.logAll'), [
+            ->post(route('plans.logAll', $this->plan), [
                 'day' => 1,
             ]);
 
@@ -268,7 +268,7 @@ describe('Chapter Logging', function () {
         ]);
 
         $this->actingAs($this->user)
-            ->post(route('plans.applyTodaysReadings'), [
+            ->post(route('plans.applyTodaysReadings', $this->plan), [
                 'day' => 1,
             ])
             ->assertOk();
@@ -295,7 +295,7 @@ describe('Chapter Logging', function () {
         ]);
 
         $this->actingAs($this->user)
-            ->post(route('plans.logChapter'), [
+            ->post(route('plans.logChapter', $plan), [
                 'book_id' => 1,
                 'chapter' => 1,
                 'day' => 2,
@@ -303,7 +303,7 @@ describe('Chapter Logging', function () {
             ->assertStatus(404);
 
         $this->actingAs($this->user)
-            ->post(route('plans.logAll'), [
+            ->post(route('plans.logAll', $plan), [
                 'day' => 2,
             ])
             ->assertStatus(404);
@@ -323,7 +323,7 @@ describe('Chapter Logging', function () {
 
         // Try to log all
         $this->actingAs($this->user)
-            ->post(route('plans.logAll'), [
+            ->post(route('plans.logAll', $this->plan), [
                 'day' => 1,
             ]);
 
@@ -337,7 +337,7 @@ describe('Chapter Logging', function () {
         Carbon::setTestNow('2026-01-01');
 
         $this->actingAs($this->user)
-            ->post(route('plans.logAll'), [
+            ->post(route('plans.logAll', $this->plan), [
                 'day' => 1,
             ])
             ->assertOk();
@@ -345,7 +345,7 @@ describe('Chapter Logging', function () {
         Carbon::setTestNow('2026-01-03');
 
         $this->actingAs($this->user)
-            ->post(route('plans.logChapter'), [
+            ->post(route('plans.logChapter', $this->plan), [
                 'book_id' => 1,
                 'chapter' => 1,
                 'day' => 1,
@@ -372,7 +372,7 @@ describe('Chapter Logging', function () {
         ]);
 
         $response = $this->actingAs($this->user)
-            ->get(route('plans.today'));
+            ->get(route('plans.today', $this->plan));
 
         $response->assertOk();
         // The completed chapter should show with green styling

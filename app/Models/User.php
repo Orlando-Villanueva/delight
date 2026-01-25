@@ -146,6 +146,9 @@ class User extends Authenticatable
 
     /**
      * Get the user's active reading plan subscription.
+     *
+     * @deprecated Use readingPlanSubscriptions() directly. The concept of a single "active" plan
+     *             has been removed. Users can now be subscribed to multiple plans simultaneously.
      */
     public function activeReadingPlan(): ?ReadingPlanSubscription
     {
@@ -161,6 +164,6 @@ class User extends Authenticatable
     public function needsOnboarding(): bool
     {
         return $this->onboarding_dismissed_at === null
-            && !$this->readingLogs()->exists();
+            && ! $this->readingLogs()->exists();
     }
 }

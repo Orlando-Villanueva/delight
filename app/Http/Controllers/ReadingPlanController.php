@@ -48,7 +48,6 @@ class ReadingPlanController extends Controller
         return view('plans.index', $viewData);
     }
 
-
     /**
      * Subscribe to a reading plan.
      */
@@ -61,10 +60,10 @@ class ReadingPlanController extends Controller
             // Redirect to today's reading after subscribing
             return response()
                 ->htmx('plans.today', 'content', $this->getTodayViewData($subscription))
-                ->header('HX-Push-Url', route('plans.today'));
+                ->header('HX-Push-Url', route('plans.today', $plan));
         }
 
-        return redirect()->route('plans.today')
+        return redirect()->route('plans.today', $plan)
             ->with('success', "You've subscribed to {$plan->name}!");
     }
 
@@ -87,12 +86,14 @@ class ReadingPlanController extends Controller
     }
 
     /**
-     * Display today's reading for the user's active plan.
+     * Display today's reading for a specific plan.
      */
-    public function today(Request $request)
+    public function today(Request $request, ReadingPlan $plan)
     {
         $user = $request->user();
-        $subscription = $user->activeReadingPlan();
+        $subscription = $user->readingPlanSubscriptions()
+            ->where('reading_plan_id', $plan->id)
+            ->first();
 
         if (! $subscription) {
             if ($request->header('HX-Request')) {
@@ -102,7 +103,7 @@ class ReadingPlanController extends Controller
             }
 
             return redirect()->route('plans.index')
-                ->with('info', 'Subscribe to a reading plan to see your daily reading.');
+                ->with('info', 'Subscribe to this plan to see your daily reading.');
         }
 
         $totalDays = $subscription->plan->getDaysCount();
@@ -124,20 +125,22 @@ class ReadingPlanController extends Controller
     /**
      * Log a single chapter from today's reading.
      */
-    public function logChapter(Request $request)
+    public function logChapter(Request $request, ReadingPlan $plan)
     {
         $user = $request->user();
-        $subscription = $user->activeReadingPlan();
+        $subscription = $user->readingPlanSubscriptions()
+            ->where('reading_plan_id', $plan->id)
+            ->first();
 
         if (! $subscription) {
-            return response()->json(['error' => 'No active subscription'], 400);
+            return response()->json(['error' => 'No subscription found'], 400);
         }
 
-        $maxDay = $subscription->plan->getDaysCount();
+        $maxDay = $plan->getDaysCount();
         $validated = $request->validate([
             'book_id' => 'required|integer|min:1|max:66',
             'chapter' => 'required|integer|min:1',
-            'day' => 'required|integer|min:1|max:' . $maxDay,
+            'day' => 'required|integer|min:1|max:'.$maxDay,
         ]);
 
         $dayNumber = min(max($validated['day'], 1), $maxDay);
@@ -168,9 +171,9 @@ class ReadingPlanController extends Controller
     /**
      * Log all chapters from today's reading.
      */
-    public function logAll(Request $request)
+    public function logAll(Request $request, ReadingPlan $plan)
     {
-        $result = $this->getValidatedDayReading($request);
+        $result = $this->getValidatedDayReading($request, $plan);
 
         if ($result instanceof JsonResponse) {
             return $result;
@@ -184,7 +187,7 @@ class ReadingPlanController extends Controller
 
         $chaptersToLog = array_filter(
             $reading['chapters'],
-            fn($ch) => ! $ch['completed']
+            fn ($ch) => ! $ch['completed']
         );
 
         $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, Carbon::today());
@@ -198,9 +201,9 @@ class ReadingPlanController extends Controller
     /**
      * Apply today's existing logs to the current plan day.
      */
-    public function applyTodaysReadings(Request $request)
+    public function applyTodaysReadings(Request $request, ReadingPlan $plan)
     {
-        $result = $this->getValidatedDayReading($request);
+        $result = $this->getValidatedDayReading($request, $plan);
 
         if ($result instanceof JsonResponse) {
             return $result;
@@ -213,7 +216,7 @@ class ReadingPlanController extends Controller
 
         if (! empty($unlinkedKeys)) {
             $chaptersToApply = array_values(array_filter($chapters, function ($chapter) use ($unlinkedKeys) {
-                return in_array($chapter['book_id'] . '-' . $chapter['chapter'], $unlinkedKeys, true);
+                return in_array($chapter['book_id'].'-'.$chapter['chapter'], $unlinkedKeys, true);
             }));
 
             if (! empty($chaptersToApply)) {
@@ -237,18 +240,20 @@ class ReadingPlanController extends Controller
      *
      * @return array{user: \App\Models\User, subscription: \App\Models\ReadingPlanSubscription, dayNumber: int, reading: array}|JsonResponse
      */
-    private function getValidatedDayReading(Request $request): array|JsonResponse
+    private function getValidatedDayReading(Request $request, ReadingPlan $plan): array|JsonResponse
     {
         $user = $request->user();
-        $subscription = $user->activeReadingPlan();
+        $subscription = $user->readingPlanSubscriptions()
+            ->where('reading_plan_id', $plan->id)
+            ->first();
 
         if (! $subscription) {
-            return response()->json(['error' => 'No active subscription'], 400);
+            return response()->json(['error' => 'No subscription found'], 400);
         }
 
-        $maxDay = $subscription->plan->getDaysCount();
+        $maxDay = $plan->getDaysCount();
         $validated = $request->validate([
-            'day' => 'required|integer|min:1|max:' . $maxDay,
+            'day' => 'required|integer|min:1|max:'.$maxDay,
         ]);
         $dayNumber = min(max($validated['day'], 1), $maxDay);
         $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
@@ -321,7 +326,7 @@ class ReadingPlanController extends Controller
             ->distinct()
             ->get();
 
-        return $query->map(fn($log) => $log->book_id . '-' . $log->chapter)->unique()->values()->toArray();
+        return $query->map(fn ($log) => $log->book_id.'-'.$log->chapter)->unique()->values()->toArray();
     }
 
     /**

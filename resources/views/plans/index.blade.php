@@ -34,7 +34,7 @@
                                                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
                                                     {{ $plan->name }}
                                                 </h3>
-                                                <a href="{{ route('plans.today') }}" hx-get="{{ route('plans.today') }}"
+                                                <a href="{{ route('plans.today', $plan) }}" hx-get="{{ route('plans.today', $plan) }}"
                                                     hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                                     class="order-last sm:order-none w-full sm:w-auto flex-shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor"

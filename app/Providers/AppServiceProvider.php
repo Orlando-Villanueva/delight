@@ -39,13 +39,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Smart routing for Reading Plans navigation
-        // Users with active plans go directly to today's reading
+        // All users go to plans index where they can see and access all their subscribed plans
         View::composer(['components.navigation.mobile-bottom-bar', 'components.navigation.desktop-sidebar'], function ($view) {
-            $smartPlansRoute = 'plans.index';
-            if (auth()->check() && auth()->user()->activeReadingPlan()) {
-                $smartPlansRoute = 'plans.today';
-            }
-            $view->with('smartPlansRoute', $smartPlansRoute);
+            $view->with('smartPlansRoute', 'plans.index');
         });
     }
 }

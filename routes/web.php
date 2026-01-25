@@ -100,12 +100,12 @@ Route::middleware('auth')->group(function () {
 
     // Reading Plans
     Route::get('/plans', [ReadingPlanController::class, 'index'])->name('plans.index');
-    Route::get('/plans/today', [ReadingPlanController::class, 'today'])->name('plans.today');
     Route::post('/plans/{plan:slug}/subscribe', [ReadingPlanController::class, 'subscribe'])->name('plans.subscribe');
     Route::delete('/plans/{plan:slug}/unsubscribe', [ReadingPlanController::class, 'unsubscribe'])->name('plans.unsubscribe');
-    Route::post('/plans/today/log-chapter', [ReadingPlanController::class, 'logChapter'])->name('plans.logChapter');
-    Route::post('/plans/today/log-all', [ReadingPlanController::class, 'logAll'])->name('plans.logAll');
-    Route::post('/plans/today/apply-readings', [ReadingPlanController::class, 'applyTodaysReadings'])
+    Route::get('/plans/{plan:slug}/today', [ReadingPlanController::class, 'today'])->name('plans.today');
+    Route::post('/plans/{plan:slug}/log-chapter', [ReadingPlanController::class, 'logChapter'])->name('plans.logChapter');
+    Route::post('/plans/{plan:slug}/log-all', [ReadingPlanController::class, 'logAll'])->name('plans.logAll');
+    Route::post('/plans/{plan:slug}/apply-readings', [ReadingPlanController::class, 'applyTodaysReadings'])
         ->name('plans.applyTodaysReadings');
 
     // Onboarding

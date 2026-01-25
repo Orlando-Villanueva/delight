@@ -92,27 +92,37 @@ class DashboardController extends Controller
     }
 
     /**
-     * Get reading plan CTA data for dashboard.
+     * Get reading plan CTA data for the weekly journey card.
      */
     private function getReadingPlanCtaData($user): array
     {
-        $subscription = $user->activeReadingPlan();
+        $subscriptions = $user->readingPlanSubscriptions()
+            ->with('plan')
+            ->latest('started_at')
+            ->get();
 
-        if (! $subscription) {
-            return ['showPlanCta' => false];
-        }
+        foreach ($subscriptions as $subscription) {
+            $reading = $this->planService->getTodaysReadingWithStatus($subscription);
 
-        $reading = $this->planService->getTodaysReadingWithStatus($subscription);
+            if (! $reading || $reading['all_completed']) {
+                continue;
+            }
 
-        if (! $reading || $reading['all_completed']) {
-            return ['showPlanCta' => false];
+            return [
+                'showPlanCta' => true,
+                'plan' => $subscription->plan,
+                'planLabel' => $reading['label'],
+                'completedCount' => $reading['completed_count'],
+                'totalCount' => $reading['total_count'],
+            ];
         }
 
         return [
-            'showPlanCta' => true,
-            'planLabel' => $reading['label'],
-            'completedCount' => $reading['completed_count'],
-            'totalCount' => $reading['total_count'],
+            'showPlanCta' => false,
+            'plan' => null,
+            'planLabel' => null,
+            'completedCount' => null,
+            'totalCount' => null,
         ];
     }
 }

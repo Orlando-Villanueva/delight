@@ -156,7 +156,29 @@ class ReadingPlanSeeder extends Seeder
      */
     public function run(): void
     {
-        $csvPath = database_path('data/reading-plans/standard-canonical.csv');
+        // Seed Canonical Plan
+        $this->seedPlan(
+            'standard-canonical',
+            'Canonical Bible Reading Plan',
+            'Read through the Bible in the traditional order, from Genesis to Revelation. Perfect for those who want to experience Scripture as the books appear in your Bible.',
+            'standard-canonical.csv'
+        );
+
+        // Seed Chronological Plan
+        $this->seedPlan(
+            'chronological',
+            'Chronological Bible Reading Plan',
+            'Experience the Bible\'s story as events unfolded in history, from Creation to the Early Church. Provides unique context by following the historical timeline.',
+            'chronological.csv'
+        );
+    }
+
+    /**
+     * Seed a single reading plan from a CSV file.
+     */
+    private function seedPlan(string $slug, string $name, string $description, string $csvFile): void
+    {
+        $csvPath = database_path("data/reading-plans/{$csvFile}");
 
         if (! file_exists($csvPath)) {
             $this->command->error("CSV file not found: {$csvPath}");
@@ -167,16 +189,16 @@ class ReadingPlanSeeder extends Seeder
         $days = $this->parseCsv($csvPath);
 
         ReadingPlan::updateOrCreate(
-            ['slug' => 'standard-canonical'],
+            ['slug' => $slug],
             [
-                'name' => 'Read the Bible in a Year',
-                'description' => 'A 365-day journey through the entire Bible in canonical order. Perfect for establishing a consistent daily reading habit.',
+                'name' => $name,
+                'description' => $description,
                 'days' => $days,
                 'is_active' => true,
             ]
         );
 
-        $this->command->info('Seeded Standard Canonical reading plan with '.count($days).' days.');
+        $this->command->info("Seeded {$name} with ".count($days).' days.');
     }
 
     /**
