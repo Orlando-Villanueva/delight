@@ -38,7 +38,7 @@ class ReadingPlanController extends Controller
             ];
         });
 
-        $hasActivePlan = $subscriptions->contains(fn($sub) => $sub->is_active);
+        $hasActivePlan = $subscriptions->contains(fn ($sub) => $sub->is_active);
 
         $viewData = [
             'plans' => $plansWithStatus,
@@ -62,8 +62,10 @@ class ReadingPlanController extends Controller
 
         if ($request->header('HX-Request')) {
             // Redirect to today's reading after subscribing
-            return response()
-                ->htmx('plans.today', 'content', $this->getTodayViewData($subscription))
+            $mainContent = view('plans.today', $this->getTodayViewData($subscription))->fragment('content');
+            $oobContent = $this->getNavOobFragment($user);
+
+            return response($mainContent.$oobContent)
                 ->header('HX-Push-Url', route('plans.today', $plan));
         }
 
@@ -80,8 +82,10 @@ class ReadingPlanController extends Controller
         $this->planService->unsubscribe($user, $plan);
 
         if ($request->header('HX-Request')) {
-            return response()
-                ->htmx('plans.index', 'content', $this->getPlansWithStatus($user))
+            $mainContent = view('plans.index', $this->getPlansWithStatus($user))->fragment('content');
+            $oobContent = $this->getNavOobFragment($user);
+
+            return response($mainContent.$oobContent)
                 ->header('HX-Push-Url', route('plans.index'));
         }
 
@@ -113,8 +117,10 @@ class ReadingPlanController extends Controller
         $this->planService->activate($subscription);
 
         if ($request->header('HX-Request')) {
-            return response()
-                ->htmx('plans.today', 'reading-list', $this->getTodayViewData($subscription->fresh()))
+            $mainContent = view('plans.today', $this->getTodayViewData($subscription->fresh()))->fragment('reading-list');
+            $oobContent = $this->getNavOobFragment($user);
+
+            return response($mainContent.$oobContent)
                 ->header('HX-Push-Url', route('plans.today', $plan));
         }
 
@@ -181,7 +187,7 @@ class ReadingPlanController extends Controller
         $validated = $request->validate([
             'book_id' => 'required|integer|min:1|max:66',
             'chapter' => 'required|integer|min:1',
-            'day' => 'required|integer|min:1|max:' . $maxDay,
+            'day' => 'required|integer|min:1|max:'.$maxDay,
         ]);
 
         $dayNumber = min(max($validated['day'], 1), $maxDay);
@@ -228,7 +234,7 @@ class ReadingPlanController extends Controller
 
         $chaptersToLog = array_filter(
             $reading['chapters'],
-            fn($ch) => ! $ch['completed']
+            fn ($ch) => ! $ch['completed']
         );
 
         $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, Carbon::today());
@@ -257,7 +263,7 @@ class ReadingPlanController extends Controller
 
         if (! empty($unlinkedKeys)) {
             $chaptersToApply = array_values(array_filter($chapters, function ($chapter) use ($unlinkedKeys) {
-                return in_array($chapter['book_id'] . '-' . $chapter['chapter'], $unlinkedKeys, true);
+                return in_array($chapter['book_id'].'-'.$chapter['chapter'], $unlinkedKeys, true);
             }));
 
             if (! empty($chaptersToApply)) {
@@ -298,7 +304,7 @@ class ReadingPlanController extends Controller
 
         $maxDay = $plan->getDaysCount();
         $validated = $request->validate([
-            'day' => 'required|integer|min:1|max:' . $maxDay,
+            'day' => 'required|integer|min:1|max:'.$maxDay,
         ]);
         $dayNumber = min(max($validated['day'], 1), $maxDay);
         $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
@@ -385,7 +391,7 @@ class ReadingPlanController extends Controller
             ->distinct()
             ->get();
 
-        return $query->map(fn($log) => $log->book_id . '-' . $log->chapter)->unique()->values()->toArray();
+        return $query->map(fn ($log) => $log->book_id.'-'.$log->chapter)->unique()->values()->toArray();
     }
 
     /**
@@ -411,7 +417,29 @@ class ReadingPlanController extends Controller
 
         return [
             'plans' => $plansWithStatus,
-            'has_active_plan' => $subscriptions->contains(fn($sub) => $sub->is_active),
+            'has_active_plan' => $subscriptions->contains(fn ($sub) => $sub->is_active),
         ];
+    }
+
+    /**
+     * Get the OOB fragment for updating navigation links.
+     *
+     * Computes the correct URL for the Reading Plans navigation link based on
+     * the user's active subscription state, then renders the OOB partial.
+     */
+    private function getNavOobFragment($user): string
+    {
+        $smartPlansUrl = route('plans.index');
+
+        $activeSubscription = $user->readingPlanSubscriptions()
+            ->where('is_active', true)
+            ->with('plan')
+            ->first();
+
+        if ($activeSubscription && $activeSubscription->plan) {
+            $smartPlansUrl = route('plans.today', $activeSubscription->plan);
+        }
+
+        return view('partials.plans-nav-oob', ['smartPlansUrl' => $smartPlansUrl])->render();
     }
 }

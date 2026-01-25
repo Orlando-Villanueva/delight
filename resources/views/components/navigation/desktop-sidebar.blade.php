@@ -21,7 +21,7 @@
                     </x-slot:icon>
                 </x-navigation.nav-link>
             </li>
-            <li>
+            <li id="desktop-plans-link">
                 <x-navigation.nav-link :url="$smartPlansUrl" label="Reading Plans" variant="sidebar">
                     <x-slot:icon>
                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
