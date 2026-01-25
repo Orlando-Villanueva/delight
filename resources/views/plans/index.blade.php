@@ -28,16 +28,16 @@
                                 <div class="p-6">
                                     @if ($isSubscribed && $subscription)
                                         {{-- Subscribed Plan Card - Streamlined for quick action --}}
-                                        <div>
+                                        <div class="relative">
                                             {{-- Header row: Title + CTA (CTA moves to bottom on mobile) --}}
                                             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                                                <div class="flex items-center gap-2">
+                                                <div class="flex items-center justify-between sm:justify-start gap-2">
                                                     <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
                                                         {{ $plan->name }}
                                                     </h3>
                                                     @if (!$subscription->is_active)
                                                         <span
-                                                            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
                                                             Paused
                                                         </span>
                                                     @endif
@@ -108,22 +108,17 @@
                                     @else
                                         {{-- Unsubscribed Plan Card --}}
                                         <div class="relative">
-                                            {{-- Days pill - top right on mobile --}}
-                                            <span
-                                                class="sm:hidden absolute top-0 right-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                                                {{ $plan->getDaysCount() }} days
-                                            </span>
-
                                             {{-- Content wrapper with responsive ordering --}}
                                             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                                                <div class="flex-1 pr-16 sm:pr-0">
+                                                <div class="flex-1">
                                                     {{-- Title + inline pill on desktop --}}
-                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                    <div
+                                                        class="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
                                                         <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
                                                             {{ $plan->name }}
                                                         </h3>
                                                         <span
-                                                            class="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                                                             {{ $plan->getDaysCount() }} days
                                                         </span>
                                                     </div>
@@ -133,9 +128,7 @@
                                                 </div>
                                                 <form hx-post="{{ route('plans.subscribe', $plan) }}"
                                                     hx-target="#page-container" hx-swap="innerHTML"
-                                                    @if ($has_active_plan)
-                                                        hx-confirm="Starting this plan will pause your current active plan. Continue?"
-                                                    @endif
+                                                    @if ($has_active_plan) hx-confirm="Starting this plan will pause your current active plan. Continue?" @endif
                                                     class="order-last sm:order-none w-full sm:w-auto flex-shrink-0">
                                                     @csrf
                                                     <button type="submit"

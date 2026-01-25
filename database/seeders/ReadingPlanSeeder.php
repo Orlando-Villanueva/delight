@@ -106,7 +106,7 @@ class ReadingPlanSeeder extends Seeder
         // Seed Canonical Plan
         $this->seedPlan(
             'standard-canonical',
-            'Canonical Bible Reading Plan',
+            'Canonical Reading Plan',
             'Read through the Bible in the traditional order, from Genesis to Revelation. Perfect for those who want to experience Scripture as the books appear in your Bible.',
             'standard-canonical.csv'
         );
@@ -114,7 +114,7 @@ class ReadingPlanSeeder extends Seeder
         // Seed Chronological Plan
         $this->seedPlan(
             'chronological',
-            'Chronological Bible Reading Plan',
+            'Chronological Reading Plan',
             'Experience the Bible\'s story as events unfolded in history, from Creation to the Early Church. Provides unique context by following the historical timeline.',
             'chronological.csv'
         );

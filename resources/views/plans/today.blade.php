@@ -144,19 +144,22 @@
 
                                         @if (!$is_active)
                                             <div
-                                                class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200/60 bg-amber-50/50 px-3 py-2 text-amber-900 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-100">
-                                                <p class="text-sm leading-none text-amber-800 dark:text-amber-200">
-                                                    <span class="font-medium">Plan paused.</span> Resume to continue logging.
+                                                class="mb-4 flex flex-col items-center gap-3 rounded-lg border border-gray-200/60 bg-gray-50/50 px-4 py-4 text-gray-900 dark:border-gray-700/60 dark:bg-gray-800/50 dark:text-gray-100 sm:flex-row sm:justify-between sm:gap-2 sm:px-3 sm:py-2">
+                                                <p
+                                                    class="text-center text-sm leading-relaxed text-gray-700 dark:text-gray-300 sm:text-left sm:leading-none">
+                                                    <span class="font-semibold">Plan paused.</span> Resume to continue logging.
                                                 </p>
                                                 <form hx-post="{{ route('plans.activate', $plan) }}"
                                                     hx-target="#reading-list-container" hx-swap="outerHTML"
-                                                    @if ($has_other_active_plan)
-                                                        hx-confirm="This will pause your current active plan. Continue?"
-                                                    @endif
-                                                    class="flex items-center">
+                                                    @if ($has_other_active_plan) hx-confirm="This will pause your current active plan. Continue?" @endif
+                                                    class="w-full sm:w-auto">
                                                     @csrf
                                                     <button type="submit"
-                                                        class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors">
+                                                        class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 sm:w-auto sm:px-3 sm:py-1.5">
+                                                        <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 16 16">
+                                                            <path
+                                                                d="M10.804 8 5 4.633v6.734zm.792-.696a.802.802 0 0 1 0 1.392l-6.363 3.692C4.713 12.69 4 12.345 4 11.692V4.308c0-.653.713-.998 1.233-.696z" />
+                                                        </svg>
                                                         Resume Plan
                                                     </button>
                                                 </form>
