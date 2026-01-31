@@ -26,13 +26,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Only rollback rows that were set by this backfill (exact timestamp match)
+        // This prevents wiping out legitimate celebration timestamps set by normal app usage
         DB::table('users')
-            ->whereNotNull('celebrated_first_reading_at')
-            ->whereExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('reading_logs')
-                    ->whereColumn('reading_logs.user_id', 'users.id');
-            })
+            ->where('celebrated_first_reading_at', Carbon::parse('2026-01-31 14:29:26'))
             ->update(['celebrated_first_reading_at' => null]);
     }
 };
