@@ -48,16 +48,24 @@ class ReadingLogService
             ->exists();
 
         // Check if this is the first reading ever (for celebration)
-        $shouldCelebrate = ! $user->hasEverCelebratedFirstReading()
-            && ! $user->readingLogs()->exists();
+        // Wrapped in transaction to prevent race conditions where multiple requests
+        // could trigger the celebration simultaneously
+        $shouldCelebrate = DB::transaction(function () use ($user) {
+            $lockedUser = User::where('id', $user->id)->lockForUpdate()->first();
+
+            if (! $lockedUser->hasEverCelebratedFirstReading()
+                && ! $lockedUser->readingLogs()->exists()) {
+                $user->update(['celebrated_first_reading_at' => now()]);
+
+                return true;
+            }
+
+            return false;
+        });
 
         // Handle multiple chapters if provided
         if (isset($data['chapters']) && is_array($data['chapters'])) {
             $log = $this->logMultipleChapters($user, $data, $hasReadToday);
-
-            if ($shouldCelebrate) {
-                $user->update(['celebrated_first_reading_at' => now()]);
-            }
 
             return $log;
         }
@@ -78,10 +86,6 @@ class ReadingLogService
         $this->invalidateUserStatisticsCache($user, ! $hasReadToday);
 
         // Server-side state updated - HTMX will handle UI updates
-
-        if ($shouldCelebrate) {
-            $user->update(['celebrated_first_reading_at' => now()]);
-        }
 
         return $readingLog;
     }
