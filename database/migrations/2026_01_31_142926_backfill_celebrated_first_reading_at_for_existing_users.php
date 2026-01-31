@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
@@ -17,7 +18,7 @@ return new class extends Migration
                     ->from('reading_logs')
                     ->whereColumn('reading_logs.user_id', 'users.id');
             })
-            ->update(['celebrated_first_reading_at' => now()]);
+            ->update(['celebrated_first_reading_at' => Carbon::parse('2026-01-31 14:29:26')]);
     }
 
     /**
