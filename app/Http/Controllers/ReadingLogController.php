@@ -96,8 +96,19 @@ class ReadingLogController extends Controller
                 $validated['chapter'] = $start;
             }
 
+            $user = $request->user();
+
+            // Check if this is the user's first reading celebration (before creating log)
+            $isFirstReading = ! $user->hasEverCelebratedFirstReading()
+                && $user->readingLogs()->count() === 0;
+
             // Create reading log using service
-            $log = $this->readingLogService->logReading($request->user(), $validated);
+            $log = $this->readingLogService->logReading($user, $validated);
+
+            // If this was their first reading, mark celebration timestamp
+            if ($isFirstReading) {
+                $user->update(['celebrated_first_reading_at' => now()]);
+            }
 
             // Check if this is an HTMX request for the form replacement
             if ($request->header('HX-Request')) {
@@ -111,7 +122,7 @@ class ReadingLogController extends Controller
 
                 // Return just the form fragment with success message and reset form
                 return response()->htmx('logs.create', 'reading-form', array_merge(
-                    compact('books', 'errors', 'successMessage'),
+                    compact('books', 'errors', 'successMessage', 'isFirstReading'),
                     $formContext
                 ))->header('HX-Trigger', 'readingLogAdded');
             } else {

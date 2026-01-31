@@ -25,6 +25,7 @@ class User extends Authenticatable
         'password',
         'avatar_url',
         'onboarding_dismissed_at',
+        'celebrated_first_reading_at',
     ];
 
     /**
@@ -48,6 +49,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'onboarding_dismissed_at' => 'datetime',
+            'celebrated_first_reading_at' => 'datetime',
         ];
     }
 
@@ -162,5 +164,13 @@ class User extends Authenticatable
     {
         return $this->onboarding_dismissed_at === null
             && ! $this->readingLogs()->exists();
+    }
+
+    /**
+     * Check if the user has ever celebrated their first reading.
+     */
+    public function hasEverCelebratedFirstReading(): bool
+    {
+        return $this->celebrated_first_reading_at !== null;
     }
 }
