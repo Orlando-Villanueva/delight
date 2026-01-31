@@ -1,5 +1,5 @@
 <div id="onboarding-modal" tabindex="-1" data-modal-backdrop="static" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" hx-history="false"
-    class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-stack-modal justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+    class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-stack-modal justify-center items-center w-full md:inset-0 h-full max-h-full focus:outline-none">
     <div class="relative p-4 w-full max-w-lg max-h-full transition-all duration-300 transform scale-95 opacity-0 animate-in fade-in zoom-in-95 fill-mode-forwards">
         <div class="relative bg-white rounded-xl shadow-2xl dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div class="p-6 sm:p-8">
