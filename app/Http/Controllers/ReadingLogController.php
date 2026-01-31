@@ -98,17 +98,11 @@ class ReadingLogController extends Controller
 
             $user = $request->user();
 
-            // Check if this is the user's first reading celebration (before creating log)
-            $isFirstReading = ! $user->hasEverCelebratedFirstReading()
-                && $user->readingLogs()->count() === 0;
-
             // Create reading log using service
             $log = $this->readingLogService->logReading($user, $validated);
 
-            // If this was their first reading, mark celebration timestamp
-            if ($isFirstReading) {
-                $user->update(['celebrated_first_reading_at' => now()]);
-            }
+            // Check if this was the user's first reading celebration
+            $isFirstReading = $user->wasChanged('celebrated_first_reading_at');
 
             // Check if this is an HTMX request for the form replacement
             if ($request->header('HX-Request')) {

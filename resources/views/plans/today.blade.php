@@ -9,7 +9,40 @@
             <div id="main-content">
                 <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
                     @fragment('reading-list')
-                        <div id="reading-list-container" class="space-y-6">
+                        <div id="reading-list-container">
+                            @if (isset($isFirstReading) && $isFirstReading)
+                                <div id="first-reading-celebration" class="py-12 text-center" data-is-first-reading="true">
+                                <div class="inline-flex items-center justify-center w-24 h-24 mb-6 bg-gradient-to-br from-yellow-100 to-amber-200 dark:from-yellow-900 dark:to-amber-800 rounded-full shadow-lg">
+                                    <span class="text-5xl">🎉</span>
+                                </div>
+                                <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                                    You've started! 1 down, 365 to go
+                                </h2>
+                                <p class="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
+                                    Your Bible reading journey begins now. Keep the momentum going!
+                                </p>
+                                <button type="button"
+                                    hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number]) }}"
+                                    hx-target="#reading-list-container"
+                                    hx-swap="outerHTML"
+                                    hx-select="#reading-list-container"
+                                    class="inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-800">
+                                    Continue
+                                </button>
+                                <script>
+                                    if (typeof window.confetti === 'function') {
+                                        setTimeout(function() {
+                                            window.confetti({
+                                                particleCount: 200,
+                                                spread: 100,
+                                                origin: { y: 0.4 }
+                                            });
+                                        }, 100);
+                                    }
+                                </script>
+                            </div>
+                            @else
+                                <div class="space-y-6">
                             {{-- Progress Header --}}
                             <div
                                 class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -262,6 +295,8 @@
                                     </button>
                                 </form>
                             </div>
+                            </div>
+                            @endif
                         </div>
                     @endfragment
                 </div>

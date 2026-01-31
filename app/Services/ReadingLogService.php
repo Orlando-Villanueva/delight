@@ -47,9 +47,19 @@ class ReadingLogService
             ->whereDate('date_read', $dateRead)
             ->exists();
 
+        // Check if this is the first reading ever (for celebration)
+        $shouldCelebrate = ! $user->hasEverCelebratedFirstReading()
+            && ! $user->readingLogs()->exists();
+
         // Handle multiple chapters if provided
         if (isset($data['chapters']) && is_array($data['chapters'])) {
-            return $this->logMultipleChapters($user, $data, $hasReadToday);
+            $log = $this->logMultipleChapters($user, $data, $hasReadToday);
+
+            if ($shouldCelebrate) {
+                $user->update(['celebrated_first_reading_at' => now()]);
+            }
+
+            return $log;
         }
 
         // Single chapter logging
@@ -68,6 +78,10 @@ class ReadingLogService
         $this->invalidateUserStatisticsCache($user, ! $hasReadToday);
 
         // Server-side state updated - HTMX will handle UI updates
+
+        if ($shouldCelebrate) {
+            $user->update(['celebrated_first_reading_at' => now()]);
+        }
 
         return $readingLog;
     }
