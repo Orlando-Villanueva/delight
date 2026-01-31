@@ -208,9 +208,11 @@ class ReadingPlanController extends Controller
         }
 
         $this->planService->logChapter($user, $subscription, $dayNumber, $chapter, Carbon::today());
+        $isFirstReading = $user->wasChanged('celebrated_first_reading_at');
 
         // Return updated today view
         $viewData = $this->getTodayViewData($subscription, $dayNumber);
+        $viewData['isFirstReading'] = $isFirstReading;
 
         return response()->htmx('plans.today', 'reading-list', $viewData);
     }
@@ -238,9 +240,11 @@ class ReadingPlanController extends Controller
         );
 
         $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, Carbon::today());
+        $isFirstReading = $user->wasChanged('celebrated_first_reading_at');
 
         // Return updated today view
         $viewData = $this->getTodayViewData($subscription, $dayNumber);
+        $viewData['isFirstReading'] = $isFirstReading;
 
         return response()->htmx('plans.today', 'reading-list', $viewData);
     }
@@ -277,7 +281,10 @@ class ReadingPlanController extends Controller
             }
         }
 
+        $isFirstReading = $user->wasChanged('celebrated_first_reading_at');
+
         $viewData = $this->getTodayViewData($subscription, $dayNumber);
+        $viewData['isFirstReading'] = $isFirstReading;
 
         return response()->htmx('plans.today', 'reading-list', $viewData);
     }

@@ -1,20 +1,7 @@
 <div id="onboarding-modal" tabindex="-1" data-modal-backdrop="static" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" hx-history="false"
-    class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-stack-modal justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+    class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-stack-modal justify-center items-center w-full md:inset-0 h-full max-h-full focus:outline-none">
     <div class="relative p-4 w-full max-w-lg max-h-full transition-all duration-300 transform scale-95 opacity-0 animate-in fade-in zoom-in-95 fill-mode-forwards">
         <div class="relative bg-white rounded-xl shadow-2xl dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden">
-            {{-- Close button --}}
-            <button type="button"
-                class="absolute top-4 right-4 text-gray-400 bg-transparent hover:bg-gray-100 hover:text-gray-900 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center dark:hover:bg-gray-700 dark:hover:text-white transition-colors"
-                hx-post="{{ route('onboarding.dismiss') }}"
-                hx-headers='{"X-CSRF-TOKEN": "{{ csrf_token() }}"}'
-                hx-swap="none"
-                data-modal-hide="onboarding-modal">
-                <svg class="w-3.5 h-3.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
-                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
-                </svg>
-                <span class="sr-only">Close modal</span>
-            </button>
-
             <div class="p-6 sm:p-8">
                 {{-- Header --}}
                 <div class="text-center mb-8">
@@ -85,9 +72,9 @@
         if (modalEl) {
             const modal = new Modal(modalEl, {
                 backdrop: 'static',
-                closable: true,
+                closable: false,
                 onHide: () => {
-                    // Safety check to ensure dismiss is called if closed via ESC
+                    // Modal cannot be dismissed without action
                 }
             });
             modal.show();
@@ -135,22 +122,4 @@
         }
     });
 
-    // Handle ESC key to dismiss onboarding server-side too
-    function handleOnboardingEscape(e) {
-        if (e.key === 'Escape') {
-            const modalEl = document.getElementById('onboarding-modal');
-            if (modalEl) {
-                // Remove listener so we only fire once
-                document.removeEventListener('keydown', handleOnboardingEscape);
-                
-                // Fire dismissal regardless of current visibility (Flowbite may have already hidden it)
-                htmx.ajax('POST', "{{ route('onboarding.dismiss') }}", {
-                    target: '#onboarding-modal',
-                    swap: 'outerHTML',
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-                });
-            }
-        }
-    }
-    document.addEventListener('keydown', handleOnboardingEscape);
 </script>

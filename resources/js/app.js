@@ -1,4 +1,7 @@
 import './bootstrap';
+import confetti from 'canvas-confetti';
+
+window.confetti = confetti;
 
 const applyFlowbiteBackdropPatch = () => {
     if (typeof window === 'undefined' || !window.Modal || window.Modal.__backdropPatched) {

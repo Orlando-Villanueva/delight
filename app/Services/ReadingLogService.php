@@ -47,9 +47,27 @@ class ReadingLogService
             ->whereDate('date_read', $dateRead)
             ->exists();
 
+        // Check if this is the first reading ever (for celebration)
+        // Wrapped in transaction to prevent race conditions where multiple requests
+        // could trigger the celebration simultaneously
+        $shouldCelebrate = DB::transaction(function () use ($user) {
+            $lockedUser = User::where('id', $user->id)->lockForUpdate()->first();
+
+            if (! $lockedUser->hasEverCelebratedFirstReading()
+                && ! $lockedUser->readingLogs()->exists()) {
+                $user->update(['celebrated_first_reading_at' => now()]);
+
+                return true;
+            }
+
+            return false;
+        });
+
         // Handle multiple chapters if provided
         if (isset($data['chapters']) && is_array($data['chapters'])) {
-            return $this->logMultipleChapters($user, $data, $hasReadToday);
+            $log = $this->logMultipleChapters($user, $data, $hasReadToday);
+
+            return $log;
         }
 
         // Single chapter logging
