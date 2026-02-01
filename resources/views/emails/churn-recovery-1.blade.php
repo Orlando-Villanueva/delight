@@ -9,9 +9,15 @@
     We noticed it's been a while since you opened Delight. Life gets busy—we understand.
 </p>
 
+@if($lastReadingPassage)
+<p class="message">
+    Your last reading was <strong>{{ $lastReadingPassage }}</strong>. Pick up where you left off—your journey is waiting.
+</p>
+@else
 <p class="message">
     Your reading journey is still here, waiting for you. No pressure, no guilt. Just an open invitation to pick up where you left off.
 </p>
+@endif
 
 <div class="button-container">
     <a href="{{ url('/dashboard') }}" class="button">Pick Up Where You Left Off</a>

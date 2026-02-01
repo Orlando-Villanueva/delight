@@ -54,6 +54,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the user's latest reading log.
+     */
+    public function latestReadingLog()
+    {
+        return $this->hasOne(ReadingLog::class)->latestOfMany('date_read');
+    }
+
+    /**
      * Get the reading logs for the user.
      */
     public function readingLogs(): HasMany

@@ -46,7 +46,7 @@ class ReadingPlanSeeder extends Seeder
         }
 
         // Fallback for unit tests running outside Laravel
-        $configPath = __DIR__ . '/../../config/bible.php';
+        $configPath = __DIR__.'/../../config/bible.php';
         if (file_exists($configPath)) {
             $config = include $configPath;
 
@@ -73,7 +73,7 @@ class ReadingPlanSeeder extends Seeder
         }
 
         // Fallback for unit tests running outside Laravel
-        $langPath = __DIR__ . '/../../lang/en/bible.php';
+        $langPath = __DIR__.'/../../lang/en/bible.php';
         if (file_exists($langPath)) {
             $lang = include $langPath;
 
@@ -145,7 +145,7 @@ class ReadingPlanSeeder extends Seeder
             ]
         );
 
-        $this->command->info("Seeded {$name} with " . count($days) . ' days.');
+        $this->command->info("Seeded {$name} with ".count($days).' days.');
     }
 
     /**
@@ -354,6 +354,6 @@ class ReadingPlanSeeder extends Seeder
             $ranges[] = $start === $end ? (string) $start : "{$start}-{$end}";
         }
 
-        return $bookName . ' ' . implode(', ', $ranges);
+        return $bookName.' '.implode(', ', $ranges);
     }
 }

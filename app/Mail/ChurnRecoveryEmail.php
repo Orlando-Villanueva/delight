@@ -18,7 +18,8 @@ class ChurnRecoveryEmail extends Mailable
      */
     public function __construct(
         public User $user,
-        public int $emailNumber
+        public int $emailNumber,
+        public ?string $lastReadingPassage = null
     ) {}
 
     /**
@@ -29,7 +30,7 @@ class ChurnRecoveryEmail extends Mailable
         $subjects = [
             1 => 'Your Bible reading journey is waiting',
             2 => 'No guilt, just grace - start fresh today',
-            3 => 'Should we keep your account?',
+            3 => "Always here when you're ready",
         ];
 
         return new Envelope(

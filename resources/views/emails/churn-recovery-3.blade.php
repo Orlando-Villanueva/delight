@@ -1,25 +1,21 @@
 @extends('emails.layouts.base')
 
-@section('title', 'Should we keep your account?')
+@section('title', "Always here when you're ready")
 
 @section('content')
 <h2 class="greeting">Hi {{ $user->name ?? 'there' }},</h2>
 
 <p class="message">
-    We've reached out a couple times, and we don't want to be a bother.
+    We don't want to clutter your inbox, so this is the last email you'll see from us for a while.
 </p>
 
 <p class="message">
-    If Delight isn't right for you, that's okay. But if life just got in the way, we'd love to have you back.
+    We know seasons change. Whether you're busy, taking a break, or exploring other tools, we're cheering you on. Your reading history is safe and waiting whenever you feel like jumping back in.
 </p>
 
 <div class="button-container">
-    <a href="{{ url('/dashboard') }}" class="button">I'm Back - Take Me to Delight</a>
+    <a href="{{ url('/dashboard') }}" class="button">Visit Delight</a>
 </div>
-
-<p class="message">
-    Either way, we wish you well on your journey.
-</p>
 
 <p class="message">
     Grace and peace,<br>
