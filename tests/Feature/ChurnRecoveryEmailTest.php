@@ -3,8 +3,43 @@
 use App\Mail\ChurnRecoveryEmail;
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\ReadingLogService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+
+function churn_test_createUserWithEmail(int $daysAgo): User
+{
+    $user = User::factory()->create();
+    DB::table('churn_recovery_emails')->insert([
+        'user_id' => $user->id,
+        'email_number' => 1,
+        'sent_at' => now()->subDays($daysAgo),
+    ]);
+
+    return $user;
+}
+
+function churn_test_logReadings(ReadingLogService $service, User $user, array $daysAgo): void
+{
+    foreach ($daysAgo as $index => $day) {
+        $service->logReading($user, [
+            'book_id' => 1,
+            'chapter' => $index + 1,
+            'date_read' => now()->subDays($day)->toDateString(),
+        ]);
+    }
+}
+
+function churn_test_assertEmailExists(int $userId): void
+{
+    expect(DB::table('churn_recovery_emails')->where('user_id', $userId)->whereNull('deleted_at')->exists())->toBeTrue();
+}
+
+function churn_test_assertEmailSoftDeleted(int $userId): void
+{
+    expect(DB::table('churn_recovery_emails')->where('user_id', $userId)->whereNull('deleted_at')->exists())->toBeFalse();
+    expect(DB::table('churn_recovery_emails')->where('user_id', $userId)->whereNotNull('deleted_at')->exists())->toBeTrue();
+}
 
 test('command finds users inactive for 7+ days', function () {
     $user = User::factory()->create();
@@ -157,70 +192,30 @@ test('command sends email 1 without passage if none exists', function () {
 });
 
 test('churn recovery reset requires 3 days of activity', function () {
-    $user = User::factory()->create();
-    // Seed existing churn emails (sent 100 days ago)
-    DB::table('churn_recovery_emails')->insert([
-        'user_id' => $user->id,
-        'email_number' => 1,
-        'sent_at' => now()->subDays(100),
-    ]);
+    $user = churn_test_createUserWithEmail(100);
+    $service = app(ReadingLogService::class);
 
-    $service = app(\App\Services\ReadingLogService::class);
+    churn_test_logReadings($service, $user, [1]);
+    churn_test_assertEmailExists($user->id);
 
-    // 1st day reading
-    $service->logReading($user, ['book_id' => 1, 'chapter' => 1, 'date_read' => now()->subDays(1)->toDateString()]);
-
-    // Verify NOT soft deleted
-    expect(DB::table('churn_recovery_emails')->where('user_id', $user->id)->whereNull('deleted_at')->exists())->toBeTrue();
-
-    // 2nd day reading
-    $service->logReading($user, ['book_id' => 1, 'chapter' => 2, 'date_read' => now()->toDateString()]);
-
-    // Verify NOT soft deleted (only 2 days)
-    expect(DB::table('churn_recovery_emails')->where('user_id', $user->id)->whereNull('deleted_at')->exists())->toBeTrue();
+    churn_test_logReadings($service, $user, [0]);
+    churn_test_assertEmailExists($user->id);
 });
 
 test('churn recovery reset occurs after 3 days of activity', function () {
-    $user = User::factory()->create();
-    // Seed existing churn emails
-    DB::table('churn_recovery_emails')->insert([
-        'user_id' => $user->id,
-        'email_number' => 1,
-        'sent_at' => now()->subDays(100),
-    ]);
+    $user = churn_test_createUserWithEmail(100);
+    $service = app(ReadingLogService::class);
 
-    $service = app(\App\Services\ReadingLogService::class);
-
-    // 1st day
-    $service->logReading($user, ['book_id' => 1, 'chapter' => 1, 'date_read' => now()->subDays(2)->toDateString()]);
-    // 2nd day
-    $service->logReading($user, ['book_id' => 1, 'chapter' => 2, 'date_read' => now()->subDays(1)->toDateString()]);
-    // 3rd day - should trigger reset
-    $service->logReading($user, ['book_id' => 1, 'chapter' => 3, 'date_read' => now()->toDateString()]);
-
-    // Verify soft deleted
-    expect(DB::table('churn_recovery_emails')->where('user_id', $user->id)->whereNull('deleted_at')->exists())->toBeFalse();
-    expect(DB::table('churn_recovery_emails')->where('user_id', $user->id)->whereNotNull('deleted_at')->exists())->toBeTrue();
+    churn_test_logReadings($service, $user, [2, 1, 0]);
+    churn_test_assertEmailSoftDeleted($user->id);
 });
 
 test('churn recovery reset respects 90 day cooldown', function () {
-    $user = User::factory()->create();
-    // Seed existing churn emails (sent 80 days ago - too soon)
-    DB::table('churn_recovery_emails')->insert([
-        'user_id' => $user->id,
-        'email_number' => 1,
-        'sent_at' => now()->subDays(80),
-    ]);
+    $user = churn_test_createUserWithEmail(80);
+    $service = app(ReadingLogService::class);
 
-    $service = app(\App\Services\ReadingLogService::class);
-
-    // 3 days of reading
-    $service->logReading($user, ['book_id' => 1, 'chapter' => 1, 'date_read' => now()->subDays(2)->toDateString()]);
-    $service->logReading($user, ['book_id' => 1, 'chapter' => 2, 'date_read' => now()->subDays(1)->toDateString()]);
-    $service->logReading($user, ['book_id' => 1, 'chapter' => 3, 'date_read' => now()->toDateString()]);
-
-    // Verify NOT soft deleted because of cooldown
-    expect(DB::table('churn_recovery_emails')->where('user_id', $user->id)->whereNull('deleted_at')->exists())->toBeTrue();
+    churn_test_logReadings($service, $user, [2, 1, 0]);
+    churn_test_assertEmailExists($user->id);
 });
 
 test('command ignores soft deleted records and starts fresh', function () {
