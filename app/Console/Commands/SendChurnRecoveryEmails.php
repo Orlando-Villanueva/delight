@@ -7,13 +7,13 @@ use App\Models\ChurnRecoveryEmail;
 use App\Models\User;
 use App\Services\EmailService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 
 class SendChurnRecoveryEmails extends Command
 {
     protected $signature = 'churn:send-recovery 
-        {--dry-run : Show what would be sent without actually sending}
-        {--force : Send even if already sent today}';
+        {--dry-run : Show what would be sent without actually sending}';
 
     protected $description = 'Send churn recovery emails to inactive users';
 
@@ -39,11 +39,14 @@ class SendChurnRecoveryEmails extends Command
                             ->where('created_at', '<', $sevenDaysAgo);
                     });
             })
+            // Exclude users who received a churn recovery email in the last 6 days (waiting period buffer)
+            ->whereDoesntHave('churnRecoveryEmails', function ($q) {
+                $q->where('sent_at', '>=', now()->subDays(6));
+            })
             ->chunkById(100, function ($users) use ($emailService, $dryRun, &$sentCount, &$eligibleCount) {
                 // Eager load the data we need
                 $userIds = $users->pluck('id');
                 $emailHistories = ChurnRecoveryEmail::whereIn('user_id', $userIds)
-                    ->whereNull('deleted_at')
                     ->orderBy('sent_at')
                     ->get()
                     ->groupBy('user_id');
@@ -64,13 +67,31 @@ class SendChurnRecoveryEmails extends Command
                         continue;
                     }
 
-                    $success = $emailService->sendWithErrorHandling(function () use ($user, $emailNumber) {
-                        Mail::to($user->email)->send(new ChurnRecoveryEmailMailable($user, $emailNumber, $user->latestReadingLog?->passage_text));
-                    }, "churn-recovery-{$emailNumber}");
+                    // Use lock to prevent race condition if command runs concurrently
+                    $lock = Cache::lock('churn-email-'.$user->id, 30);
 
-                    if ($success) {
-                        $this->recordEmailSent($user->id, $emailNumber);
-                        $sentCount++;
+                    if ($lock->get()) {
+                        try {
+                            // Double-check history in case another process just sent
+                            $alreadySent = ChurnRecoveryEmail::where('user_id', $user->id)
+                                ->where('email_number', $emailNumber)
+                                ->exists();
+
+                            if ($alreadySent) {
+                                continue;
+                            }
+
+                            $success = $emailService->sendWithErrorHandling(function () use ($user, $emailNumber) {
+                                Mail::to($user->email)->send(new ChurnRecoveryEmailMailable($user, $emailNumber, $user->latestReadingLog?->passage_text));
+                            }, "churn-recovery-{$emailNumber}");
+
+                            if ($success) {
+                                $this->recordEmailSent($user->id, $emailNumber);
+                                $sentCount++;
+                            }
+                        } finally {
+                            $lock->release();
+                        }
                     }
                 }
             });

@@ -181,4 +181,12 @@ class User extends Authenticatable
     {
         return $this->celebrated_first_reading_at !== null;
     }
+
+    /**
+     * Get the churn recovery emails for the user.
+     */
+    public function churnRecoveryEmails(): HasMany
+    {
+        return $this->hasMany(ChurnRecoveryEmail::class);
+    }
 }
