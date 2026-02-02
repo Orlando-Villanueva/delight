@@ -7,6 +7,24 @@ use App\Services\ReadingLogService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
+it('throws exception for invalid email number', function () {
+    $user = User::factory()->create();
+
+    expect(fn () => new ChurnRecoveryEmail($user, 4))
+        ->toThrow(InvalidArgumentException::class, 'emailNumber must be between 1 and 3');
+
+    expect(fn () => new ChurnRecoveryEmail($user, 0))
+        ->toThrow(InvalidArgumentException::class, 'emailNumber must be between 1 and 3');
+});
+
+it('accepts valid email numbers 1-3', function () {
+    $user = User::factory()->create();
+
+    expect(new ChurnRecoveryEmail($user, 1))->toBeInstanceOf(ChurnRecoveryEmail::class);
+    expect(new ChurnRecoveryEmail($user, 2))->toBeInstanceOf(ChurnRecoveryEmail::class);
+    expect(new ChurnRecoveryEmail($user, 3))->toBeInstanceOf(ChurnRecoveryEmail::class);
+});
+
 function churn_test_createUserWithEmail(int $daysAgo): User
 {
     $user = User::factory()->create();
