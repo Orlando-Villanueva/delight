@@ -14,7 +14,7 @@
 </p>
 
 <div class="button-container">
-    <a href="{{ url('/dashboard') }}" class="button">Start Fresh Today</a>
+    <a href="{{ route('dashboard') }}" class="button">Start Fresh Today</a>
 </div>
 
 <p class="message" style="font-style: italic; text-align: center; color: #6b7280;">
@@ -29,6 +29,6 @@
 
 @section('footer-extra')
 <p class="footer-text">
-    <a href="{{ url('/unsubscribe') }}" class="link">Unsubscribe from these emails</a>
+    <a href="{{ $unsubscribeUrl }}" class="link">Unsubscribe from these emails</a>
 </p>
 @endsection

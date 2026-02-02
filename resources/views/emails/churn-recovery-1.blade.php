@@ -20,7 +20,7 @@
 @endif
 
 <div class="button-container">
-    <a href="{{ url('/dashboard') }}" class="button">Pick Up Where You Left Off</a>
+    <a href="{{ route('dashboard') }}" class="button">Pick Up Where You Left Off</a>
 </div>
 
 <p class="message">
@@ -31,6 +31,6 @@
 
 @section('footer-extra')
 <p class="footer-text">
-    <a href="{{ url('/unsubscribe') }}" class="link">Unsubscribe from these emails</a>
+    <a href="{{ $unsubscribeUrl }}" class="link">Unsubscribe from these emails</a>
 </p>
 @endsection
