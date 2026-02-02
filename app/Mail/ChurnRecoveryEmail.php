@@ -7,11 +7,15 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\URL;
 
 class ChurnRecoveryEmail extends Mailable
 {
     use Queueable, SerializesModels;
+
+    public string $unsubscribeUrl;
 
     /**
      * Create a new message instance.
@@ -20,7 +24,17 @@ class ChurnRecoveryEmail extends Mailable
         public User $user,
         public int $emailNumber,
         public ?string $lastReadingPassage = null
-    ) {}
+    ) {
+        if ($emailNumber < 1 || $emailNumber > 3) {
+            throw new \InvalidArgumentException('emailNumber must be between 1 and 3');
+        }
+
+        $this->unsubscribeUrl = URL::signedRoute(
+            'marketing.unsubscribe',
+            ['user' => $user],
+            now()->addDays(365)
+        );
+    }
 
     /**
      * Get the message envelope.
@@ -45,6 +59,21 @@ class ChurnRecoveryEmail extends Mailable
     {
         return new Content(
             view: "emails.churn-recovery-{$this->emailNumber}",
+            with: [
+                'unsubscribeUrl' => $this->unsubscribeUrl,
+            ],
+        );
+    }
+
+    /**
+     * Get the message headers.
+     */
+    public function headers(): Headers
+    {
+        return new Headers(
+            text: [
+                'List-Unsubscribe' => "<mailto:unsubscribe@delight.io?subject=Unsubscribe>, <{$this->unsubscribeUrl}>",
+            ],
         );
     }
 
