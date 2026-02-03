@@ -26,6 +26,7 @@ class User extends Authenticatable
         'avatar_url',
         'onboarding_dismissed_at',
         'celebrated_first_reading_at',
+        'marketing_emails_opted_out_at',
     ];
 
     /**
@@ -50,7 +51,16 @@ class User extends Authenticatable
             'password' => 'hashed',
             'onboarding_dismissed_at' => 'datetime',
             'celebrated_first_reading_at' => 'datetime',
+            'marketing_emails_opted_out_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Get the user's latest reading log.
+     */
+    public function latestReadingLog()
+    {
+        return $this->hasOne(ReadingLog::class)->latestOfMany('date_read');
     }
 
     /**
@@ -172,5 +182,13 @@ class User extends Authenticatable
     public function hasEverCelebratedFirstReading(): bool
     {
         return $this->celebrated_first_reading_at !== null;
+    }
+
+    /**
+     * Get the churn recovery emails for the user.
+     */
+    public function churnRecoveryEmails(): HasMany
+    {
+        return $this->hasMany(ChurnRecoveryEmail::class);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ChurnRecoveryEmail;
 use App\Models\ReadingLog;
 use App\Models\User;
 use Carbon\Carbon;
@@ -87,7 +88,48 @@ class ReadingLogService
 
         // Server-side state updated - HTMX will handle UI updates
 
+        // Check if churn recovery status needs to be reset
+        $this->maybeResetChurnRecovery($user);
+
         return $readingLog;
+    }
+
+    /**
+     * Check if user has re-engaged enough to reset their churn recovery status.
+     *
+     * Reset occurs if:
+     * 1. User has read on 3+ distinct days in the last 7 days
+     * 2. It has been at least 90 days since the last churn recovery email
+     */
+    public function maybeResetChurnRecovery(User $user): void
+    {
+        // Check 1: Sustained activity (3+ distinct days in last 7 days)
+        $activeDays = $user->readingLogs()
+            ->where('date_read', '>=', now()->subDays(7))
+            ->distinct('date_read')
+            ->count('date_read');
+
+        if ($activeDays < 3) {
+            return; // Not sufficiently re-engaged
+        }
+
+        // Check 2: Cooldown period (90 days since last email)
+        $lastEmail = ChurnRecoveryEmail::where('user_id', $user->id)
+            ->latest('sent_at')
+            ->first();
+
+        // If no active email sequence, nothing to reset
+        if (! $lastEmail) {
+            return;
+        }
+
+        if ($lastEmail->sent_at > now()->subDays(90)) {
+            return; // Too soon for reset
+        }
+
+        // Perform soft reset
+        ChurnRecoveryEmail::where('user_id', $user->id)
+            ->delete();
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\XOAuthController;
 use App\Http\Controllers\Dashboard\NotificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedbackController;
+use App\Http\Controllers\MarketingPreferencesController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PublicAnnouncementController;
 use App\Http\Controllers\ReadingLogController;
@@ -45,6 +46,15 @@ Route::get('/privacy-policy', function () {
 Route::get('/terms-of-service', function () {
     return view('legal.terms-of-service');
 })->name('terms-of-service');
+
+// Marketing Email Preferences (Signed URLs - no auth required)
+Route::get('/marketing/unsubscribe/{user}', [MarketingPreferencesController::class, 'show'])
+    ->middleware('signed')
+    ->name('marketing.unsubscribe');
+
+Route::post('/marketing/unsubscribe/{user}', [MarketingPreferencesController::class, 'store'])
+    ->middleware('signed')
+    ->name('marketing.unsubscribe.store');
 
 // Authentication Routes (GET routes for views - POST routes handled by Fortify)
 Route::middleware('guest')->group(function () {
