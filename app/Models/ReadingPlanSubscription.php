@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ReadingPlanSubscription extends Model
 {
+    use HasFactory;
+
     /**
      * Cached completed days count for the current request.
      */
@@ -68,6 +71,14 @@ class ReadingPlanSubscription extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(ReadingPlan::class, 'reading_plan_id');
+    }
+
+    /**
+     * Alias for factory for() method.
+     */
+    public function readingPlan(): BelongsTo
+    {
+        return $this->plan();
     }
 
     /**

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\AnnualRecapController;
 use App\Http\Controllers\Auth\GoogleOAuthController;
@@ -139,6 +140,8 @@ Route::middleware('auth')->group(function () {
 
 // Admin Routes (Protected by check logic in middleware)
 Route::middleware(['auth', EnsureUserIsAdmin::class])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('analytics', [AnalyticsController::class, 'index'])
+        ->name('analytics.index');
     Route::post('announcements/preview', [AnnouncementController::class, 'preview'])
         ->name('announcements.preview');
     Route::resource('announcements', AnnouncementController::class)
