@@ -4,13 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\AdminAnalyticsService;
-use Illuminate\Contracts\View\View;
 
 class AnalyticsController extends Controller
 {
     public function __construct(private AdminAnalyticsService $analyticsService) {}
 
-    public function index(): View
+    public function index()
     {
         $metrics = $this->analyticsService->getDashboardMetrics();
 
