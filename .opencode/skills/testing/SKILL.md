@@ -10,7 +10,7 @@ description: Pest testing patterns, conventions, and coverage expectations for t
 **All tests use Pest** (not PHPUnit class-style). Use Pest function-style syntax exclusively.
 
 ### Naming Convention
-- Name test descriptions in the `can_*` style: `it('can calculate onboarding rate correctly', function () { ... }`)
+- Name test descriptions in the `can_*` style: `it('can calculate onboarding rate correctly', function () { ... })`
 
 ### Required Structure
 - Use `beforeEach()` for shared setup
