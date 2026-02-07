@@ -74,7 +74,7 @@ class ReadingPlanSubscription extends Model
     }
 
     /**
-     * Alias for factory for() method.
+     * Alias for the plan() relationship.
      */
     public function readingPlan(): BelongsTo
     {

@@ -5,15 +5,16 @@ namespace App\Services;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class AdminAnalyticsService
 {
+    private const CACHE_TTL_DASHBOARD = 300; // 5 minutes
+
     public function getDashboardMetrics(): array
     {
-        return Cache::remember('admin_analytics_stats_v1', 300, function () {
+        return Cache::remember('admin_analytics_stats_v1', self::CACHE_TTL_DASHBOARD, function () {
             $totalUsers = User::count();
             $usersWithReadings = User::has('readingLogs')->count();
             $usersNoReadings = max(0, $totalUsers - $usersWithReadings);
@@ -99,51 +100,29 @@ class AdminAnalyticsService
 
     private function getActivationMetrics(): array
     {
-        $rows = DB::table('reading_logs as rl')
-            ->join('users as u', 'u.id', '=', 'rl.user_id')
-            ->selectRaw('rl.user_id, min(rl.created_at) as first_reading_at, u.created_at as user_created_at')
-            ->groupBy('rl.user_id', 'u.created_at')
-            ->get();
+        // Subquery: get each user's first reading time
+        $firstReadings = DB::table('reading_logs')
+            ->selectRaw('user_id, min(created_at) as first_reading_at')
+            ->groupBy('user_id');
 
-        if ($rows->isEmpty()) {
+        $diffExpr = $this->secondsDiffExpression('u.created_at', 'fr.first_reading_at');
+
+        $result = DB::table('users as u')
+            ->joinSub($firstReadings, 'fr', 'u.id', '=', 'fr.user_id')
+            ->selectRaw("avg(case when {$diffExpr} < 0 then 0 else {$diffExpr} end) as avg_seconds")
+            ->selectRaw('count(*) as sample_size')
+            ->first();
+
+        if (! $result || $result->sample_size === 0) {
             return [
                 'avg_hours' => 0.0,
                 'sample_size' => 0,
             ];
         }
-
-        $totalSeconds = 0;
-        $count = 0;
-
-        foreach ($rows as $row) {
-            if (! $row->first_reading_at || ! $row->user_created_at) {
-                continue;
-            }
-
-            $firstReadingAt = Carbon::parse($row->first_reading_at);
-            $userCreatedAt = Carbon::parse($row->user_created_at);
-            $diffSeconds = $userCreatedAt->diffInSeconds($firstReadingAt, false);
-
-            if ($diffSeconds < 0) {
-                $diffSeconds = 0;
-            }
-
-            $totalSeconds += $diffSeconds;
-            $count++;
-        }
-
-        if ($count === 0) {
-            return [
-                'avg_hours' => 0.0,
-                'sample_size' => 0,
-            ];
-        }
-
-        $avgHours = round(($totalSeconds / $count) / 3600, 1);
 
         return [
-            'avg_hours' => $avgHours,
-            'sample_size' => $count,
+            'avg_hours' => round(($result->avg_seconds ?? 0) / 3600, 1),
+            'sample_size' => (int) $result->sample_size,
         ];
     }
 
@@ -301,6 +280,18 @@ class AdminAnalyticsService
             'pgsql' => "$column + interval '{$days} days'",
             'sqlite' => "datetime($column, '+$days days')",
             default => "$column + interval '{$days} days'",
+        };
+    }
+
+    private function secondsDiffExpression(string $startColumn, string $endColumn): string
+    {
+        $driver = DB::getDriverName();
+
+        return match ($driver) {
+            'mysql', 'mariadb' => "TIMESTAMPDIFF(SECOND, {$startColumn}, {$endColumn})",
+            'pgsql' => "EXTRACT(EPOCH FROM ({$endColumn} - {$startColumn}))",
+            'sqlite' => "(julianday({$endColumn}) - julianday({$startColumn})) * 86400",
+            default => "EXTRACT(EPOCH FROM ({$endColumn} - {$startColumn}))",
         };
     }
 }

@@ -9,7 +9,7 @@ class ChurnRecoveryEmail extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['user_id', 'email_number', 'sent_at', 'deleted_at'];
+    protected $fillable = ['user_id', 'email_number', 'sent_at'];
 
     protected $casts = [
         'sent_at' => 'datetime',

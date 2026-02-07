@@ -10,7 +10,7 @@ description: Pest testing patterns, conventions, and coverage expectations for t
 **All tests use Pest** (not PHPUnit class-style). Use Pest function-style syntax exclusively.
 
 ### Naming Convention
-- Name test closures in the `it_can_*` style: `it('it_can_calculate_onboarding_rate_correctly', function () { ... })`
+- Name test descriptions in the `can_*` style: `it('can calculate onboarding rate correctly', function () { ... }`)
 
 ### Required Structure
 - Use `beforeEach()` for shared setup
@@ -82,27 +82,27 @@ afterEach(function () {
 });
 
 describe('Feature Group', function () {
-    it('it_can_do_something_correctly', function () {
+    it('can do something correctly', function () {
         // Arrange
         Carbon::setTestNow('2026-02-10 12:00:00');
         $user = User::factory()->create();
-        
+
         // Act
         $result = $this->service->doSomething($user);
-        
+
         // Assert
         expect($result)->toBe('expected');
     });
-    
-    it('it_can_handle_empty_state', function () {
+
+    it('can handle empty state', function () {
         $result = $this->service->doSomething(null);
-        
+
         $this->assertSame(0, $result);
     });
 });
 
 describe('Edge Cases', function () {
-    it('it_can_handle_boundary_conditions', function () {
+    it('can handle boundary conditions', function () {
         // Test threshold boundaries (exactly 80%, exactly 24h, etc.)
     });
 });

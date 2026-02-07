@@ -40,6 +40,14 @@
 
             $churnProgress = $churn['total'] > 0 ? $churn['rate'] : 0;
 
+            $formattedActivationHours = $activation['sample_size'] > 0
+                ? number_format($activation['avg_hours'], 1).'h'
+                : '—';
+
+            $formattedChurnRate = $churn['total'] > 0
+                ? number_format($churn['rate'], 1).'%'
+                : '—';
+
             $insightDot = [
                 'warning' => 'bg-yellow-500',
                 'success' => 'bg-green-500',
@@ -101,11 +109,7 @@
                                     Activation Time
                                 </p>
                                 <p class="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
-                                    @if ($activation['sample_size'] > 0)
-                                        {{ number_format($activation['avg_hours'], 1) }}h
-                                    @else
-                                        —
-                                    @endif
+                                    {{ $formattedActivationHours }}
                                 </p>
                                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                     Avg time to first reading ({{ number_format($activation['sample_size']) }} users)
@@ -119,13 +123,7 @@
                         <div class="mt-4">
                             <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                                 <span>Target &lt; 24h</span>
-                                <span>
-                                    @if ($activation['sample_size'] > 0)
-                                        {{ number_format($activation['avg_hours'], 1) }}h
-                                    @else
-                                        —
-                                    @endif
-                                </span>
+                                <span>{{ $formattedActivationHours }}</span>
                             </div>
                             <div class="mt-2 h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
                                 <div class="h-2 rounded-full {{ $activationStatus['bar'] }}"
@@ -142,11 +140,7 @@
                                     Churn Recovery
                                 </p>
                                 <p class="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
-                                    @if ($churn['total'] > 0)
-                                        {{ number_format($churn['rate'], 1) }}%
-                                    @else
-                                        —
-                                    @endif
+                                    {{ $formattedChurnRate }}
                                 </p>
                                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                     {{ number_format($churn['successes']) }} of {{ number_format($churn['total']) }} recovered
@@ -160,13 +154,7 @@
                         <div class="mt-4">
                             <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                                 <span>Target 20%+</span>
-                                <span>
-                                    @if ($churn['total'] > 0)
-                                        {{ number_format($churn['rate'], 1) }}%
-                                    @else
-                                        —
-                                    @endif
-                                </span>
+                                <span>{{ $formattedChurnRate }}</span>
                             </div>
                             <div class="mt-2 h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
                                 <div class="h-2 rounded-full {{ $churnStatus['bar'] }}"
