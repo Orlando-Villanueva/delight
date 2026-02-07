@@ -96,6 +96,7 @@ Aim for decent code coverage on all new implementations.
 ```php
 <?php
 
+use App\Models\User;
 use App\Services\MyService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
