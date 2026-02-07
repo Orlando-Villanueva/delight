@@ -16,7 +16,39 @@ description: Pest testing patterns, conventions, and coverage expectations for t
 - Use `beforeEach()` for shared setup
 - Use `afterEach()` for cleanup (e.g., `Carbon::setTestNow()`)
 - Group related tests with `describe()` blocks for logical organization
-- Use `uses(Tests\TestCase::class, RefreshDatabase::class)` at the top of test files that need database access
+- **Unit tests only**: Use `uses(Tests\TestCase::class, RefreshDatabase::class)` at the top of test files that need database access. Feature tests automatically inherit from TestCase.
+
+### Feature vs Unit Test Setup
+
+**Feature tests** (`tests/Feature/...`) automatically extend `TestCase` - no `uses()` statement needed:
+```php
+<?php
+
+use App\Models\User;
+
+beforeEach(function () {
+    $this->user = User::factory()->create();
+});
+
+it('can access dashboard', function () {
+    $response = $this->actingAs($this->user)->get('/dashboard');
+    $response->assertOk();
+});
+```
+
+**Unit tests** (`tests/Unit/...`) require explicit `uses()` to access database and TestCase features:
+```php
+<?php
+
+use App\Services\MyService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(Tests\TestCase::class, RefreshDatabase::class);
+
+beforeEach(function () {
+    $this->service = app(MyService::class);
+});
+```
 
 ## Test Types & When to Use
 
