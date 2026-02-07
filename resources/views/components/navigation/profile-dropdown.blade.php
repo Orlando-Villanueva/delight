@@ -50,6 +50,19 @@
                     Annual Recap
                 </a>
             </li>
+            @if ($user?->isAdmin())
+                <li>
+                    <button type="button" hx-get="{{ route('admin.analytics.index') }}" hx-target="#page-container"
+                        hx-swap="innerHTML" hx-push-url="true"
+                        class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100/80 dark:text-gray-300 dark:hover:bg-gray-700/50 transition-colors rounded-lg text-left cursor-pointer">
+                        <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 19h16M6 17V9m4 8V5m4 12v-4m4 4V7" />
+                        </svg>
+                        Analytics
+                    </button>
+                </li>
+            @endif
             <li>
                 <button type="button" hx-get="{{ route('feedback.create') }}" hx-target="#page-container"
                     hx-swap="innerHTML" hx-push-url="true"
