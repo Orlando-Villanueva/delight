@@ -22,6 +22,31 @@ afterEach(function () {
     Carbon::setTestNow();
 });
 
+/**
+ * Helper to create churn recovery test scenario.
+ *
+ * @param  int  $total  Total number of churn emails to create
+ * @param  int  $recovered  Number of users who recovered (first N users)
+ */
+function createChurnScenario(int $total, int $recovered): void
+{
+    for ($i = 0; $i < $total; $i++) {
+        $user = User::factory()->create();
+        ChurnRecoveryEmail::create([
+            'user_id' => $user->id,
+            'email_number' => 1,
+            'sent_at' => now()->subDays(5),
+        ]);
+
+        if ($i < $recovered) {
+            ReadingLog::factory()->for($user)->create([
+                'date_read' => now()->subDays(3)->toDateString(),
+                'created_at' => now()->subDays(3),
+            ]);
+        }
+    }
+}
+
 describe('Empty State', function () {
     it('can return_zero_metrics_when_no_users_exist', function () {
         $metrics = $this->service->getDashboardMetrics();
@@ -182,23 +207,7 @@ describe('Churn Recovery Metrics', function () {
     it('can set_churn_recovery_status_to_good_at_20_percent_or_above', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
-        // Create 5 users with churn emails, 1 recovered (20%)
-        for ($i = 0; $i < 5; $i++) {
-            $user = User::factory()->create();
-            ChurnRecoveryEmail::create([
-                'user_id' => $user->id,
-                'email_number' => 1,
-                'sent_at' => now()->subDays(5),
-            ]);
-
-            if ($i === 0) {
-                // Only first user recovered
-                ReadingLog::factory()->for($user)->create([
-                    'date_read' => now()->subDays(3)->toDateString(),
-                    'created_at' => now()->subDays(3),
-                ]);
-            }
-        }
+        createChurnScenario(5, 1); // 5 users, 1 recovered = 20%
 
         $metrics = $this->service->getDashboardMetrics();
 
@@ -209,22 +218,7 @@ describe('Churn Recovery Metrics', function () {
     it('can warn_when_churn_recovery_status_is_below_20_percent', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
-        // Create 10 users with churn emails, only 1 recovered (10%)
-        for ($i = 0; $i < 10; $i++) {
-            $user = User::factory()->create();
-            ChurnRecoveryEmail::create([
-                'user_id' => $user->id,
-                'email_number' => 1,
-                'sent_at' => now()->subDays(5),
-            ]);
-
-            if ($i === 0) {
-                ReadingLog::factory()->for($user)->create([
-                    'date_read' => now()->subDays(3)->toDateString(),
-                    'created_at' => now()->subDays(3),
-                ]);
-            }
-        }
+        createChurnScenario(10, 1); // 10 users, 1 recovered = 10%
 
         $metrics = $this->service->getDashboardMetrics();
 
@@ -393,22 +387,7 @@ describe('Insights', function () {
     it('can generate_weak_churn_recovery_insight_below_20_percent', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
-        // 10% recovery rate
-        for ($i = 0; $i < 10; $i++) {
-            $user = User::factory()->create();
-            ChurnRecoveryEmail::create([
-                'user_id' => $user->id,
-                'email_number' => 1,
-                'sent_at' => now()->subDays(5),
-            ]);
-
-            if ($i === 0) {
-                ReadingLog::factory()->for($user)->create([
-                    'date_read' => now()->subDays(3)->toDateString(),
-                    'created_at' => now()->subDays(3),
-                ]);
-            }
-        }
+        createChurnScenario(10, 1); // 10 users, 1 recovered = 10%
 
         $metrics = $this->service->getDashboardMetrics();
 
@@ -484,15 +463,7 @@ describe('Insights', function () {
             'created_at' => now()->subHours(24),
         ]);
 
-        // 10% churn recovery
-        for ($i = 0; $i < 10; $i++) {
-            $churnUser = User::factory()->create();
-            ChurnRecoveryEmail::create([
-                'user_id' => $churnUser->id,
-                'email_number' => 1,
-                'sent_at' => now()->subDays(5),
-            ]);
-        }
+        createChurnScenario(10, 0); // 10 users, 0 recovered = 0%
 
         $metrics = $this->service->getDashboardMetrics();
 
