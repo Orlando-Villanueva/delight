@@ -46,15 +46,9 @@
 - Lean on Tailwind utilities; avoid custom CSS unless a technical constraint demands it.
 
 ## Testing Guidelines
-- Pest configuration lives in `tests/`; add Feature tests for HTTP flows and Unit tests for service-layer logic.
-- Name Pest closures in the `it_can_*` style and mirror production namespaces under `tests/Feature/App/...`.
-- When touching reading log or streak logic, add regression coverage for grace-period edge cases.
-- For database changes, run against the SQLite `.env.testing` database with `php artisan test --parallel`.
-- Treat Feature tests as endpoint coverage: they should exercise FormRequest authorization/validation and controller responses.
-- If controller behavior changes (even after refactors), add/adjust Feature tests to reflect the new request behavior.
-- When controller logic grows, extract to services/actions and add Unit tests for the extracted logic.
-- Prefer Pest function-style tests with `beforeEach` for shared setup in new/updated feature specs.
-- When adding or updating end-to-end features, always create or adapt Feature tests to cover the behavior change.
+- All tests use **Pest function-style** (not PHPUnit class-style). Load the `testing` skill for full patterns and examples.
+- Feature tests in `tests/Feature/App/...` for HTTP flows; Unit tests in `tests/Unit/` for service logic.
+- Run `php artisan test` or `composer test` to execute the Pest-powered suite.
 
 ## Commit & Pull Request Guidelines
 - Messages start with the Linear ticket: `[DEL-###] Short imperative summary`; keep bodies intent-focused.
