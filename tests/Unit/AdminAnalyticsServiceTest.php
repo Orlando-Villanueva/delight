@@ -48,7 +48,7 @@ function createChurnScenario(int $total, int $recovered): void
 }
 
 describe('Empty State', function () {
-    it('can return_zero_metrics_when_no_users_exist', function () {
+    it('can return zero metrics when no users exist', function () {
         $metrics = $this->service->getDashboardMetrics();
 
         $this->assertSame(0, $metrics['current_stats']['total_users']);
@@ -59,7 +59,7 @@ describe('Empty State', function () {
         $this->assertSame('neutral', $metrics['onboarding']['status']);
     });
 
-    it('can return_neutral_insights_when_no_users_exist', function () {
+    it('can return neutral insights when no users exist', function () {
         $metrics = $this->service->getDashboardMetrics();
 
         $this->assertCount(1, $metrics['insights']);
@@ -69,7 +69,7 @@ describe('Empty State', function () {
 });
 
 describe('Onboarding Metrics', function () {
-    it('can calculate_onboarding_rate_correctly', function () {
+    it('can calculate onboarding rate correctly', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // 10 users total, 8 have readings
@@ -90,7 +90,7 @@ describe('Onboarding Metrics', function () {
         $this->assertSame('good', $metrics['onboarding']['status']);
     });
 
-    it('can warn_when_onboarding_status_is_below_80_percent', function () {
+    it('can warn when onboarding status is below 80 percent', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // 10 users total, only 7 have readings (70%)
@@ -111,7 +111,7 @@ describe('Onboarding Metrics', function () {
 });
 
 describe('Activation Metrics', function () {
-    it('can calculate_activation_time_correctly', function () {
+    it('can calculate activation time correctly', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // User A: created 12 hours ago, first reading 6 hours ago = 6 hour activation
@@ -140,7 +140,7 @@ describe('Activation Metrics', function () {
         $this->assertSame('good', $metrics['activation']['status']); // < 24h is good
     });
 
-    it('can warn_when_activation_status_is_over_24_hours', function () {
+    it('can warn when activation status is over 24 hours', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // User took 48 hours to first reading
@@ -158,7 +158,7 @@ describe('Activation Metrics', function () {
         $this->assertSame('warn', $metrics['activation']['status']);
     });
 
-    it('can set_activation_status_to_neutral_when_no_sample', function () {
+    it('can set activation status to neutral when no sample', function () {
         User::factory()->create(); // User without any readings
 
         $metrics = $this->service->getDashboardMetrics();
@@ -170,7 +170,7 @@ describe('Activation Metrics', function () {
 });
 
 describe('Churn Recovery Metrics', function () {
-    it('can calculate_churn_recovery_rate_correctly', function () {
+    it('can calculate churn recovery rate correctly', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // User A: received email 5 days ago, logged reading 3 days ago (within 7 days) = SUCCESS
@@ -204,7 +204,7 @@ describe('Churn Recovery Metrics', function () {
         $this->assertSame(50.0, $metrics['churn_recovery']['rate']);
     });
 
-    it('can set_churn_recovery_status_to_good_at_20_percent_or_above', function () {
+    it('can set churn recovery status to good at 20 percent or above', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         createChurnScenario(5, 1); // 5 users, 1 recovered = 20%
@@ -215,7 +215,7 @@ describe('Churn Recovery Metrics', function () {
         $this->assertSame('good', $metrics['churn_recovery']['status']);
     });
 
-    it('can warn_when_churn_recovery_status_is_below_20_percent', function () {
+    it('can warn when churn recovery status is below 20 percent', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         createChurnScenario(10, 1); // 10 users, 1 recovered = 10%
@@ -226,7 +226,7 @@ describe('Churn Recovery Metrics', function () {
         $this->assertSame('warn', $metrics['churn_recovery']['status']);
     });
 
-    it('can set_churn_recovery_status_to_neutral_when_no_emails_sent', function () {
+    it('can set churn recovery status to neutral when no emails sent', function () {
         User::factory()->create();
 
         $metrics = $this->service->getDashboardMetrics();
@@ -235,7 +235,7 @@ describe('Churn Recovery Metrics', function () {
         $this->assertSame('neutral', $metrics['churn_recovery']['status']);
     });
 
-    it('can ignore_soft_deleted_emails_for_churn_recovery', function () {
+    it('can ignore soft deleted emails for churn recovery', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         $user = User::factory()->create();
@@ -253,7 +253,7 @@ describe('Churn Recovery Metrics', function () {
 });
 
 describe('Activity Metrics', function () {
-    it('can count_active_users_in_last_7_days', function () {
+    it('can count active users in last 7 days', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // 3 users active in last 7 days
@@ -277,7 +277,7 @@ describe('Activity Metrics', function () {
         $this->assertSame(3, $metrics['current_stats']['active_last_7_days']);
     });
 
-    it('can count_inactive_users_over_30_days', function () {
+    it('can count inactive users over 30 days', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // 2 users inactive (no readings ever)
@@ -300,7 +300,7 @@ describe('Activity Metrics', function () {
         $this->assertSame(3, $metrics['current_stats']['inactive_over_30_days']);
     });
 
-    it('can calculate_average_reading_days_per_user', function () {
+    it('can calculate average reading days per user', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // User A: 5 unique reading days
@@ -325,7 +325,7 @@ describe('Activity Metrics', function () {
         $this->assertSame(4.0, $metrics['current_stats']['avg_reading_days_per_user']);
     });
 
-    it('can count_users_with_active_reading_plan', function () {
+    it('can count users with active reading plan', function () {
         $plan = ReadingPlan::factory()->create();
 
         // 2 users with active subscriptions
@@ -349,7 +349,7 @@ describe('Activity Metrics', function () {
 });
 
 describe('Insights', function () {
-    it('can generate_onboarding_dropoff_insight_when_rate_below_80', function () {
+    it('can generate onboarding dropoff insight when rate below 80', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // 50% onboarding rate
@@ -366,7 +366,7 @@ describe('Insights', function () {
         $this->assertSame('warning', $onboardingInsight['tone']);
     });
 
-    it('can generate_slow_activation_insight_when_over_24_hours', function () {
+    it('can generate slow activation insight when over 24 hours', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         $user = User::factory()->create([
@@ -384,7 +384,7 @@ describe('Insights', function () {
         $this->assertSame('warning', $activationInsight['tone']);
     });
 
-    it('can generate_weak_churn_recovery_insight_below_20_percent', function () {
+    it('can generate weak churn recovery insight below 20 percent', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         createChurnScenario(10, 1); // 10 users, 1 recovered = 10%
@@ -396,7 +396,7 @@ describe('Insights', function () {
         $this->assertSame('warning', $churnInsight['tone']);
     });
 
-    it('can generate_low_weekly_activity_insight_below_15_percent', function () {
+    it('can generate low weekly activity insight below 15 percent', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // 10 users, only 1 active this week (10%)
@@ -413,7 +413,7 @@ describe('Insights', function () {
         $this->assertSame('warning', $activityInsight['tone']);
     });
 
-    it('can generate_healthy_metrics_insight_when_all_kpis_good', function () {
+    it('can generate healthy metrics insight when all kpis good', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // Create scenario where all KPIs are good:
@@ -446,7 +446,7 @@ describe('Insights', function () {
         $this->assertSame('success', $healthyInsight['tone']);
     });
 
-    it('can limit_insights_to_maximum_of_4', function () {
+    it('can limit insights to maximum of 4', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // Create scenario triggering all 4 warnings
@@ -472,7 +472,7 @@ describe('Insights', function () {
 });
 
 describe('Caching', function () {
-    it('can cache_dashboard_metrics', function () {
+    it('can cache dashboard metrics', function () {
         User::factory()->create();
 
         // First call populates cache
@@ -488,7 +488,7 @@ describe('Caching', function () {
         $this->assertSame($metrics1['generated_at']->timestamp, $metrics2['generated_at']->timestamp);
     });
 
-    it('can verify_cache_key_is_versioned', function () {
+    it('can verify cache key is versioned', function () {
         User::factory()->create();
         $this->service->getDashboardMetrics();
 
@@ -497,7 +497,7 @@ describe('Caching', function () {
 });
 
 describe('Weekly Activity Rate', function () {
-    it('can calculate_weekly_activity_rate_correctly', function () {
+    it('can calculate weekly activity rate correctly', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         // 4 users total, 2 active in last 7 days = 50%
