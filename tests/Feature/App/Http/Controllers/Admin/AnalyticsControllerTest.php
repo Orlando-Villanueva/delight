@@ -18,7 +18,7 @@ afterEach(function () {
     Carbon::setTestNow();
 });
 
-it('it_can_show_the_analytics_dashboard_for_admins', function () {
+it('can show the analytics dashboard for admins', function () {
     $now = Carbon::create(2026, 2, 6, 12, 0, 0);
     Carbon::setTestNow($now);
     Cache::flush();
@@ -64,7 +64,7 @@ it('it_can_show_the_analytics_dashboard_for_admins', function () {
     $response->assertSee('50.0%');
 });
 
-it('it_can_block_non_admins_from_admin_analytics', function () {
+it('can block non-admins from admin analytics', function () {
     $user = User::factory()->create([
         'email' => 'user@example.com',
     ]);
@@ -74,7 +74,7 @@ it('it_can_block_non_admins_from_admin_analytics', function () {
     $response->assertForbidden();
 });
 
-it('it_can_redirect_guests_from_admin_analytics', function () {
+it('can redirect guests from admin analytics', function () {
     $response = $this->get(route('admin.analytics.index'));
 
     $response->assertRedirect(route('login'));
