@@ -61,8 +61,8 @@
     <!-- Structured Data -->
     <script type="application/ld+json">
         {
-            "@context": "https://schema.org",
-            "@type": "WebApplication",
+            "@@context": "https://schema.org",
+            "@@type": "WebApplication",
             "name": "Delight",
             "description": "Track your Bible reading with streaks, progress visualization, and structured reading plans. Build lasting habits with a guided plan to help you stay on track.",
             "url": "{{ config('app.url') }}",
@@ -71,18 +71,18 @@
             "browserRequirements": "Requires JavaScript. Requires HTML5.",
             "softwareVersion": "1.0",
             "aggregateRating": {
-                "@type": "AggregateRating",
+                "@@type": "AggregateRating",
                 "ratingValue": "5.0",
                 "ratingCount": "1"
             },
             "offers": {
-                "@type": "Offer",
+                "@@type": "Offer",
                 "price": "0",
                 "priceCurrency": "USD",
                 "availability": "https://schema.org/InStock"
             },
             "author": {
-                "@type": "Organization",
+                "@@type": "Organization",
                 "name": "Delight"
             },
             "keywords": "bible reading plan, bible reading plan app, bible tracking app, bible reading tracker, bible habit tracker",

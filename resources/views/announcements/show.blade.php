@@ -18,20 +18,20 @@
     <!-- JSON-LD Schema -->
     <script type="application/ld+json">
                     {
-                        "@context": "https://schema.org",
-                        "@type": "BlogPosting",
+                        "@@context": "https://schema.org",
+                        "@@type": "BlogPosting",
                         "headline": "{{ $announcement->title }}",
                         "datePublished": "{{ $announcement->starts_at->toIso8601String() }}",
                         "dateModified": "{{ $announcement->updated_at->toIso8601String() }}",
                         "author": {
-                            "@type": "Organization",
+                            "@@type": "Organization",
                             "name": "Delight"
                         },
                         "publisher": {
-                            "@type": "Organization",
+                            "@@type": "Organization",
                             "name": "Delight",
                             "logo": {
-                                 "@type": "ImageObject",
+                                 "@@type": "ImageObject",
                                  "url": "{{ asset('images/logo-64.png') }}"
                             }
                         },
