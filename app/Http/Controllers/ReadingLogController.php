@@ -189,7 +189,15 @@ class ReadingLogController extends Controller
         if ($request->header('HX-Request')) {
             // If it's an infinite scroll request (has page parameter), return just the new cards
             if ($request->has('page') && $request->get('page') > 1) {
-                $cardsHtml = $this->readingLogService->renderReadingLogCardsHtml($logs);
+                $cardsHtml = view('partials.reading-log-items', [
+                    'logs' => $logs,
+                    'includeEmptyToday' => false,
+                ])->render()
+                    .view('partials.reading-log-modals', [
+                        'logs' => $logs,
+                        'modalsOutOfBand' => true,
+                        'swapMethod' => 'beforeend',
+                    ])->render();
 
                 return response($cardsHtml);
             }
