@@ -14,6 +14,7 @@ use App\Http\Controllers\PublicAnnouncementController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\ReadingPlanController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Middleware\EnsureAdminOrAnalyticsToken;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -136,6 +137,12 @@ Route::middleware('auth')->group(function () {
     // Onboarding
     Route::post('/onboarding/dismiss', [OnboardingController::class, 'dismiss'])
         ->name('onboarding.dismiss');
+});
+
+// Snapshot endpoint - outside admin auth group, supports admin session OR token.
+Route::middleware(['throttle:60,1', EnsureAdminOrAnalyticsToken::class])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('analytics/snapshot', [AnalyticsController::class, 'snapshot'])
+        ->name('analytics.snapshot');
 });
 
 // Admin Routes (Protected by check logic in middleware)

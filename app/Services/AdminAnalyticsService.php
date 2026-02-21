@@ -12,8 +12,12 @@ class AdminAnalyticsService
 {
     private const CACHE_TTL_DASHBOARD = 300; // 5 minutes
 
-    public function getDashboardMetrics(): array
+    public function getDashboardMetrics(bool $fresh = false): array
     {
+        if ($fresh) {
+            Cache::forget('admin_analytics_stats_v1');
+        }
+
         return Cache::remember('admin_analytics_stats_v1', self::CACHE_TTL_DASHBOARD, function () {
             $totalUsers = User::count();
             $usersWithReadings = User::has('readingLogs')->count();
