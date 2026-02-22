@@ -52,6 +52,7 @@ class User extends Authenticatable
             'onboarding_dismissed_at' => 'datetime',
             'celebrated_first_reading_at' => 'datetime',
             'marketing_emails_opted_out_at' => 'datetime',
+            'onboarding_reminder_requested_at' => 'datetime',
         ];
     }
 

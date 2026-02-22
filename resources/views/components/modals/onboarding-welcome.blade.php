@@ -38,7 +38,7 @@
                 </div>
 
                 {{-- Actions --}}
-                <div class="space-y-4">
+                <div id="onboarding-actions" class="space-y-4">
                     <button hx-get="{{ route('logs.create') }}" 
                        hx-target="#page-container"
                        hx-swap="innerHTML"
@@ -60,6 +60,20 @@
                             start with a reading plan
                         </button>
                     </div>
+
+                    @if (auth()->user()?->marketing_emails_opted_out_at === null)
+                        <form method="POST"
+                            hx-post="{{ route('onboarding.remind') }}"
+                            hx-swap="none"
+                            hx-disabled-elt="#onboarding-actions button"
+                            hx-on::after-request="if (event.detail.successful) { hideOnboardingModal(); }">
+                            @csrf
+                            <button type="submit"
+                                class="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700/60 dark:hover:text-white">
+                                Remind me tomorrow
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
         </div>
@@ -67,6 +81,25 @@
 </div>
 
 <script>
+    function hideOnboardingModal() {
+        const modalEl = document.getElementById('onboarding-modal');
+        if (!modalEl) {
+            return;
+        }
+
+        const modal = modalEl._flowbiteModal;
+
+        if (modal) {
+            modal.hide();
+        }
+
+        document.querySelectorAll('[modal-backdrop]').forEach(function(backdrop) {
+            backdrop.remove();
+        });
+
+        document.body.classList.remove('overflow-hidden');
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const modalEl = document.getElementById('onboarding-modal');
         if (modalEl) {
@@ -108,15 +141,7 @@
                 const triggerElement = event.detail && event.detail.requestConfig ? event.detail.requestConfig.elt : null;
                 const response = event.detail ? event.detail.xhr : null;
                 if (triggerElement && response && response.status === 200 && triggerElement.hasAttribute('hx-push-url')) {
-                    modal.hide();
-
-                    // Remove any leftover backdrops
-                    document.querySelectorAll('[modal-backdrop]').forEach(function(backdrop) {
-                        backdrop.remove();
-                    });
-
-                    // Also restore body scroll
-                    document.body.classList.remove('overflow-hidden');
+                    hideOnboardingModal();
                 }
             });
         }

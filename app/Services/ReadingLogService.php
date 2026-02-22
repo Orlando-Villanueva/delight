@@ -56,7 +56,10 @@ class ReadingLogService
 
             if (! $lockedUser->hasEverCelebratedFirstReading()
                 && ! $lockedUser->readingLogs()->exists()) {
-                $user->update(['celebrated_first_reading_at' => now()]);
+                $user->forceFill([
+                    'celebrated_first_reading_at' => now(),
+                    'onboarding_reminder_requested_at' => null,
+                ])->save();
 
                 return true;
             }

@@ -53,6 +53,26 @@ it('shows celebration for first reading', function () {
         ->assertSee('1 down, 365 to go');
 });
 
+it('clears onboarding reminder marker when first reading is celebrated', function () {
+    $user = User::factory()->create([
+        'onboarding_reminder_requested_at' => now()->subHours(4),
+    ]);
+
+    $response = $this->actingAs($user)
+        ->withHeaders(['HX-Request' => 'true'])
+        ->post('/logs', [
+            'book_id' => 43,
+            'start_chapter' => 1,
+            'date_read' => today()->toDateString(),
+        ]);
+
+    $response->assertStatus(200);
+
+    $freshUser = $user->fresh();
+    expect($freshUser->celebrated_first_reading_at)->not->toBeNull();
+    expect($freshUser->onboarding_reminder_requested_at)->toBeNull();
+});
+
 it('does not show celebration for subsequent readings', function () {
     $user = User::factory()->create();
     $readingLog = ReadingLog::factory()->for($user)->create([
