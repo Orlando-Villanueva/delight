@@ -8,97 +8,67 @@ use App\Services\EmailService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
 
+beforeEach(function () {
+    Mail::fake();
+    $this->now = Carbon::create(2026, 2, 23, 9, 0, 0);
+    Carbon::setTestNow($this->now);
+
+    $this->requestedAt = $this->now->copy()->subDay();
+    $this->user = User::factory()->create([
+        'onboarding_reminder_requested_at' => $this->requestedAt,
+    ]);
+});
+
 afterEach(function () {
     Carbon::setTestNow();
 });
 
 it('sends once and clears marker when reminder is due and user is eligible', function () {
-    Mail::fake();
-    $now = Carbon::create(2026, 2, 23, 9, 0, 0);
-    Carbon::setTestNow($now);
-
-    $requestedAt = $now->copy()->subDay();
-    $user = User::factory()->create([
-        'onboarding_reminder_requested_at' => $requestedAt,
-    ]);
-
-    $job = new SendOnboardingReminderJob($user->id, $requestedAt->toIso8601String());
+    $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
     $job->handle(app(EmailService::class));
 
-    Mail::assertSent(OnboardingReminderEmail::class, function (OnboardingReminderEmail $mail) use ($user) {
-        return $mail->hasTo($user->email);
+    Mail::assertSent(OnboardingReminderEmail::class, function (OnboardingReminderEmail $mail) {
+        return $mail->hasTo($this->user->email);
     });
 
-    expect($user->fresh()->onboarding_reminder_requested_at)->toBeNull();
+    expect($this->user->fresh()->onboarding_reminder_requested_at)->toBeNull();
 });
 
 it('does not send and clears marker when user has a reading before send time', function () {
-    Mail::fake();
-    $now = Carbon::create(2026, 2, 23, 9, 0, 0);
-    Carbon::setTestNow($now);
-
-    $requestedAt = $now->copy()->subDay();
-    $user = User::factory()->create([
-        'onboarding_reminder_requested_at' => $requestedAt,
+    ReadingLog::factory()->for($this->user)->create([
+        'date_read' => $this->now->toDateString(),
     ]);
 
-    ReadingLog::factory()->for($user)->create([
-        'date_read' => $now->toDateString(),
-    ]);
-
-    $job = new SendOnboardingReminderJob($user->id, $requestedAt->toIso8601String());
+    $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
     $job->handle(app(EmailService::class));
 
     Mail::assertNothingSent();
-    expect($user->fresh()->onboarding_reminder_requested_at)->toBeNull();
+    expect($this->user->fresh()->onboarding_reminder_requested_at)->toBeNull();
 });
 
 it('does not send and clears marker when user opted out after scheduling', function () {
-    Mail::fake();
-    $now = Carbon::create(2026, 2, 23, 9, 0, 0);
-    Carbon::setTestNow($now);
-
-    $requestedAt = $now->copy()->subDay();
-    $user = User::factory()->create([
-        'onboarding_reminder_requested_at' => $requestedAt,
-        'marketing_emails_opted_out_at' => $now->copy()->subHour(),
+    $this->user->update([
+        'marketing_emails_opted_out_at' => $this->now->copy()->subHour(),
     ]);
 
-    $job = new SendOnboardingReminderJob($user->id, $requestedAt->toIso8601String());
+    $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
     $job->handle(app(EmailService::class));
 
     Mail::assertNothingSent();
-    expect($user->fresh()->onboarding_reminder_requested_at)->toBeNull();
+    expect($this->user->fresh()->onboarding_reminder_requested_at)->toBeNull();
 });
 
 it('does nothing when job payload marker does not match current marker', function () {
-    Mail::fake();
-    $now = Carbon::create(2026, 2, 23, 9, 0, 0);
-    Carbon::setTestNow($now);
+    $staleRequestedAt = $this->requestedAt->copy()->subMinute();
 
-    $requestedAt = $now->copy()->subDay();
-    $user = User::factory()->create([
-        'onboarding_reminder_requested_at' => $requestedAt,
-    ]);
-
-    $staleRequestedAt = $requestedAt->copy()->subMinute();
-
-    $job = new SendOnboardingReminderJob($user->id, $staleRequestedAt->toIso8601String());
+    $job = new SendOnboardingReminderJob($this->user->id, $staleRequestedAt->toIso8601String());
     $job->handle(app(EmailService::class));
 
     Mail::assertNothingSent();
-    expect($user->fresh()->onboarding_reminder_requested_at?->equalTo($requestedAt))->toBeTrue();
+    expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($this->requestedAt))->toBeTrue();
 });
 
 it('throws to trigger retry when email sending fails and preserves marker', function () {
-    $now = Carbon::create(2026, 2, 23, 9, 0, 0);
-    Carbon::setTestNow($now);
-
-    $requestedAt = $now->copy()->subDay();
-    $user = User::factory()->create([
-        'onboarding_reminder_requested_at' => $requestedAt,
-    ]);
-
     $failingEmailService = new class extends EmailService
     {
         public function sendWithErrorHandling(callable $mailCallback, string $context = 'email'): bool
@@ -107,10 +77,10 @@ it('throws to trigger retry when email sending fails and preserves marker', func
         }
     };
 
-    $job = new SendOnboardingReminderJob($user->id, $requestedAt->toIso8601String());
+    $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
 
-    expect(fn () => $job->handle($failingEmailService))
+    expect(fn() => $job->handle($failingEmailService))
         ->toThrow(\RuntimeException::class);
 
-    expect($user->fresh()->onboarding_reminder_requested_at?->equalTo($requestedAt))->toBeTrue();
+    expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($this->requestedAt))->toBeTrue();
 });
