@@ -80,10 +80,11 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - laravel/telescope (TELESCOPE) - v5
 - laravel/mcp (MCP) - v0
 - laravel/pint (PINT) - v1
-- laravel/sail (SAIL) - v1
 - pestphp/pest (PEST) - v3
 - phpunit/phpunit (PHPUNIT) - v11
 - tailwindcss (TAILWINDCSS) - v4
+
+Note: `boost.json` sets `"sail": false`, so Sail-specific tooling assumptions should be excluded.
 
 ## Skills Activation
 
