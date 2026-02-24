@@ -10,7 +10,7 @@ The project follows a **Service Layer Architecture**, ensuring controllers remai
 
 **Key Technologies:**
 
-- **Backend:** Laravel 11.x (PHP 8.2+)
+- **Backend:** Laravel 12.x (PHP 8.5.2)
 - **Authentication:** Laravel Fortify (Passwords) & Laravel Socialite (Google/X OAuth)
 - **Frontend:** HTMX, Alpine.js, Tailwind CSS v4 (Vite), Vite
 - **UI Components:** Flowbite
@@ -22,7 +22,7 @@ The project follows a **Service Layer Architecture**, ensuring controllers remai
 
 ### Prerequisites
 
-- PHP 8.2+
+- PHP 8.5.2
 - Composer
 - Node.js and npm
 - SQLite
