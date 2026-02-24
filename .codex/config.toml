@@ -1,0 +1,11 @@
+[mcp_servers.laravel-boost]
+command = "php"
+args = ["artisan", "boost:mcp"]
+cwd = "."
+
+[mcp_servers.herd]
+command = "herd-mcp.phar"
+cwd = "."
+
+[mcp_servers.herd.env]
+SITE_PATH = "."
