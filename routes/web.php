@@ -137,6 +137,8 @@ Route::middleware('auth')->group(function () {
     // Onboarding
     Route::post('/onboarding/dismiss', [OnboardingController::class, 'dismiss'])
         ->name('onboarding.dismiss');
+    Route::post('/onboarding/remind', [OnboardingController::class, 'remind'])
+        ->name('onboarding.remind');
 });
 
 // Snapshot endpoint - outside admin auth group, supports admin session OR token.

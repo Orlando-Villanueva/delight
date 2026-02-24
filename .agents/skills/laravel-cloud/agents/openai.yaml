@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel Cloud"
+  short_description: "Guide Laravel Cloud deployment and production operations."
+  default_prompt: "Use $laravel-cloud to troubleshoot or plan Laravel Cloud production setup, deployments, and runtime operations with official documentation."
