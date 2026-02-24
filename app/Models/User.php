@@ -27,6 +27,7 @@ class User extends Authenticatable
         'onboarding_dismissed_at',
         'celebrated_first_reading_at',
         'marketing_emails_opted_out_at',
+        'onboarding_reminder_requested_at',
     ];
 
     /**

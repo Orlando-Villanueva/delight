@@ -68,19 +68,75 @@ it('does nothing when job payload marker does not match current marker', functio
     expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($this->requestedAt))->toBeTrue();
 });
 
+it('does nothing when reminder is not yet due', function () {
+    $notYetDueRequestedAt = $this->now->copy()->subHours(2);
+    $this->user->update([
+        'onboarding_reminder_requested_at' => $notYetDueRequestedAt,
+    ]);
+
+    $job = new SendOnboardingReminderJob($this->user->id, $notYetDueRequestedAt->toIso8601String());
+    $job->handle(app(EmailService::class));
+
+    Mail::assertNothingSent();
+    expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($notYetDueRequestedAt))->toBeTrue();
+});
+
+it('does nothing when user no longer exists', function () {
+    $job = new SendOnboardingReminderJob(999999, $this->requestedAt->toIso8601String());
+    $job->handle(app(EmailService::class));
+
+    Mail::assertNothingSent();
+});
+
+it('does not send when user opts out between marker clear and callback send', function () {
+    $raceEmailService = $this->mock(EmailService::class);
+    $raceEmailService->shouldReceive('sendWithErrorHandling')
+        ->once()
+        ->andReturnUsing(function (callable $mailCallback, string $context = 'email') {
+            $this->user->update([
+                'marketing_emails_opted_out_at' => $this->now->copy()->addMinute(),
+            ]);
+
+            $mailCallback();
+
+            return true;
+        });
+
+    $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
+    $job->handle($raceEmailService);
+
+    Mail::assertNothingSent();
+
+    $freshUser = $this->user->fresh();
+    expect($freshUser->marketing_emails_opted_out_at)->not->toBeNull();
+    expect($freshUser->onboarding_reminder_requested_at)->toBeNull();
+});
+
 it('throws to trigger retry when email sending fails and preserves marker', function () {
-    $failingEmailService = new class extends EmailService
-    {
-        public function sendWithErrorHandling(callable $mailCallback, string $context = 'email'): bool
-        {
-            return false;
-        }
-    };
+    $failingEmailService = $this->mock(EmailService::class);
+    $failingEmailService->shouldReceive('sendWithErrorHandling')
+        ->once()
+        ->andReturn(false);
 
     $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
 
-    expect(fn() => $job->handle($failingEmailService))
+    expect(fn () => $job->handle($failingEmailService))
         ->toThrow(\RuntimeException::class);
 
+    expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($this->requestedAt))->toBeTrue();
+});
+
+it('rethrows throwable from email service and preserves marker for retry', function () {
+    $throwingEmailService = $this->mock(EmailService::class);
+    $throwingEmailService->shouldReceive('sendWithErrorHandling')
+        ->once()
+        ->andThrow(new \Error('Synthetic callback error'));
+
+    $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
+
+    expect(fn () => $job->handle($throwingEmailService))
+        ->toThrow(\Error::class);
+
+    Mail::assertNothingSent();
     expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($this->requestedAt))->toBeTrue();
 });

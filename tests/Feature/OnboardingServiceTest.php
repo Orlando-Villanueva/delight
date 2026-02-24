@@ -45,7 +45,7 @@ it('remind schedules a reminder and dismisses onboarding for eligible users', fu
 
         return $job->userId === $user->id
             && $job->expectedRequestedAtIso === $now->toIso8601String()
-            && $delay instanceof DateTimeInterface
+            && $delay instanceof \DateTimeInterface
             && Carbon::instance($delay)->equalTo($now->copy()->addDay());
     });
 });
@@ -136,4 +136,22 @@ it('remind does not schedule multiple reminders if requested again', function ()
 
     // Queue should still only have 1 job pushed from the very first one
     Queue::assertPushed(SendOnboardingReminderJob::class, 1);
+});
+
+it('rolls back reminder state when dispatch fails', function () {
+    $originalQueue = config('queue.default');
+    config(['queue.default' => 'missing-queue-connection']);
+
+    $user = User::factory()->create();
+    $service = new OnboardingService;
+
+    try {
+        expect(fn () => $service->remind($user->id))->toThrow(\InvalidArgumentException::class);
+    } finally {
+        config(['queue.default' => $originalQueue]);
+    }
+
+    $freshUser = $user->fresh();
+    expect($freshUser->onboarding_dismissed_at)->toBeNull();
+    expect($freshUser->onboarding_reminder_requested_at)->toBeNull();
 });

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\SendOnboardingReminderJob;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class OnboardingService
 {
@@ -30,6 +31,7 @@ class OnboardingService
                 return;
             }
 
+            // Dismiss onboarding whenever this escape hatch is selected.
             $lockedUser->onboarding_dismissed_at = $now;
 
             if ($lockedUser->marketing_emails_opted_out_at !== null) {
@@ -54,10 +56,24 @@ class OnboardingService
         });
 
         if ($dispatchPayload !== null) {
-            SendOnboardingReminderJob::dispatch(
-                $dispatchPayload['user_id'],
-                $dispatchPayload['requested_at']->toIso8601String()
-            )->delay($dispatchPayload['requested_at']->copy()->addDay());
+            try {
+                SendOnboardingReminderJob::dispatch(
+                    $dispatchPayload['user_id'],
+                    $dispatchPayload['requested_at']->toIso8601String()
+                )->delay($dispatchPayload['requested_at']->copy()->addDay());
+            } catch (Throwable $exception) {
+                // Best-effort rollback so users can retry if queueing fails.
+                User::query()
+                    ->whereKey($dispatchPayload['user_id'])
+                    ->where('onboarding_dismissed_at', $dispatchPayload['requested_at']->toDateTimeString())
+                    ->where('onboarding_reminder_requested_at', $dispatchPayload['requested_at']->toDateTimeString())
+                    ->update([
+                        'onboarding_dismissed_at' => null,
+                        'onboarding_reminder_requested_at' => null,
+                    ]);
+
+                throw $exception;
+            }
         }
     }
 
