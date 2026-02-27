@@ -21,10 +21,12 @@ class EnsureAdminOrAnalyticsToken
             return $next($request);
         }
 
+        $providedToken = $request->bearerToken();
         $configuredToken = (string) config('analytics.export_token', '');
-        $providedToken = (string) $request->header('X-Analytics-Token', '');
 
-        if ($configuredToken !== '' && $providedToken !== '' && hash_equals($configuredToken, $providedToken)) {
+        if (is_string($providedToken) && $providedToken !== '' && $configuredToken !== '' && hash_equals($configuredToken, $providedToken)) {
+            $request->attributes->set('analytics_token_authenticated', true);
+
             return $next($request);
         }
 

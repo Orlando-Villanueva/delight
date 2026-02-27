@@ -1,14 +1,16 @@
 # Weekly Analytics Snapshots
 
-This endpoint provides machine-readable weekly analytics snapshots for local Codex automation and downstream analysis.
+This endpoint provides machine-readable weekly analytics snapshots for Codex automation and downstream analysis.
 
 ## Environment Setup
 
-Add a token to your `.env`:
+Set snapshot auth token in `.env`:
 
 ```bash
 ANALYTICS_EXPORT_TOKEN=
 ```
+
+- `ANALYTICS_EXPORT_TOKEN` is required and used for Bearer auth.
 
 Generate a secure token:
 
@@ -22,14 +24,15 @@ php -r "echo bin2hex(random_bytes(32));"
 - URL: `/admin/analytics/snapshot`
 - Auth:
   - Admin session auth, or
-  - `X-Analytics-Token` header
+  - `Authorization: Bearer <token>`
 - Rate limit: `60` requests per minute
 
-## Query Parameters
+## Behavior
 
-- `fresh=1`
-  - Clears `admin_analytics_stats_v1` before reading metrics.
-  - Use when you need uncached values in automation.
+- Token-authenticated callers read the live endpoint snapshot response.
+- Token-authenticated callers cannot request `fresh=1`.
+- Admin-session callers keep live compute behavior, including `fresh=1`.
+- Successful token responses include `X-Analytics-Snapshot-Id: <iso_week>@<snapshot_generated_at>`.
 
 ## Response Shape
 
@@ -55,42 +58,46 @@ php -r "echo bin2hex(random_bytes(32));"
 }
 ```
 
+## Error Responses
+
+`422` when token caller passes `fresh=1`:
+
+```json
+{
+  "error": {
+    "code": "fresh_not_allowed_for_token",
+    "message": "Query parameter fresh=1 is not allowed for token-authenticated callers."
+  }
+}
+```
+
 ## QA Commands
 
-Successful fetch:
+Successful token fetch:
 
 ```bash
 curl -sS \
-  -H "X-Analytics-Token: $ANALYTICS_EXPORT_TOKEN" \
-  "http://delight.test/admin/analytics/snapshot" | jq .
+  -H "Authorization: Bearer $ANALYTICS_EXPORT_TOKEN" \
+  "http://delight.test/admin/analytics/snapshot" -D - | sed -n '1,20p'
 ```
 
 Forbidden without auth:
 
 ```bash
 curl -i "http://delight.test/admin/analytics/snapshot"
-curl -i -H "X-Analytics-Token: wrong" "http://delight.test/admin/analytics/snapshot"
+curl -i -H "Authorization: Bearer wrong" "http://delight.test/admin/analytics/snapshot"
 ```
 
-Cache reuse and bypass:
+Token caller `fresh=1` rejected:
 
 ```bash
-A=$(curl -sS -H "X-Analytics-Token: $ANALYTICS_EXPORT_TOKEN" "http://delight.test/admin/analytics/snapshot" | jq -r '.metrics.generated_at')
-sleep 2
-B=$(curl -sS -H "X-Analytics-Token: $ANALYTICS_EXPORT_TOKEN" "http://delight.test/admin/analytics/snapshot" | jq -r '.metrics.generated_at')
-C=$(curl -sS -H "X-Analytics-Token: $ANALYTICS_EXPORT_TOKEN" "http://delight.test/admin/analytics/snapshot?fresh=1" | jq -r '.metrics.generated_at')
-echo "A=$A"
-echo "B=$B"
-echo "C=$C"
+curl -sS \
+  -H "Authorization: Bearer $ANALYTICS_EXPORT_TOKEN" \
+  "http://delight.test/admin/analytics/snapshot?fresh=1" | jq .
 ```
-
-Expected:
-
-- `A == B`
-- `C != B`
 
 ## Local Codex Automation Storage Convention
 
-Store weekly snapshots locally at:
+Store local analysis artifacts at:
 
 `/Users/orlando/Projects/Agents/sentinel/knowledge/delight-weekly-audits/{YYYY}/{YYYY}-W{ww}.json`
