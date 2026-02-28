@@ -40,7 +40,7 @@ it('can return analytics snapshot for bearer token-authenticated guests', functi
         ->withHeader('Authorization', 'Bearer test-analytics-token')
         ->getJson(route('admin.analytics.snapshot'));
 
-    $snapshotGeneratedAt = $response->json('snapshot_generated_at');
+    $metricsGeneratedAt = $response->json('metrics.generated_at');
 
     $response
         ->assertOk()
@@ -49,7 +49,26 @@ it('can return analytics snapshot for bearer token-authenticated guests', functi
         ->assertJsonPath('audit_week.iso_week', '2026-W08')
         ->assertJsonPath('audit_week.week_start', '2026-02-16')
         ->assertJsonPath('audit_week.week_end', '2026-02-22')
-        ->assertHeader('X-Analytics-Snapshot-Id', '2026-W08@'.$snapshotGeneratedAt);
+        ->assertHeader('X-Analytics-Snapshot-Id', '2026-W08@'.$metricsGeneratedAt)
+        ->assertJsonStructure([
+            'schema_version',
+            'snapshot_generated_at',
+            'audit_week' => [
+                'timezone',
+                'iso_week',
+                'week_start',
+                'week_end',
+            ],
+            'metrics' => [
+                'generated_at',
+                'onboarding',
+                'activation',
+                'churn_recovery',
+                'current_stats',
+                'weekly_activity_rate',
+                'insights',
+            ],
+        ]);
 });
 
 it('forbids requests without admin auth or valid token', function () {
@@ -68,13 +87,34 @@ it('returns validation error when token-authenticated caller requests fresh snap
         ->getJson(route('admin.analytics.snapshot', ['fresh' => 1]));
 
     $response
-        ->assertStatus(422)
+        ->assertUnprocessable()
         ->assertExactJson([
             'error' => [
                 'code' => 'fresh_not_allowed_for_token',
                 'message' => 'Query parameter fresh=1 is not allowed for token-authenticated callers.',
             ],
         ]);
+});
+
+it('keeps token snapshot id stable while cached metrics are unchanged', function () {
+    Carbon::setTestNow(Carbon::create(2026, 2, 21, 9, 0, 0, 'America/New_York'));
+
+    $first = $this
+        ->withHeader('Authorization', 'Bearer test-analytics-token')
+        ->getJson(route('admin.analytics.snapshot'));
+
+    Carbon::setTestNow(Carbon::create(2026, 2, 21, 9, 4, 0, 'America/New_York'));
+
+    $second = $this
+        ->withHeader('Authorization', 'Bearer test-analytics-token')
+        ->getJson(route('admin.analytics.snapshot'));
+
+    $firstSnapshotId = $first->baseResponse->headers->get('X-Analytics-Snapshot-Id');
+    $secondSnapshotId = $second->baseResponse->headers->get('X-Analytics-Snapshot-Id');
+
+    expect($first->json('metrics.generated_at'))->toBe($second->json('metrics.generated_at'));
+    expect($firstSnapshotId)->toBe($secondSnapshotId);
+    expect($first->json('snapshot_generated_at'))->not->toBe($second->json('snapshot_generated_at'));
 });
 
 it('keeps fresh behavior for admin-session callers', function () {

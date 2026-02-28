@@ -32,7 +32,7 @@ php -r "echo bin2hex(random_bytes(32));"
 - Token-authenticated callers read the live endpoint snapshot response.
 - Token-authenticated callers cannot request `fresh=1`.
 - Admin-session callers keep live compute behavior, including `fresh=1`.
-- Successful token responses include `X-Analytics-Snapshot-Id: <iso_week>@<snapshot_generated_at>`.
+- Successful token responses include `X-Analytics-Snapshot-Id: <iso_week>@<metrics.generated_at>`.
 
 ## Response Shape
 

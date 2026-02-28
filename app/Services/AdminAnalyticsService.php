@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
+use Carbon\CarbonInterface;
+use DateTimeInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -100,6 +102,40 @@ class AdminAnalyticsService
                 ),
             ];
         });
+    }
+
+    /**
+     * @return array{
+     *     schema_version: string,
+     *     snapshot_generated_at: string,
+     *     audit_week: array{timezone: string, iso_week: string, week_start: string, week_end: string},
+     *     metrics: array<string, mixed>
+     * }
+     */
+    public function buildSnapshotPayload(bool $fresh): array
+    {
+        $metrics = $this->getDashboardMetrics($fresh);
+        $timezone = (string) config('analytics.snapshot_timezone', 'America/New_York');
+        $now = now($timezone);
+
+        $weekStart = $now->copy()->startOfWeek(CarbonInterface::MONDAY);
+        $weekEnd = $weekStart->copy()->addDays(6);
+
+        if (($metrics['generated_at'] ?? null) instanceof DateTimeInterface) {
+            $metrics['generated_at'] = $metrics['generated_at']->format(DATE_ATOM);
+        }
+
+        return [
+            'schema_version' => (string) config('analytics.schema_version', 'admin_analytics_weekly_v1'),
+            'snapshot_generated_at' => $now->format(DATE_ATOM),
+            'audit_week' => [
+                'timezone' => $timezone,
+                'iso_week' => $now->format('o-\WW'),
+                'week_start' => $weekStart->toDateString(),
+                'week_end' => $weekEnd->toDateString(),
+            ],
+            'metrics' => $metrics,
+        ];
     }
 
     private function getActivationMetrics(): array
