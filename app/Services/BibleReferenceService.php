@@ -23,18 +23,7 @@ class BibleReferenceService
 
     private function loadBibleConfig(): array
     {
-        // Include the config file directly to avoid dependency on Laravel's config system during tests
-        $configPath = __DIR__.'/../../config/bible.php';
-        if (file_exists($configPath)) {
-            return include $configPath;
-        }
-
-        // Fallback: try to load from Laravel's config system
-        if (function_exists('config')) {
-            return config('bible', []);
-        }
-
-        return [];
+        return config('bible', []);
     }
 
     /**
