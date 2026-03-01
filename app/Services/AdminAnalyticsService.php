@@ -5,10 +5,13 @@ namespace App\Services;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
+use Throwable;
 
 class AdminAnalyticsService
 {
@@ -107,6 +110,7 @@ class AdminAnalyticsService
     /**
      * @return array{
      *     schema_version: string,
+     *     snapshot_id: string,
      *     snapshot_generated_at: string,
      *     audit_week: array{timezone: string, iso_week: string, week_start: string, week_end: string},
      *     metrics: array<string, mixed>
@@ -116,21 +120,37 @@ class AdminAnalyticsService
     {
         $metrics = $this->getDashboardMetrics($fresh);
         $timezone = (string) config('analytics.snapshot_timezone', 'America/New_York');
-        $now = now($timezone);
+        $snapshotGeneratedAt = now($timezone);
+        $metricsGeneratedAt = $metrics['generated_at'] ?? null;
 
-        $weekStart = $now->copy()->startOfWeek(CarbonInterface::MONDAY);
-        $weekEnd = $weekStart->copy()->addDays(6);
-
-        if (($metrics['generated_at'] ?? null) instanceof DateTimeInterface) {
-            $metrics['generated_at'] = $metrics['generated_at']->format(DATE_ATOM);
+        if ($metricsGeneratedAt instanceof DateTimeInterface) {
+            $metricsGeneratedAt = $metricsGeneratedAt->format(DATE_ATOM);
         }
+
+        if (! is_string($metricsGeneratedAt) || $metricsGeneratedAt === '') {
+            throw new RuntimeException('Analytics snapshot metrics.generated_at must be a non-empty ISO-8601 string.');
+        }
+
+        try {
+            $metricsTimestamp = Carbon::parse($metricsGeneratedAt)->setTimezone($timezone);
+        } catch (Throwable $exception) {
+            throw new RuntimeException('Analytics snapshot metrics.generated_at is invalid and cannot be parsed.', previous: $exception);
+        }
+
+        $metrics['generated_at'] = $metricsGeneratedAt;
+
+        $weekStart = $metricsTimestamp->copy()->startOfWeek(CarbonInterface::MONDAY);
+        $weekEnd = $weekStart->copy()->addDays(6);
+        $isoWeek = $metricsTimestamp->format('o-\WW');
+        $snapshotId = sprintf('%s@%s', $isoWeek, $metricsGeneratedAt);
 
         return [
             'schema_version' => (string) config('analytics.schema_version', 'admin_analytics_weekly_v1'),
-            'snapshot_generated_at' => $now->format(DATE_ATOM),
+            'snapshot_id' => $snapshotId,
+            'snapshot_generated_at' => $snapshotGeneratedAt->format(DATE_ATOM),
             'audit_week' => [
                 'timezone' => $timezone,
-                'iso_week' => $now->format('o-\WW'),
+                'iso_week' => $isoWeek,
                 'week_start' => $weekStart->toDateString(),
                 'week_end' => $weekEnd->toDateString(),
             ],

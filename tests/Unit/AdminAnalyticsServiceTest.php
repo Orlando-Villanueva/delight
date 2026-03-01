@@ -515,3 +515,37 @@ describe('Weekly Activity Rate', function () {
         $this->assertSame(50.0, $metrics['weekly_activity_rate']);
     });
 });
+
+describe('Snapshot Payload', function () {
+    it('throws when metrics generated_at is missing or invalid', function (array $metrics) {
+        $service = new class($metrics) extends AdminAnalyticsService
+        {
+            public function __construct(private array $metrics) {}
+
+            public function getDashboardMetrics(bool $fresh = false): array
+            {
+                return $this->metrics;
+            }
+        };
+
+        expect(fn () => $service->buildSnapshotPayload(false))
+            ->toThrow(RuntimeException::class, 'Analytics snapshot metrics.generated_at');
+    })->with([
+        'missing generated_at' => [
+            [
+                'onboarding' => [
+                    'completed' => 0,
+                    'total' => 0,
+                    'rate' => 0.0,
+                    'target' => 80,
+                    'status' => 'neutral',
+                ],
+            ],
+        ],
+        'invalid generated_at' => [
+            [
+                'generated_at' => 'not-a-valid-date',
+            ],
+        ],
+    ]);
+});
