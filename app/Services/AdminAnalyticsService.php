@@ -28,7 +28,7 @@ class AdminAnalyticsService
             $usersWithReadings = User::has('readingLogs')->count();
             $usersNoReadings = max(0, $totalUsers - $usersWithReadings);
 
-            $activeLast7Days = ReadingLog::where('date_read', '>=', now()->subDays(7)->toDateString())
+            $activeLast7Days = ReadingLog::where('date_read', '>=', now()->subDays(6)->toDateString())
                 ->distinct()
                 ->count('user_id');
 
