@@ -37,15 +37,7 @@ class AnalyticsController extends Controller
         $response = response()->json($payload);
 
         if ($isTokenAuthenticated) {
-            $snapshotVersion = (string) ($payload['metrics']['generated_at'] ?? $payload['snapshot_generated_at']);
-
-            $snapshotId = sprintf(
-                '%s@%s',
-                $payload['audit_week']['iso_week'],
-                $snapshotVersion
-            );
-
-            $response->header('X-Analytics-Snapshot-Id', $snapshotId);
+            $response->header('X-Analytics-Snapshot-Id', (string) $payload['snapshot_id']);
         }
 
         return $response;

@@ -32,13 +32,16 @@ php -r "echo bin2hex(random_bytes(32));"
 - Token-authenticated callers read the live endpoint snapshot response.
 - Token-authenticated callers cannot request `fresh=1`.
 - Admin-session callers keep live compute behavior, including `fresh=1`.
-- Successful token responses include `X-Analytics-Snapshot-Id: <iso_week>@<metrics.generated_at>`.
+- Snapshot identity is canonicalized as `snapshot_id = audit_week.iso_week@metrics.generated_at`.
+- Week metadata (`audit_week.iso_week`, `week_start`, `week_end`) is derived from the `metrics.generated_at` timestamp reference for cache-consistent identity across ISO-week rollover.
+- Successful token responses include `X-Analytics-Snapshot-Id`, and it mirrors JSON `snapshot_id` exactly.
 
 ## Response Shape
 
 ```json
 {
   "schema_version": "admin_analytics_weekly_v1",
+  "snapshot_id": "2026-W08@2026-02-21T09:00:00-05:00",
   "snapshot_generated_at": "2026-02-21T09:00:00-05:00",
   "audit_week": {
     "timezone": "America/New_York",
