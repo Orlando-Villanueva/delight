@@ -277,6 +277,24 @@ describe('Activity Metrics', function () {
         $this->assertSame(3, $metrics['current_stats']['active_last_7_days']);
     });
 
+    it('correctly counts users in 7-day activity window based on reading date', function (int $daysAgo, int $expectedCount) {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        // Create a single user with a reading log at the specified boundary
+        $user = User::factory()->create();
+        ReadingLog::factory()->for($user)->create([
+            'date_read' => now()->subDays($daysAgo)->toDateString(),
+        ]);
+
+        $metrics = $this->service->getDashboardMetrics();
+
+        $this->assertSame($expectedCount, $metrics['current_stats']['active_last_7_days']);
+    })->with([
+        'reading 6 days ago is INCLUDED' => ['daysAgo' => 6, 'expectedCount' => 1],
+        'reading 7 days ago is EXCLUDED' => ['daysAgo' => 7, 'expectedCount' => 0],
+        'reading 8 days ago is EXCLUDED' => ['daysAgo' => 8, 'expectedCount' => 0],
+    ]);
+
     it('can count inactive users over 30 days', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
