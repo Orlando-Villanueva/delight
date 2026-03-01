@@ -36,7 +36,7 @@ class ReadingLogPolicy
      */
     public function update(User $user, ReadingLog $readingLog): bool
     {
-        return false;
+        return $user->id === $readingLog->user_id;
     }
 
     /**

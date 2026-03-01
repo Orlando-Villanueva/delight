@@ -209,6 +209,8 @@ class ReadingLogController extends Controller
      */
     public function updateNotes(UpdateReadingNotesRequest $request, ReadingLog $readingLog)
     {
+        $this->authorize('update', $readingLog);
+
         $user = $request->user();
         $data = $request->validated();
         $notesText = array_key_exists('notes_text', $data) ? (string) $data['notes_text'] : null;
@@ -277,10 +279,7 @@ class ReadingLogController extends Controller
      */
     public function destroy(Request $request, ReadingLog $readingLog)
     {
-        // Authorize the deletion
-        if ($request->user()->id !== $readingLog->user_id) {
-            abort(403, 'Unauthorized to delete this reading log.');
-        }
+        $this->authorize('delete', $readingLog);
 
         $user = $request->user();
         $date = $readingLog->date_read->format('Y-m-d');
