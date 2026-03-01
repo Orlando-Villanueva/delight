@@ -517,33 +517,33 @@ class ReadingLogService
         $currentMonth = now()->format('Y-m');
 
         // Always invalidate - these change on every reading
-        Cache::forget("user_dashboard_stats_{$user->id}");
-        Cache::forget("user_calendar_{$user->id}_{$currentYear}");
-        Cache::forget("user_calendar_{$user->id}_{$previousYear}");
-        Cache::forget("user_monthly_calendar_{$user->id}_{$currentMonth}");
-        Cache::forget("user_total_reading_days_{$user->id}");
-        Cache::forget("user_avg_chapters_per_day_{$user->id}");
-        Cache::forget("user_current_streak_series_{$user->id}");
+        Cache::forget(UserStatisticsService::cacheKeyDashboardStats($user->id));
+        Cache::forget(UserStatisticsService::cacheKeyCalendar($user->id, $currentYear));
+        Cache::forget(UserStatisticsService::cacheKeyCalendar($user->id, $previousYear));
+        Cache::forget(UserStatisticsService::cacheKeyMonthlyCalendar($user->id, $currentMonth));
+        Cache::forget(UserStatisticsService::cacheKeyTotalReadingDays($user->id));
+        Cache::forget(UserStatisticsService::cacheKeyAvgChaptersPerDay($user->id));
+        Cache::forget(UserStatisticsService::cacheKeyCurrentStreakSeries($user->id));
         Cache::forget(AnnualRecapService::cacheKeyFor($user, $currentYear));
 
         // Smart invalidation - only invalidate on first reading of the day
         if ($isFirstReadingOfDay) {
             // First reading of the day - streak and weekly goal will change
             $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
-            Cache::forget("user_weekly_goal_v2_{$user->id}_{$weekStart}");
-            Cache::forget("user_weekly_goal_{$user->id}_{$weekStart}");
-            Cache::forget("user_current_streak_{$user->id}");
+            Cache::forget(UserStatisticsService::cacheKeyWeeklyGoalV2($user->id, $weekStart));
+            Cache::forget(UserStatisticsService::cacheKeyWeeklyGoal($user->id, $weekStart));
+            Cache::forget(UserStatisticsService::cacheKeyCurrentStreak($user->id));
 
             // Longest streak - only invalidate if current streak might exceed it
-            $cachedLongest = Cache::get("user_longest_streak_{$user->id}");
+            $cachedLongest = Cache::get(UserStatisticsService::cacheKeyLongestStreak($user->id));
             if ($cachedLongest === null) {
                 // No cached longest streak, need to calculate
-                Cache::forget("user_longest_streak_{$user->id}");
+                Cache::forget(UserStatisticsService::cacheKeyLongestStreak($user->id));
             } else {
                 // Check if current streak + 1 (after today's reading) might exceed longest
-                $cachedCurrent = Cache::get("user_current_streak_{$user->id}");
+                $cachedCurrent = Cache::get(UserStatisticsService::cacheKeyCurrentStreak($user->id));
                 if ($cachedCurrent === null || ($cachedCurrent + 1) > $cachedLongest) {
-                    Cache::forget("user_longest_streak_{$user->id}");
+                    Cache::forget(UserStatisticsService::cacheKeyLongestStreak($user->id));
                 }
             }
         }
