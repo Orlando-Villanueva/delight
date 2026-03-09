@@ -17,6 +17,12 @@ class AdminAnalyticsService
 {
     private const CACHE_TTL_DASHBOARD = 300; // 5 minutes
 
+    private const THIRTY_TO_SIXTY_CAMPAIGN_KEY = 'inactive_30_60_followup';
+
+    private const THIRTY_TO_SIXTY_VARIANT_CONTROL = 'current_flow_control';
+
+    private const THIRTY_TO_SIXTY_VARIANT_FOLLOWUP = 'two_touch_followup';
+
     public function getDashboardMetrics(bool $fresh = false): array
     {
         if ($fresh) {
@@ -46,6 +52,7 @@ class AdminAnalyticsService
 
             $activation = $this->getActivationMetrics();
             $churnRecovery = $this->getChurnRecoveryMetrics();
+            $thirtyToSixtyComparison = $this->getThirtyToSixtyComparisonMetrics();
 
             $weeklyActiveRate = $totalUsers > 0
                 ? round(($activeLast7Days / $totalUsers) * 100, 1)
@@ -83,6 +90,9 @@ class AdminAnalyticsService
                     'total' => $churnRecovery['total'],
                     'rate' => $churnRecovery['rate'],
                     'status' => $churnStatus,
+                    'comparisons' => [
+                        'inactive_30_60' => $thirtyToSixtyComparison,
+                    ],
                 ],
                 'current_stats' => [
                     'total_users' => $totalUsers,
@@ -190,6 +200,7 @@ class AdminAnalyticsService
     {
         $latestEmails = DB::table('churn_recovery_emails')
             ->selectRaw('user_id, max(sent_at) as last_sent_at')
+            ->whereNull('churn_recovery_campaign_id')
             ->whereNull('deleted_at')
             ->groupBy('user_id');
 
@@ -221,6 +232,57 @@ class AdminAnalyticsService
             'successes' => $successes,
             'total' => $total,
             'rate' => $rate,
+        ];
+    }
+
+    private function getThirtyToSixtyComparisonMetrics(): array
+    {
+        $campaigns = DB::table('churn_recovery_campaigns as crc')
+            ->where('crc.campaign_key', self::THIRTY_TO_SIXTY_CAMPAIGN_KEY)
+            ->whereNull('crc.deleted_at');
+
+        $control = $this->getThirtyToSixtyVariantMetrics(clone $campaigns, self::THIRTY_TO_SIXTY_VARIANT_CONTROL);
+        $followup = $this->getThirtyToSixtyVariantMetrics(clone $campaigns, self::THIRTY_TO_SIXTY_VARIANT_FOLLOWUP);
+
+        return [
+            'control' => $control,
+            'followup' => $followup,
+            'lift' => round($followup['rate'] - $control['rate'], 1),
+        ];
+    }
+
+    private function getThirtyToSixtyVariantMetrics($campaigns, string $variant): array
+    {
+        $variantCampaigns = (clone $campaigns)
+            ->where('crc.variant', $variant);
+
+        $total = (clone $variantCampaigns)->count();
+
+        if ($total === 0) {
+            return [
+                'variant' => $variant,
+                'successes' => 0,
+                'total' => 0,
+                'rate' => 0.0,
+            ];
+        }
+
+        $successes = DB::query()
+            ->fromSub(
+                $variantCampaigns->select('crc.id', 'crc.started_at', 'crc.observed_until', 'crc.user_id'),
+                'campaigns'
+            )
+            ->join('reading_logs as rl', 'rl.user_id', '=', 'campaigns.user_id')
+            ->whereColumn('rl.created_at', '>=', 'campaigns.started_at')
+            ->whereColumn('rl.created_at', '<=', 'campaigns.observed_until')
+            ->distinct()
+            ->count('campaigns.id');
+
+        return [
+            'variant' => $variant,
+            'successes' => $successes,
+            'total' => $total,
+            'rate' => round(($successes / $total) * 100, 1),
         ];
     }
 

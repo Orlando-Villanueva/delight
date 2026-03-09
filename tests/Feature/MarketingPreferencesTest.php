@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 
 it('shows unsubscribe confirmation page with valid signed url', function () {
@@ -189,4 +190,34 @@ it('signed url expires after one year by default', function () {
     $expectedExpiry = now()->addDays(365);
 
     expect($expiresAt->diffInDays($expectedExpiry))->toBeLessThan(2);
+});
+
+it('30-60 follow-up email uses the direct log-reading CTA', function () {
+    $user = User::factory()->create();
+
+    $mailable = new \App\Mail\ChurnRecoveryEmail(
+        $user,
+        1,
+        null,
+        \App\Mail\ChurnRecoveryEmail::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP
+    );
+    $content = $mailable->content();
+
+    expect($content->with['ctaUrl'])->toBe(route('logs.create'));
+});
+
+it('30-60 follow-up email keeps unsubscribe headers intact', function () {
+    $user = User::factory()->create();
+
+    $mailable = new \App\Mail\ChurnRecoveryEmail(
+        $user,
+        2,
+        null,
+        \App\Mail\ChurnRecoveryEmail::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP
+    );
+    $headers = $mailable->headers();
+
+    expect($headers->text)->toHaveKey('List-Unsubscribe');
+    expect($headers->text['List-Unsubscribe'])->toContain('signature=');
+    expect(URL::hasValidSignature(Request::create($mailable->unsubscribeUrl, 'GET')))->toBeTrue();
 });

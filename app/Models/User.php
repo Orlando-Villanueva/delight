@@ -193,4 +193,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(ChurnRecoveryEmail::class);
     }
+
+    /**
+     * Get the churn recovery campaigns for the user.
+     */
+    public function churnRecoveryCampaigns(): HasMany
+    {
+        return $this->hasMany(ChurnRecoveryCampaign::class);
+    }
 }

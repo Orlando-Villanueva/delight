@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ChurnRecoveryCampaign;
 use App\Models\ChurnRecoveryEmail;
 use App\Models\ReadingLog;
 use App\Models\User;
@@ -69,7 +70,8 @@ class ReadingLogService
 
         // Handle multiple chapters if provided
         if (isset($data['chapters']) && is_array($data['chapters'])) {
-            $log = $this->logMultipleChapters($user, $data, $hasReadToday);
+            $log = $this->logMultipleChapters($user, $data);
+            $this->handlePostLogSideEffects($user, ! $hasReadToday);
 
             return $log;
         }
@@ -86,13 +88,7 @@ class ReadingLogService
         // Update book progress
         $this->updateBookProgress($user, $data['book_id'], $data['chapter']);
 
-        // Invalidate user statistics cache with knowledge of whether this is first reading of the day
-        $this->invalidateUserStatisticsCache($user, ! $hasReadToday);
-
-        // Server-side state updated - HTMX will handle UI updates
-
-        // Check if churn recovery status needs to be reset
-        $this->maybeResetChurnRecovery($user);
+        $this->handlePostLogSideEffects($user, ! $hasReadToday);
 
         return $readingLog;
     }
@@ -133,12 +129,38 @@ class ReadingLogService
         // Perform soft reset
         ChurnRecoveryEmail::where('user_id', $user->id)
             ->delete();
+
+        ChurnRecoveryCampaign::query()
+            ->where('user_id', $user->id)
+            ->where('campaign_key', 'inactive_30_60_followup')
+            ->delete();
+    }
+
+    private function markChurnRecoveryCampaignsReactivated(User $user): void
+    {
+        ChurnRecoveryCampaign::query()
+            ->where('user_id', $user->id)
+            ->whereNull('deleted_at')
+            ->whereNull('completed_at')
+            ->where('campaign_key', 'inactive_30_60_followup')
+            ->update([
+                'reactivated_at' => now(),
+                'completed_at' => now(),
+            ]);
+    }
+
+    private function handlePostLogSideEffects(User $user, bool $isFirstReadingOfDay): void
+    {
+        // Server-side state updated - HTMX will handle UI updates
+        $this->invalidateUserStatisticsCache($user, $isFirstReadingOfDay);
+        $this->markChurnRecoveryCampaignsReactivated($user);
+        $this->maybeResetChurnRecovery($user);
     }
 
     /**
      * Log multiple chapters as separate reading log entries.
      */
-    private function logMultipleChapters(User $user, array $data, bool $hasReadToday): ReadingLog
+    private function logMultipleChapters(User $user, array $data): ReadingLog
     {
         $chapters = $data['chapters'];
         $firstLog = null;
@@ -160,10 +182,6 @@ class ReadingLogService
                 $firstLog = $readingLog;
             }
         }
-
-        // Invalidate user statistics cache after logging multiple chapters
-        // Only the first reading of the day affects streaks and weekly goals
-        $this->invalidateUserStatisticsCache($user, ! $hasReadToday);
 
         return $firstLog;
     }
