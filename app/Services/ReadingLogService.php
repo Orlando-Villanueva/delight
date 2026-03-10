@@ -138,6 +138,7 @@ class ReadingLogService
             ->whereNull('completed_at')
             ->where('campaign_key', 'inactive_30_60_followup')
             ->whereDate('started_at', '<=', $loggedDate)
+            ->whereDate('observed_until', '>=', $loggedDate)
             ->update([
                 'reactivated_at' => now(),
                 'completed_at' => now(),

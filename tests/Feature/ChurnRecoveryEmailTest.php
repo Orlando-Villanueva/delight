@@ -83,14 +83,27 @@ function churn_test_assertEmailSoftDeleted(int $userId): void
     expect(DB::table('churn_recovery_emails')->where('user_id', $userId)->whereNotNull('deleted_at')->exists())->toBeTrue();
 }
 
-function churn_test_createThirtyToSixtyCandidate(int $desiredParity): User
+function churn_test_determineThirtyToSixtyVariant(User $user): string
+{
+    $bucket = hexdec(substr(
+        hash_hmac('sha256', (string) $user->id, (string) config('app.key', 'delight')),
+        0,
+        8
+    ));
+
+    return $bucket % 2 === 0
+        ? 'current_flow_control'
+        : 'two_touch_followup';
+}
+
+function churn_test_createThirtyToSixtyCandidate(string $desiredVariant): User
 {
     while (true) {
         $user = User::factory()->create([
             'created_at' => now()->subDays(120),
         ]);
 
-        if ($user->id % 2 === $desiredParity) {
+        if (churn_test_determineThirtyToSixtyVariant($user) === $desiredVariant) {
             break;
         }
 
@@ -172,7 +185,7 @@ test('command sends email 2 after 7 days', function () {
     $user = User::factory()->create();
     ReadingLog::factory()->create([
         'user_id' => $user->id,
-        'date_read' => now()->subDays(40)->format('Y-m-d'),
+        'date_read' => now()->subDays(20)->format('Y-m-d'),
     ]);
 
     DB::table('churn_recovery_emails')->insert([
@@ -237,7 +250,7 @@ test('dry run does not complete overdue 30-60 control campaigns', function () {
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(0);
+    $user = churn_test_createThirtyToSixtyCandidate('current_flow_control');
 
     $this->artisan('churn:send-recovery')->assertSuccessful();
 
@@ -260,7 +273,7 @@ test('dry run does not complete reactivated 30-60 follow-up campaigns', function
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(1);
+    $user = churn_test_createThirtyToSixtyCandidate('two_touch_followup');
 
     $this->artisan('churn:send-recovery')->assertSuccessful();
 
@@ -376,7 +389,7 @@ test('command starts a 30-60 follow-up campaign for odd-id users and sends touch
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(1);
+    $user = churn_test_createThirtyToSixtyCandidate('two_touch_followup');
 
     $this->artisan('churn:send-recovery')->assertSuccessful();
 
@@ -403,7 +416,7 @@ test('command assigns even-id users to the 30-60 control path without sending ma
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(0);
+    $user = churn_test_createThirtyToSixtyCandidate('current_flow_control');
 
     $this->artisan('churn:send-recovery')->assertSuccessful();
 
@@ -417,6 +430,36 @@ test('command assigns even-id users to the 30-60 control path without sending ma
     $this->assertDatabaseMissing('churn_recovery_emails', [
         'user_id' => $user->id,
         'churn_recovery_campaign_id' => $campaign?->id,
+    ]);
+});
+
+test('command prioritizes the 30-60 campaign flow before sending the next legacy touch', function () {
+    Mail::fake();
+    Carbon::setTestNow('2026-03-08 12:00:00');
+
+    $user = User::factory()->create([
+        'created_at' => now()->subDays(120),
+    ]);
+
+    ReadingLog::factory()->create([
+        'user_id' => $user->id,
+        'date_read' => now()->subDays(40)->format('Y-m-d'),
+        'created_at' => now()->subDays(40),
+    ]);
+
+    DB::table('churn_recovery_emails')->insert([
+        'user_id' => $user->id,
+        'email_number' => 1,
+        'sent_at' => now()->subDays(8),
+    ]);
+
+    $this->artisan('churn:send-recovery')->assertSuccessful();
+
+    expect(churn_test_getThirtyToSixtyCampaign($user))->not->toBeNull();
+    $this->assertDatabaseMissing('churn_recovery_emails', [
+        'user_id' => $user->id,
+        'email_number' => 2,
+        'churn_recovery_campaign_id' => null,
     ]);
 });
 
@@ -469,7 +512,7 @@ test('command sends the second 30-60 follow-up touch after three days when the u
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(1);
+    $user = churn_test_createThirtyToSixtyCandidate('two_touch_followup');
 
     $this->artisan('churn:send-recovery')->assertSuccessful();
 
@@ -499,7 +542,7 @@ test('command does not send a duplicate second 30-60 follow-up touch after lock 
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(1);
+    $user = churn_test_createThirtyToSixtyCandidate('two_touch_followup');
 
     $this->artisan('churn:send-recovery')->assertSuccessful();
 
@@ -560,7 +603,7 @@ test('command suppresses the second 30-60 follow-up touch after reactivation', f
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(1);
+    $user = churn_test_createThirtyToSixtyCandidate('two_touch_followup');
 
     $this->artisan('churn:send-recovery')->assertSuccessful();
 
@@ -589,7 +632,7 @@ test('backdated single-chapter logs do not reactivate a follow-up campaign befor
     Mail::fake();
     Carbon::setTestNow('2026-03-09 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(1);
+    $user = churn_test_createThirtyToSixtyCandidate('two_touch_followup');
     $service = app(ReadingLogService::class);
 
     $this->artisan('churn:send-recovery')->assertSuccessful();
@@ -621,7 +664,7 @@ test('command does not create duplicate 30-60 follow-up campaigns on repeated ru
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(0);
+    $user = churn_test_createThirtyToSixtyCandidate('current_flow_control');
 
     $this->artisan('churn:send-recovery')->assertSuccessful();
     $this->artisan('churn:send-recovery')->assertSuccessful();
@@ -636,7 +679,7 @@ test('command retries 30-60 follow-up enrollment after touch 1 send failure', fu
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(1);
+    $user = churn_test_createThirtyToSixtyCandidate('two_touch_followup');
 
     $failingEmailService = $this->mock(EmailService::class);
     $failingEmailService->shouldReceive('sendWithErrorHandling')
@@ -678,7 +721,7 @@ test('campaign emails do not replay the legacy churn sequence after follow-up pa
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(1);
+    $user = churn_test_createThirtyToSixtyCandidate('two_touch_followup');
 
     $this->artisan('churn:send-recovery')->assertSuccessful();
 
@@ -719,7 +762,7 @@ test('logging multiple chapters marks the active follow-up campaign reactivated 
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(1);
+    $user = churn_test_createThirtyToSixtyCandidate('two_touch_followup');
     $service = app(ReadingLogService::class);
 
     $this->artisan('churn:send-recovery')->assertSuccessful();
@@ -748,7 +791,7 @@ test('backdated multi-chapter logs do not reactivate a follow-up campaign before
     Mail::fake();
     Carbon::setTestNow('2026-03-09 12:00:00');
 
-    $user = churn_test_createThirtyToSixtyCandidate(1);
+    $user = churn_test_createThirtyToSixtyCandidate('two_touch_followup');
     $service = app(ReadingLogService::class);
 
     $this->artisan('churn:send-recovery')->assertSuccessful();
@@ -802,4 +845,27 @@ test('users outside the 30-60 inactivity cohort do not get a 30-60 follow-up cam
         ->where('user_id', $user->id)
         ->where('campaign_key', 'inactive_30_60_followup')
         ->exists())->toBeFalse();
+});
+
+test('logs after the observation window do not mark a follow-up campaign reactivated', function () {
+    Mail::fake();
+    Carbon::setTestNow('2026-03-08 12:00:00');
+
+    $user = churn_test_createThirtyToSixtyCandidate('two_touch_followup');
+    $service = app(ReadingLogService::class);
+
+    $this->artisan('churn:send-recovery')->assertSuccessful();
+
+    Carbon::setTestNow('2026-03-20 12:00:00');
+
+    $service->logReading($user, [
+        'book_id' => 1,
+        'chapter' => 1,
+        'date_read' => now()->toDateString(),
+    ]);
+
+    $campaign = churn_test_getThirtyToSixtyCampaign($user);
+
+    expect($campaign?->reactivated_at)->toBeNull();
+    expect($campaign?->completed_at)->toBeNull();
 });

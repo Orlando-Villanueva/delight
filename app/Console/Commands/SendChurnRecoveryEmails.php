@@ -41,9 +41,9 @@ class SendChurnRecoveryEmails extends Command
         if (! $dryRun) {
             $this->completeObservedThirtyToSixtyCampaigns();
         }
-        $this->sendLegacyRecoveryEmails($emailService, $dryRun, $legacyEligibleCount, $legacySentCount);
         $this->startThirtyToSixtyCampaigns($emailService, $dryRun, $followUpEligibleCount, $followUpSentCount, $controlAssignments);
         $this->sendThirtyToSixtySecondTouches($emailService, $dryRun, $followUpSentCount);
+        $this->sendLegacyRecoveryEmails($emailService, $dryRun, $legacyEligibleCount, $legacySentCount);
 
         if ($dryRun) {
             $this->info("{$legacyEligibleCount} users eligible for legacy churn recovery emails.");
@@ -468,9 +468,15 @@ class SendChurnRecoveryEmails extends Command
 
     protected function determineThirtyToSixtyVariant(User $user): string
     {
-        return $user->id % 2 === 1
-            ? self::THIRTY_TO_SIXTY_VARIANT_FOLLOWUP
-            : self::THIRTY_TO_SIXTY_VARIANT_CONTROL;
+        $bucket = hexdec(substr(
+            hash_hmac('sha256', (string) $user->id, (string) config('app.key', 'delight')),
+            0,
+            8
+        ));
+
+        return $bucket % 2 === 0
+            ? self::THIRTY_TO_SIXTY_VARIANT_CONTROL
+            : self::THIRTY_TO_SIXTY_VARIANT_FOLLOWUP;
     }
 
     protected function isThirtyToSixtyInactive(User $user): bool
