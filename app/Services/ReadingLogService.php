@@ -70,8 +70,8 @@ class ReadingLogService
 
         // Handle multiple chapters if provided
         if (isset($data['chapters']) && is_array($data['chapters'])) {
-            $log = $this->logMultipleChapters($user, $data);
-            $this->handlePostLogSideEffects($user, ! $hasReadToday);
+            $log = $this->logMultipleChapters($user, $data, $dateRead);
+            $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
 
             return $log;
         }
@@ -88,7 +88,7 @@ class ReadingLogService
         // Update book progress
         $this->updateBookProgress($user, $data['book_id'], $data['chapter']);
 
-        $this->handlePostLogSideEffects($user, ! $hasReadToday);
+        $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
 
         return $readingLog;
     }
@@ -136,31 +136,32 @@ class ReadingLogService
             ->delete();
     }
 
-    private function markChurnRecoveryCampaignsReactivated(User $user): void
+    private function markChurnRecoveryCampaignsReactivated(User $user, string $loggedDate): void
     {
         ChurnRecoveryCampaign::query()
             ->where('user_id', $user->id)
             ->whereNull('deleted_at')
             ->whereNull('completed_at')
             ->where('campaign_key', 'inactive_30_60_followup')
+            ->whereDate('started_at', '<=', $loggedDate)
             ->update([
                 'reactivated_at' => now(),
                 'completed_at' => now(),
             ]);
     }
 
-    private function handlePostLogSideEffects(User $user, bool $isFirstReadingOfDay): void
+    private function handlePostLogSideEffects(User $user, bool $isFirstReadingOfDay, string $loggedDate): void
     {
         // Server-side state updated - HTMX will handle UI updates
         $this->invalidateUserStatisticsCache($user, $isFirstReadingOfDay);
-        $this->markChurnRecoveryCampaignsReactivated($user);
+        $this->markChurnRecoveryCampaignsReactivated($user, $loggedDate);
         $this->maybeResetChurnRecovery($user);
     }
 
     /**
      * Log multiple chapters as separate reading log entries.
      */
-    private function logMultipleChapters(User $user, array $data): ReadingLog
+    private function logMultipleChapters(User $user, array $data, string $dateRead): ReadingLog
     {
         $chapters = $data['chapters'];
         $firstLog = null;
@@ -170,7 +171,7 @@ class ReadingLogService
                 'book_id' => $data['book_id'],
                 'chapter' => $chapter,
                 'passage_text' => $data['passage_text'], // Range text like "John 1-3"
-                'date_read' => $data['date_read'] ?? now()->toDateString(),
+                'date_read' => $dateRead,
                 'notes_text' => $data['notes_text'] ?? null,
             ]);
 

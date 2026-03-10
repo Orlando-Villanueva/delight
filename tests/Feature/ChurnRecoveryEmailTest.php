@@ -585,6 +585,38 @@ test('command suppresses the second 30-60 follow-up touch after reactivation', f
     expect($campaign?->completed_at)->not->toBeNull();
 });
 
+test('backdated single-chapter logs do not reactivate a follow-up campaign before its start date', function () {
+    Mail::fake();
+    Carbon::setTestNow('2026-03-09 12:00:00');
+
+    $user = churn_test_createThirtyToSixtyCandidate(1);
+    $service = app(ReadingLogService::class);
+
+    $this->artisan('churn:send-recovery')->assertSuccessful();
+
+    $service->logReading($user, [
+        'book_id' => 1,
+        'chapter' => 1,
+        'date_read' => now()->subDay()->toDateString(),
+    ]);
+
+    $campaign = churn_test_getThirtyToSixtyCampaign($user);
+
+    expect($campaign?->reactivated_at)->toBeNull();
+    expect($campaign?->completed_at)->toBeNull();
+
+    Mail::fake();
+    Carbon::setTestNow('2026-03-12 12:00:00');
+
+    $this->artisan('churn:send-recovery')->assertSuccessful();
+
+    Mail::assertSent(ChurnRecoveryEmail::class, function ($mail) use ($user) {
+        return $mail->hasTo($user->email)
+            && $mail->emailNumber === 2
+            && $mail->sequence === ChurnRecoveryEmail::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP;
+    });
+});
+
 test('command does not create duplicate 30-60 follow-up campaigns on repeated runs', function () {
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');
@@ -710,6 +742,38 @@ test('logging multiple chapters marks the active follow-up campaign reactivated 
     $this->artisan('churn:send-recovery')->assertSuccessful();
 
     Mail::assertNothingSent();
+});
+
+test('backdated multi-chapter logs do not reactivate a follow-up campaign before its start date', function () {
+    Mail::fake();
+    Carbon::setTestNow('2026-03-09 12:00:00');
+
+    $user = churn_test_createThirtyToSixtyCandidate(1);
+    $service = app(ReadingLogService::class);
+
+    $this->artisan('churn:send-recovery')->assertSuccessful();
+
+    $service->logReading($user, [
+        'book_id' => 1,
+        'chapters' => [1, 2],
+        'date_read' => now()->subDay()->toDateString(),
+    ]);
+
+    $campaign = churn_test_getThirtyToSixtyCampaign($user);
+
+    expect($campaign?->reactivated_at)->toBeNull();
+    expect($campaign?->completed_at)->toBeNull();
+
+    Mail::fake();
+    Carbon::setTestNow('2026-03-12 12:00:00');
+
+    $this->artisan('churn:send-recovery')->assertSuccessful();
+
+    Mail::assertSent(ChurnRecoveryEmail::class, function ($mail) use ($user) {
+        return $mail->hasTo($user->email)
+            && $mail->emailNumber === 2
+            && $mail->sequence === ChurnRecoveryEmail::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP;
+    });
 });
 
 test('users outside the 30-60 inactivity cohort do not get a 30-60 follow-up campaign', function () {
