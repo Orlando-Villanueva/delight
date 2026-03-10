@@ -8,6 +8,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -251,7 +252,7 @@ class AdminAnalyticsService
         ];
     }
 
-    private function getThirtyToSixtyVariantMetrics($campaigns, string $variant): array
+    private function getThirtyToSixtyVariantMetrics(Builder $campaigns, string $variant): array
     {
         $variantCampaigns = (clone $campaigns)
             ->where('crc.variant', $variant);

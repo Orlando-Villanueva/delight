@@ -129,18 +129,12 @@ class ReadingLogService
         // Perform soft reset
         ChurnRecoveryEmail::where('user_id', $user->id)
             ->delete();
-
-        ChurnRecoveryCampaign::query()
-            ->where('user_id', $user->id)
-            ->where('campaign_key', 'inactive_30_60_followup')
-            ->delete();
     }
 
     private function markChurnRecoveryCampaignsReactivated(User $user, string $loggedDate): void
     {
         ChurnRecoveryCampaign::query()
             ->where('user_id', $user->id)
-            ->whereNull('deleted_at')
             ->whereNull('completed_at')
             ->where('campaign_key', 'inactive_30_60_followup')
             ->whereDate('started_at', '<=', $loggedDate)

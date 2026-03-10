@@ -22,7 +22,7 @@ return new class extends Migration
 
         DB::statement('DROP INDEX IF EXISTS unique_active_user_email_number');
         DB::statement('CREATE UNIQUE INDEX unique_active_user_email_number
-            ON churn_recovery_emails (user_id, ifnull(churn_recovery_campaign_id, 0), email_number)
+            ON churn_recovery_emails (user_id, coalesce(churn_recovery_campaign_id, 0), email_number)
             WHERE deleted_at IS NULL');
     }
 

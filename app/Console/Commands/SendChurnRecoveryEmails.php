@@ -10,6 +10,7 @@ use App\Services\EmailService;
 use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 
@@ -136,7 +137,7 @@ class SendChurnRecoveryEmails extends Command
 
     protected function processLegacyRecoveryUser(
         User $user,
-        \Illuminate\Support\Collection $emailHistories,
+        Collection $emailHistories,
         EmailService $emailService,
         bool $dryRun,
         int &$eligibleCount,

@@ -1,5 +1,6 @@
 <?php
 
+use App\Mail\ChurnRecoveryEmail;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
@@ -141,7 +142,7 @@ it('does not update timestamp when already unsubscribed', function () {
 it('churn recovery email mailable generates signed unsubscribe url', function () {
     $user = User::factory()->create();
 
-    $mailable = new \App\Mail\ChurnRecoveryEmail($user, 1);
+    $mailable = new ChurnRecoveryEmail($user, 1);
     $content = $mailable->content();
 
     expect($content->with)->toHaveKey('unsubscribeUrl');
@@ -151,7 +152,7 @@ it('churn recovery email mailable generates signed unsubscribe url', function ()
 it('churn recovery email includes list-unsubscribe header', function () {
     $user = User::factory()->create();
 
-    $mailable = new \App\Mail\ChurnRecoveryEmail($user, 1);
+    $mailable = new ChurnRecoveryEmail($user, 1);
     $headers = $mailable->headers();
 
     expect($headers->text)->toHaveKey('List-Unsubscribe');
@@ -177,7 +178,7 @@ it('unsubscribe works without authentication', function () {
 it('signed url expires after one year by default', function () {
     $user = User::factory()->create();
 
-    $mailable = new \App\Mail\ChurnRecoveryEmail($user, 1);
+    $mailable = new ChurnRecoveryEmail($user, 1);
     $content = $mailable->content();
     $unsubscribeUrl = $content->with['unsubscribeUrl'];
 
@@ -195,11 +196,11 @@ it('signed url expires after one year by default', function () {
 it('30-60 follow-up email uses the direct log-reading CTA', function () {
     $user = User::factory()->create();
 
-    $mailable = new \App\Mail\ChurnRecoveryEmail(
+    $mailable = new ChurnRecoveryEmail(
         $user,
         1,
         null,
-        \App\Mail\ChurnRecoveryEmail::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP
+        ChurnRecoveryEmail::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP
     );
     $content = $mailable->content();
 
@@ -209,11 +210,11 @@ it('30-60 follow-up email uses the direct log-reading CTA', function () {
 it('30-60 follow-up email keeps unsubscribe headers intact', function () {
     $user = User::factory()->create();
 
-    $mailable = new \App\Mail\ChurnRecoveryEmail(
+    $mailable = new ChurnRecoveryEmail(
         $user,
         2,
         null,
-        \App\Mail\ChurnRecoveryEmail::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP
+        ChurnRecoveryEmail::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP
     );
     $headers = $mailable->headers();
 

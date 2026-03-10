@@ -10,6 +10,7 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\URL;
+use InvalidArgumentException;
 
 class ChurnRecoveryEmail extends Mailable
 {
@@ -96,7 +97,7 @@ class ChurnRecoveryEmail extends Mailable
         $maxEmailNumber = $this->sequence === self::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP ? 2 : 3;
 
         if ($this->emailNumber < 1 || $this->emailNumber > $maxEmailNumber) {
-            throw new \InvalidArgumentException("emailNumber must be between 1 and {$maxEmailNumber}");
+            throw new InvalidArgumentException("emailNumber must be between 1 and {$maxEmailNumber}");
         }
     }
 

@@ -7,6 +7,7 @@ use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
 use App\Services\AdminAnalyticsService;
+use App\Services\ReadingLogService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -382,6 +383,55 @@ describe('Churn Recovery Metrics', function () {
         $this->assertSame(100.0, $metrics['churn_recovery']['rate']);
         $this->assertSame(1, $metrics['churn_recovery']['comparisons']['inactive_30_60']['followup']['total']);
         $this->assertSame(1, $metrics['churn_recovery']['comparisons']['inactive_30_60']['followup']['successes']);
+    });
+
+    it('preserves completed 30-60 campaign rows after churn reset so comparison analytics stay stable', function () {
+        $resetDate = Carbon::parse('2026-03-20 12:00:00');
+        Carbon::setTestNow($resetDate);
+
+        $user = User::factory()->create();
+        $campaign = ChurnRecoveryCampaign::factory()->create([
+            'user_id' => $user->id,
+            'variant' => 'two_touch_followup',
+            'started_at' => now()->subDays(100),
+            'observed_until' => now()->subDays(93),
+            'last_touch_sent_at' => now()->subDays(99),
+        ]);
+
+        ChurnRecoveryEmail::create([
+            'user_id' => $user->id,
+            'churn_recovery_campaign_id' => $campaign->id,
+            'email_number' => 1,
+            'sent_at' => now()->subDays(99),
+        ]);
+
+        ReadingLog::factory()->for($user)->create([
+            'date_read' => now()->subDays(97)->toDateString(),
+            'created_at' => now()->subDays(97),
+        ]);
+
+        $readingLogService = app(ReadingLogService::class);
+
+        foreach ([2, 1, 0] as $daysAgo) {
+            Carbon::setTestNow($resetDate->copy()->subDays($daysAgo));
+
+            $readingLogService->logReading($user, [
+                'book_id' => 1,
+                'chapter' => $daysAgo + 1,
+                'date_read' => now()->toDateString(),
+            ]);
+        }
+
+        Carbon::setTestNow($resetDate);
+
+        expect($campaign->fresh()?->deleted_at)->toBeNull();
+
+        $metrics = $this->service->getDashboardMetrics(true);
+        $comparison = $metrics['churn_recovery']['comparisons']['inactive_30_60']['followup'];
+
+        $this->assertSame(1, $comparison['total']);
+        $this->assertSame(1, $comparison['successes']);
+        $this->assertSame(100.0, $comparison['rate']);
     });
 });
 
