@@ -538,6 +538,38 @@ test('command sends the second 30-60 follow-up touch after three days when the u
     ]);
 });
 
+test('command does not send the second 30-60 follow-up touch after the observation window expires', function () {
+    Mail::fake();
+    Carbon::setTestNow('2026-03-08 12:00:00');
+
+    $user = churn_test_createThirtyToSixtyCandidate('two_touch_followup');
+
+    $this->artisan('churn:send-recovery')->assertSuccessful();
+
+    $campaign = churn_test_getThirtyToSixtyCampaign($user);
+
+    expect($campaign)->not->toBeNull();
+    expect($campaign?->completed_at)->toBeNull();
+
+    Mail::fake();
+    Carbon::setTestNow('2026-03-16 12:00:00');
+
+    $this->artisan('churn:send-recovery')->assertSuccessful();
+
+    Mail::assertNothingSent();
+
+    $campaign = churn_test_getThirtyToSixtyCampaign($user);
+
+    expect($campaign?->reactivated_at)->toBeNull();
+    expect($campaign?->completed_at)->not->toBeNull();
+
+    $this->assertDatabaseMissing('churn_recovery_emails', [
+        'user_id' => $user->id,
+        'email_number' => 2,
+        'churn_recovery_campaign_id' => $campaign?->id,
+    ]);
+});
+
 test('command does not send a duplicate second 30-60 follow-up touch after lock acquisition', function () {
     Mail::fake();
     Carbon::setTestNow('2026-03-08 12:00:00');

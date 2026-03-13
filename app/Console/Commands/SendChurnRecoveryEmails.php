@@ -324,6 +324,10 @@ class SendChurnRecoveryEmails extends Command
         bool $dryRun,
         int &$sentCount
     ): void {
+        if (! $dryRun) {
+            $this->completeExpiredThirtyToSixtyFollowUpCampaigns();
+        }
+
         ChurnRecoveryCampaign::query()
             ->with(['user.latestReadingLog', 'emails'])
             ->where('campaign_key', self::THIRTY_TO_SIXTY_CAMPAIGN_KEY)
@@ -331,12 +335,26 @@ class SendChurnRecoveryEmails extends Command
             ->whereNull('completed_at')
             ->whereNull('reactivated_at')
             ->whereNotNull('last_touch_sent_at')
+            ->where('observed_until', '>=', now())
             ->where('last_touch_sent_at', '<=', now()->subDays(3))
             ->chunkById(100, function ($campaigns) use ($emailService, $dryRun, &$sentCount) {
                 foreach ($campaigns as $campaign) {
                     $this->processThirtyToSixtySecondTouchCampaign($campaign, $emailService, $dryRun, $sentCount);
                 }
             });
+    }
+
+    protected function completeExpiredThirtyToSixtyFollowUpCampaigns(): void
+    {
+        ChurnRecoveryCampaign::query()
+            ->where('campaign_key', self::THIRTY_TO_SIXTY_CAMPAIGN_KEY)
+            ->where('variant', self::THIRTY_TO_SIXTY_VARIANT_FOLLOWUP)
+            ->whereNull('completed_at')
+            ->whereNull('reactivated_at')
+            ->where('observed_until', '<', now())
+            ->update([
+                'completed_at' => now(),
+            ]);
     }
 
     protected function processThirtyToSixtySecondTouchCampaign(
@@ -378,6 +396,7 @@ class SendChurnRecoveryEmails extends Command
         User $user
     ): bool {
         return $user->marketing_emails_opted_out_at !== null
+            || $campaign->observed_until->lt(now())
             || $this->hasReactivatedSince($user, $campaign->started_at);
     }
 
