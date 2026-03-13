@@ -59,6 +59,8 @@ it('can return analytics snapshot for bearer token-authenticated guests', functi
         ->assertJsonPath('audit_week.week_start', '2026-02-16')
         ->assertJsonPath('audit_week.week_end', '2026-02-22')
         ->assertJsonPath('snapshot_id', $auditWeek.'@'.$metricsGeneratedAt)
+        ->assertJsonPath('metrics.churn_recovery.comparisons.inactive_30_60.control.variant', 'current_flow_control')
+        ->assertJsonPath('metrics.churn_recovery.comparisons.inactive_30_60.followup.variant', 'two_touch_followup')
         ->assertHeader('X-Analytics-Snapshot-Id', $snapshotId)
         ->assertJsonStructure([
             'schema_version',
@@ -74,7 +76,15 @@ it('can return analytics snapshot for bearer token-authenticated guests', functi
                 'generated_at',
                 'onboarding',
                 'activation',
-                'churn_recovery',
+                'churn_recovery' => [
+                    'comparisons' => [
+                        'inactive_30_60' => [
+                            'control',
+                            'followup',
+                            'lift',
+                        ],
+                    ],
+                ],
                 'current_stats',
                 'weekly_activity_rate',
                 'insights',

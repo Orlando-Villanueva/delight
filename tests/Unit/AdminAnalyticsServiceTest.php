@@ -1,11 +1,13 @@
 <?php
 
+use App\Models\ChurnRecoveryCampaign;
 use App\Models\ChurnRecoveryEmail;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
 use App\Services\AdminAnalyticsService;
+use App\Services\ReadingLogService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -45,6 +47,74 @@ function createChurnScenario(int $total, int $recovered): void
             ]);
         }
     }
+}
+
+function createThirtyToSixtyComparisonScenario(): void
+{
+    $controlRecovered = User::factory()->create();
+    $controlNotRecovered = User::factory()->create();
+    $followupRecovered = User::factory()->create();
+    $followupNotRecovered = User::factory()->create();
+
+    $controlCampaignRecovered = ChurnRecoveryCampaign::factory()->create([
+        'user_id' => $controlRecovered->id,
+        'variant' => 'current_flow_control',
+        'started_at' => now()->subDays(6),
+        'observed_until' => now()->addDay(),
+    ]);
+
+    ChurnRecoveryCampaign::factory()->create([
+        'user_id' => $controlNotRecovered->id,
+        'variant' => 'current_flow_control',
+        'started_at' => now()->subDays(6),
+        'observed_until' => now()->addDay(),
+    ]);
+
+    $followupCampaignRecovered = ChurnRecoveryCampaign::factory()->create([
+        'user_id' => $followupRecovered->id,
+        'variant' => 'two_touch_followup',
+        'started_at' => now()->subDays(6),
+        'observed_until' => now()->addDay(),
+        'last_touch_sent_at' => now()->subDays(3),
+    ]);
+
+    ChurnRecoveryCampaign::factory()->create([
+        'user_id' => $followupNotRecovered->id,
+        'variant' => 'two_touch_followup',
+        'started_at' => now()->subDays(6),
+        'observed_until' => now()->addDay(),
+        'last_touch_sent_at' => now()->subDays(3),
+    ]);
+
+    ChurnRecoveryEmail::create([
+        'user_id' => $followupRecovered->id,
+        'churn_recovery_campaign_id' => $followupCampaignRecovered->id,
+        'email_number' => 1,
+        'sent_at' => now()->subDays(6),
+    ]);
+
+    ChurnRecoveryEmail::create([
+        'user_id' => $followupNotRecovered->id,
+        'email_number' => 1,
+        'sent_at' => now()->subDays(6),
+    ]);
+
+    ChurnRecoveryEmail::create([
+        'user_id' => $controlRecovered->id,
+        'churn_recovery_campaign_id' => $controlCampaignRecovered->id,
+        'email_number' => 3,
+        'sent_at' => now()->subDays(8),
+    ]);
+
+    ReadingLog::factory()->for($controlRecovered)->create([
+        'date_read' => now()->subDays(2)->toDateString(),
+        'created_at' => now()->subDays(2),
+    ]);
+
+    ReadingLog::factory()->for($followupRecovered)->create([
+        'date_read' => now()->subDays(1)->toDateString(),
+        'created_at' => now()->subDays(1),
+    ]);
 }
 
 describe('Empty State', function () {
@@ -249,6 +319,119 @@ describe('Churn Recovery Metrics', function () {
         $metrics = $this->service->getDashboardMetrics();
 
         $this->assertSame(0, $metrics['churn_recovery']['total']);
+    });
+
+    it('can include 30-60 comparison metrics without changing the top-level churn recovery shape', function () {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        createThirtyToSixtyComparisonScenario();
+
+        $metrics = $this->service->getDashboardMetrics();
+
+        $comparison = $metrics['churn_recovery']['comparisons']['inactive_30_60'];
+
+        $this->assertSame(2, $comparison['control']['total']);
+        $this->assertSame(1, $comparison['control']['successes']);
+        $this->assertSame(50.0, $comparison['control']['rate']);
+        $this->assertSame(2, $comparison['followup']['total']);
+        $this->assertSame(1, $comparison['followup']['successes']);
+        $this->assertSame(50.0, $comparison['followup']['rate']);
+        $this->assertSame(0.0, $comparison['lift']);
+        $this->assertArrayHasKey('successes', $metrics['churn_recovery']);
+        $this->assertArrayHasKey('total', $metrics['churn_recovery']);
+        $this->assertArrayHasKey('rate', $metrics['churn_recovery']);
+        $this->assertArrayHasKey('status', $metrics['churn_recovery']);
+    });
+
+    it('keeps top-level churn recovery metrics limited to legacy emails when campaign emails exist', function () {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        $legacyUser = User::factory()->create();
+        ChurnRecoveryEmail::create([
+            'user_id' => $legacyUser->id,
+            'email_number' => 1,
+            'sent_at' => now()->subDays(5),
+        ]);
+        ReadingLog::factory()->for($legacyUser)->create([
+            'date_read' => now()->subDays(3)->toDateString(),
+            'created_at' => now()->subDays(3),
+        ]);
+
+        $followupUser = User::factory()->create();
+        $campaign = ChurnRecoveryCampaign::factory()->create([
+            'user_id' => $followupUser->id,
+            'variant' => 'two_touch_followup',
+            'started_at' => now()->subDays(6),
+            'observed_until' => now()->addDay(),
+            'last_touch_sent_at' => now()->subDays(3),
+        ]);
+        ChurnRecoveryEmail::create([
+            'user_id' => $followupUser->id,
+            'churn_recovery_campaign_id' => $campaign->id,
+            'email_number' => 1,
+            'sent_at' => now()->subDays(6),
+        ]);
+        ReadingLog::factory()->for($followupUser)->create([
+            'date_read' => now()->subDay()->toDateString(),
+            'created_at' => now()->subDay(),
+        ]);
+
+        $metrics = $this->service->getDashboardMetrics();
+
+        $this->assertSame(1, $metrics['churn_recovery']['total']);
+        $this->assertSame(1, $metrics['churn_recovery']['successes']);
+        $this->assertSame(100.0, $metrics['churn_recovery']['rate']);
+        $this->assertSame(1, $metrics['churn_recovery']['comparisons']['inactive_30_60']['followup']['total']);
+        $this->assertSame(1, $metrics['churn_recovery']['comparisons']['inactive_30_60']['followup']['successes']);
+    });
+
+    it('preserves completed 30-60 campaign rows after churn reset so comparison analytics stay stable', function () {
+        $resetDate = Carbon::parse('2026-03-20 12:00:00');
+        Carbon::setTestNow($resetDate);
+
+        $user = User::factory()->create();
+        $campaign = ChurnRecoveryCampaign::factory()->create([
+            'user_id' => $user->id,
+            'variant' => 'two_touch_followup',
+            'started_at' => now()->subDays(100),
+            'observed_until' => now()->subDays(93),
+            'last_touch_sent_at' => now()->subDays(99),
+        ]);
+
+        ChurnRecoveryEmail::create([
+            'user_id' => $user->id,
+            'churn_recovery_campaign_id' => $campaign->id,
+            'email_number' => 1,
+            'sent_at' => now()->subDays(99),
+        ]);
+
+        ReadingLog::factory()->for($user)->create([
+            'date_read' => now()->subDays(97)->toDateString(),
+            'created_at' => now()->subDays(97),
+        ]);
+
+        $readingLogService = app(ReadingLogService::class);
+
+        foreach ([2, 1, 0] as $daysAgo) {
+            Carbon::setTestNow($resetDate->copy()->subDays($daysAgo));
+
+            $readingLogService->logReading($user, [
+                'book_id' => 1,
+                'chapter' => $daysAgo + 1,
+                'date_read' => now()->toDateString(),
+            ]);
+        }
+
+        Carbon::setTestNow($resetDate);
+
+        expect($campaign->fresh()?->deleted_at)->toBeNull();
+
+        $metrics = $this->service->getDashboardMetrics(true);
+        $comparison = $metrics['churn_recovery']['comparisons']['inactive_30_60']['followup'];
+
+        $this->assertSame(1, $comparison['total']);
+        $this->assertSame(1, $comparison['successes']);
+        $this->assertSame(100.0, $comparison['rate']);
     });
 });
 
