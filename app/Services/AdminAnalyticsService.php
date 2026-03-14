@@ -249,30 +249,33 @@ class AdminAnalyticsService
             $currentStageBreakdown[$latestStage]++;
         }
 
+        $eventStepCounts = OnboardingStepEvent::query()
+            ->whereIn('step', [
+                OnboardingStep::LogFlowReached->value,
+                OnboardingStep::PlanBrowserReached->value,
+                OnboardingStep::PlanSelected->value,
+            ])
+            ->selectRaw('step, count(*) as total')
+            ->groupBy('step')
+            ->pluck('total', 'step');
+
+        $userStepCounts = User::query()
+            ->leftJoin('onboarding_step_events as reminder_events', function ($join) {
+                $join->on('users.id', '=', 'reminder_events.user_id')
+                    ->where('reminder_events.step', OnboardingStep::ReminderRequested->value);
+            })
+            ->selectRaw('count(distinct case when users.onboarding_reminder_requested_at is not null or reminder_events.id is not null then users.id end) as reminder_requested_count')
+            ->selectRaw('count(case when users.onboarding_dismissed_at is not null then 1 end) as dismissed_count')
+            ->selectRaw('count(case when users.celebrated_first_reading_at is not null then 1 end) as completed_count')
+            ->first();
+
         $stepCounts = [
-            OnboardingStep::LogFlowReached->value => OnboardingStepEvent::query()
-                ->where('step', OnboardingStep::LogFlowReached->value)
-                ->count(),
-            OnboardingStep::PlanBrowserReached->value => OnboardingStepEvent::query()
-                ->where('step', OnboardingStep::PlanBrowserReached->value)
-                ->count(),
-            OnboardingStep::PlanSelected->value => OnboardingStepEvent::query()
-                ->where('step', OnboardingStep::PlanSelected->value)
-                ->count(),
-            OnboardingStep::ReminderRequested->value => User::query()
-                ->where(function ($query) {
-                    $query->whereNotNull('onboarding_reminder_requested_at')
-                        ->orWhereHas('onboardingStepEvents', function ($eventQuery) {
-                            $eventQuery->where('step', OnboardingStep::ReminderRequested->value);
-                        });
-                })
-                ->count(),
-            OnboardingStep::Dismissed->value => User::query()
-                ->whereNotNull('onboarding_dismissed_at')
-                ->count(),
-            OnboardingStep::FirstReadingCompleted->value => User::query()
-                ->whereNotNull('celebrated_first_reading_at')
-                ->count(),
+            OnboardingStep::LogFlowReached->value => (int) $eventStepCounts->get(OnboardingStep::LogFlowReached->value, 0),
+            OnboardingStep::PlanBrowserReached->value => (int) $eventStepCounts->get(OnboardingStep::PlanBrowserReached->value, 0),
+            OnboardingStep::PlanSelected->value => (int) $eventStepCounts->get(OnboardingStep::PlanSelected->value, 0),
+            OnboardingStep::ReminderRequested->value => (int) ($userStepCounts->reminder_requested_count ?? 0),
+            OnboardingStep::Dismissed->value => (int) ($userStepCounts->dismissed_count ?? 0),
+            OnboardingStep::FirstReadingCompleted->value => (int) ($userStepCounts->completed_count ?? 0),
         ];
 
         return [

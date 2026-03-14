@@ -66,10 +66,9 @@ class ReadingPlanController extends Controller
     {
         $user = $request->user();
         $subscription = $this->planService->subscribe($user, $plan);
-        $freshUser = $user->fresh();
 
-        if ($this->onboardingService->shouldTrackPreFirstReading($freshUser)) {
-            $this->onboardingService->recordStep($freshUser, OnboardingStep::PlanSelected);
+        if ($this->onboardingService->shouldTrackPreFirstReading($user)) {
+            $this->onboardingService->recordStep($user, OnboardingStep::PlanSelected);
         }
 
         if ($request->header('HX-Request')) {
