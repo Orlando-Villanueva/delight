@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\OnboardingStep;
 use App\Models\ChurnRecoveryCampaign;
 use App\Models\ChurnRecoveryEmail;
 use App\Models\ReadingLog;
@@ -18,8 +19,10 @@ class ReadingLogService
 {
     private BibleReferenceService $bibleService;
 
-    public function __construct(BibleReferenceService $bibleService)
-    {
+    public function __construct(
+        BibleReferenceService $bibleService,
+        private OnboardingService $onboardingService
+    ) {
         $this->bibleService = $bibleService;
     }
 
@@ -71,6 +74,15 @@ class ReadingLogService
         // Handle multiple chapters if provided
         if (isset($data['chapters']) && is_array($data['chapters'])) {
             $log = $this->logMultipleChapters($user, $data, $dateRead);
+
+            if ($shouldCelebrate) {
+                $this->onboardingService->recordStep(
+                    $user,
+                    OnboardingStep::FirstReadingCompleted,
+                    $user->celebrated_first_reading_at
+                );
+            }
+
             $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
 
             return $log;
@@ -87,6 +99,14 @@ class ReadingLogService
 
         // Update book progress
         $this->updateBookProgress($user, $data['book_id'], $data['chapter']);
+
+        if ($shouldCelebrate) {
+            $this->onboardingService->recordStep(
+                $user,
+                OnboardingStep::FirstReadingCompleted,
+                $user->celebrated_first_reading_at
+            );
+        }
 
         $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
 

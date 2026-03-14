@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\OnboardingStep;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
+use App\Services\OnboardingService;
 use App\Services\ReadingPlanService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -13,7 +15,8 @@ use Illuminate\Http\Request;
 class ReadingPlanController extends Controller
 {
     public function __construct(
-        private ReadingPlanService $planService
+        private ReadingPlanService $planService,
+        private OnboardingService $onboardingService
     ) {}
 
     /**
@@ -23,6 +26,10 @@ class ReadingPlanController extends Controller
     {
         $plans = ReadingPlan::active()->get();
         $user = $request->user();
+
+        if ($this->onboardingService->shouldTrackPreFirstReading($user)) {
+            $this->onboardingService->recordStep($user, OnboardingStep::PlanBrowserReached);
+        }
 
         // Get user's subscriptions for each plan
         $subscriptions = $user->readingPlanSubscriptions()
@@ -59,6 +66,11 @@ class ReadingPlanController extends Controller
     {
         $user = $request->user();
         $subscription = $this->planService->subscribe($user, $plan);
+        $freshUser = $user->fresh();
+
+        if ($this->onboardingService->shouldTrackPreFirstReading($freshUser)) {
+            $this->onboardingService->recordStep($freshUser, OnboardingStep::PlanSelected);
+        }
 
         if ($request->header('HX-Request')) {
             // Redirect to today's reading after subscribing

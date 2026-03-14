@@ -5,6 +5,7 @@ use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\OnboardingService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 
 afterEach(function () {
@@ -20,6 +21,10 @@ it('dismisses onboarding by setting the timestamp', function () {
     $service->dismiss($user);
 
     expect($user->fresh()->onboarding_dismissed_at)->not->toBeNull();
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'dismissed',
+    ]);
 });
 
 it('remind schedules a reminder and dismisses onboarding for eligible users', function () {
@@ -39,6 +44,14 @@ it('remind schedules a reminder and dismisses onboarding for eligible users', fu
     $freshUser = $user->fresh();
     expect($freshUser->onboarding_dismissed_at?->equalTo($now))->toBeTrue();
     expect($freshUser->onboarding_reminder_requested_at?->equalTo($now))->toBeTrue();
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'dismissed',
+    ]);
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'reminder_requested',
+    ]);
 
     Queue::assertPushed(SendOnboardingReminderJob::class, function (SendOnboardingReminderJob $job) use ($user, $now) {
         $delay = $job->delay;
@@ -104,6 +117,14 @@ it('remind dismisses but does not schedule if user opted out of marketing', func
     $freshUser = $user->fresh();
     expect($freshUser->onboarding_dismissed_at)->not->toBeNull();
     expect($freshUser->onboarding_reminder_requested_at)->toBeNull();
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'dismissed',
+    ]);
+    $this->assertDatabaseMissing('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'reminder_requested',
+    ]);
     Queue::assertNothingPushed();
 });
 
@@ -133,6 +154,14 @@ it('remind does not schedule multiple reminders if requested again', function ()
     $evenFresherUser = $user->fresh();
     // It should have preserved the ORIGINAL requested_at timestamp and not scheduled another job
     expect($evenFresherUser->onboarding_reminder_requested_at?->equalTo($now))->toBeTrue();
+    expect(DB::table('onboarding_step_events')
+        ->where('user_id', $user->id)
+        ->where('step', 'dismissed')
+        ->count())->toBe(1);
+    expect(DB::table('onboarding_step_events')
+        ->where('user_id', $user->id)
+        ->where('step', 'reminder_requested')
+        ->count())->toBe(1);
 
     // Queue should still only have 1 job pushed from the very first one
     Queue::assertPushed(SendOnboardingReminderJob::class, 1);
@@ -154,4 +183,12 @@ it('rolls back reminder state when dispatch fails', function () {
     $freshUser = $user->fresh();
     expect($freshUser->onboarding_dismissed_at)->toBeNull();
     expect($freshUser->onboarding_reminder_requested_at)->toBeNull();
+    $this->assertDatabaseMissing('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'dismissed',
+    ]);
+    $this->assertDatabaseMissing('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'reminder_requested',
+    ]);
 });

@@ -2,8 +2,10 @@
 
 use App\Jobs\SendOnboardingReminderJob;
 use App\Models\ReadingLog;
+use App\Models\ReadingPlan;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 
 afterEach(function () {
@@ -41,6 +43,10 @@ it('dismisses onboarding and sets timestamp', function () {
         ->assertNoContent();
 
     expect($user->fresh()->onboarding_dismissed_at)->not->toBeNull();
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'dismissed',
+    ]);
 });
 
 it('schedules onboarding reminder for eligible users', function () {
@@ -58,6 +64,14 @@ it('schedules onboarding reminder for eligible users', function () {
 
     expect($freshUser->onboarding_dismissed_at)->not->toBeNull();
     expect($freshUser->onboarding_reminder_requested_at)->not->toBeNull();
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'dismissed',
+    ]);
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'reminder_requested',
+    ]);
 
     Queue::assertPushed(SendOnboardingReminderJob::class);
 });
@@ -80,6 +94,14 @@ it('does not dispatch duplicate reminders on repeated clicks', function () {
         ->assertNoContent();
 
     expect($user->fresh()->onboarding_reminder_requested_at?->equalTo($firstClick))->toBeTrue();
+    expect(DB::table('onboarding_step_events')
+        ->where('user_id', $user->id)
+        ->where('step', 'dismissed')
+        ->count())->toBe(1);
+    expect(DB::table('onboarding_step_events')
+        ->where('user_id', $user->id)
+        ->where('step', 'reminder_requested')
+        ->count())->toBe(1);
 
     Queue::assertPushed(SendOnboardingReminderJob::class, 1);
 });
@@ -146,7 +168,69 @@ it('dismisses onboarding without scheduling reminder for opted-out users', funct
 
     expect($freshUser->onboarding_dismissed_at)->not->toBeNull();
     expect($freshUser->onboarding_reminder_requested_at)->toBeNull();
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'dismissed',
+    ]);
+    $this->assertDatabaseMissing('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'reminder_requested',
+    ]);
     Queue::assertNothingPushed();
+});
+
+it('records when a pre-first-reading user reaches the log flow', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('logs.create'))
+        ->assertOk();
+
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'log_flow_reached',
+    ]);
+});
+
+it('records when a pre-first-reading user reaches the reading plans page', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('plans.index'))
+        ->assertOk();
+
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'plan_browser_reached',
+    ]);
+});
+
+it('records when a pre-first-reading user selects a reading plan', function () {
+    $user = User::factory()->create();
+    $plan = ReadingPlan::create([
+        'slug' => 'onboarding-plan',
+        'name' => 'Onboarding Plan',
+        'description' => 'A starter plan',
+        'days' => [
+            [
+                'day' => 1,
+                'label' => 'Genesis 1',
+                'chapters' => [
+                    ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 1],
+                ],
+            ],
+        ],
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('plans.subscribe', $plan))
+        ->assertRedirect(route('plans.today', $plan));
+
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'plan_selected',
+    ]);
 });
 
 it('shows reminder CTA for opted-in users and hides it for opted-out users', function () {

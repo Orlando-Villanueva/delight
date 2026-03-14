@@ -4,6 +4,7 @@ use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Create a test reading plan.
@@ -71,6 +72,10 @@ it('clears onboarding reminder marker when first reading is celebrated', functio
     $freshUser = $user->fresh();
     expect($freshUser->celebrated_first_reading_at)->not->toBeNull();
     expect($freshUser->onboarding_reminder_requested_at)->toBeNull();
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'first_reading_completed',
+    ]);
 });
 
 it('does not show celebration for subsequent readings', function () {
@@ -140,6 +145,10 @@ it('shows celebration when logging via reading plan', function () {
 
     // Verify user was celebrated
     expect($user->fresh()->hasEverCelebratedFirstReading())->toBeTrue();
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'first_reading_completed',
+    ]);
 });
 
 it('shows celebration when logging all chapters via reading plan', function () {
@@ -169,4 +178,34 @@ it('shows celebration when logging all chapters via reading plan', function () {
 
     // Verify it was marked at roughly now
     expect($user->fresh()->celebrated_first_reading_at->isToday())->toBeTrue();
+    $this->assertDatabaseHas('onboarding_step_events', [
+        'user_id' => $user->id,
+        'step' => 'first_reading_completed',
+    ]);
+});
+
+it('records first reading completion once even when a prior log-flow step exists', function () {
+    $user = User::factory()->create();
+
+    DB::table('onboarding_step_events')->insert([
+        'user_id' => $user->id,
+        'step' => 'log_flow_reached',
+        'occurred_at' => now()->subMinutes(5),
+        'metadata' => null,
+    ]);
+
+    $response = $this->actingAs($user)
+        ->withHeaders(['HX-Request' => 'true'])
+        ->post('/logs', [
+            'book_id' => 43,
+            'start_chapter' => 1,
+            'date_read' => today()->toDateString(),
+        ]);
+
+    $response->assertOk();
+
+    expect(DB::table('onboarding_step_events')
+        ->where('user_id', $user->id)
+        ->where('step', 'first_reading_completed')
+        ->count())->toBe(1);
 });

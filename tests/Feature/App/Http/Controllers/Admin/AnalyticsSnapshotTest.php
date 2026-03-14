@@ -61,6 +61,7 @@ it('can return analytics snapshot for bearer token-authenticated guests', functi
         ->assertJsonPath('snapshot_id', $auditWeek.'@'.$metricsGeneratedAt)
         ->assertJsonPath('metrics.churn_recovery.comparisons.inactive_30_60.control.variant', 'current_flow_control')
         ->assertJsonPath('metrics.churn_recovery.comparisons.inactive_30_60.followup.variant', 'two_touch_followup')
+        ->assertJsonPath('metrics.onboarding_funnel.eligible_users', 0)
         ->assertHeader('X-Analytics-Snapshot-Id', $snapshotId)
         ->assertJsonStructure([
             'schema_version',
@@ -75,6 +76,25 @@ it('can return analytics snapshot for bearer token-authenticated guests', functi
             'metrics' => [
                 'generated_at',
                 'onboarding',
+                'onboarding_funnel' => [
+                    'eligible_users',
+                    'current_stage_breakdown' => [
+                        'no_action',
+                        'log_flow_reached',
+                        'plan_browser_reached',
+                        'plan_selected',
+                        'reminder_requested',
+                        'dismissed',
+                    ],
+                    'step_counts' => [
+                        'log_flow_reached',
+                        'plan_browser_reached',
+                        'plan_selected',
+                        'reminder_requested',
+                        'dismissed',
+                        'first_reading_completed',
+                    ],
+                ],
                 'activation',
                 'churn_recovery' => [
                     'comparisons' => [
@@ -92,6 +112,23 @@ it('can return analytics snapshot for bearer token-authenticated guests', functi
         ]);
 
     expect($snapshotId)->toBe($auditWeek.'@'.$metricsGeneratedAt);
+});
+
+it('can expose onboarding funnel counts in the snapshot payload', function () {
+    $admin = User::factory()->create([
+        'email' => 'admin@example.com',
+        'onboarding_dismissed_at' => now()->subHour(),
+        'onboarding_reminder_requested_at' => now()->subHour(),
+    ]);
+
+    $response = $this->actingAs($admin)->getJson(route('admin.analytics.snapshot'));
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('metrics.onboarding_funnel.eligible_users', 1)
+        ->assertJsonPath('metrics.onboarding_funnel.current_stage_breakdown.reminder_requested', 1)
+        ->assertJsonPath('metrics.onboarding_funnel.step_counts.reminder_requested', 1)
+        ->assertJsonPath('metrics.onboarding_funnel.step_counts.dismissed', 1);
 });
 
 it('forbids requests without admin auth or valid token', function () {

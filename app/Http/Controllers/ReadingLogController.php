@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\OnboardingStep;
 use App\Http\Requests\UpdateReadingNotesRequest;
 use App\Models\ReadingLog;
 use App\Services\BibleReferenceService;
+use App\Services\OnboardingService;
 use App\Services\ReadingFormService;
 use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
@@ -20,7 +22,8 @@ class ReadingLogController extends Controller
         private BibleReferenceService $bibleReferenceService,
         private ReadingLogService $readingLogService,
         private ReadingFormService $readingFormService,
-        private UserStatisticsService $userStatisticsService
+        private UserStatisticsService $userStatisticsService,
+        private OnboardingService $onboardingService
     ) {}
 
     /**
@@ -29,6 +32,10 @@ class ReadingLogController extends Controller
      */
     public function create(Request $request)
     {
+        if ($this->onboardingService->shouldTrackPreFirstReading($request->user())) {
+            $this->onboardingService->recordStep($request->user(), OnboardingStep::LogFlowReached);
+        }
+
         $books = $this->bibleReferenceService->listBibleBooks(null, 'en');
 
         // Pass empty error bag for consistent template behavior
