@@ -267,6 +267,20 @@ describe('Onboarding Metrics', function () {
         $this->assertSame(1, $metrics['onboarding_funnel']['step_counts']['reminder_requested']);
     });
 
+    it('counts legacy pending reminder markers without an event row', function () {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        User::factory()->create([
+            'onboarding_dismissed_at' => now()->subDay(),
+            'onboarding_reminder_requested_at' => now()->subDay(),
+        ]);
+
+        $metrics = $this->service->getDashboardMetrics();
+
+        $this->assertSame(1, $metrics['onboarding_funnel']['current_stage_breakdown']['reminder_requested']);
+        $this->assertSame(1, $metrics['onboarding_funnel']['step_counts']['reminder_requested']);
+    });
+
     it('excludes celebrated users with no logs from eligible funnel counts', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
@@ -857,7 +871,29 @@ describe('Caching', function () {
         User::factory()->create();
         $this->service->getDashboardMetrics();
 
-        $this->assertTrue(Cache::has('admin_analytics_stats_v1'));
+        $this->assertTrue(Cache::has('admin_analytics_stats_v2'));
+    });
+
+    it('ignores the previous dashboard cache namespace', function () {
+        Cache::put('admin_analytics_stats_v1', [
+            'generated_at' => now()->subMinutes(10),
+            'onboarding' => [],
+            'activation' => [],
+            'churn_recovery' => [],
+            'current_stats' => [
+                'total_users' => 999,
+            ],
+            'weekly_activity_rate' => 0.0,
+            'insights' => [],
+        ], 300);
+
+        User::factory()->create();
+
+        $metrics = $this->service->getDashboardMetrics();
+
+        $this->assertArrayHasKey('onboarding_funnel', $metrics);
+        $this->assertSame(1, $metrics['current_stats']['total_users']);
+        $this->assertTrue(Cache::has('admin_analytics_stats_v2'));
     });
 });
 

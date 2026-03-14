@@ -18,6 +18,8 @@ use Throwable;
 
 class AdminAnalyticsService
 {
+    private const CACHE_KEY_DASHBOARD = 'admin_analytics_stats_v2';
+
     private const CACHE_TTL_DASHBOARD = 300; // 5 minutes
 
     private const ONBOARDING_STAGE_PRIORITY = [
@@ -38,10 +40,10 @@ class AdminAnalyticsService
     public function getDashboardMetrics(bool $fresh = false): array
     {
         if ($fresh) {
-            Cache::forget('admin_analytics_stats_v1');
+            Cache::forget(self::CACHE_KEY_DASHBOARD);
         }
 
-        return Cache::remember('admin_analytics_stats_v1', self::CACHE_TTL_DASHBOARD, function () {
+        return Cache::remember(self::CACHE_KEY_DASHBOARD, self::CACHE_TTL_DASHBOARD, function () {
             $totalUsers = User::count();
             $usersWithReadings = User::has('readingLogs')->count();
             $usersNoReadings = max(0, $totalUsers - $usersWithReadings);
@@ -257,8 +259,13 @@ class AdminAnalyticsService
             OnboardingStep::PlanSelected->value => OnboardingStepEvent::query()
                 ->where('step', OnboardingStep::PlanSelected->value)
                 ->count(),
-            OnboardingStep::ReminderRequested->value => OnboardingStepEvent::query()
-                ->where('step', OnboardingStep::ReminderRequested->value)
+            OnboardingStep::ReminderRequested->value => User::query()
+                ->where(function ($query) {
+                    $query->whereNotNull('onboarding_reminder_requested_at')
+                        ->orWhereHas('onboardingStepEvents', function ($eventQuery) {
+                            $eventQuery->where('step', OnboardingStep::ReminderRequested->value);
+                        });
+                })
                 ->count(),
             OnboardingStep::Dismissed->value => User::query()
                 ->whereNotNull('onboarding_dismissed_at')
