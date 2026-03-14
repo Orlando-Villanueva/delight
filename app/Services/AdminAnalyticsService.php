@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\OnboardingStep;
+use App\Models\OnboardingStepEvent;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
@@ -16,7 +18,18 @@ use Throwable;
 
 class AdminAnalyticsService
 {
+    private const CACHE_KEY_DASHBOARD = 'admin_analytics_stats_v2';
+
     private const CACHE_TTL_DASHBOARD = 300; // 5 minutes
+
+    private const ONBOARDING_STAGE_PRIORITY = [
+        'no_action' => 0,
+        'dismissed' => 1,
+        'log_flow_reached' => 2,
+        'plan_browser_reached' => 3,
+        'plan_selected' => 4,
+        'reminder_requested' => 5,
+    ];
 
     private const THIRTY_TO_SIXTY_CAMPAIGN_KEY = 'inactive_30_60_followup';
 
@@ -27,10 +40,10 @@ class AdminAnalyticsService
     public function getDashboardMetrics(bool $fresh = false): array
     {
         if ($fresh) {
-            Cache::forget('admin_analytics_stats_v1');
+            Cache::forget(self::CACHE_KEY_DASHBOARD);
         }
 
-        return Cache::remember('admin_analytics_stats_v1', self::CACHE_TTL_DASHBOARD, function () {
+        return Cache::remember(self::CACHE_KEY_DASHBOARD, self::CACHE_TTL_DASHBOARD, function () {
             $totalUsers = User::count();
             $usersWithReadings = User::has('readingLogs')->count();
             $usersNoReadings = max(0, $totalUsers - $usersWithReadings);
@@ -46,6 +59,7 @@ class AdminAnalyticsService
                 ->count('user_id');
 
             $avgReadingDaysPerUser = $this->getAverageReadingDaysPerUser();
+            $onboardingFunnel = $this->getOnboardingFunnelMetrics();
 
             $onboardingRate = $totalUsers > 0
                 ? round(($usersWithReadings / $totalUsers) * 100, 1)
@@ -80,6 +94,7 @@ class AdminAnalyticsService
                     'target' => 80,
                     'status' => $onboardingStatus,
                 ],
+                'onboarding_funnel' => $onboardingFunnel,
                 'activation' => [
                     'avg_hours' => $activation['avg_hours'],
                     'target_hours' => 24,
@@ -166,6 +181,107 @@ class AdminAnalyticsService
                 'week_end' => $weekEnd->toDateString(),
             ],
             'metrics' => $metrics,
+        ];
+    }
+
+    private function getOnboardingFunnelMetrics(): array
+    {
+        $eligibleUsers = User::query()
+            ->select('id', 'onboarding_dismissed_at', 'onboarding_reminder_requested_at')
+            ->whereNull('celebrated_first_reading_at')
+            ->whereDoesntHave('readingLogs')
+            ->with(['onboardingStepEvents' => function ($query) {
+                $query->select('user_id', 'step', 'occurred_at');
+            }])
+            ->get();
+
+        $currentStageBreakdown = [
+            'no_action' => 0,
+            OnboardingStep::LogFlowReached->value => 0,
+            OnboardingStep::PlanBrowserReached->value => 0,
+            OnboardingStep::PlanSelected->value => 0,
+            OnboardingStep::ReminderRequested->value => 0,
+            OnboardingStep::Dismissed->value => 0,
+        ];
+
+        foreach ($eligibleUsers as $user) {
+            $stageTimestamps = [];
+
+            foreach ($user->onboardingStepEvents as $event) {
+                if ($event->step === OnboardingStep::FirstReadingCompleted) {
+                    continue;
+                }
+
+                $stageTimestamps[$event->step->value] = $event->occurred_at;
+            }
+
+            if ($user->onboarding_dismissed_at !== null) {
+                $existingTimestamp = $stageTimestamps[OnboardingStep::Dismissed->value] ?? null;
+                if ($existingTimestamp === null || $user->onboarding_dismissed_at->gt($existingTimestamp)) {
+                    $stageTimestamps[OnboardingStep::Dismissed->value] = $user->onboarding_dismissed_at;
+                }
+            }
+
+            if ($user->onboarding_reminder_requested_at !== null) {
+                $existingTimestamp = $stageTimestamps[OnboardingStep::ReminderRequested->value] ?? null;
+                if ($existingTimestamp === null || $user->onboarding_reminder_requested_at->gt($existingTimestamp)) {
+                    $stageTimestamps[OnboardingStep::ReminderRequested->value] = $user->onboarding_reminder_requested_at;
+                }
+            }
+
+            if ($stageTimestamps === []) {
+                $currentStageBreakdown['no_action']++;
+
+                continue;
+            }
+
+            $latestStage = collect($stageTimestamps)
+                ->sortByDesc(function ($occurredAt, $step) {
+                    return sprintf(
+                        '%020d-%02d',
+                        $occurredAt?->getTimestamp() ?? 0,
+                        self::ONBOARDING_STAGE_PRIORITY[$step] ?? 0
+                    );
+                })
+                ->keys()
+                ->first();
+
+            $currentStageBreakdown[$latestStage]++;
+        }
+
+        $eventStepCounts = OnboardingStepEvent::query()
+            ->whereIn('step', [
+                OnboardingStep::LogFlowReached->value,
+                OnboardingStep::PlanBrowserReached->value,
+                OnboardingStep::PlanSelected->value,
+            ])
+            ->selectRaw('step, count(*) as total')
+            ->groupBy('step')
+            ->pluck('total', 'step');
+
+        $userStepCounts = User::query()
+            ->leftJoin('onboarding_step_events as reminder_events', function ($join) {
+                $join->on('users.id', '=', 'reminder_events.user_id')
+                    ->where('reminder_events.step', OnboardingStep::ReminderRequested->value);
+            })
+            ->selectRaw('count(distinct case when users.onboarding_reminder_requested_at is not null or reminder_events.id is not null then users.id end) as reminder_requested_count')
+            ->selectRaw('count(case when users.onboarding_dismissed_at is not null then 1 end) as dismissed_count')
+            ->selectRaw('count(case when users.celebrated_first_reading_at is not null then 1 end) as completed_count')
+            ->first();
+
+        $stepCounts = [
+            OnboardingStep::LogFlowReached->value => (int) $eventStepCounts->get(OnboardingStep::LogFlowReached->value, 0),
+            OnboardingStep::PlanBrowserReached->value => (int) $eventStepCounts->get(OnboardingStep::PlanBrowserReached->value, 0),
+            OnboardingStep::PlanSelected->value => (int) $eventStepCounts->get(OnboardingStep::PlanSelected->value, 0),
+            OnboardingStep::ReminderRequested->value => (int) ($userStepCounts->reminder_requested_count ?? 0),
+            OnboardingStep::Dismissed->value => (int) ($userStepCounts->dismissed_count ?? 0),
+            OnboardingStep::FirstReadingCompleted->value => (int) ($userStepCounts->completed_count ?? 0),
+        ];
+
+        return [
+            'eligible_users' => $eligibleUsers->count(),
+            'current_stage_breakdown' => $currentStageBreakdown,
+            'step_counts' => $stepCounts,
         ];
     }
 

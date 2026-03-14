@@ -201,4 +201,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(ChurnRecoveryCampaign::class);
     }
+
+    /**
+     * Get the onboarding step events for the user.
+     */
+    public function onboardingStepEvents(): HasMany
+    {
+        return $this->hasMany(OnboardingStepEvent::class);
+    }
 }

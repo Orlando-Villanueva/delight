@@ -1,12 +1,15 @@
 <?php
 
+use App\Enums\OnboardingStep;
 use App\Models\ChurnRecoveryCampaign;
 use App\Models\ChurnRecoveryEmail;
+use App\Models\OnboardingStepEvent;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
 use App\Services\AdminAnalyticsService;
+use App\Services\OnboardingService;
 use App\Services\ReadingLogService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -177,6 +180,181 @@ describe('Onboarding Metrics', function () {
 
         $this->assertSame(70.0, $metrics['onboarding']['rate']);
         $this->assertSame('warn', $metrics['onboarding']['status']);
+    });
+
+    it('can report onboarding funnel stage counts additively', function () {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        $completedUser = User::factory()->create([
+            'celebrated_first_reading_at' => now()->subDay(),
+        ]);
+        ReadingLog::factory()->for($completedUser)->create([
+            'date_read' => now()->subDay()->toDateString(),
+            'created_at' => now()->subDay(),
+        ]);
+
+        $noActionUser = User::factory()->create();
+
+        $logFlowUser = User::factory()->create();
+        OnboardingStepEvent::factory()->create([
+            'user_id' => $logFlowUser->id,
+            'step' => OnboardingStep::LogFlowReached->value,
+            'occurred_at' => now()->subMinutes(30),
+        ]);
+
+        $planBrowserUser = User::factory()->create();
+        OnboardingStepEvent::factory()->create([
+            'user_id' => $planBrowserUser->id,
+            'step' => OnboardingStep::PlanBrowserReached->value,
+            'occurred_at' => now()->subMinutes(20),
+        ]);
+
+        $planSelectedUser = User::factory()->create();
+        OnboardingStepEvent::factory()->create([
+            'user_id' => $planSelectedUser->id,
+            'step' => OnboardingStep::PlanSelected->value,
+            'occurred_at' => now()->subMinutes(10),
+        ]);
+
+        $reminderUser = User::factory()->create([
+            'onboarding_dismissed_at' => now()->subMinutes(5),
+            'onboarding_reminder_requested_at' => now()->subMinutes(5),
+        ]);
+        OnboardingStepEvent::factory()->create([
+            'user_id' => $reminderUser->id,
+            'step' => OnboardingStep::ReminderRequested->value,
+            'occurred_at' => now()->subMinutes(5),
+        ]);
+
+        $dismissedUser = User::factory()->create([
+            'onboarding_dismissed_at' => now()->subMinutes(2),
+        ]);
+
+        $metrics = $this->service->getDashboardMetrics();
+        $funnel = $metrics['onboarding_funnel'];
+
+        $this->assertSame(6, $funnel['eligible_users']);
+        $this->assertSame(1, $funnel['current_stage_breakdown']['no_action']);
+        $this->assertSame(1, $funnel['current_stage_breakdown']['log_flow_reached']);
+        $this->assertSame(1, $funnel['current_stage_breakdown']['plan_browser_reached']);
+        $this->assertSame(1, $funnel['current_stage_breakdown']['plan_selected']);
+        $this->assertSame(1, $funnel['current_stage_breakdown']['reminder_requested']);
+        $this->assertSame(1, $funnel['current_stage_breakdown']['dismissed']);
+        $this->assertSame(1, $funnel['step_counts']['log_flow_reached']);
+        $this->assertSame(1, $funnel['step_counts']['plan_browser_reached']);
+        $this->assertSame(1, $funnel['step_counts']['plan_selected']);
+        $this->assertSame(1, $funnel['step_counts']['reminder_requested']);
+        $this->assertSame(2, $funnel['step_counts']['dismissed']);
+        $this->assertSame(1, $funnel['step_counts']['first_reading_completed']);
+    });
+
+    it('keeps reminder requests counted after the pending marker is cleared', function () {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        $user = User::factory()->create([
+            'onboarding_dismissed_at' => now()->subDay(),
+            'onboarding_reminder_requested_at' => null,
+        ]);
+
+        OnboardingStepEvent::factory()->create([
+            'user_id' => $user->id,
+            'step' => OnboardingStep::ReminderRequested->value,
+            'occurred_at' => now()->subDay(),
+        ]);
+
+        $metrics = $this->service->getDashboardMetrics();
+
+        $this->assertSame(1, $metrics['onboarding_funnel']['step_counts']['reminder_requested']);
+    });
+
+    it('counts legacy pending reminder markers without an event row', function () {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        User::factory()->create([
+            'onboarding_dismissed_at' => now()->subDay(),
+            'onboarding_reminder_requested_at' => now()->subDay(),
+        ]);
+
+        $metrics = $this->service->getDashboardMetrics();
+
+        $this->assertSame(1, $metrics['onboarding_funnel']['current_stage_breakdown']['reminder_requested']);
+        $this->assertSame(1, $metrics['onboarding_funnel']['step_counts']['reminder_requested']);
+    });
+
+    it('excludes celebrated users with no logs from eligible funnel counts', function () {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        User::factory()->create([
+            'celebrated_first_reading_at' => now()->subDay(),
+        ]);
+
+        $metrics = $this->service->getDashboardMetrics();
+        $funnel = $metrics['onboarding_funnel'];
+
+        $this->assertSame(0, $funnel['eligible_users']);
+        $this->assertSame(0, $funnel['current_stage_breakdown']['no_action']);
+        $this->assertSame(1, $funnel['step_counts']['first_reading_completed']);
+    });
+
+    it('prefers the latest known onboarding stage for eligible users', function () {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        $user = User::factory()->create([
+            'onboarding_dismissed_at' => now()->subMinutes(15),
+            'onboarding_reminder_requested_at' => now()->subMinutes(15),
+        ]);
+
+        OnboardingStepEvent::factory()->create([
+            'user_id' => $user->id,
+            'step' => OnboardingStep::LogFlowReached->value,
+            'occurred_at' => now()->subMinutes(20),
+        ]);
+
+        OnboardingStepEvent::factory()->create([
+            'user_id' => $user->id,
+            'step' => OnboardingStep::PlanBrowserReached->value,
+            'occurred_at' => now()->subMinutes(10),
+        ]);
+
+        $metrics = $this->service->getDashboardMetrics();
+        $breakdown = $metrics['onboarding_funnel']['current_stage_breakdown'];
+
+        $this->assertSame(0, $breakdown['log_flow_reached']);
+        $this->assertSame(1, $breakdown['plan_browser_reached']);
+        $this->assertSame(0, $breakdown['reminder_requested']);
+    });
+
+    it('updates an existing step timestamp when a user revisits that stage', function () {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        $user = User::factory()->create([
+            'onboarding_dismissed_at' => now()->subMinutes(15),
+        ]);
+
+        $onboardingService = app(OnboardingService::class);
+
+        $onboardingService->recordStep(
+            $user,
+            OnboardingStep::PlanBrowserReached,
+            now()->subMinutes(30)
+        );
+
+        $onboardingService->recordStep(
+            $user,
+            OnboardingStep::PlanBrowserReached,
+            now()->subMinutes(5)
+        );
+
+        $metrics = $this->service->getDashboardMetrics();
+        $breakdown = $metrics['onboarding_funnel']['current_stage_breakdown'];
+
+        $this->assertSame(1, $breakdown['plan_browser_reached']);
+        $this->assertSame(0, $breakdown['dismissed']);
+        $this->assertSame(1, OnboardingStepEvent::query()
+            ->where('user_id', $user->id)
+            ->where('step', OnboardingStep::PlanBrowserReached->value)
+            ->where('occurred_at', now()->subMinutes(5))
+            ->count());
     });
 });
 
@@ -693,7 +871,29 @@ describe('Caching', function () {
         User::factory()->create();
         $this->service->getDashboardMetrics();
 
-        $this->assertTrue(Cache::has('admin_analytics_stats_v1'));
+        $this->assertTrue(Cache::has('admin_analytics_stats_v2'));
+    });
+
+    it('ignores the previous dashboard cache namespace', function () {
+        Cache::put('admin_analytics_stats_v1', [
+            'generated_at' => now()->subMinutes(10),
+            'onboarding' => [],
+            'activation' => [],
+            'churn_recovery' => [],
+            'current_stats' => [
+                'total_users' => 999,
+            ],
+            'weekly_activity_rate' => 0.0,
+            'insights' => [],
+        ], 300);
+
+        User::factory()->create();
+
+        $metrics = $this->service->getDashboardMetrics();
+
+        $this->assertArrayHasKey('onboarding_funnel', $metrics);
+        $this->assertSame(1, $metrics['current_stats']['total_users']);
+        $this->assertTrue(Cache::has('admin_analytics_stats_v2'));
     });
 });
 
