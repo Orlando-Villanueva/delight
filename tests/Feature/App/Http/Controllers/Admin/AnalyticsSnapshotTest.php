@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\OnboardingStep;
+use App\Models\OnboardingStepEvent;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -119,6 +121,11 @@ it('can expose onboarding funnel counts in the snapshot payload', function () {
         'email' => 'admin@example.com',
         'onboarding_dismissed_at' => now()->subHour(),
         'onboarding_reminder_requested_at' => now()->subHour(),
+    ]);
+    OnboardingStepEvent::factory()->create([
+        'user_id' => $admin->id,
+        'step' => OnboardingStep::ReminderRequested->value,
+        'occurred_at' => now()->subHour(),
     ]);
 
     $response = $this->actingAs($admin)->getJson(route('admin.analytics.snapshot'));
