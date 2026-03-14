@@ -254,6 +254,7 @@ class AdminAnalyticsService
                 OnboardingStep::LogFlowReached->value,
                 OnboardingStep::PlanBrowserReached->value,
                 OnboardingStep::PlanSelected->value,
+                OnboardingStep::FirstReadingCompleted->value,
             ])
             ->selectRaw('step, count(*) as total')
             ->groupBy('step')
@@ -275,7 +276,7 @@ class AdminAnalyticsService
             OnboardingStep::PlanSelected->value => (int) $eventStepCounts->get(OnboardingStep::PlanSelected->value, 0),
             OnboardingStep::ReminderRequested->value => (int) ($userStepCounts->reminder_requested_count ?? 0),
             OnboardingStep::Dismissed->value => (int) ($userStepCounts->dismissed_count ?? 0),
-            OnboardingStep::FirstReadingCompleted->value => (int) ($userStepCounts->completed_count ?? 0),
+            OnboardingStep::FirstReadingCompleted->value => (int) $eventStepCounts->get(OnboardingStep::FirstReadingCompleted->value, 0),
         ];
 
         return [

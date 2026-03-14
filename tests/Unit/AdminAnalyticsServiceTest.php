@@ -192,6 +192,11 @@ describe('Onboarding Metrics', function () {
             'date_read' => now()->subDay()->toDateString(),
             'created_at' => now()->subDay(),
         ]);
+        OnboardingStepEvent::factory()->create([
+            'user_id' => $completedUser->id,
+            'step' => OnboardingStep::FirstReadingCompleted->value,
+            'occurred_at' => now()->subDay(),
+        ]);
 
         $noActionUser = User::factory()->create();
 
@@ -293,7 +298,36 @@ describe('Onboarding Metrics', function () {
 
         $this->assertSame(0, $funnel['eligible_users']);
         $this->assertSame(0, $funnel['current_stage_breakdown']['no_action']);
-        $this->assertSame(1, $funnel['step_counts']['first_reading_completed']);
+        $this->assertSame(0, $metrics['onboarding_funnel']['step_counts']['first_reading_completed']);
+    });
+
+    it('counts first reading completion only when an onboarding event exists', function () {
+        Carbon::setTestNow('2026-02-10 12:00:00');
+
+        $backfilledUser = User::factory()->create([
+            'celebrated_first_reading_at' => now()->subDay(),
+        ]);
+        ReadingLog::factory()->for($backfilledUser)->create([
+            'date_read' => now()->subDay()->toDateString(),
+            'created_at' => now()->subDay(),
+        ]);
+
+        $instrumentedUser = User::factory()->create([
+            'celebrated_first_reading_at' => now()->subHours(12),
+        ]);
+        ReadingLog::factory()->for($instrumentedUser)->create([
+            'date_read' => now()->subHours(12)->toDateString(),
+            'created_at' => now()->subHours(12),
+        ]);
+        OnboardingStepEvent::factory()->create([
+            'user_id' => $instrumentedUser->id,
+            'step' => OnboardingStep::FirstReadingCompleted->value,
+            'occurred_at' => now()->subHours(12),
+        ]);
+
+        $metrics = $this->service->getDashboardMetrics();
+
+        $this->assertSame(1, $metrics['onboarding_funnel']['step_counts']['first_reading_completed']);
     });
 
     it('prefers the latest known onboarding stage for eligible users', function () {
