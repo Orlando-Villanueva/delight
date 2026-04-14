@@ -1,12 +1,10 @@
 <?php
 
-use App\Jobs\SendOnboardingReminderJob;
 use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\OnboardingService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Queue;
 
 afterEach(function () {
     Carbon::setTestNow();
@@ -27,9 +25,7 @@ it('dismisses onboarding by setting the timestamp', function () {
     ]);
 });
 
-it('remind schedules a reminder and dismisses onboarding for eligible users', function () {
-    Queue::fake();
-
+it('remind stores a reminder request and dismisses onboarding for eligible users', function () {
     $now = Carbon::create(2026, 2, 22, 9, 30, 0);
     Carbon::setTestNow($now);
 
@@ -52,20 +48,9 @@ it('remind schedules a reminder and dismisses onboarding for eligible users', fu
         'user_id' => $user->id,
         'step' => 'reminder_requested',
     ]);
-
-    Queue::assertPushed(SendOnboardingReminderJob::class, function (SendOnboardingReminderJob $job) use ($user, $now) {
-        $delay = $job->delay;
-
-        return $job->userId === $user->id
-            && $job->expectedRequestedAtIso === $now->toIso8601String()
-            && $delay instanceof \DateTimeInterface
-            && Carbon::instance($delay)->equalTo($now->copy()->addDay());
-    });
 });
 
 it('remind does nothing if user already dismissed onboarding', function () {
-    Queue::fake();
-
     $user = User::factory()->create([
         'onboarding_dismissed_at' => now()->subDay(),
     ]);
@@ -74,12 +59,9 @@ it('remind does nothing if user already dismissed onboarding', function () {
     $service->remind($user->id);
 
     expect($user->fresh()->onboarding_reminder_requested_at)->toBeNull();
-    Queue::assertNothingPushed();
 });
 
 it('remind does nothing if user already celebrated first reading', function () {
-    Queue::fake();
-
     $user = User::factory()->create([
         'celebrated_first_reading_at' => now()->subDay(),
     ]);
@@ -88,12 +70,9 @@ it('remind does nothing if user already celebrated first reading', function () {
     $service->remind($user->id);
 
     expect($user->fresh()->onboarding_reminder_requested_at)->toBeNull();
-    Queue::assertNothingPushed();
 });
 
 it('remind does nothing if user already has reading logs', function () {
-    Queue::fake();
-
     $user = User::factory()->create();
     ReadingLog::factory()->for($user)->create();
 
@@ -101,12 +80,9 @@ it('remind does nothing if user already has reading logs', function () {
     $service->remind($user->id);
 
     expect($user->fresh()->onboarding_reminder_requested_at)->toBeNull();
-    Queue::assertNothingPushed();
 });
 
-it('remind dismisses but does not schedule if user opted out of marketing', function () {
-    Queue::fake();
-
+it('remind dismisses but does not store a reminder if user opted out of marketing', function () {
     $user = User::factory()->create([
         'marketing_emails_opted_out_at' => now()->subDay(),
     ]);
@@ -125,12 +101,9 @@ it('remind dismisses but does not schedule if user opted out of marketing', func
         'user_id' => $user->id,
         'step' => 'reminder_requested',
     ]);
-    Queue::assertNothingPushed();
 });
 
-it('remind does not schedule multiple reminders if requested again', function () {
-    Queue::fake();
-
+it('remind does not store multiple reminders if requested again', function () {
     $now = Carbon::create(2026, 2, 22, 9, 30, 0);
     Carbon::setTestNow($now);
 
@@ -162,33 +135,4 @@ it('remind does not schedule multiple reminders if requested again', function ()
         ->where('user_id', $user->id)
         ->where('step', 'reminder_requested')
         ->count())->toBe(1);
-
-    // Queue should still only have 1 job pushed from the very first one
-    Queue::assertPushed(SendOnboardingReminderJob::class, 1);
-});
-
-it('rolls back reminder state when dispatch fails', function () {
-    $originalQueue = config('queue.default');
-    config(['queue.default' => 'missing-queue-connection']);
-
-    $user = User::factory()->create();
-    $service = new OnboardingService;
-
-    try {
-        expect(fn () => $service->remind($user->id))->toThrow(\InvalidArgumentException::class);
-    } finally {
-        config(['queue.default' => $originalQueue]);
-    }
-
-    $freshUser = $user->fresh();
-    expect($freshUser->onboarding_dismissed_at)->toBeNull();
-    expect($freshUser->onboarding_reminder_requested_at)->toBeNull();
-    $this->assertDatabaseMissing('onboarding_step_events', [
-        'user_id' => $user->id,
-        'step' => 'dismissed',
-    ]);
-    $this->assertDatabaseMissing('onboarding_step_events', [
-        'user_id' => $user->id,
-        'step' => 'reminder_requested',
-    ]);
 });

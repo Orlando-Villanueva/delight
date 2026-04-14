@@ -3,27 +3,22 @@
 namespace App\Listeners;
 
 use App\Notifications\WelcomeNotification;
+use App\Services\EmailService;
 use Illuminate\Auth\Events\Registered;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
 
-class SendWelcomeNotification implements ShouldQueue
+class SendWelcomeNotification
 {
-    use InteractsWithQueue;
-
-    /**
-     * Create the event listener.
-     */
-    public function __construct()
-    {
-        //
-    }
+    public function __construct(
+        private EmailService $emailService
+    ) {}
 
     /**
      * Handle the event.
      */
     public function handle(Registered $event): void
     {
-        $event->user->notify(new WelcomeNotification);
+        $this->emailService->sendWithErrorHandling(function () use ($event): void {
+            $event->user->notify(new WelcomeNotification);
+        }, 'welcome-notification');
     }
 }

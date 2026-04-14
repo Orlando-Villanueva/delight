@@ -1,12 +1,10 @@
 <?php
 
-use App\Jobs\SendOnboardingReminderJob;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Queue;
 
 afterEach(function () {
     Carbon::setTestNow();
@@ -49,8 +47,7 @@ it('dismisses onboarding and sets timestamp', function () {
     ]);
 });
 
-it('schedules onboarding reminder for eligible users', function () {
-    Queue::fake();
+it('stores onboarding reminder request for eligible users', function () {
     $now = Carbon::create(2026, 2, 22, 9, 30, 0);
     Carbon::setTestNow($now);
 
@@ -72,12 +69,9 @@ it('schedules onboarding reminder for eligible users', function () {
         'user_id' => $user->id,
         'step' => 'reminder_requested',
     ]);
-
-    Queue::assertPushed(SendOnboardingReminderJob::class);
 });
 
-it('does not dispatch duplicate reminders on repeated clicks', function () {
-    Queue::fake();
+it('does not store duplicate reminders on repeated clicks', function () {
     $firstClick = Carbon::create(2026, 2, 22, 11, 0, 0);
     Carbon::setTestNow($firstClick);
 
@@ -102,13 +96,9 @@ it('does not dispatch duplicate reminders on repeated clicks', function () {
         ->where('user_id', $user->id)
         ->where('step', 'reminder_requested')
         ->count())->toBe(1);
-
-    Queue::assertPushed(SendOnboardingReminderJob::class, 1);
 });
 
 it('does nothing when reminder requested for dismissed users', function () {
-    Queue::fake();
-
     $user = User::factory()->create([
         'onboarding_dismissed_at' => now()->subMinute(),
     ]);
@@ -118,12 +108,9 @@ it('does nothing when reminder requested for dismissed users', function () {
         ->assertNoContent();
 
     expect($user->fresh()->onboarding_reminder_requested_at)->toBeNull();
-    Queue::assertNothingPushed();
 });
 
 it('does nothing when reminder requested for users with readings', function () {
-    Queue::fake();
-
     $user = User::factory()->create();
     ReadingLog::factory()->for($user)->create([
         'passage_text' => 'John 1',
@@ -135,12 +122,9 @@ it('does nothing when reminder requested for users with readings', function () {
         ->assertNoContent();
 
     expect($user->fresh()->onboarding_reminder_requested_at)->toBeNull();
-    Queue::assertNothingPushed();
 });
 
 it('does nothing when reminder requested for already celebrated users', function () {
-    Queue::fake();
-
     $user = User::factory()->create([
         'celebrated_first_reading_at' => now()->subMinute(),
     ]);
@@ -150,12 +134,9 @@ it('does nothing when reminder requested for already celebrated users', function
         ->assertNoContent();
 
     expect($user->fresh()->onboarding_reminder_requested_at)->toBeNull();
-    Queue::assertNothingPushed();
 });
 
-it('dismisses onboarding without scheduling reminder for opted-out users', function () {
-    Queue::fake();
-
+it('dismisses onboarding without storing reminder for opted-out users', function () {
     $user = User::factory()->create([
         'marketing_emails_opted_out_at' => now()->subHour(),
     ]);
@@ -176,7 +157,6 @@ it('dismisses onboarding without scheduling reminder for opted-out users', funct
         'user_id' => $user->id,
         'step' => 'reminder_requested',
     ]);
-    Queue::assertNothingPushed();
 });
 
 it('records when a pre-first-reading user reaches the log flow', function () {

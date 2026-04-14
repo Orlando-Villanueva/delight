@@ -3,9 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Notifications\WelcomeNotification;
+use App\Services\EmailService;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class UserAuthenticationTest extends TestCase
@@ -22,6 +25,8 @@ class UserAuthenticationTest extends TestCase
 
     public function test_user_can_register_with_valid_credentials()
     {
+        Notification::fake();
+
         $userData = [
             'name' => 'John Doe',
             'email' => 'john@example.com',
@@ -40,6 +45,33 @@ class UserAuthenticationTest extends TestCase
 
         $user = User::where('email', 'john@example.com')->first();
         $this->assertTrue(Hash::check('ValidPass123!', $user->password));
+        Notification::assertSentTo($user, WelcomeNotification::class);
+    }
+
+    public function test_user_registration_succeeds_when_welcome_email_delivery_fails()
+    {
+        $emailService = $this->mock(EmailService::class);
+        $emailService->shouldReceive('sendWithErrorHandling')
+            ->once()
+            ->andReturn(false);
+
+        $this->app->instance(EmailService::class, $emailService);
+
+        $userData = [
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'password' => 'ValidPass123!',
+            'password_confirmation' => 'ValidPass123!',
+        ];
+
+        $response = $this->post('/register', $userData);
+
+        $response->assertRedirect('/dashboard');
+
+        $this->assertDatabaseHas('users', [
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+        ]);
     }
 
     public function test_user_registration_requires_valid_email()
