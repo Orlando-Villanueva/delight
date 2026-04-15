@@ -12,6 +12,8 @@ use Throwable;
 
 class OnboardingReminderProcessor
 {
+    public const MAX_REMINDER_AGE_HOURS = 48;
+
     public const STATUS_FAILED = 'failed';
 
     public const STATUS_SENT = 'sent';
@@ -27,9 +29,10 @@ class OnboardingReminderProcessor
         $shouldEvaluateSend = false;
         $markerToRestore = null;
         $timezone = config('app.timezone');
-        $now = ($referenceTime ?? now())->copy()->setTimezone($timezone);
+        $referenceMoment = ($referenceTime ?? now())->copy();
+        $now = $referenceMoment->copy()->setTimezone($timezone);
 
-        DB::transaction(function () use ($userId, $now, $timezone, &$shouldEvaluateSend, &$markerToRestore): void {
+        DB::transaction(function () use ($userId, $now, $timezone, $referenceMoment, &$shouldEvaluateSend, &$markerToRestore): void {
             $user = User::query()
                 ->whereKey($userId)
                 ->lockForUpdate()
@@ -40,12 +43,22 @@ class OnboardingReminderProcessor
             }
 
             $marker = $user->onboarding_reminder_requested_at;
+            $rawMarker = $user->getRawOriginal('onboarding_reminder_requested_at');
 
-            if (! $marker) {
+            if (! $marker || $rawMarker === null) {
                 return;
             }
 
             if ($marker->copy()->setTimezone($timezone)->toDateString() >= $now->toDateString()) {
+                return;
+            }
+
+            if ($marker->copy()->addHours(self::MAX_REMINDER_AGE_HOURS)->lte($referenceMoment)) {
+                User::query()
+                    ->whereKey($user->id)
+                    ->where('onboarding_reminder_requested_at', $rawMarker)
+                    ->update(['onboarding_reminder_requested_at' => null]);
+
                 return;
             }
 
@@ -55,7 +68,7 @@ class OnboardingReminderProcessor
 
             $clearedMarker = User::query()
                 ->whereKey($user->id)
-                ->where('onboarding_reminder_requested_at', $marker->toDateTimeString())
+                ->where('onboarding_reminder_requested_at', $rawMarker)
                 ->update(['onboarding_reminder_requested_at' => null]);
 
             if ($clearedMarker !== 1) {
@@ -67,7 +80,7 @@ class OnboardingReminderProcessor
             }
 
             $shouldEvaluateSend = true;
-            $markerToRestore = $marker->copy();
+            $markerToRestore = $rawMarker;
         });
 
         if (! $shouldEvaluateSend || $markerToRestore === null) {
@@ -119,13 +132,13 @@ class OnboardingReminderProcessor
         return self::STATUS_SENT;
     }
 
-    private function restoreReminderMarker(int $userId, CarbonInterface $marker): void
+    private function restoreReminderMarker(int $userId, string $marker): void
     {
         User::query()
             ->whereKey($userId)
             ->whereNull('onboarding_reminder_requested_at')
             ->whereNull('marketing_emails_opted_out_at')
             ->whereNull('celebrated_first_reading_at')
-            ->update(['onboarding_reminder_requested_at' => $marker->toDateTimeString()]);
+            ->update(['onboarding_reminder_requested_at' => $marker]);
     }
 }

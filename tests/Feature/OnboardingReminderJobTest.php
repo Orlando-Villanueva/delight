@@ -88,6 +88,20 @@ it('does nothing when reminder is not yet due', function () {
     expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($notYetDueRequestedAt))->toBeTrue();
 });
 
+it('does not send reminders older than 48 hours and clears the stale marker', function () {
+    $expiredRequestedAt = $this->now->copy()->subDays(3);
+    $this->user->update([
+        'onboarding_reminder_requested_at' => $expiredRequestedAt,
+    ]);
+
+    $processor = app(OnboardingReminderProcessor::class);
+    $status = $processor->process($this->user->id, $this->now);
+
+    Mail::assertNothingSent();
+    expect($status)->toBe(OnboardingReminderProcessor::STATUS_SKIPPED);
+    expect($this->user->fresh()->onboarding_reminder_requested_at)->toBeNull();
+});
+
 it('does nothing when user no longer exists', function () {
     $processor = app(OnboardingReminderProcessor::class);
     $status = $processor->process(999999, $this->now);
@@ -158,14 +172,13 @@ it('scheduled command continues after a failed reminder send', function () {
         'onboarding_reminder_requested_at' => $this->requestedAt,
     ]);
 
-    $attempts = 0;
     $emailService = $this->mock(EmailService::class);
     $emailService->shouldReceive('sendWithErrorHandling')
         ->twice()
-        ->andReturnUsing(function (callable $callback) use (&$attempts) {
-            $attempts++;
+        ->andReturnUsing(function (callable $callback) {
+            $userId = (new ReflectionFunction($callback))->getStaticVariables()['userId'] ?? null;
 
-            if ($attempts === 1) {
+            if ($userId === $this->user->id) {
                 return false;
             }
 
