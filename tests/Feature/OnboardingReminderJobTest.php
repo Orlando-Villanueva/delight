@@ -1,10 +1,10 @@
 <?php
 
-use App\Jobs\SendOnboardingReminderJob;
 use App\Mail\OnboardingReminderEmail;
 use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\EmailService;
+use App\Services\OnboardingReminderProcessor;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
 
@@ -24,13 +24,14 @@ afterEach(function () {
 });
 
 it('sends once and clears marker when reminder is due and user is eligible', function () {
-    $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
-    $job->handle(app(EmailService::class));
+    $processor = app(OnboardingReminderProcessor::class);
+    $status = $processor->process($this->user->id, $this->now);
 
     Mail::assertSent(OnboardingReminderEmail::class, function (OnboardingReminderEmail $mail) {
         return $mail->hasTo($this->user->email);
     });
 
+    expect($status)->toBe(OnboardingReminderProcessor::STATUS_SENT);
     expect($this->user->fresh()->onboarding_reminder_requested_at)->toBeNull();
 });
 
@@ -39,10 +40,11 @@ it('does not send and clears marker when user has a reading before send time', f
         'date_read' => $this->now->toDateString(),
     ]);
 
-    $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
-    $job->handle(app(EmailService::class));
+    $processor = app(OnboardingReminderProcessor::class);
+    $status = $processor->process($this->user->id, $this->now);
 
     Mail::assertNothingSent();
+    expect($status)->toBe(OnboardingReminderProcessor::STATUS_SKIPPED);
     expect($this->user->fresh()->onboarding_reminder_requested_at)->toBeNull();
 });
 
@@ -51,21 +53,25 @@ it('does not send and clears marker when user opted out after scheduling', funct
         'marketing_emails_opted_out_at' => $this->now->copy()->subHour(),
     ]);
 
-    $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
-    $job->handle(app(EmailService::class));
+    $processor = app(OnboardingReminderProcessor::class);
+    $status = $processor->process($this->user->id, $this->now);
 
     Mail::assertNothingSent();
+    expect($status)->toBe(OnboardingReminderProcessor::STATUS_SKIPPED);
     expect($this->user->fresh()->onboarding_reminder_requested_at)->toBeNull();
 });
 
-it('does nothing when job payload marker does not match current marker', function () {
-    $staleRequestedAt = $this->requestedAt->copy()->subMinute();
+it('does nothing when reminder marker is already missing', function () {
+    $this->user->update([
+        'onboarding_reminder_requested_at' => null,
+    ]);
 
-    $job = new SendOnboardingReminderJob($this->user->id, $staleRequestedAt->toIso8601String());
-    $job->handle(app(EmailService::class));
+    $processor = app(OnboardingReminderProcessor::class);
+    $status = $processor->process($this->user->id, $this->now);
 
     Mail::assertNothingSent();
-    expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($this->requestedAt))->toBeTrue();
+    expect($status)->toBe(OnboardingReminderProcessor::STATUS_SKIPPED);
+    expect($this->user->fresh()->onboarding_reminder_requested_at)->toBeNull();
 });
 
 it('does nothing when reminder is not yet due', function () {
@@ -74,18 +80,34 @@ it('does nothing when reminder is not yet due', function () {
         'onboarding_reminder_requested_at' => $notYetDueRequestedAt,
     ]);
 
-    $job = new SendOnboardingReminderJob($this->user->id, $notYetDueRequestedAt->toIso8601String());
-    $job->handle(app(EmailService::class));
+    $processor = app(OnboardingReminderProcessor::class);
+    $status = $processor->process($this->user->id, $this->now);
 
     Mail::assertNothingSent();
+    expect($status)->toBe(OnboardingReminderProcessor::STATUS_SKIPPED);
     expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($notYetDueRequestedAt))->toBeTrue();
 });
 
-it('does nothing when user no longer exists', function () {
-    $job = new SendOnboardingReminderJob(999999, $this->requestedAt->toIso8601String());
-    $job->handle(app(EmailService::class));
+it('does not send reminders older than 48 hours and clears the stale marker', function () {
+    $expiredRequestedAt = $this->now->copy()->subDays(3);
+    $this->user->update([
+        'onboarding_reminder_requested_at' => $expiredRequestedAt,
+    ]);
+
+    $processor = app(OnboardingReminderProcessor::class);
+    $status = $processor->process($this->user->id, $this->now);
 
     Mail::assertNothingSent();
+    expect($status)->toBe(OnboardingReminderProcessor::STATUS_SKIPPED);
+    expect($this->user->fresh()->onboarding_reminder_requested_at)->toBeNull();
+});
+
+it('does nothing when user no longer exists', function () {
+    $processor = app(OnboardingReminderProcessor::class);
+    $status = $processor->process(999999, $this->now);
+
+    Mail::assertNothingSent();
+    expect($status)->toBe(OnboardingReminderProcessor::STATUS_SKIPPED);
 });
 
 it('does not send when user opts out between marker clear and callback send', function () {
@@ -102,41 +124,79 @@ it('does not send when user opts out between marker clear and callback send', fu
             return true;
         });
 
-    $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
-    $job->handle($raceEmailService);
+    $processor = new OnboardingReminderProcessor($raceEmailService);
+    $status = $processor->process($this->user->id, $this->now);
 
     Mail::assertNothingSent();
 
     $freshUser = $this->user->fresh();
+    expect($status)->toBe(OnboardingReminderProcessor::STATUS_SKIPPED);
     expect($freshUser->marketing_emails_opted_out_at)->not->toBeNull();
     expect($freshUser->onboarding_reminder_requested_at)->toBeNull();
 });
 
-it('throws to trigger retry when email sending fails and preserves marker', function () {
+it('restores marker when email sending fails', function () {
     $failingEmailService = $this->mock(EmailService::class);
     $failingEmailService->shouldReceive('sendWithErrorHandling')
         ->once()
         ->andReturn(false);
 
-    $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
+    $processor = new OnboardingReminderProcessor($failingEmailService);
+    $status = $processor->process($this->user->id, $this->now);
 
-    expect(fn () => $job->handle($failingEmailService))
-        ->toThrow(\RuntimeException::class);
-
+    expect($status)->toBe(OnboardingReminderProcessor::STATUS_FAILED);
     expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($this->requestedAt))->toBeTrue();
 });
 
-it('rethrows throwable from email service and preserves marker for retry', function () {
-    $throwingEmailService = $this->mock(EmailService::class);
-    $throwingEmailService->shouldReceive('sendWithErrorHandling')
-        ->once()
-        ->andThrow(new \Error('Synthetic callback error'));
+it('scheduled command processes due reminders and reports a summary', function () {
+    $notDueUser = User::factory()->create([
+        'onboarding_reminder_requested_at' => $this->now->copy()->subHours(3),
+    ]);
 
-    $job = new SendOnboardingReminderJob($this->user->id, $this->requestedAt->toIso8601String());
+    $this->artisan('onboarding:send-reminders')
+        ->expectsOutput('Onboarding reminders processed: 1 sent, 1 skipped, 0 failed.')
+        ->assertSuccessful();
 
-    expect(fn () => $job->handle($throwingEmailService))
-        ->toThrow(\Error::class);
+    Mail::assertSent(OnboardingReminderEmail::class, function (OnboardingReminderEmail $mail) {
+        return $mail->hasTo($this->user->email);
+    });
 
-    Mail::assertNothingSent();
+    expect($this->user->fresh()->onboarding_reminder_requested_at)->toBeNull();
+    expect($notDueUser->fresh()->onboarding_reminder_requested_at?->equalTo($this->now->copy()->subHours(3)))->toBeTrue();
+});
+
+it('scheduled command continues after a failed reminder send', function () {
+    Mail::fake();
+
+    $secondUser = User::factory()->create([
+        'onboarding_reminder_requested_at' => $this->requestedAt,
+    ]);
+
+    $emailService = $this->mock(EmailService::class);
+    $emailService->shouldReceive('sendWithErrorHandling')
+        ->twice()
+        ->andReturnUsing(function (callable $callback) {
+            $userId = (new ReflectionFunction($callback))->getStaticVariables()['userId'] ?? null;
+
+            if ($userId === $this->user->id) {
+                return false;
+            }
+
+            $callback();
+
+            return true;
+        });
+
+    $this->app->instance(EmailService::class, $emailService);
+
+    $this->artisan('onboarding:send-reminders')
+        ->expectsOutput('Onboarding reminders processed: 1 sent, 0 skipped, 1 failed.')
+        ->assertSuccessful();
+
+    Mail::assertSent(OnboardingReminderEmail::class, function (OnboardingReminderEmail $mail) use ($secondUser) {
+        return $mail->hasTo($secondUser->email);
+    });
+
     expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($this->requestedAt))->toBeTrue();
+    expect($secondUser->fresh()->onboarding_reminder_requested_at)->toBeNull();
 });

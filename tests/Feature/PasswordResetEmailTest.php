@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Notifications\CustomResetPasswordNotification;
+use App\Services\EmailService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
@@ -43,6 +44,25 @@ class PasswordResetEmailTest extends TestCase
             $user,
             CustomResetPasswordNotification::class
         );
+    }
+
+    public function test_password_reset_request_succeeds_when_email_delivery_fails(): void
+    {
+        $this->mock(EmailService::class)
+            ->shouldReceive('sendWithErrorHandling')
+            ->once()
+            ->andReturn(false);
+
+        User::factory()->create([
+            'email' => 'test@example.com',
+        ]);
+
+        $response = $this->post('/forgot-password', [
+            'email' => 'test@example.com',
+        ]);
+
+        $response->assertStatus(302);
+        $response->assertSessionHas('status');
     }
 
     public function test_password_reset_email_contains_correct_branding(): void

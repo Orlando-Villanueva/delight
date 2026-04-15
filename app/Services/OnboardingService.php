@@ -3,12 +3,10 @@
 namespace App\Services;
 
 use App\Enums\OnboardingStep;
-use App\Jobs\SendOnboardingReminderJob;
 use App\Models\OnboardingStepEvent;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
-use Throwable;
 
 class OnboardingService
 {
@@ -41,9 +39,7 @@ class OnboardingService
      */
     public function remind(int $userId): void
     {
-        $dispatchPayload = null;
-
-        DB::transaction(function () use ($userId, &$dispatchPayload) {
+        DB::transaction(function () use ($userId) {
             $now = now();
             $lockedUser = User::query()
                 ->whereKey($userId)
@@ -77,42 +73,7 @@ class OnboardingService
             $lockedUser->onboarding_reminder_requested_at = $now;
             $this->recordStep($lockedUser, OnboardingStep::ReminderRequested, $now);
             $lockedUser->save();
-
-            $dispatchPayload = [
-                'user_id' => $lockedUser->id,
-                'requested_at' => $now->copy(),
-            ];
         });
-
-        if ($dispatchPayload !== null) {
-            try {
-                SendOnboardingReminderJob::dispatch(
-                    $dispatchPayload['user_id'],
-                    $dispatchPayload['requested_at']->toIso8601String()
-                )->delay($dispatchPayload['requested_at']->copy()->addDay());
-            } catch (Throwable $exception) {
-                // Best-effort rollback so users can retry if queueing fails.
-                User::query()
-                    ->whereKey($dispatchPayload['user_id'])
-                    ->where('onboarding_dismissed_at', $dispatchPayload['requested_at']->toDateTimeString())
-                    ->where('onboarding_reminder_requested_at', $dispatchPayload['requested_at']->toDateTimeString())
-                    ->update([
-                        'onboarding_dismissed_at' => null,
-                        'onboarding_reminder_requested_at' => null,
-                    ]);
-
-                OnboardingStepEvent::query()
-                    ->where('user_id', $dispatchPayload['user_id'])
-                    ->whereIn('step', [
-                        OnboardingStep::Dismissed->value,
-                        OnboardingStep::ReminderRequested->value,
-                    ])
-                    ->where('occurred_at', $dispatchPayload['requested_at']->toDateTimeString())
-                    ->delete();
-
-                throw $exception;
-            }
-        }
     }
 
     /**
