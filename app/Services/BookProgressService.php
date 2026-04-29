@@ -32,12 +32,14 @@ class BookProgressService
         $processedBooks = $testamentBooks->map(function ($book) use ($booksProgress) {
             $progress = $booksProgress->get($book['name'], null);
 
-            // Safely get chapters read count with proper type checking
             $chaptersReadArray = $progress ? ($progress->chapters_read ?? []) : [];
-            $chaptersRead = is_array($chaptersReadArray) ? count($chaptersReadArray) : 0;
-
-            // Ensure book chapters is an integer
             $totalChapters = is_numeric($book['chapters']) ? (int) $book['chapters'] : 0;
+            $chaptersRead = is_array($chaptersReadArray)
+                ? collect($chaptersReadArray)
+                    ->filter(fn (int $chapter): bool => $chapter >= 1 && $chapter <= $totalChapters)
+                    ->unique()
+                    ->count()
+                : 0;
             $percentage = $totalChapters > 0 ? round(($chaptersRead / $totalChapters) * 100, 1) : 0;
 
             $status = $this->determineBookStatus($chaptersRead, $totalChapters);

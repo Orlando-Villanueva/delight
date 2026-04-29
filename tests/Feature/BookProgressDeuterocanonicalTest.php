@@ -66,3 +66,25 @@ it('does not include Catholic additions to Esther and Daniel in canonical summar
         ->and($summary['books_not_started'])->toBe(66)
         ->and($summary['overall_progress_percent'])->toBe(0.0);
 });
+
+it('does not include Catholic additions to Esther and Daniel in the canonical progress grid after disabling', function () {
+    $user = User::factory()->create();
+
+    BookProgress::factory()->for($user)->create([
+        'book_id' => 27,
+        'book_name' => 'Daniel',
+        'total_chapters' => 14,
+        'chapters_read' => [13],
+        'completion_percent' => 7.14,
+        'is_completed' => false,
+    ]);
+
+    $oldTestament = app(BookProgressService::class)->getTestamentProgress($user, 'Old');
+    $daniel = $oldTestament['processed_books']->firstWhere('name', 'Daniel');
+
+    expect($daniel['chapter_count'])->toBe(12)
+        ->and($daniel['chapters_read'])->toBe(0)
+        ->and($daniel['percentage'])->toBe(0.0)
+        ->and($daniel['status'])->toBe('not-started')
+        ->and($oldTestament['in_progress_books'])->toBe(0);
+});
