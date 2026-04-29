@@ -421,10 +421,8 @@ class ReadingLogService
             throw new InvalidArgumentException("Invalid book ID: {$bookId}");
         }
 
-        if (isset($data['chapter'])) {
-            if (! $this->bibleService->validateChapterNumber($bookId, $data['chapter'], $includeDeuterocanonical)) {
-                throw new InvalidArgumentException("Invalid chapter number for book ID: {$bookId}");
-            }
+        if (isset($data['chapter']) && ! $this->bibleService->validateChapterNumber($bookId, $data['chapter'], $includeDeuterocanonical)) {
+            throw new InvalidArgumentException("Invalid chapter number for book ID: {$bookId}");
         }
 
         if (isset($data['chapters']) && is_array($data['chapters'])) {

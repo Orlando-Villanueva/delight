@@ -6,6 +6,8 @@ use App\Services\ReadingLogService;
 use App\Services\WeeklyGoalService;
 use Carbon\Carbon;
 
+const TOBIT_CHAPTER_ONE = 'Tobit 1';
+
 it('does not show deuterocanonical books on the log form by default', function () {
     $user = User::factory()->create();
 
@@ -62,7 +64,7 @@ it('allows opted-in users to log deuterocanonical books and additions', function
             'date_read' => today()->toDateString(),
         ])
         ->assertSuccessful()
-        ->assertSee('Tobit 1');
+        ->assertSee(TOBIT_CHAPTER_ONE);
 
     $this->actingAs($user)
         ->post(route('logs.store'), [
@@ -84,7 +86,7 @@ it('keeps existing deuterocanonical logs visible and counted after disabling', f
     ReadingLog::factory()->for($user)->create([
         'book_id' => 67,
         'chapter' => 1,
-        'passage_text' => 'Tobit 1',
+        'passage_text' => TOBIT_CHAPTER_ONE,
         'date_read' => today()->subDay()->toDateString(),
     ]);
 
@@ -93,7 +95,7 @@ it('keeps existing deuterocanonical logs visible and counted after disabling', f
     $this->actingAs($user)
         ->get(route('logs.index'))
         ->assertSuccessful()
-        ->assertSee('Tobit 1');
+        ->assertSee(TOBIT_CHAPTER_ONE);
 
     expect(app(ReadingLogService::class)->calculateCurrentStreak($user))->toBe(1)
         ->and(app(WeeklyGoalService::class)->getThisWeekReadingDays($user))->toBe(1);

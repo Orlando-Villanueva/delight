@@ -4,59 +4,18 @@
 ])
 
 <div {{ $attributes->merge(['class' => 'relative w-full sm:w-auto']) }}
-    id="{{ $id }}"
-    x-data="{ sectionMenuOpen: false }"
-    x-on:keydown.escape.window="sectionMenuOpen = false">
+    id="{{ $id }}">
     <div class="sm:hidden">
-        <button type="button"
-            x-on:click="sectionMenuOpen = !sectionMenuOpen"
-            x-bind:aria-expanded="sectionMenuOpen"
-            aria-haspopup="listbox"
-            class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-left text-sm font-medium text-gray-800 shadow-sm transition-colors hover:border-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:border-primary-400">
-            <span x-text="testamentLabel(activeTestament)"></span>
-            <svg class="h-4 w-4 text-gray-500 transition-transform dark:text-gray-400"
-                :class="{ 'rotate-180': sectionMenuOpen }"
-                aria-hidden="true"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7" />
-            </svg>
-        </button>
-
-        <div x-show="sectionMenuOpen"
-            x-cloak
-            x-transition.origin.top
-            x-on:click.outside="sectionMenuOpen = false"
-            class="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
-            role="listbox">
-            <button type="button"
-                x-on:click="setTestament('Old'); sectionMenuOpen = false"
-                x-bind:aria-selected="activeTestament === 'Old'"
-                :class="{ 'bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300': activeTestament === 'Old', 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700': activeTestament !== 'Old' }"
-                class="block w-full px-3 py-2.5 text-left text-sm font-medium"
-                role="option">
-                Old Testament
-            </button>
+        <select aria-label="Bible section"
+            x-model="activeTestament"
+            x-on:change="setTestament($event.target.value)"
+            class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-gray-800 shadow-sm transition-colors focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-primary-400 dark:focus:ring-primary-400">
+            <option value="Old">Old Testament</option>
             @if ($showDeuterocanonical)
-                <button type="button"
-                    x-on:click="setTestament('Deuterocanonical'); sectionMenuOpen = false"
-                    x-bind:aria-selected="activeTestament === 'Deuterocanonical'"
-                    :class="{ 'bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300': activeTestament === 'Deuterocanonical', 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700': activeTestament !== 'Deuterocanonical' }"
-                    class="block w-full px-3 py-2.5 text-left text-sm font-medium"
-                    role="option">
-                    Deuterocanonical
-                </button>
+                <option value="Deuterocanonical">Deuterocanonical</option>
             @endif
-            <button type="button"
-                x-on:click="setTestament('New'); sectionMenuOpen = false"
-                x-bind:aria-selected="activeTestament === 'New'"
-                :class="{ 'bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300': activeTestament === 'New', 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700': activeTestament !== 'New' }"
-                class="block w-full px-3 py-2.5 text-left text-sm font-medium"
-                role="option">
-                New Testament
-            </button>
-        </div>
+            <option value="New">New Testament</option>
+        </select>
     </div>
 
     <div class="hidden gap-1 border-b border-gray-200 dark:border-gray-700 sm:flex" role="tablist" aria-label="Bible section">

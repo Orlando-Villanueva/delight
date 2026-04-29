@@ -304,6 +304,8 @@ class BibleReferenceService
         // Use Laravel's translation system if available
         $translationKey = "bible.books.{$bookId}";
 
+        $translation = null;
+
         // Try to get translation, fallback to English if not found
         if (function_exists('__') && app()->bound('translator')) {
             try {
@@ -313,21 +315,16 @@ class BibleReferenceService
                 if ($translation === $translationKey && $locale !== $this->defaultLocale) {
                     $translation = __($translationKey, [], $this->defaultLocale);
                 }
-
-                // If still no translation, use fallback
-                if ($translation === $translationKey) {
-                    return $this->getTranslationFallback($bookId, $locale);
-                }
-
-                return $translation;
             } catch (Exception $e) {
-                // If translation fails, use fallback
-                return $this->getTranslationFallback($bookId, $locale);
+                $translation = null;
             }
         }
 
-        // Fallback for testing environment or when translator not available
-        return $this->getTranslationFallback($bookId, $locale);
+        if ($translation === null || $translation === $translationKey) {
+            $translation = $this->getTranslationFallback($bookId, $locale);
+        }
+
+        return $translation;
     }
 
     /**
@@ -433,33 +430,26 @@ class BibleReferenceService
         // Remove extra whitespace and normalize
         $reference = trim($reference);
 
-        // Try to match pattern: "Book Chapter" or "Book Chapter:Verse"
-        if (preg_match('/^(.+?)\s+(\d+)(?::(\d+))?$/i', $reference, $matches)) {
-            $bookName = trim($matches[1]);
-            $chapter = (int) $matches[2];
-            $verse = isset($matches[3]) ? (int) $matches[3] : null;
-
-            // Find book by name
-            $book = $this->getBibleBook($bookName, $locale, $includeDeuterocanonical);
-            if (! $book) {
-                return null;
-            }
-
-            // Validate chapter
-            if (! $this->validateChapterNumber($book['id'], $chapter, $includeDeuterocanonical)) {
-                return null;
-            }
-
-            return [
-                'book_id' => $book['id'],
-                'book_name' => $this->getLocalizedBookName($book['id'], $locale, $includeDeuterocanonical),
-                'chapter' => $chapter,
-                'verse' => $verse,
-                'formatted' => $this->formatBibleReference($book['id'], $chapter, $locale, $includeDeuterocanonical),
-            ];
+        if (! preg_match('/^(.+?)\s+(\d+)(?::(\d+))?$/i', $reference, $matches)) {
+            return null;
         }
 
-        return null;
+        $bookName = trim($matches[1]);
+        $chapter = (int) $matches[2];
+        $verse = isset($matches[3]) ? (int) $matches[3] : null;
+
+        $book = $this->getBibleBook($bookName, $locale, $includeDeuterocanonical);
+        if (! $book || ! $this->validateChapterNumber($book['id'], $chapter, $includeDeuterocanonical)) {
+            return null;
+        }
+
+        return [
+            'book_id' => $book['id'],
+            'book_name' => $this->getLocalizedBookName($book['id'], $locale, $includeDeuterocanonical),
+            'chapter' => $chapter,
+            'verse' => $verse,
+            'formatted' => $this->formatBibleReference($book['id'], $chapter, $locale, $includeDeuterocanonical),
+        ];
     }
 
     /**
