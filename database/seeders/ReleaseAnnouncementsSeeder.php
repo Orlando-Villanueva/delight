@@ -49,6 +49,8 @@ MD;
                 'title' => $title,
                 'content' => $content,
                 'type' => 'info',
+                'hero_image_path' => 'images/deuterocanonical-books-hero.jpg',
+                'social_image_path' => 'images/deuterocanonical-books-social.jpg',
                 'starts_at' => now(),
                 'ends_at' => null,
             ]
