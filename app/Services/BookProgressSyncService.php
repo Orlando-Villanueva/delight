@@ -46,13 +46,13 @@ class BookProgressSyncService
         // Process each book's logs in bulk
         foreach ($logsByBook as $bookId => $bookLogs) {
             // Get book information
-            $book = $bibleService->getBibleBook($bookId);
+            $book = $bibleService->getBibleBook($bookId, includeDeuterocanonical: true);
             if (! $book) {
                 continue; // Skip invalid book IDs
             }
 
             // Get the localized book name
-            $bookName = $bibleService->getLocalizedBookName($bookId);
+            $bookName = $bibleService->getLocalizedBookName($bookId, includeDeuterocanonical: true);
 
             // Extract all chapters read for this book
             $chaptersRead = $bookLogs->pluck('chapter')->unique()->values()->toArray();

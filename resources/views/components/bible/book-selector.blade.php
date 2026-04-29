@@ -24,6 +24,7 @@
     // Group books by testament
     $oldTestament = collect($books)->where('testament', 'old')->values();
     $newTestament = collect($books)->where('testament', 'new')->values();
+    $deuterocanonicalBooks = collect($books)->where('testament', 'deuterocanonical')->values();
 @endphp
 
 <div {{ $attributes->merge(['class' => 'space-y-2']) }}>
@@ -59,6 +60,19 @@
                     </option>
                 @endforeach
             </optgroup>
+
+            @if($deuterocanonicalBooks->isNotEmpty())
+                <optgroup label="📚 Deuterocanonical ({{ $deuterocanonicalBooks->count() }} books)">
+                    @foreach($deuterocanonicalBooks as $book)
+                        <option value="{{ $book['id'] }}"
+                                data-chapters="{{ $book['chapters'] }}"
+                                data-testament="deuterocanonical"
+                                {{ old($name, $value) == $book['id'] ? 'selected' : '' }}>
+                            {{ $book['name'] }} ({{ $book['chapters'] }} chapters)
+                        </option>
+                    @endforeach
+                </optgroup>
+            @endif
             
             {{-- New Testament Group --}}
             <optgroup label="✝️ New Testament ({{ $newTestament->count() }} books)">
@@ -94,7 +108,7 @@
         </p>
     @else
         <p class="text-xs text-gray-500 mt-1">
-            💡 Books are organized by Old Testament (39 books) and New Testament (27 books)
+            💡 Books are organized by testament
         </p>
     @endif
-</div> 
+</div>

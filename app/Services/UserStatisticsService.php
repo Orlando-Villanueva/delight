@@ -12,7 +12,8 @@ class UserStatisticsService
     public function __construct(
         private ReadingLogService $readingLogService,
         private WeeklyGoalService $weeklyGoalService,
-        private WeeklyJourneyService $weeklyJourneyService
+        private WeeklyJourneyService $weeklyJourneyService,
+        private ?BibleReferenceService $bibleReferenceService = null
     ) {}
 
     /**
@@ -202,29 +203,57 @@ class UserStatisticsService
      */
     public function getBookProgressSummary(User $user): array
     {
-        // Eager load book progress data with a single query instead of lazy loading
-        $bookProgress = $user->bookProgress()->get();
+        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
+        $visibleBooks = collect($this->bibleReferenceService()->listBibleBooks(includeDeuterocanonical: $includeDeuterocanonical))
+            ->keyBy('id');
 
-        $completed = $bookProgress->where('is_completed', true)->count();
-        $inProgress = $bookProgress->where('is_completed', false)
-            ->where('completion_percent', '>', 0)
+        // Eager load book progress data with a single query instead of lazy loading
+        $bookProgress = $user->bookProgress()
+            ->whereIn('book_id', $visibleBooks->keys()->all())
+            ->get();
+
+        $progressSummaries = $bookProgress->map(function ($progress) use ($visibleBooks) {
+            $totalChapters = (int) $visibleBooks->get($progress->book_id)['chapters'];
+            $chaptersRead = collect($progress->chapters_read ?? [])
+                ->filter(fn (int $chapter): bool => $chapter >= 1 && $chapter <= $totalChapters)
+                ->unique()
+                ->count();
+
+            return [
+                'chapters_read' => $chaptersRead,
+                'total_chapters' => $totalChapters,
+            ];
+        });
+
+        $completed = $progressSummaries
+            ->filter(fn (array $summary): bool => $summary['total_chapters'] > 0 && $summary['chapters_read'] >= $summary['total_chapters'])
             ->count();
-        $notStarted = 66 - $completed - $inProgress; // Total Bible books minus started
+        $inProgress = $progressSummaries
+            ->filter(fn (array $summary): bool => $summary['chapters_read'] > 0 && $summary['chapters_read'] < $summary['total_chapters'])
+            ->count();
+        $totalBibleBooks = $this->bibleReferenceService()->getBookCount($includeDeuterocanonical);
+        $notStarted = $totalBibleBooks - $completed - $inProgress;
 
         // Calculate overall progress using the already loaded collection
-        $totalChapters = 1189; // Total chapters in the Bible
-        $chaptersRead = $bookProgress->sum(function ($progress) {
-            return count($progress->chapters_read ?? []);
-        });
+        $totalChapters = $this->bibleReferenceService()->getChapterCount($includeDeuterocanonical);
+        $chaptersRead = $progressSummaries->sum('chapters_read');
         $overallProgressPercent = $totalChapters > 0 ? round(($chaptersRead / $totalChapters) * 100, 2) : 0;
 
         return [
             'books_completed' => $completed,
             'books_in_progress' => $inProgress,
             'books_not_started' => max(0, $notStarted),
-            'total_bible_books' => 66,
+            'total_bible_books' => $totalBibleBooks,
             'overall_progress_percent' => $overallProgressPercent,
         ];
+    }
+
+    /**
+     * Get the Bible reference service.
+     */
+    private function bibleReferenceService(): BibleReferenceService
+    {
+        return $this->bibleReferenceService ??= new BibleReferenceService;
     }
 
     /**

@@ -94,6 +94,21 @@ describe('BibleReferenceService', function () {
             expect($books)->toHaveCount(66);
         });
 
+        it('can include the Catholic deuterocanonical books when requested', function () {
+            $books = $this->service->listBibleBooks(includeDeuterocanonical: true);
+
+            expect($books)->toHaveCount(73)
+                ->and(collect($books)->pluck('name'))->toContain('Tobit', 'Judith', 'Wisdom', 'Sirach', 'Baruch', '1 Maccabees', '2 Maccabees');
+        });
+
+        it('filters deuterocanonical books into their own group', function () {
+            $books = $this->service->listBibleBooks('deuterocanonical', includeDeuterocanonical: true);
+
+            expect($books)->toHaveCount(7)
+                ->and($books[0]['name'])->toBe('Tobit')
+                ->and($books[0]['testament'])->toBe('deuterocanonical');
+        });
+
         it('filters by Old Testament', function () {
             $books = $this->service->listBibleBooks('old');
             expect($books)->toHaveCount(39);
@@ -122,6 +137,13 @@ describe('BibleReferenceService', function () {
                 ->and($this->service->validateBookId(67))->toBeFalse()
                 ->and($this->service->validateBookId(-1))->toBeFalse();
         });
+
+        it('validates deuterocanonical book IDs only when requested', function () {
+            expect($this->service->validateBookId(67))->toBeFalse()
+                ->and($this->service->validateBookId(67, includeDeuterocanonical: true))->toBeTrue()
+                ->and($this->service->validateBookId(73, includeDeuterocanonical: true))->toBeTrue()
+                ->and($this->service->validateBookId(74, includeDeuterocanonical: true))->toBeFalse();
+        });
     });
 
     describe('validateChapterNumber()', function () {
@@ -135,6 +157,25 @@ describe('BibleReferenceService', function () {
             expect($this->service->validateChapterNumber(1, 0))->toBeFalse()
                 ->and($this->service->validateChapterNumber(1, 51))->toBeFalse()
                 ->and($this->service->validateChapterNumber(99, 1))->toBeFalse(); // Invalid book
+        });
+
+        it('uses Catholic-integrated chapter counts for Esther and Daniel only when requested', function () {
+            expect($this->service->validateChapterNumber(17, 11))->toBeFalse()
+                ->and($this->service->validateChapterNumber(17, 16, includeDeuterocanonical: true))->toBeTrue()
+                ->and($this->service->validateChapterNumber(17, 17, includeDeuterocanonical: true))->toBeFalse()
+                ->and($this->service->validateChapterNumber(27, 13))->toBeFalse()
+                ->and($this->service->validateChapterNumber(27, 14, includeDeuterocanonical: true))->toBeTrue()
+                ->and($this->service->validateChapterNumber(27, 15, includeDeuterocanonical: true))->toBeFalse();
+        });
+
+        it('does not expose Daniel additions as extra standalone chapters', function () {
+            expect($this->service->getBookChapterCount(27))->toBe(12)
+                ->and($this->service->getBookChapterCount(27, includeDeuterocanonical: true))->toBe(14);
+        });
+
+        it('keeps Esther at ten chapters by default and sixteen in Catholic numbering', function () {
+            expect($this->service->getBookChapterCount(17))->toBe(10)
+                ->and($this->service->getBookChapterCount(17, includeDeuterocanonical: true))->toBe(16);
         });
     });
 
@@ -213,6 +254,12 @@ describe('BibleReferenceService', function () {
                 ->and($testaments)->toHaveKeys(['old', 'new']);
         });
 
+        it('lists the deuterocanonical testament only when requested', function () {
+            expect($this->service->listTestaments())->toHaveCount(2)
+                ->and($this->service->listTestaments(includeDeuterocanonical: true))->toHaveCount(3)
+                ->and($this->service->listTestaments(includeDeuterocanonical: true))->toHaveKeys(['old', 'new', 'deuterocanonical']);
+        });
+
         it('gets books in testament', function () {
             $oldTestamentBooks = $this->service->getBooksInTestament('old');
             $newTestamentBooks = $this->service->getBooksInTestament('new');
@@ -243,6 +290,9 @@ describe('BibleReferenceService', function () {
 
             $randomNewBook = $this->service->getRandomBook('new');
             expect($randomNewBook['testament'])->toBe('new');
+
+            $randomDeuterocanonicalBook = $this->service->getRandomBook('deuterocanonical', includeDeuterocanonical: true);
+            expect($randomDeuterocanonicalBook['testament'])->toBe('deuterocanonical');
         });
 
         it('gets adjacent books', function () {
@@ -254,6 +304,8 @@ describe('BibleReferenceService', function () {
 
             // Edge cases
             expect($this->service->getAdjacentBook(66, 'next'))->toBeNull();
+            expect($this->service->getAdjacentBook(66, 'next', includeDeuterocanonical: true)['id'])->toBe(67);
+            expect($this->service->getAdjacentBook(67, 'previous', includeDeuterocanonical: true)['id'])->toBe(66);
             expect($this->service->getAdjacentBook(1, 'previous'))->toBeNull();
         });
     });

@@ -243,7 +243,7 @@ class AnnualRecapService
             ->map(function ($group, $bookId) {
                 return [
                     'id' => $bookId,
-                    'name' => $this->bibleService->getLocalizedBookName($bookId),
+                    'name' => $this->bibleService->getLocalizedBookName($bookId, includeDeuterocanonical: true),
                     'count' => $group->count(),
                 ];
             })

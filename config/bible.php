@@ -102,6 +102,7 @@ return [
         17 => [
             'id' => 17,
             'chapters' => 10,
+            'deuterocanonical_chapters' => 16,
             'testament' => 'old',
             'abbreviation' => 'Est',
         ],
@@ -162,6 +163,7 @@ return [
         27 => [
             'id' => 27,
             'chapters' => 12,
+            'deuterocanonical_chapters' => 14,
             'testament' => 'old',
             'abbreviation' => 'Dan',
         ],
@@ -401,6 +403,57 @@ return [
             'testament' => 'new',
             'abbreviation' => 'Rev',
         ],
+
+        // Deuterocanonical books (67-73)
+        67 => [
+            'id' => 67,
+            'chapters' => 14,
+            'testament' => 'deuterocanonical',
+            'abbreviation' => 'Tob',
+            'deuterocanonical' => true,
+        ],
+        68 => [
+            'id' => 68,
+            'chapters' => 16,
+            'testament' => 'deuterocanonical',
+            'abbreviation' => 'Jdt',
+            'deuterocanonical' => true,
+        ],
+        69 => [
+            'id' => 69,
+            'chapters' => 19,
+            'testament' => 'deuterocanonical',
+            'abbreviation' => 'Wis',
+            'deuterocanonical' => true,
+        ],
+        70 => [
+            'id' => 70,
+            'chapters' => 51,
+            'testament' => 'deuterocanonical',
+            'abbreviation' => 'Sir',
+            'deuterocanonical' => true,
+        ],
+        71 => [
+            'id' => 71,
+            'chapters' => 6,
+            'testament' => 'deuterocanonical',
+            'abbreviation' => 'Bar',
+            'deuterocanonical' => true,
+        ],
+        72 => [
+            'id' => 72,
+            'chapters' => 16,
+            'testament' => 'deuterocanonical',
+            'abbreviation' => '1 Mac',
+            'deuterocanonical' => true,
+        ],
+        73 => [
+            'id' => 73,
+            'chapters' => 15,
+            'testament' => 'deuterocanonical',
+            'abbreviation' => '2 Mac',
+            'deuterocanonical' => true,
+        ],
     ],
 
     'testaments' => [
@@ -409,6 +462,10 @@ return [
         ],
         'new' => [
             'range' => [40, 66],
+        ],
+        'deuterocanonical' => [
+            'range' => [67, 73],
+            'deuterocanonical' => true,
         ],
     ],
 

@@ -71,10 +71,20 @@ return [
         64 => '3 John',
         65 => 'Jude',
         66 => 'Revelation',
+
+        // Deuterocanonical books (67-73)
+        67 => 'Tobit',
+        68 => 'Judith',
+        69 => 'Wisdom',
+        70 => 'Sirach',
+        71 => 'Baruch',
+        72 => '1 Maccabees',
+        73 => '2 Maccabees',
     ],
 
     'testaments' => [
         'old' => 'Old Testament',
         'new' => 'New Testament',
+        'deuterocanonical' => 'Deuterocanonical',
     ],
 ];

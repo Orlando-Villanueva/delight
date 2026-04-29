@@ -138,6 +138,25 @@ class AnnualRecapServiceTest extends TestCase
         $this->assertTrue(Cache::has(AnnualRecapService::cacheKeyFor($user, $year)));
     }
 
+    public function test_current_year_recap_includes_deuterocanonical_top_books_for_opted_in_users(): void
+    {
+        $user = User::factory()->create([
+            'deuterocanonical_books_enabled_at' => now(),
+        ]);
+        $year = now()->year;
+
+        ReadingLog::factory()->for($user)->create([
+            'book_id' => 67,
+            'chapter' => 1,
+            'passage_text' => 'Tobit 1',
+            'date_read' => now()->startOfYear()->addDay()->toDateString(),
+        ]);
+
+        $recap = app(AnnualRecapService::class)->getRecap($user, $year);
+
+        $this->assertSame('Tobit', $recap['top_books']->first()['name']);
+    }
+
     public function test_reading_log_creation_invalidates_current_year_recap_cache(): void
     {
         $user = User::factory()->create();

@@ -71,10 +71,20 @@ return [
         64 => '3 Jean',
         65 => 'Jude',
         66 => 'Apocalypse',
+
+        // Livres deutérocanoniques (67-73)
+        67 => 'Tobie',
+        68 => 'Judith',
+        69 => 'Sagesse',
+        70 => 'Siracide',
+        71 => 'Baruch',
+        72 => '1 Maccabées',
+        73 => '2 Maccabées',
     ],
 
     'testaments' => [
         'old' => 'Ancien Testament',
         'new' => 'Nouveau Testament',
+        'deuterocanonical' => 'Deutérocanonique',
     ],
 ];

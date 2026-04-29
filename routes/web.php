@@ -13,6 +13,7 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PublicAnnouncementController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\ReadingPlanController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Middleware\EnsureAdminOrAnalyticsToken;
 use App\Http\Middleware\EnsureUserIsAdmin;
@@ -109,6 +110,10 @@ Route::middleware('auth')->group(function () {
 
     // Annual Recap
     Route::get('/recap/{year?}', [AnnualRecapController::class, 'show'])->name('recap.show');
+
+    // Settings
+    Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
+    Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
 
     // Reading Plans
     Route::get('/plans', [ReadingPlanController::class, 'index'])->name('plans.index');

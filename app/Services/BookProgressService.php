@@ -18,7 +18,7 @@ class BookProgressService
      */
     public function getTestamentProgress(User $user, string $testament = 'Old'): array
     {
-        $allBooks = $this->bibleReferenceService->listBibleBooks();
+        $allBooks = $this->bibleReferenceService->listBibleBooks(includeDeuterocanonical: $user->includesDeuterocanonicalBooks());
 
         // Filter books by testament (server-side)
         $testamentBooks = collect($allBooks)->filter(function ($book) use ($testament) {
@@ -109,12 +109,24 @@ class BookProgressService
     {
         $oldTestament = $this->getTestamentProgress($user, 'Old');
         $newTestament = $this->getTestamentProgress($user, 'New');
+        $deuterocanonical = $user->includesDeuterocanonicalBooks()
+            ? $this->getTestamentProgress($user, 'Deuterocanonical')
+            : null;
 
         $totalBooks = $oldTestament['completed_books'] + $oldTestament['in_progress_books'] + $oldTestament['not_started_books'] +
                      $newTestament['completed_books'] + $newTestament['in_progress_books'] + $newTestament['not_started_books'];
 
+        if ($deuterocanonical !== null) {
+            $totalBooks += $deuterocanonical['completed_books'] + $deuterocanonical['in_progress_books'] + $deuterocanonical['not_started_books'];
+        }
+
         $totalCompleted = $oldTestament['completed_books'] + $newTestament['completed_books'];
         $totalInProgress = $oldTestament['in_progress_books'] + $newTestament['in_progress_books'];
+
+        if ($deuterocanonical !== null) {
+            $totalCompleted += $deuterocanonical['completed_books'];
+            $totalInProgress += $deuterocanonical['in_progress_books'];
+        }
 
         $overallPercentage = $totalBooks > 0 ? round(($totalCompleted / $totalBooks) * 100, 1) : 0;
 
@@ -126,6 +138,7 @@ class BookProgressService
             'overall_percentage' => $overallPercentage,
             'old_testament' => $oldTestament,
             'new_testament' => $newTestament,
+            'deuterocanonical' => $deuterocanonical,
         ];
     }
 }
