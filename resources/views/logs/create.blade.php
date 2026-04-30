@@ -140,6 +140,16 @@
                                                             </span>
                                                         </button>
                                                     </li>
+                                                    @if ($deuterocanonicalBooks->isNotEmpty())
+                                                        <li>
+                                                            <button type="button" @click="updateTestament('deuterocanonical')"
+                                                                class="inline-flex w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                                                <span class="inline-flex items-center">
+                                                                    📖 Deuterocanonical
+                                                                </span>
+                                                            </button>
+                                                        </li>
+                                                    @endif
                                                     <li>
                                                         <button type="button" @click="updateTestament('new')"
                                                             class="inline-flex w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
@@ -148,16 +158,6 @@
                                                             </span>
                                                         </button>
                                                     </li>
-                                                    @if ($deuterocanonicalBooks->isNotEmpty())
-                                                        <li>
-                                                            <button type="button" @click="updateTestament('deuterocanonical')"
-                                                                class="inline-flex w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                                                <span class="inline-flex items-center">
-                                                                    📚 Deuterocanonical
-                                                                </span>
-                                                            </button>
-                                                        </li>
-                                                    @endif
                                                 </ul>
                                             </div>
 
@@ -295,7 +295,7 @@
 
                                     function testamentLabelFor(testament) {
                                         if (testament === 'deuterocanonical') {
-                                            return '📚 Deuterocanonical';
+                                            return '📖 Deuterocanonical';
                                         }
 
                                         return testament === 'old' ? '📜 Old Testament' : '✝️ New Testament';
