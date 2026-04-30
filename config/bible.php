@@ -1,5 +1,13 @@
 <?php
 
+$deuterocanonicalBook = static fn (int $id, int $chapters, string $abbreviation): array => [
+    'id' => $id,
+    'chapters' => $chapters,
+    'testament' => 'deuterocanonical',
+    'abbreviation' => $abbreviation,
+    'deuterocanonical' => true,
+];
+
 return [
     'books' => [
         // Old Testament (1-39)
@@ -405,55 +413,13 @@ return [
         ],
 
         // Deuterocanonical books (67-73)
-        67 => [
-            'id' => 67,
-            'chapters' => 14,
-            'testament' => 'deuterocanonical',
-            'abbreviation' => 'Tob',
-            'deuterocanonical' => true,
-        ],
-        68 => [
-            'id' => 68,
-            'chapters' => 16,
-            'testament' => 'deuterocanonical',
-            'abbreviation' => 'Jdt',
-            'deuterocanonical' => true,
-        ],
-        69 => [
-            'id' => 69,
-            'chapters' => 19,
-            'testament' => 'deuterocanonical',
-            'abbreviation' => 'Wis',
-            'deuterocanonical' => true,
-        ],
-        70 => [
-            'id' => 70,
-            'chapters' => 51,
-            'testament' => 'deuterocanonical',
-            'abbreviation' => 'Sir',
-            'deuterocanonical' => true,
-        ],
-        71 => [
-            'id' => 71,
-            'chapters' => 6,
-            'testament' => 'deuterocanonical',
-            'abbreviation' => 'Bar',
-            'deuterocanonical' => true,
-        ],
-        72 => [
-            'id' => 72,
-            'chapters' => 16,
-            'testament' => 'deuterocanonical',
-            'abbreviation' => '1 Mac',
-            'deuterocanonical' => true,
-        ],
-        73 => [
-            'id' => 73,
-            'chapters' => 15,
-            'testament' => 'deuterocanonical',
-            'abbreviation' => '2 Mac',
-            'deuterocanonical' => true,
-        ],
+        67 => $deuterocanonicalBook(67, 14, 'Tob'),
+        68 => $deuterocanonicalBook(68, 16, 'Jdt'),
+        69 => $deuterocanonicalBook(69, 19, 'Wis'),
+        70 => $deuterocanonicalBook(70, 51, 'Sir'),
+        71 => $deuterocanonicalBook(71, 6, 'Bar'),
+        72 => $deuterocanonicalBook(72, 16, '1 Mac'),
+        73 => $deuterocanonicalBook(73, 15, '2 Mac'),
     ],
 
     'testaments' => [

@@ -5,6 +5,11 @@ use App\Models\User;
 use App\Services\BookProgressService;
 use App\Services\UserStatisticsService;
 
+function createProgressFor(User $user, array $attributes): BookProgress
+{
+    return BookProgress::factory()->for($user)->create($attributes);
+}
+
 it('uses canonical progress totals by default', function () {
     $user = User::factory()->create();
 
@@ -31,7 +36,7 @@ it('uses Catholic canon progress totals for opted-in users', function () {
 it('does not include existing deuterocanonical progress in canonical summaries after disabling', function () {
     $user = User::factory()->create();
 
-    BookProgress::factory()->for($user)->create([
+    createProgressFor($user, [
         'book_id' => 67,
         'book_name' => 'Tobit',
         'total_chapters' => 14,
@@ -50,7 +55,7 @@ it('does not include existing deuterocanonical progress in canonical summaries a
 it('does not include Catholic additions to Esther and Daniel in canonical summaries after disabling', function () {
     $user = User::factory()->create();
 
-    BookProgress::factory()->for($user)->create([
+    createProgressFor($user, [
         'book_id' => 27,
         'book_name' => 'Daniel',
         'total_chapters' => 14,
@@ -70,7 +75,7 @@ it('does not include Catholic additions to Esther and Daniel in canonical summar
 it('does not include Catholic additions to Esther and Daniel in the canonical progress grid after disabling', function () {
     $user = User::factory()->create();
 
-    BookProgress::factory()->for($user)->create([
+    createProgressFor($user, [
         'book_id' => 27,
         'book_name' => 'Daniel',
         'total_chapters' => 14,
