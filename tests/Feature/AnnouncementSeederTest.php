@@ -9,20 +9,21 @@ it('seeds the deuterocanonical books release announcement', function () {
     $announcement = Announcement::where('slug', 'deuterocanonical-books-release')->first();
 
     expect($announcement)->not->toBeNull()
-        ->and($announcement->title)->toBe('New: Deuterocanonical books support')
+        ->and($announcement->title)->toBe('New: Deuterocanonical Book Support')
         ->and($announcement->type)->toBe('info')
         ->and($announcement->hero_image_path)->toBe('images/deuterocanonical-books-hero.jpg')
         ->and($announcement->social_image_path)->toBe('images/deuterocanonical-books-social.jpg')
         ->and($announcement->ends_at)->toBeNull()
-        ->and($announcement->content)->toContain('### What this adds to Delight')
+        ->and($announcement->content)->toContain('## What changed')
         ->and($announcement->content)->not->toContain('### Deuterocanonical books are now available')
         ->and($announcement->content)->toContain('Catholic 73-book canon')
-        ->and($announcement->content)->toContain('Second Temple and Hellenistic periods')
-        ->and($announcement->content)->toContain('Septuagint')
-        ->and($announcement->content)->toContain('most Protestant Bibles place them outside the 66-book canon')
-        ->and($announcement->content)->toContain('optional support for another historic Christian Bible tradition')
-        ->and($announcement->content)->toContain('stories of faithful endurance, wisdom teaching, prayer, and the history of Jewish resistance')
+        ->and($announcement->content)->toContain('Your current reading experience does not change unless you turn this setting on.')
+        ->and($announcement->content)->toContain('## Why it is optional')
+        ->and($announcement->content)->toContain('most Protestant Bibles do not include them in the 66-book canon')
+        ->and($announcement->content)->toContain('Delight keeps the 66-book canon as the default')
+        ->and($announcement->content)->toContain('## Included books')
         ->and($announcement->content)->toContain('Tobit, Judith, Wisdom, Sirach, Baruch, 1 Maccabees, and 2 Maccabees')
+        ->and($announcement->content)->toContain('## Your history stays intact')
         ->and($announcement->content)->toContain('continue to count toward streaks and weekly goals')
         ->and($announcement->content)->toContain('[Open Settings](/settings)');
 
