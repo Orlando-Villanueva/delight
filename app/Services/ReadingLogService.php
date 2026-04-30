@@ -527,8 +527,18 @@ class ReadingLogService
         // Remove the deleted chapter
         $chaptersRead = array_values(array_filter($chaptersRead, fn ($ch) => $ch !== $chapter));
 
+        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks() || $bookId > 66;
+
         // Get book information for recalculation
-        $book = $this->bibleService->getBibleBook($bookId, includeDeuterocanonical: true);
+        $book = $this->bibleService->getBibleBook($bookId, includeDeuterocanonical: $includeDeuterocanonical);
+        if (! $book) {
+            return;
+        }
+
+        $chaptersRead = array_values(array_filter(
+            $chaptersRead,
+            fn (int $chapter): bool => $this->bibleService->validateChapterNumber($bookId, $chapter, $includeDeuterocanonical)
+        ));
 
         // Update book progress
         $bookProgress->chapters_read = $chaptersRead;

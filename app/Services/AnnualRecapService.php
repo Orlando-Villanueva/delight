@@ -141,7 +141,7 @@ class AnnualRecapService
             'total_chapters_read' => $logs->count(),
             'active_days_count' => $logs->pluck('date_read')->unique()->count(),
             'yearly_streak' => $this->calculateYearlyStreak($logs),
-            'top_books' => $this->calculateTopBooks($logs),
+            'top_books' => $this->calculateTopBooks($user, $logs),
             'books_completed_count' => $this->calculateBooksCompleted($user, $year, $effectiveStart, $effectiveEnd),
             'reader_personality' => $this->determineReaderPersonality($logs, $year, $effectiveStart, $effectiveEnd),
             'heatmap_data' => $this->generateHeatmapData($logs),
@@ -231,13 +231,22 @@ class AnnualRecapService
     /**
      * Identify the books with the most chapters read.
      */
-    private function calculateTopBooks(Collection $logs, int $limit = 3): Collection
+    private function calculateTopBooks(User $user, Collection $logs, int $limit = 3): Collection
     {
         if ($logs->isEmpty()) {
             return collect();
         }
 
-        return $logs->groupBy('book_id')
+        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
+        $visibleLogs = $logs->filter(
+            fn ($log): bool => $this->bibleService->validateChapterNumber(
+                (int) $log->book_id,
+                (int) $log->chapter,
+                $includeDeuterocanonical
+            )
+        );
+
+        return $visibleLogs->groupBy('book_id')
             ->sortByDesc(fn ($group) => $group->count())
             ->take($limit)
             ->map(function ($group, $bookId) {

@@ -306,6 +306,8 @@ describe('BibleReferenceService', function () {
             expect($this->service->getAdjacentBook(66, 'next'))->toBeNull();
             expect($this->service->getAdjacentBook(66, 'next', includeDeuterocanonical: true)['id'])->toBe(67);
             expect($this->service->getAdjacentBook(67, 'previous', includeDeuterocanonical: true)['id'])->toBe(66);
+            expect($this->service->getAdjacentBook(16, 'next', includeDeuterocanonical: true)['chapters'])->toBe(16);
+            expect($this->service->getAdjacentBook(26, 'next', includeDeuterocanonical: true)['chapters'])->toBe(14);
             expect($this->service->getAdjacentBook(1, 'previous'))->toBeNull();
         });
     });

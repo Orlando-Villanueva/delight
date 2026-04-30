@@ -554,11 +554,7 @@ class BibleReferenceService
         $targetId = $direction === 'next' ? $bookId + 1 : $bookId - 1;
 
         if ($this->validateBookId($targetId, $includeDeuterocanonical)) {
-            $book = $this->bibleConfig['books'][$targetId];
-            $book['name'] = $this->getLocalizedBookName($targetId, includeDeuterocanonical: $includeDeuterocanonical);
-            $book['chapters'] = $this->getBookChapterCount($targetId, $includeDeuterocanonical);
-
-            return $book;
+            return $this->getBibleBook($targetId, includeDeuterocanonical: $includeDeuterocanonical);
         }
 
         return null;

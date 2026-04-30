@@ -45,17 +45,24 @@ class BookProgressSyncService
 
         // Process each book's logs in bulk
         foreach ($logsByBook as $bookId => $bookLogs) {
+            $bookId = (int) $bookId;
+            $includeDeuterocanonical = $user->includesDeuterocanonicalBooks() || $bookId > 66;
+
             // Get book information
-            $book = $bibleService->getBibleBook($bookId, includeDeuterocanonical: true);
+            $book = $bibleService->getBibleBook($bookId, includeDeuterocanonical: $includeDeuterocanonical);
             if (! $book) {
                 continue; // Skip invalid book IDs
             }
 
             // Get the localized book name
-            $bookName = $bibleService->getLocalizedBookName($bookId, includeDeuterocanonical: true);
+            $bookName = $bibleService->getLocalizedBookName($bookId, includeDeuterocanonical: $includeDeuterocanonical);
 
             // Extract all chapters read for this book
-            $chaptersRead = $bookLogs->pluck('chapter')->unique()->values()->toArray();
+            $chaptersRead = $bookLogs->pluck('chapter')
+                ->unique()
+                ->filter(fn (int $chapter): bool => $bibleService->validateChapterNumber($bookId, $chapter, $includeDeuterocanonical))
+                ->values()
+                ->toArray();
             sort($chaptersRead);
 
             // Calculate completion percentage
