@@ -5,6 +5,7 @@ use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\BookProgressService;
 use App\Services\BookProgressSyncService;
+use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
 
 function createProgressFor(User $user, array $attributes): BookProgress
@@ -140,4 +141,28 @@ it('keeps existing deuterocanonical book progress serviceable when syncing opted
         ->and($progress->chapters_read)->toBe([1])
         ->and((float) $progress->completion_percent)->toBe(7.14)
         ->and($progress->is_completed)->toBeFalse();
+});
+
+it('updates book progress from existing logs using the user canon', function () {
+    $user = User::factory()->create();
+    $readingLogService = app(ReadingLogService::class);
+
+    foreach (range(1, 13) as $chapter) {
+        $log = ReadingLog::factory()->for($user)->create([
+            'book_id' => 27,
+            'chapter' => $chapter,
+            'passage_text' => "Daniel {$chapter}",
+            'date_read' => today()->toDateString(),
+        ]);
+
+        $readingLogService->updateBookProgressFromLog($log);
+    }
+
+    $progress = $user->bookProgress()->where('book_id', 27)->first();
+
+    expect($progress)->not->toBeNull()
+        ->and($progress->total_chapters)->toBe(12)
+        ->and($progress->chapters_read)->toBe(range(1, 12))
+        ->and((float) $progress->completion_percent)->toBe(100.0)
+        ->and($progress->is_completed)->toBeTrue();
 });

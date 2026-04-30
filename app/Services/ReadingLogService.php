@@ -498,7 +498,13 @@ class ReadingLogService
      */
     public function updateBookProgressFromLog(ReadingLog $log): void
     {
-        $this->updateBookProgress($log->user, $log->book_id, $log->chapter, true);
+        $includeDeuterocanonical = $log->user->includesDeuterocanonicalBooks() || $log->book_id > 66;
+
+        if (! $this->bibleService->validateChapterNumber($log->book_id, $log->chapter, $includeDeuterocanonical)) {
+            return;
+        }
+
+        $this->updateBookProgress($log->user, $log->book_id, $log->chapter, $includeDeuterocanonical);
     }
 
     /**
