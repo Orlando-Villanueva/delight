@@ -3,6 +3,8 @@
 @section('title', $announcement->title . ' - Delight Updates')
 
 @section('meta')
+    @php($heroImageUrl = $announcement->heroImageUrl())
+    @php($socialImageUrl = $announcement->socialImageUrl())
     <meta name="description" content="{{ Str::limit(strip_tags(Str::markdown($announcement->content)), 150) }}">
     <meta property="og:title" content="{{ $announcement->title }}">
     <meta property="og:description" content="{{ Str::limit(strip_tags(Str::markdown($announcement->content)), 200) }}">
@@ -11,9 +13,9 @@
     <meta property="article:published_time" content="{{ $announcement->starts_at->toIso8601String() }}">
 
     <!-- Social -->
-    <meta property="og:image" content="{{ asset('images/social-article.png') }}">
+    <meta property="og:image" content="{{ $socialImageUrl ?? asset('images/social-article.png') }}">
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:image" content="{{ asset('images/social-article.png') }}">
+    <meta property="twitter:image" content="{{ $socialImageUrl ?? asset('images/social-article.png') }}">
 
     <!-- JSON-LD Schema -->
     <script type="application/ld+json">
@@ -23,6 +25,9 @@
                         "headline": "{{ $announcement->title }}",
                         "datePublished": "{{ $announcement->starts_at->toIso8601String() }}",
                         "dateModified": "{{ $announcement->updated_at->toIso8601String() }}",
+                        @if ($socialImageUrl)
+                        "image": "{{ $socialImageUrl }}",
+                        @endif
                         "author": {
                             "@@type": "Organization",
                             "name": "Delight"
@@ -41,7 +46,7 @@
 @endsection
 
 @section('content')
-    <article class="prose prose-blue prose-lg mx-auto dark:prose-invert">
+    <article class="mx-auto max-w-4xl">
         <header class="mb-10 text-center not-prose">
             @if ($announcement->type !== 'info')
                 <span
@@ -66,11 +71,19 @@
             </div>
         </header>
 
-        <div class="mt-10">
+        @if ($heroImageUrl = $announcement->heroImageUrl())
+            <figure
+                class="mb-12 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <img src="{{ $heroImageUrl }}" alt="{{ $announcement->title }}"
+                    class="aspect-[2/1] w-full object-cover">
+            </figure>
+        @endif
+
+        <div class="prose prose-blue prose-lg mx-auto dark:prose-invert">
             {!! Str::markdown($announcement->content) !!}
         </div>
 
-        <div class="mt-16 border-t border-gray-100 dark:border-gray-800 pt-10">
+        <div class="mx-auto mt-16 max-w-prose border-t border-gray-100 pt-10 dark:border-gray-800">
             <a href="{{ route('announcements.index') }}"
                 class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium flex items-center gap-2">
                 &larr; Back to all updates

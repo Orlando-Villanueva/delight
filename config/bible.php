@@ -1,5 +1,13 @@
 <?php
 
+$deuterocanonicalBook = static fn (int $id, int $chapters, string $abbreviation): array => [
+    'id' => $id,
+    'chapters' => $chapters,
+    'testament' => 'deuterocanonical',
+    'abbreviation' => $abbreviation,
+    'deuterocanonical' => true,
+];
+
 return [
     'books' => [
         // Old Testament (1-39)
@@ -102,6 +110,7 @@ return [
         17 => [
             'id' => 17,
             'chapters' => 10,
+            'deuterocanonical_chapters' => 16,
             'testament' => 'old',
             'abbreviation' => 'Est',
         ],
@@ -162,6 +171,7 @@ return [
         27 => [
             'id' => 27,
             'chapters' => 12,
+            'deuterocanonical_chapters' => 14,
             'testament' => 'old',
             'abbreviation' => 'Dan',
         ],
@@ -401,6 +411,15 @@ return [
             'testament' => 'new',
             'abbreviation' => 'Rev',
         ],
+
+        // Deuterocanonical books (67-73)
+        67 => $deuterocanonicalBook(67, 14, 'Tob'),
+        68 => $deuterocanonicalBook(68, 16, 'Jdt'),
+        69 => $deuterocanonicalBook(69, 19, 'Wis'),
+        70 => $deuterocanonicalBook(70, 51, 'Sir'),
+        71 => $deuterocanonicalBook(71, 6, 'Bar'),
+        72 => $deuterocanonicalBook(72, 16, '1 Mac'),
+        73 => $deuterocanonicalBook(73, 15, '2 Mac'),
     ],
 
     'testaments' => [
@@ -409,6 +428,10 @@ return [
         ],
         'new' => [
             'range' => [40, 66],
+        ],
+        'deuterocanonical' => [
+            'range' => [67, 73],
+            'deuterocanonical' => true,
         ],
     ],
 

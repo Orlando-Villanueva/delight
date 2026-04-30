@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
 
         $this->createAnnualRecapAnnouncement();
+        $this->call(ReleaseAnnouncementsSeeder::class);
 
         $this->call(ReadingPlanSeeder::class);
 

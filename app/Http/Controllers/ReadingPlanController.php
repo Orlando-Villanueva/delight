@@ -6,17 +6,20 @@ use App\Enums\OnboardingStep;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
+use App\Services\BibleReferenceService;
 use App\Services\OnboardingService;
 use App\Services\ReadingPlanService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ReadingPlanController extends Controller
 {
     public function __construct(
         private ReadingPlanService $planService,
-        private OnboardingService $onboardingService
+        private OnboardingService $onboardingService,
+        private BibleReferenceService $bibleReferenceService
     ) {}
 
     /**
@@ -195,8 +198,13 @@ class ReadingPlanController extends Controller
         }
 
         $maxDay = $plan->getDaysCount();
+        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
         $validated = $request->validate([
-            'book_id' => 'required|integer|min:1|max:66',
+            'book_id' => [
+                'required',
+                'integer',
+                Rule::in(collect($this->bibleReferenceService->listBibleBooks(includeDeuterocanonical: $includeDeuterocanonical))->pluck('id')->all()),
+            ],
             'chapter' => 'required|integer|min:1',
             'day' => 'required|integer|min:1|max:'.$maxDay,
         ]);

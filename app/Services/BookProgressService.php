@@ -18,7 +18,7 @@ class BookProgressService
      */
     public function getTestamentProgress(User $user, string $testament = 'Old'): array
     {
-        $allBooks = $this->bibleReferenceService->listBibleBooks();
+        $allBooks = $this->bibleReferenceService->listBibleBooks(includeDeuterocanonical: $user->includesDeuterocanonicalBooks());
 
         // Filter books by testament (server-side)
         $testamentBooks = collect($allBooks)->filter(function ($book) use ($testament) {
@@ -32,12 +32,14 @@ class BookProgressService
         $processedBooks = $testamentBooks->map(function ($book) use ($booksProgress) {
             $progress = $booksProgress->get($book['name'], null);
 
-            // Safely get chapters read count with proper type checking
             $chaptersReadArray = $progress ? ($progress->chapters_read ?? []) : [];
-            $chaptersRead = is_array($chaptersReadArray) ? count($chaptersReadArray) : 0;
-
-            // Ensure book chapters is an integer
             $totalChapters = is_numeric($book['chapters']) ? (int) $book['chapters'] : 0;
+            $chaptersRead = is_array($chaptersReadArray)
+                ? collect($chaptersReadArray)
+                    ->filter(fn (int $chapter): bool => $chapter >= 1 && $chapter <= $totalChapters)
+                    ->unique()
+                    ->count()
+                : 0;
             $percentage = $totalChapters > 0 ? round(($chaptersRead / $totalChapters) * 100, 1) : 0;
 
             $status = $this->determineBookStatus($chaptersRead, $totalChapters);
@@ -109,12 +111,24 @@ class BookProgressService
     {
         $oldTestament = $this->getTestamentProgress($user, 'Old');
         $newTestament = $this->getTestamentProgress($user, 'New');
+        $deuterocanonical = $user->includesDeuterocanonicalBooks()
+            ? $this->getTestamentProgress($user, 'Deuterocanonical')
+            : null;
 
         $totalBooks = $oldTestament['completed_books'] + $oldTestament['in_progress_books'] + $oldTestament['not_started_books'] +
                      $newTestament['completed_books'] + $newTestament['in_progress_books'] + $newTestament['not_started_books'];
 
+        if ($deuterocanonical !== null) {
+            $totalBooks += $deuterocanonical['completed_books'] + $deuterocanonical['in_progress_books'] + $deuterocanonical['not_started_books'];
+        }
+
         $totalCompleted = $oldTestament['completed_books'] + $newTestament['completed_books'];
         $totalInProgress = $oldTestament['in_progress_books'] + $newTestament['in_progress_books'];
+
+        if ($deuterocanonical !== null) {
+            $totalCompleted += $deuterocanonical['completed_books'];
+            $totalInProgress += $deuterocanonical['in_progress_books'];
+        }
 
         $overallPercentage = $totalBooks > 0 ? round(($totalCompleted / $totalBooks) * 100, 1) : 0;
 
@@ -126,6 +140,7 @@ class BookProgressService
             'overall_percentage' => $overallPercentage,
             'old_testament' => $oldTestament,
             'new_testament' => $newTestament,
+            'deuterocanonical' => $deuterocanonical,
         ];
     }
 }

@@ -29,6 +29,7 @@ class User extends Authenticatable
         'celebrated_first_reading_at',
         'marketing_emails_opted_out_at',
         'onboarding_reminder_requested_at',
+        'deuterocanonical_books_enabled_at',
     ];
 
     /**
@@ -55,6 +56,7 @@ class User extends Authenticatable
             'celebrated_first_reading_at' => 'datetime',
             'marketing_emails_opted_out_at' => 'datetime',
             'onboarding_reminder_requested_at' => 'datetime',
+            'deuterocanonical_books_enabled_at' => 'datetime',
         ];
     }
 
@@ -187,6 +189,14 @@ class User extends Authenticatable
     public function hasEverCelebratedFirstReading(): bool
     {
         return $this->celebrated_first_reading_at !== null;
+    }
+
+    /**
+     * Check if the user has opted into the Catholic 73-book canon.
+     */
+    public function includesDeuterocanonicalBooks(): bool
+    {
+        return $this->deuterocanonical_books_enabled_at !== null;
     }
 
     /**

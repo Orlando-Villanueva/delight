@@ -123,6 +123,39 @@ class DeleteReadingLogTest extends TestCase
         $this->assertTrue(in_array(2, $bookProgress->chapters_read));
     }
 
+    public function test_deleting_canonical_daniel_log_recalculates_against_canonical_chapters_for_opted_out_user(): void
+    {
+        $user = User::factory()->create();
+        $readingLogService = app(ReadingLogService::class);
+
+        $readingLogService->logReading($user, [
+            'book_id' => 27,
+            'chapters' => range(1, 12),
+            'passage_text' => 'Daniel 1-12',
+            'date_read' => today()->toDateString(),
+        ]);
+
+        $bookProgress = $user->bookProgress()->where('book_id', 27)->first();
+
+        $this->assertEquals(12, $bookProgress->total_chapters);
+        $this->assertEquals('100.00', (string) $bookProgress->completion_percent);
+        $this->assertTrue($bookProgress->is_completed);
+
+        $log = $user->readingLogs()
+            ->where('book_id', 27)
+            ->where('chapter', 12)
+            ->first();
+
+        $this->actingAs($user)->delete(route('logs.destroy', $log));
+
+        $bookProgress->refresh();
+
+        $this->assertEquals(12, $bookProgress->total_chapters);
+        $this->assertEquals(range(1, 11), $bookProgress->chapters_read);
+        $this->assertEquals('91.67', (string) $bookProgress->completion_percent);
+        $this->assertFalse($bookProgress->is_completed);
+    }
+
     /**
      * Test deleting one of multiple logs for the same chapter preserves progress until all logs are removed
      */

@@ -23,6 +23,7 @@
                                 @php
                                     $oldTestament = collect($books)->where('testament', 'old')->values();
                                     $newTestament = collect($books)->where('testament', 'new')->values();
+                                    $deuterocanonicalBooks = collect($books)->where('testament', 'deuterocanonical')->values();
 
                                     $initialTestament = 'old';
                                     $oldBookId = old('book_id');
@@ -30,6 +31,8 @@
                                     if ($oldBookId) {
                                         if ($newTestament->firstWhere('id', $oldBookId)) {
                                             $initialTestament = 'new';
+                                        } elseif ($deuterocanonicalBooks->firstWhere('id', $oldBookId)) {
+                                            $initialTestament = 'deuterocanonical';
                                         }
                                     }
                                 @endphp
@@ -40,7 +43,8 @@
                                         initialBookId: '{{ old('book_id') }}',
                                         books: {
                                             old: {{ $oldTestament->toJson() }},
-                                            new: {{ $newTestament->toJson() }}
+                                            new: {{ $newTestament->toJson() }},
+                                            deuterocanonical: {{ $deuterocanonicalBooks->toJson() }}
                                         }
                                     })" x-init="init()">
                                     @csrf
@@ -136,6 +140,16 @@
                                                             </span>
                                                         </button>
                                                     </li>
+                                                    @if ($deuterocanonicalBooks->isNotEmpty())
+                                                        <li>
+                                                            <button type="button" @click="updateTestament('deuterocanonical')"
+                                                                class="inline-flex w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                                                <span class="inline-flex items-center">
+                                                                    📖 Deuterocanonical
+                                                                </span>
+                                                            </button>
+                                                        </li>
+                                                    @endif
                                                     <li>
                                                         <button type="button" @click="updateTestament('new')"
                                                             class="inline-flex w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
@@ -178,6 +192,9 @@
                                                 pattern="[0-9]*" x-bind:placeholder="endChapterPlaceholder" :value="old('end_chapter')"
                                                 :error="$errors->first('end_chapter')" />
                                         </div>
+
+                                        <p x-show="chapterNote" x-text="chapterNote" x-cloak
+                                            class="mt-2 text-sm text-gray-500 dark:text-gray-400"></p>
 
                                         @if ($errors->first('start_chapter'))
                                             <p class="form-error mt-2">{{ $errors->first('start_chapter') }}</p>
@@ -235,11 +252,12 @@
                                     function readingLogForm(config) {
                                         return {
                                             testament: config.initialTestament,
-                                            testamentLabel: config.initialTestament === 'old' ? '📜 Old Testament' : '✝️ New Testament',
+                                            testamentLabel: testamentLabelFor(config.initialTestament),
                                             books: config.books,
                                             selectedBook: config.initialBookId,
                                             startChapterPlaceholder: 'e.g. 1',
                                             endChapterPlaceholder: 'e.g. 5',
+                                            chapterNote: '',
 
                                             init() {
                                                 this.updateChapterPlaceholder(this.selectedBook);
@@ -249,27 +267,50 @@
                                                 if (!bookId) {
                                                     this.startChapterPlaceholder = 'e.g. 1';
                                                     this.endChapterPlaceholder = 'e.g. 5';
+                                                    this.chapterNote = '';
                                                     return;
                                                 }
 
-                                                const allBooks = [...this.books.old, ...this.books.new];
+                                                const allBooks = [...this.books.old, ...this.books.new, ...this.books.deuterocanonical];
                                                 const book = allBooks.find(b => b.id == bookId);
 
                                                 if (book) {
                                                     this.startChapterPlaceholder = '1';
                                                     this.endChapterPlaceholder = `${book.chapters}`;
+                                                    this.chapterNote = chapterNoteFor(book);
                                                 } else {
                                                     this.startChapterPlaceholder = 'e.g. 1';
                                                     this.endChapterPlaceholder = 'e.g. 5';
+                                                    this.chapterNote = '';
                                                 }
                                             },
 
                                             updateTestament(newTestament) {
                                                 this.testament = newTestament;
-                                                this.testamentLabel = newTestament === 'old' ? '📜 Old Testament' : '✝️ New Testament';
+                                                this.testamentLabel = testamentLabelFor(newTestament);
                                                 document.getElementById('testament-button').click();
                                             }
                                         }
+                                    }
+
+                                    function testamentLabelFor(testament) {
+                                        if (testament === 'deuterocanonical') {
+                                            return '📖 Deuterocanonical';
+                                        }
+
+                                        return testament === 'old' ? '📜 Old Testament' : '✝️ New Testament';
+                                    }
+
+                                    function chapterNoteFor(book) {
+                                        if (book.id == 17 && book.chapters == 16) {
+                                            return 'Esther 11-16 are the Greek additions in Vulgate/Douay-Rheims-style numbering.';
+                                        }
+
+                                        if (book.id == 27 && book.chapters == 14) {
+                                            return 'Daniel 3 includes the Prayer of Azariah and Song of the Three Young Men; Daniel 13 is Susanna; Daniel 14 is Bel and the Dragon.';
+                                        }
+
+                                        return '';
                                     }
                                 </script>
                             @endif

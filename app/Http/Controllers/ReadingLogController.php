@@ -13,6 +13,7 @@ use App\Services\UserStatisticsService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\MessageBag;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -36,7 +37,8 @@ class ReadingLogController extends Controller
             $this->onboardingService->recordStep($request->user(), OnboardingStep::LogFlowReached);
         }
 
-        $books = $this->bibleReferenceService->listBibleBooks(null, 'en');
+        $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
+        $books = $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical);
 
         // Pass empty error bag for consistent template behavior
         $errors = new MessageBag;
@@ -60,8 +62,14 @@ class ReadingLogController extends Controller
             $today = today()->toDateString();
             $yesterday = today()->subDay()->toDateString();
 
+            $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
+
             $validated = $request->validate([
-                'book_id' => 'required|integer|min:1|max:66',
+                'book_id' => [
+                    'required',
+                    'integer',
+                    Rule::in(collect($this->bibleReferenceService->listBibleBooks(includeDeuterocanonical: $includeDeuterocanonical))->pluck('id')->all()),
+                ],
                 'start_chapter' => 'required|integer|min:1',
                 'end_chapter' => 'nullable|integer|min:1',
                 'date_read' => "required|date|in:{$today},{$yesterday}",
@@ -82,7 +90,8 @@ class ReadingLogController extends Controller
             if (! $this->bibleReferenceService->validateChapterRange(
                 $validated['book_id'],
                 $start,
-                $end
+                $end,
+                $includeDeuterocanonical
             )) {
                 throw ValidationException::withMessages([
                     'start_chapter' => 'Invalid chapter range for the selected book.',
@@ -93,7 +102,8 @@ class ReadingLogController extends Controller
             $validated['passage_text'] = $this->bibleReferenceService->formatBibleReferenceRange(
                 $validated['book_id'],
                 $start,
-                $end
+                $end,
+                includeDeuterocanonical: $includeDeuterocanonical
             );
 
             // Add chapter data for service
@@ -114,7 +124,7 @@ class ReadingLogController extends Controller
             // Check if this is an HTMX request for the form replacement
             if ($request->header('HX-Request')) {
                 // Get fresh form data for page display
-                $books = $this->bibleReferenceService->listBibleBooks(null, 'en');
+                $books = $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical);
                 $errors = new MessageBag;
                 $formContext = $this->readingFormService->getFormContextData($request->user());
 
@@ -133,7 +143,8 @@ class ReadingLogController extends Controller
             }
         } catch (ValidationException $e) {
             // Get books data for form re-display
-            $books = $this->bibleReferenceService->listBibleBooks(null, 'en');
+            $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
+            $books = $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical);
 
             // Pass errors directly to the view
             $errors = new MessageBag($e->errors());
@@ -148,7 +159,8 @@ class ReadingLogController extends Controller
             ));
         } catch (InvalidArgumentException $e) {
             // Get books data for form re-display
-            $books = $this->bibleReferenceService->listBibleBooks(null, 'en');
+            $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
+            $books = $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical);
 
             // Create error bag for form display
             $errors = new MessageBag(['start_chapter' => [$e->getMessage()]]);
@@ -165,7 +177,8 @@ class ReadingLogController extends Controller
             // Handle unique constraint violation (duplicate reading log)
             if ($e->getCode() === '23000') {
                 // Get books data for form re-display
-                $books = $this->bibleReferenceService->listBibleBooks(null, 'en');
+                $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
+                $books = $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical);
 
                 // Create error bag for form display
                 $errors = new MessageBag(['start_chapter' => ['You have already logged one or more of these chapters for today.']]);

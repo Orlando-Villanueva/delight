@@ -33,6 +33,8 @@ it('it_can_show_the_announcement_create_form_for_admins', function () {
     $response->assertOk();
     $response->assertSee('Create Announcement');
     $response->assertSee('Content');
+    $response->assertSee('Hero Image Path');
+    $response->assertSee('Social Image Path');
     $response->assertSee('Markdown');
 });
 
@@ -41,6 +43,8 @@ it('it_can_store_announcements_for_admins', function () {
         'title' => 'New Feature',
         'content' => 'Some markdown content.',
         'type' => 'info',
+        'hero_image_path' => 'images/new-feature-hero.png',
+        'social_image_path' => 'images/new-feature-social.jpg',
     ]);
 
     $response->assertRedirect(route('admin.announcements.index'));
@@ -51,6 +55,8 @@ it('it_can_store_announcements_for_admins', function () {
     expect($announcement)->not->toBeNull();
     expect($announcement->title)->toBe('New Feature');
     expect($announcement->type)->toBe('info');
+    expect($announcement->hero_image_path)->toBe('images/new-feature-hero.png');
+    expect($announcement->social_image_path)->toBe('images/new-feature-social.jpg');
     expect(Str::startsWith($announcement->slug, Str::slug('New Feature')))->toBeTrue();
 });
 
@@ -96,6 +102,8 @@ it('it_can_block_non_admins_from_admin_announcement_routes', function (string $m
         'title' => 'Blocked',
         'content' => 'Nope',
         'type' => 'info',
+        'hero_image_path' => 'images/nope.png',
+        'social_image_path' => 'images/nope-social.jpg',
     ]],
     ['post', fn () => route('admin.announcements.preview'), [
         'content' => '# Preview',
@@ -124,5 +132,5 @@ it('it_can_validate_announcement_creation_inputs', function () {
         'type' => '',
     ]);
 
-    $response->assertSessionHasErrors(['title', 'content', 'type']);
+    $response->assertSessionHasErrors(['title', 'content', 'type', 'hero_image_path']);
 });

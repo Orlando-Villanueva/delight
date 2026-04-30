@@ -5,15 +5,15 @@
 <x-ui.card
     {{ $attributes->merge(['class' => 'bg-white dark:bg-gray-800 mb-0 border border-[#D1D7E0] dark:border-gray-700 transition-colors shadow-lg']) }}>
     <div class="p-6 lg:p-4 xl:p-6">
-        <div x-data="bookProgressComponent(@js($oldData), @js($newData), @js($testament))" x-init="initialize()">
+        <div x-data="bookProgressComponent(@js($oldData), @js($newData), @js($deuterocanonicalData), @js($testament))" x-init="initialize()">
             <!-- Header with Title and Testament Toggle -->
-            <div class="flex items-start justify-between mb-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
                 <h3 class="text-lg lg:text-xl font-semibold text-[#4A5568] dark:text-gray-200 leading-[1.5]">
                     Bible Reading Progress
                 </h3>
 
                 <!-- Testament Toggle -->
-                <x-bible.testament-toggle id="book-grid-testament" class="ml-4 flex-shrink-0" />
+                <x-bible.testament-toggle id="book-grid-testament" class="sm:ml-4 sm:flex-shrink-0" :show-deuterocanonical="$deuterocanonicalData !== null" />
             </div>
             <!-- Testament Content -->
             <div {{ $testament === 'New' ? 'x-cloak' : '' }}>
@@ -22,7 +22,7 @@
                     <!-- Testament Label and Percentage -->
                     <div class="flex items-center justify-between">
                         <span class="text-base font-medium text-gray-700 dark:text-gray-300 leading-[1.5]"
-                            x-text="`${activeTestament} Testament`"></span>
+                            x-text="testamentLabel(activeTestament)"></span>
                         <span class="text-lg lg:text-xl font-bold text-primary-500 leading-[1.5]"
                             x-text="`${current.testament_progress}%`"></span>
                     </div>
@@ -111,7 +111,7 @@
     /**
      * Book Progress Component - Client-side testament toggling with animated progress bar.
      */
-    function bookProgressComponent(oldData, newData, initialTestament = 'Old') {
+    function bookProgressComponent(oldData, newData, deuterocanonicalData = null, initialTestament = 'Old') {
         const normalizeData = (data = {}) => ({
             testament_progress: data.testament_progress ?? 0,
             processed_books: data.processed_books ?? [],
@@ -120,12 +120,20 @@
             not_started_books: data.not_started_books ?? 0,
         });
 
+        const availableTestaments = deuterocanonicalData ? ['Old', 'Deuterocanonical', 'New'] : ['Old', 'New'];
+        const testaments = {
+            Old: normalizeData(oldData),
+        };
+
+        if (deuterocanonicalData) {
+            testaments.Deuterocanonical = normalizeData(deuterocanonicalData);
+        }
+
+        testaments.New = normalizeData(newData);
+
         return {
-            activeTestament: ['Old', 'New'].includes(initialTestament) ? initialTestament : 'Old',
-            testaments: {
-                Old: normalizeData(oldData),
-                New: normalizeData(newData),
-            },
+            activeTestament: availableTestaments.includes(initialTestament) ? initialTestament : 'Old',
+            testaments,
 
             initialize() {
                 this.$watch('activeTestament', () => this.updateProgressBar());
@@ -137,6 +145,10 @@
 
             get current() {
                 return this.testaments[this.activeTestament] ?? this.testaments.Old;
+            },
+
+            testamentLabel(testament) {
+                return testament === 'Deuterocanonical' ? 'Deuterocanonical' : `${testament} Testament`;
             },
 
             statusClasses(status) {

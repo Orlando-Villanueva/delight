@@ -14,6 +14,8 @@ class Announcement extends Model
         'title',
         'content',
         'type',
+        'hero_image_path',
+        'social_image_path',
         'starts_at',
         'ends_at',
         'sent_via_email_at',
@@ -55,6 +57,24 @@ class Announcement extends Model
     public function scopeActive($query)
     {
         return $this->scopeVisible($query);
+    }
+
+    public function heroImageUrl(): ?string
+    {
+        if (! $this->hero_image_path) {
+            return null;
+        }
+
+        return asset($this->hero_image_path);
+    }
+
+    public function socialImageUrl(): ?string
+    {
+        if ($this->social_image_path) {
+            return asset($this->social_image_path);
+        }
+
+        return $this->heroImageUrl();
     }
 
     /**

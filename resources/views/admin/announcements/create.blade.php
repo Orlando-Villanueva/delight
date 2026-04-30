@@ -34,6 +34,28 @@
                                 placeholder="e.g. New Feature: Streak Protectors" required>
                         </div>
 
+                        <!-- Hero Image -->
+                        <div>
+                            <label for="hero_image_path"
+                                class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Hero Image Path</label>
+                            <input type="text" name="hero_image_path" id="hero_image_path"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                placeholder="images/feature-update-hero.png" required>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Place article hero images in
+                                public/images and reference them from here.</p>
+                        </div>
+
+                        <!-- Social Image -->
+                        <div>
+                            <label for="social_image_path"
+                                class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Social Image Path</label>
+                            <input type="text" name="social_image_path" id="social_image_path"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                placeholder="images/feature-update-social.jpg">
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional 1200x630 image for link
+                                previews. Leave blank to use the hero image.</p>
+                        </div>
+
                         <!-- Content -->
                         <div class="flex-1 flex flex-col min-h-0" x-data="{ mode: 'write' }">
                             <div class="flex flex-wrap items-center justify-between gap-3">

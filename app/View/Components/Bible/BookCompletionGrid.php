@@ -22,10 +22,14 @@ class BookCompletionGrid extends Component
 
         $oldData = $this->bookProgressService->getTestamentProgress($user, 'Old');
         $newData = $this->bookProgressService->getTestamentProgress($user, 'New');
+        $deuterocanonicalData = $user->includesDeuterocanonicalBooks()
+            ? $this->bookProgressService->getTestamentProgress($user, 'Deuterocanonical')
+            : null;
 
         return view('components.bible.book-completion-grid', [
             'oldData' => $oldData,
             'newData' => $newData,
+            'deuterocanonicalData' => $deuterocanonicalData,
             'testament' => 'Old',
         ]);
     }

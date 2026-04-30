@@ -38,11 +38,12 @@ class ReadingLogService
     public function logReading(User $user, array $data): ReadingLog
     {
         // Validate and format the Bible reference
-        $this->validateBibleReference($data['book_id'], $data);
+        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
+        $this->validateBibleReference($data['book_id'], $data, $includeDeuterocanonical);
 
         // Format passage text if not provided
         if (! isset($data['passage_text'])) {
-            $data['passage_text'] = $this->formatPassageText($data['book_id'], $data);
+            $data['passage_text'] = $this->formatPassageText($data['book_id'], $data, $includeDeuterocanonical);
         }
 
         $dateRead = $data['date_read'] ?? now()->toDateString();
@@ -73,7 +74,7 @@ class ReadingLogService
 
         // Handle multiple chapters if provided
         if (isset($data['chapters']) && is_array($data['chapters'])) {
-            $log = $this->logMultipleChapters($user, $data, $dateRead);
+            $log = $this->logMultipleChapters($user, $data, $dateRead, $includeDeuterocanonical);
 
             if ($shouldCelebrate) {
                 $this->onboardingService->recordStep(
@@ -98,7 +99,7 @@ class ReadingLogService
         ]);
 
         // Update book progress
-        $this->updateBookProgress($user, $data['book_id'], $data['chapter']);
+        $this->updateBookProgress($user, $data['book_id'], $data['chapter'], $includeDeuterocanonical);
 
         if ($shouldCelebrate) {
             $this->onboardingService->recordStep(
@@ -176,7 +177,7 @@ class ReadingLogService
     /**
      * Log multiple chapters as separate reading log entries.
      */
-    private function logMultipleChapters(User $user, array $data, string $dateRead): ReadingLog
+    private function logMultipleChapters(User $user, array $data, string $dateRead, bool $includeDeuterocanonical): ReadingLog
     {
         $chapters = $data['chapters'];
         $firstLog = null;
@@ -191,7 +192,7 @@ class ReadingLogService
             ]);
 
             // Update book progress for each chapter
-            $this->updateBookProgress($user, $data['book_id'], $chapter);
+            $this->updateBookProgress($user, $data['book_id'], $chapter, $includeDeuterocanonical);
 
             // Return the first log for response consistency
             if ($firstLog === null) {
@@ -414,21 +415,19 @@ class ReadingLogService
     /**
      * Validate Bible reference using BibleReferenceService.
      */
-    private function validateBibleReference(int $bookId, array $data): void
+    private function validateBibleReference(int $bookId, array $data, bool $includeDeuterocanonical = false): void
     {
-        if (! $this->bibleService->validateBookId($bookId)) {
+        if (! $this->bibleService->validateBookId($bookId, $includeDeuterocanonical)) {
             throw new InvalidArgumentException("Invalid book ID: {$bookId}");
         }
 
-        if (isset($data['chapter'])) {
-            if (! $this->bibleService->validateChapterNumber($bookId, $data['chapter'])) {
-                throw new InvalidArgumentException("Invalid chapter number for book ID: {$bookId}");
-            }
+        if (isset($data['chapter']) && ! $this->bibleService->validateChapterNumber($bookId, $data['chapter'], $includeDeuterocanonical)) {
+            throw new InvalidArgumentException("Invalid chapter number for book ID: {$bookId}");
         }
 
         if (isset($data['chapters']) && is_array($data['chapters'])) {
             foreach ($data['chapters'] as $chapter) {
-                if (! $this->bibleService->validateChapterNumber($bookId, $chapter)) {
+                if (! $this->bibleService->validateChapterNumber($bookId, $chapter, $includeDeuterocanonical)) {
                     throw new InvalidArgumentException("Invalid chapter number {$chapter} for book ID: {$bookId}");
                 }
             }
@@ -438,16 +437,16 @@ class ReadingLogService
     /**
      * Format passage text using BibleReferenceService.
      */
-    private function formatPassageText(int $bookId, array $data): string
+    private function formatPassageText(int $bookId, array $data, bool $includeDeuterocanonical = false): string
     {
         if (isset($data['chapters']) && is_array($data['chapters'])) {
             $startChapter = min($data['chapters']);
             $endChapter = max($data['chapters']);
 
-            return $this->bibleService->formatBibleReferenceRange($bookId, $startChapter, $endChapter);
+            return $this->bibleService->formatBibleReferenceRange($bookId, $startChapter, $endChapter, includeDeuterocanonical: $includeDeuterocanonical);
         }
 
-        return $this->bibleService->formatBibleReference($bookId, $data['chapter']);
+        return $this->bibleService->formatBibleReference($bookId, $data['chapter'], includeDeuterocanonical: $includeDeuterocanonical);
     }
 
     // Event handling removed - HTMX manages state updates via server responses
@@ -455,16 +454,16 @@ class ReadingLogService
     /**
      * Update book progress when a chapter is read.
      */
-    private function updateBookProgress(User $user, int $bookId, int $chapter): void
+    private function updateBookProgress(User $user, int $bookId, int $chapter, bool $includeDeuterocanonical = false): void
     {
         // Get book information from BibleReferenceService
-        $book = $this->bibleService->getBibleBook($bookId);
+        $book = $this->bibleService->getBibleBook($bookId, includeDeuterocanonical: $includeDeuterocanonical);
         if (! $book) {
             throw new InvalidArgumentException("Invalid book ID: {$bookId}");
         }
 
         // Get the localized book name (string) instead of the array
-        $bookName = $this->bibleService->getLocalizedBookName($bookId);
+        $bookName = $this->bibleService->getLocalizedBookName($bookId, includeDeuterocanonical: $includeDeuterocanonical);
 
         $bookProgress = $user->bookProgress()->firstOrCreate(
             ['book_id' => $bookId],
@@ -499,7 +498,13 @@ class ReadingLogService
      */
     public function updateBookProgressFromLog(ReadingLog $log): void
     {
-        $this->updateBookProgress($log->user, $log->book_id, $log->chapter);
+        $includeDeuterocanonical = $log->user->includesDeuterocanonicalBooks() || $log->book_id > 66;
+
+        if (! $this->bibleService->validateChapterNumber($log->book_id, $log->chapter, $includeDeuterocanonical)) {
+            return;
+        }
+
+        $this->updateBookProgress($log->user, $log->book_id, $log->chapter, $includeDeuterocanonical);
     }
 
     /**
@@ -528,8 +533,18 @@ class ReadingLogService
         // Remove the deleted chapter
         $chaptersRead = array_values(array_filter($chaptersRead, fn ($ch) => $ch !== $chapter));
 
+        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks() || $bookId > 66;
+
         // Get book information for recalculation
-        $book = $this->bibleService->getBibleBook($bookId);
+        $book = $this->bibleService->getBibleBook($bookId, includeDeuterocanonical: $includeDeuterocanonical);
+        if (! $book) {
+            return;
+        }
+
+        $chaptersRead = array_values(array_filter(
+            $chaptersRead,
+            fn (int $chapter): bool => $this->bibleService->validateChapterNumber($bookId, $chapter, $includeDeuterocanonical)
+        ));
 
         // Update book progress
         $bookProgress->chapters_read = $chaptersRead;
@@ -844,7 +859,7 @@ class ReadingLogService
         $bookId = $segment->first()->book_id;
         $chapters = $segment->pluck('chapter')->all();
 
-        return $this->bibleService->formatBibleChapterList($bookId, $chapters, $locale);
+        return $this->bibleService->formatBibleChapterList($bookId, $chapters, $locale, true);
     }
 
     private function prepareDisplayLogs(Collection $logsForDay, UserStatisticsService $statisticsService): Collection
