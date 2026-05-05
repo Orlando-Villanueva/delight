@@ -92,6 +92,7 @@
                 "Daily Streak Tracking",
                 "Daily Reading Log",
                 "Book Completion Grid",
+                "Optional Catholic 73-Book Support",
                 "Reading Statistics",
                 "Weekly Journey"
             ]
@@ -422,8 +423,7 @@
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    Visualize your Scripture journey with a beautiful grid of all 66 Bible books. Watch
-                                    your progress unfold as you complete each book.
+                                    Visualize your Scripture journey across the 66-book canon by default, with optional Catholic 73-book deuterocanonical support available when enabled in Settings.
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
