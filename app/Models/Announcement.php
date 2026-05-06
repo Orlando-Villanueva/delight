@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model; // Added this line based on 'use HasFactory;'
+use Illuminate\Support\Str;
 
 class Announcement extends Model
 {
@@ -75,6 +76,29 @@ class Announcement extends Model
         }
 
         return $this->heroImageUrl();
+    }
+
+    public function seoDescription(int $limit = 160): string
+    {
+        $paragraphs = preg_split('/\R{2,}/', trim($this->content)) ?: [];
+
+        foreach ($paragraphs as $paragraph) {
+            $paragraph = trim($paragraph);
+
+            if ($paragraph === '' || str_starts_with($paragraph, '#')) {
+                continue;
+            }
+
+            $description = trim(preg_replace('/\s+/', ' ', strip_tags((string) Str::markdown($paragraph))) ?? '');
+
+            if ($description !== '') {
+                return Str::limit($description, $limit);
+            }
+        }
+
+        $description = trim(preg_replace('/\s+/', ' ', strip_tags((string) Str::markdown($this->content))) ?? '');
+
+        return Str::limit($description, $limit);
     }
 
     /**

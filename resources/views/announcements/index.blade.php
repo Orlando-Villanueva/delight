@@ -3,6 +3,8 @@
 @section('title', 'Product Updates - Delight')
 @section('meta')
     <meta name="description" content="Latest news, updates, and feature releases from Delight.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{{ route('announcements.index') }}">
 
     <!-- Social -->
     <meta property="og:image" content="{{ asset('images/social-updates.png') }}">
@@ -47,7 +49,7 @@
                             </a>
                         </h3>
                         <p class="mt-3 line-clamp-3 text-sm leading-6 text-gray-600 dark:text-gray-400">
-                            {{ Str::limit(strip_tags(Str::markdown($announcement->content)), 200) }}
+                            {{ $announcement->seoDescription(200) }}
                         </p>
                     </div>
                 </article>

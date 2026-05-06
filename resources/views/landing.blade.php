@@ -645,6 +645,9 @@
                         <li><a href="{{ route('login') }}"
                                 class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Sign
                                 In</a></li>
+                        <li><a href="{{ route('announcements.index') }}"
+                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Updates</a>
+                        </li>
                     </ul>
                 </nav>
 

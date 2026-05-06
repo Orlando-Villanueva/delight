@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Announcement;
 use Illuminate\Http\Response;
 
 class SitemapController extends Controller
@@ -34,8 +35,16 @@ class SitemapController extends Controller
         $sitemap .= '<priority>0.3</priority>';
         $sitemap .= '</url>';
 
+        // Updates index
+        $sitemap .= '<url>';
+        $sitemap .= '<loc>'.route('announcements.index').'</loc>';
+        $sitemap .= '<lastmod>'.now()->toISOString().'</lastmod>';
+        $sitemap .= '<changefreq>weekly</changefreq>';
+        $sitemap .= '<priority>0.7</priority>';
+        $sitemap .= '</url>';
+
         // Announcements
-        $announcements = \App\Models\Announcement::active()->get();
+        $announcements = Announcement::active()->get();
         foreach ($announcements as $announcement) {
             $sitemap .= '<url>';
             $sitemap .= '<loc>'.route('announcements.show', $announcement->slug).'</loc>';
