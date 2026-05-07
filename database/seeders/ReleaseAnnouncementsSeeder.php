@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Announcement;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 
 class ReleaseAnnouncementsSeeder extends Seeder
 {
@@ -57,7 +58,7 @@ MD;
                 'type' => 'info',
                 'hero_image_path' => 'images/deuterocanonical-books-hero.jpg',
                 'social_image_path' => 'images/deuterocanonical-books-social.jpg',
-                'starts_at' => now(),
+                'starts_at' => Carbon::create(2026, 4, 30, 12, 0, 0),
                 'ends_at' => null,
             ]
         );
