@@ -80,25 +80,27 @@ class Announcement extends Model
 
     public function seoDescription(int $limit = 160): string
     {
-        $paragraphs = preg_split('/\R{2,}/', trim($this->content)) ?: [];
+        $plainText = once(function (): string {
+            $paragraphs = preg_split('/\R{2,}/', trim($this->content)) ?: [];
 
-        foreach ($paragraphs as $paragraph) {
-            $paragraph = trim($paragraph);
+            foreach ($paragraphs as $paragraph) {
+                $paragraph = trim($paragraph);
 
-            if ($paragraph === '' || str_starts_with($paragraph, '#')) {
-                continue;
+                if ($paragraph === '' || str_starts_with($paragraph, '#')) {
+                    continue;
+                }
+
+                $description = trim(preg_replace('/\s+/', ' ', strip_tags((string) Str::markdown($paragraph))) ?? '');
+
+                if ($description !== '') {
+                    return $description;
+                }
             }
 
-            $description = trim(preg_replace('/\s+/', ' ', strip_tags((string) Str::markdown($paragraph))) ?? '');
+            return trim(preg_replace('/\s+/', ' ', strip_tags((string) Str::markdown($this->content))) ?? '');
+        });
 
-            if ($description !== '') {
-                return Str::limit($description, $limit);
-            }
-        }
-
-        $description = trim(preg_replace('/\s+/', ' ', strip_tags((string) Str::markdown($this->content))) ?? '');
-
-        return Str::limit($description, $limit);
+        return Str::limit($plainText, $limit);
     }
 
     /**

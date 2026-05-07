@@ -15,7 +15,7 @@ class SitemapController extends Controller
         // Landing page
         $sitemap .= '<url>';
         $sitemap .= '<loc>'.config('app.url').'</loc>';
-        $sitemap .= '<lastmod>'.now()->toISOString().'</lastmod>';
+        $sitemap .= '<lastmod>'.now()->toIso8601String().'</lastmod>';
         $sitemap .= '<changefreq>weekly</changefreq>';
         $sitemap .= '<priority>1.0</priority>';
         $sitemap .= '</url>';
@@ -23,28 +23,30 @@ class SitemapController extends Controller
         // Legal pages
         $sitemap .= '<url>';
         $sitemap .= '<loc>'.config('app.url').'/privacy-policy</loc>';
-        $sitemap .= '<lastmod>'.now()->toISOString().'</lastmod>';
+        $sitemap .= '<lastmod>'.now()->toIso8601String().'</lastmod>';
         $sitemap .= '<changefreq>monthly</changefreq>';
         $sitemap .= '<priority>0.3</priority>';
         $sitemap .= '</url>';
 
         $sitemap .= '<url>';
         $sitemap .= '<loc>'.config('app.url').'/terms-of-service</loc>';
-        $sitemap .= '<lastmod>'.now()->toISOString().'</lastmod>';
+        $sitemap .= '<lastmod>'.now()->toIso8601String().'</lastmod>';
         $sitemap .= '<changefreq>monthly</changefreq>';
         $sitemap .= '<priority>0.3</priority>';
         $sitemap .= '</url>';
 
+        $announcements = Announcement::active()->latest('updated_at')->get();
+        $updatesLastModified = $announcements->first()?->updated_at ?? now();
+
         // Updates index
         $sitemap .= '<url>';
         $sitemap .= '<loc>'.route('announcements.index').'</loc>';
-        $sitemap .= '<lastmod>'.now()->toISOString().'</lastmod>';
+        $sitemap .= '<lastmod>'.$updatesLastModified->toIso8601String().'</lastmod>';
         $sitemap .= '<changefreq>weekly</changefreq>';
         $sitemap .= '<priority>0.7</priority>';
         $sitemap .= '</url>';
 
         // Announcements
-        $announcements = Announcement::active()->get();
         foreach ($announcements as $announcement) {
             $sitemap .= '<url>';
             $sitemap .= '<loc>'.route('announcements.show', $announcement->slug).'</loc>';

@@ -32,4 +32,10 @@ it('renders announcement article seo directives and a body-first description for
         ->assertSee('<meta name="description" content="You can now enable the Catholic 73-book canon from Settings.', false)
         ->assertSee('property="og:description" content="You can now enable the Catholic 73-book canon from Settings.', false)
         ->assertDontSee('<meta name="description" content="What changed', false);
+
+    preg_match('/<script type="application\/ld\+json">\s*(.*?)\s*<\/script>/s', $response->getContent(), $matches);
+
+    expect($matches[1] ?? null)->not->toBeNull();
+    expect(json_decode($matches[1], associative: true, flags: JSON_THROW_ON_ERROR))
+        ->description->toStartWith('You can now enable the Catholic 73-book canon from Settings.');
 });
