@@ -25,9 +25,9 @@ class HtmxValidationDisplayTest extends TestCase
 
         $response->assertStatus(200);
 
-        // For first reading, we show celebration UI instead of normal success message
-        $response->assertSee('data-is-first-reading');
-        $response->assertSee('1 down, 365 to go');
+        $response->assertSee('Genesis 1 recorded');
+        $response->assertSee('achievement-celebration-modal');
+        $response->assertSee('First reading');
 
         // Assert the session does NOT have the 'success' key flashed for the next request
         $this->assertFalse(session()->has('success'), 'Session should not have success key flashed for HTMX requests');

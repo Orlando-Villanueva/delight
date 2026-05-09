@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ReadingLog;
 use App\Models\User;
 use App\Models\UserAchievement;
 use Carbon\Carbon;
@@ -17,11 +18,12 @@ class AchievementService
     ) {}
 
     /**
-     * @return array{awarded: int, skipped_duplicates: int, would_award: int, candidates: Collection<int, array<string, mixed>>}
+     * @return array{awarded: int, skipped_duplicates: int, would_award: int, candidates: Collection<int, array<string, mixed>>, awarded_achievements: Collection<int, UserAchievement>}
      */
     public function evaluateAndAward(User $user, bool $dryRun = false): array
     {
         $candidates = $this->buildAwardCandidates($user);
+        $awardedAchievements = collect();
         $awarded = 0;
         $skippedDuplicates = 0;
         $wouldAward = 0;
@@ -56,7 +58,7 @@ class AchievementService
             }
 
             try {
-                $user->achievements()->create($candidate);
+                $awardedAchievements->push($user->achievements()->create($candidate));
                 $awarded++;
             } catch (UniqueConstraintViolationException $exception) {
                 $exists = $user->achievements()
@@ -77,6 +79,56 @@ class AchievementService
             'skipped_duplicates' => $skippedDuplicates,
             'would_award' => $wouldAward,
             'candidates' => $candidates,
+            'awarded_achievements' => $awardedAchievements,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, UserAchievement>  $awardedAchievements
+     * @return array{earned: array<int, array<string, mixed>>, progress: array<int, array<string, mixed>>, reading: array<string, string>}
+     */
+    public function getCelebrationPayload(User $user, Collection $awardedAchievements, ReadingLog $log): array
+    {
+        $earned = $awardedAchievements
+            ->sortBy([
+                ['sort_order', 'asc'],
+                ['earned_at', 'asc'],
+            ])
+            ->map(fn (UserAchievement $achievement): array => [
+                'id' => $achievement->id,
+                'display_name' => $achievement->display_name,
+                'description' => $achievement->description,
+                'icon' => $achievement->icon,
+                'style' => $achievement->style,
+                'category' => $achievement->category,
+                'earned_at' => $achievement->earned_at?->format('M j, Y'),
+            ])
+            ->values()
+            ->all();
+
+        $progress = $this->getLockedAchievements($user, $user->achievements()->get())
+            ->filter(fn (array $achievement): bool => (int) $achievement['current'] > 0)
+            ->sortByDesc(fn (array $achievement): int|float => $achievement['progress_percent'])
+            ->take(3)
+            ->map(fn (array $achievement): array => [
+                'display_name' => $achievement['display_name'],
+                'description' => $achievement['description'],
+                'icon' => $achievement['icon'],
+                'style' => $achievement['style'],
+                'current' => $achievement['current'],
+                'target' => $achievement['target'],
+                'progress_percent' => $achievement['progress_percent'],
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'earned' => $earned,
+            'progress' => $progress,
+            'reading' => [
+                'passage' => $log->passage_text,
+                'date' => $log->date_read->format('M j, Y'),
+            ],
         ];
     }
 

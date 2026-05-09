@@ -38,6 +38,14 @@ class ReadingLogService
      */
     public function logReading(User $user, array $data): ReadingLog
     {
+        return $this->logReadingWithResult($user, $data)->log;
+    }
+
+    /**
+     * Log a new Bible reading entry and return the log with any achievements unlocked by it.
+     */
+    public function logReadingWithResult(User $user, array $data): ReadingLogResult
+    {
         // Validate and format the Bible reference
         $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
         $this->validateBibleReference($data['book_id'], $data, $includeDeuterocanonical);
@@ -85,9 +93,9 @@ class ReadingLogService
                 );
             }
 
-            $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
+            $achievementResult = $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
 
-            return $log;
+            return new ReadingLogResult($log, $achievementResult['awarded_achievements']);
         }
 
         // Single chapter logging
@@ -110,9 +118,9 @@ class ReadingLogService
             );
         }
 
-        $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
+        $achievementResult = $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
 
-        return $readingLog;
+        return new ReadingLogResult($readingLog, $achievementResult['awarded_achievements']);
     }
 
     /**
@@ -167,13 +175,17 @@ class ReadingLogService
             ]);
     }
 
-    private function handlePostLogSideEffects(User $user, bool $isFirstReadingOfDay, string $loggedDate): void
+    /**
+     * @return array{awarded: int, skipped_duplicates: int, would_award: int, candidates: Collection<int, array<string, mixed>>, awarded_achievements: Collection<int, \App\Models\UserAchievement>}
+     */
+    private function handlePostLogSideEffects(User $user, bool $isFirstReadingOfDay, string $loggedDate): array
     {
         // Server-side state updated - HTMX will handle UI updates
         $this->invalidateUserStatisticsCache($user, $isFirstReadingOfDay);
         $this->markChurnRecoveryCampaignsReactivated($user, $loggedDate);
         $this->maybeResetChurnRecovery($user);
-        $this->achievementService->evaluateAndAward($user);
+
+        return $this->achievementService->evaluateAndAward($user);
     }
 
     /**

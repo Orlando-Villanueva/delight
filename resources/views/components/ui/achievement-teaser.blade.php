@@ -22,11 +22,16 @@
 
         @if ($latest)
             <div class="mt-4 rounded-lg bg-green-50 p-3 dark:bg-green-900/20">
-                <p class="font-semibold text-gray-900 dark:text-white">{{ $latest->display_name }}</p>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{{ $latest->description }}</p>
-                <p class="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                    Earned {{ $latest->earned_at->format('M j, Y') }}
-                </p>
+                <div class="flex gap-3">
+                    <x-achievements.badge :icon="$latest->icon" :label="$latest->display_name" size="sm" />
+                    <div class="min-w-0">
+                        <p class="font-semibold text-gray-900 dark:text-white">{{ $latest->display_name }}</p>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{{ $latest->description }}</p>
+                        <p class="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                            Earned {{ $latest->earned_at->format('M j, Y') }}
+                        </p>
+                    </div>
+                </div>
             </div>
         @else
             <p class="mt-4 text-sm text-gray-600 dark:text-gray-300">

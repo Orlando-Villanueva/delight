@@ -23,9 +23,7 @@
                         @foreach ($shelf['recent'] as $achievement)
                             <article class="min-w-56 rounded-lg border border-[#D1D7E0] bg-white px-3 py-2.5 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:min-w-0">
                                 <div class="flex items-center gap-2.5">
-                                    <div class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-blue-600 dark:bg-gray-700 dark:text-blue-300">
-                                        <span aria-hidden="true">★</span>
-                                    </div>
+                                    <x-achievements.badge :icon="$achievement->icon" :label="$achievement->display_name" size="xs" />
                                     <div class="min-w-0">
                                         <h3 class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ $achievement->display_name }}</h3>
                                         <p class="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -49,9 +47,7 @@
                             @foreach ($achievements as $achievement)
                                 <article class="rounded-xl border border-[#D1D7E0] bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
                                     <div class="flex items-start gap-3">
-                                        <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                                            <span aria-hidden="true">✓</span>
-                                        </div>
+                                        <x-achievements.badge :icon="$achievement->icon" :label="$achievement->display_name" size="md" />
                                         <div class="min-w-0">
                                             <h3 class="font-semibold text-gray-900 dark:text-white">{{ $achievement->display_name }}</h3>
                                             <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{{ $achievement->description }}</p>
@@ -80,8 +76,9 @@
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                         @foreach ($shelf['locked'] as $achievement)
                             <article class="rounded-xl border border-[#D1D7E0] bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="min-w-0">
+                                <div class="flex items-start gap-3">
+                                    <x-achievements.badge :icon="$achievement['icon']" :label="$achievement['display_name']" size="md" state="locked" />
+                                    <div class="min-w-0 flex-1">
                                         <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Locked</p>
                                         <h3 class="mt-1 font-semibold text-gray-900 dark:text-white">{{ $achievement['display_name'] }}</h3>
                                         <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{{ $achievement['description'] }}</p>

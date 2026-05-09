@@ -14,8 +14,7 @@ use Illuminate\Support\Facades\DB;
 class ReadingPlanService
 {
     public function __construct(
-        private ReadingLogService $readingLogService,
-        private AchievementService $achievementService
+        private ReadingLogService $readingLogService
     ) {}
 
     /**
@@ -200,7 +199,7 @@ class ReadingPlanService
         array $chapter,
         Carbon $date,
         bool $resetCache = true
-    ): ReadingLog {
+    ): ReadingLogResult {
         $bookId = $chapter['book_id'];
         $chapterNum = $chapter['chapter'];
 
@@ -213,13 +212,15 @@ class ReadingPlanService
 
         if ($existingLog) {
             $readingLog = $existingLog;
+            $result = new ReadingLogResult($readingLog, collect());
         } else {
             // Create new reading log (without plan fields on the log itself)
-            $readingLog = $this->readingLogService->logReading($user, [
+            $result = $this->readingLogService->logReadingWithResult($user, [
                 'book_id' => $bookId,
                 'chapter' => $chapterNum,
                 'date_read' => $date->toDateString(),
             ]);
+            $readingLog = $result->log;
         }
 
         // Link to plan via junction table (updateOrCreate to avoid duplicates)
@@ -235,10 +236,9 @@ class ReadingPlanService
 
         if ($resetCache) {
             $subscription->resetCompletedDaysCountCache();
-            $this->achievementService->evaluateAndAward($user);
         }
 
-        return $readingLog;
+        return $result;
     }
 
     /**
@@ -254,12 +254,11 @@ class ReadingPlanService
         $logged = collect();
 
         foreach ($chapters as $chapter) {
-            $log = $this->logChapter($user, $subscription, $dayNumber, $chapter, $date, resetCache: false);
-            $logged->push($log);
+            $result = $this->logChapter($user, $subscription, $dayNumber, $chapter, $date, resetCache: false);
+            $logged->push($result);
         }
 
         $subscription->resetCompletedDaysCountCache();
-        $this->achievementService->evaluateAndAward($user);
 
         return $logged;
     }

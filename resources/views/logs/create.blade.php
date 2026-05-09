@@ -10,16 +10,6 @@
                 <div class="max-w-2xl mx-auto sm:px-20 lg:px-32">
                     @fragment('reading-form')
                         <div id="reading-log-form-container">
-                            @if (isset($isFirstReading) && $isFirstReading)
-                                {{-- First Reading Celebration - replaces form entirely --}}
-                                <x-celebrations.first-reading
-                                    :action="route('logs.create')"
-                                    target="#reading-log-form-container"
-                                    select="#reading-log-form-container"
-                                    button-text="Log Another Reading"
-                                    :show-icon="true"
-                                />
-                            @else
                                 @php
                                     $oldTestament = collect($books)->where('testament', 'old')->values();
                                     $newTestament = collect($books)->where('testament', 'new')->values();
@@ -313,7 +303,6 @@
                                         return '';
                                     }
                                 </script>
-                            @endif
                         </div>
                     @endfragment
                 </div>

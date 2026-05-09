@@ -10,14 +10,6 @@
                 <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
                     @fragment('reading-list')
                         <div id="reading-list-container">
-                            @if (isset($isFirstReading) && $isFirstReading)
-                                <x-celebrations.first-reading
-                                    :action="route('plans.today', ['plan' => $plan, 'day' => $day_number])"
-                                    target="#reading-list-container"
-                                    select="#reading-list-container"
-                                    button-text="Continue"
-                                />
-                            @else
                                 <div class="space-y-6">
                             {{-- Progress Header --}}
                             <div
@@ -272,7 +264,6 @@
                                 </form>
                             </div>
                             </div>
-                            @endif
                         </div>
                     @endfragment
                 </div>

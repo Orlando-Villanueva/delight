@@ -55,6 +55,8 @@ it('renders earned achievements and locked progress on the trophy shelf', functi
         ->assertSee('Latest wins')
         ->assertDontSee('Recently earned achievements')
         ->assertSee('Completed John')
+        ->assertSee('images/achievements/badge-book-completed.png')
+        ->assertSee('images/achievements/badge-streak.png')
         ->assertSee('Earned May 6, 2026')
         ->assertSee('Reading streak')
         ->assertSee('Locked');
@@ -88,5 +90,6 @@ it('links achievements from navigation and shows a dashboard teaser', function (
         ->assertSee(route('achievements.index'))
         ->assertSee('Achievements')
         ->assertSee('Latest trophy')
+        ->assertSee('images/achievements/badge-book-completed.png')
         ->assertSee('Completed John');
 });

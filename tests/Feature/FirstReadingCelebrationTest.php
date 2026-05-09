@@ -4,6 +4,7 @@ use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
+use App\Services\AchievementService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -50,8 +51,12 @@ it('shows celebration for first reading', function () {
         ->post('/logs', $readingData);
 
     $response->assertStatus(200)
-        ->assertSee('data-is-first-reading')
-        ->assertSee('1 down, 365 to go');
+        ->assertSee('achievement-celebration-modal')
+        ->assertSee('Achievement unlocked')
+        ->assertSee('First reading')
+        ->assertSee('images/achievements/badge-first-reading.png')
+        ->assertSee('images/achievements/badge-calendar.png')
+        ->assertSee('Next up');
 });
 
 it('clears onboarding reminder marker when first reading is celebrated', function () {
@@ -85,6 +90,7 @@ it('does not show celebration for subsequent readings', function () {
         'chapter' => 1,
         'date_read' => now(),
     ]);
+    app(AchievementService::class)->evaluateAndAward($user);
 
     $readingData = [
         'book_id' => 43, // John
@@ -97,13 +103,20 @@ it('does not show celebration for subsequent readings', function () {
         ->post('/logs', $readingData);
 
     $response->assertStatus(200)
-        ->assertDontSee("You've started! 1 down, 365 to go");
+        ->assertDontSee('achievement-celebration-modal')
+        ->assertDontSee('Achievement unlocked');
 });
 
 it('does not re-celebrate if user deletes and logs again', function () {
     $user = User::factory()->create([
         'celebrated_first_reading_at' => now(),
     ]);
+    ReadingLog::factory()->for($user)->create([
+        'book_id' => 1,
+        'chapter' => 1,
+        'date_read' => now()->subDays(10),
+    ]);
+    app(AchievementService::class)->evaluateAndAward($user);
 
     $readingData = [
         'book_id' => 43, // John
@@ -116,7 +129,8 @@ it('does not re-celebrate if user deletes and logs again', function () {
         ->post('/logs', $readingData);
 
     $response->assertStatus(200)
-        ->assertDontSee("You've started! 1 down, 365 to go");
+        ->assertDontSee('achievement-celebration-modal')
+        ->assertDontSee('Achievement unlocked');
 });
 
 it('shows celebration when logging via reading plan', function () {
@@ -140,8 +154,9 @@ it('shows celebration when logging via reading plan', function () {
         ]);
 
     $response->assertOk()
-        ->assertSee('data-is-first-reading')
-        ->assertSee('1 down, 365 to go');
+        ->assertSee('achievement-celebration-modal')
+        ->assertSee('Achievement unlocked')
+        ->assertSee('First reading');
 
     // Verify user was celebrated
     expect($user->fresh()->hasEverCelebratedFirstReading())->toBeTrue();
@@ -170,8 +185,9 @@ it('shows celebration when logging all chapters via reading plan', function () {
         ]);
 
     $response->assertOk()
-        ->assertSee('data-is-first-reading')
-        ->assertSee('1 down, 365 to go');
+        ->assertSee('achievement-celebration-modal')
+        ->assertSee('Achievement unlocked')
+        ->assertSee('First reading');
 
     // Verify user was celebrated
     expect($user->fresh()->hasEverCelebratedFirstReading())->toBeTrue();

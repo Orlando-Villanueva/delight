@@ -63,7 +63,9 @@ it('awards milestone achievements idempotently with stable context keys', functi
     $secondRun = app(AchievementService::class)->evaluateAndAward($user);
 
     expect($firstRun['awarded'])->toBeGreaterThan(0)
+        ->and($firstRun['awarded_achievements'])->toHaveCount($firstRun['awarded'])
         ->and($secondRun['awarded'])->toBe(0)
+        ->and($secondRun['awarded_achievements'])->toBeEmpty()
         ->and($secondRun['skipped_duplicates'])->toBeGreaterThan(0);
 
     expect($user->achievements()->pluck('context_key', 'achievement_key')->all())->toMatchArray([
@@ -86,6 +88,25 @@ it('awards milestone achievements idempotently with stable context keys', functi
         ->and($completedJohn->metadata)->toMatchArray([
             'book_id' => 43,
             'book_name' => 'John',
+        ]);
+});
+
+it('builds celebration payload with earned achievements and relevant locked progress', function () {
+    $user = User::factory()->create();
+
+    achievement_log_reading($user, today()->toDateString(), 1);
+
+    $log = $user->readingLogs()->first();
+    $result = app(AchievementService::class)->evaluateAndAward($user);
+    $payload = app(AchievementService::class)->getCelebrationPayload($user, $result['awarded_achievements'], $log);
+
+    expect($payload['earned'])->not->toBeEmpty()
+        ->and(collect($payload['earned'])->pluck('display_name')->all())->toContain('First reading')
+        ->and($payload['progress'])->not->toBeEmpty()
+        ->and(collect($payload['progress'])->pluck('display_name')->all())->not->toContain('First reading')
+        ->and($payload['reading'])->toMatchArray([
+            'passage' => 'Genesis 1',
+            'date' => 'May 6, 2026',
         ]);
 });
 
