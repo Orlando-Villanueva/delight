@@ -37,6 +37,7 @@ Local sections in this file are project-specific. For Laravel/framework/tooling 
     - Accent colors: Primary Blue (`blue-600`), Success Green, Warning Yellow.
 - **Flowbite**: Most complex components (Drawers, Modals, Dropdowns) are based on Flowbite. Refer to `resources/views/components/ui` for local wrappers.
 - **Responsiveness**: Always test mobile (mobile-first approach). Many users log readings on the go.
+- **Accessibility Priority**: Treat accessibility as a secondary concern during UI/UX reviews. Preserve basic semantics when they are straightforward, but do not raise non-blocking accessibility gaps as primary findings unless they prevent a core user flow or create a severe usability problem.
 
 ## Coding Style & Naming Conventions
 - Follow PSR-12 with 4-space indentation.

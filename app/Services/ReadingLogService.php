@@ -21,7 +21,8 @@ class ReadingLogService
 
     public function __construct(
         BibleReferenceService $bibleService,
-        private OnboardingService $onboardingService
+        private OnboardingService $onboardingService,
+        private AchievementService $achievementService
     ) {
         $this->bibleService = $bibleService;
     }
@@ -172,6 +173,7 @@ class ReadingLogService
         $this->invalidateUserStatisticsCache($user, $isFirstReadingOfDay);
         $this->markChurnRecoveryCampaignsReactivated($user, $loggedDate);
         $this->maybeResetChurnRecovery($user);
+        $this->achievementService->evaluateAndAward($user);
     }
 
     /**

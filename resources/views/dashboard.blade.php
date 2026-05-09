@@ -83,6 +83,8 @@
                                 </div>
                             @endif
 
+                            <x-ui.achievement-teaser :teaser="$achievementTeaser ?? ['latest' => null, 'next' => null]" />
+
                             <!-- Cards Grid: 2x2 on tablet (shares row with calendar), 2-up until ultra-wide, 3-up on 2xl -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-4">
                                 <!-- Weekly Journey - Primary Focus -->

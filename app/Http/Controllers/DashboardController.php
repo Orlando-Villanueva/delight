@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\AchievementService;
 use App\Services\AnnualRecapService;
 use App\Services\ReadingFormService;
 use App\Services\ReadingPlanService;
@@ -16,7 +17,8 @@ class DashboardController extends Controller
         private UserStatisticsService $statisticsService,
         private StreakStateService $streakStateService,
         private AnnualRecapService $recapService,
-        private ReadingPlanService $planService
+        private ReadingPlanService $planService,
+        private AchievementService $achievementService
     ) {}
 
     /**
@@ -70,6 +72,7 @@ class DashboardController extends Controller
 
         // Check if user needs onboarding
         $showOnboarding = $user->needsOnboarding();
+        $achievementTeaser = $this->achievementService->getDashboardTeaser($user);
 
         // Return appropriate view based on request type
         return response()->htmx('dashboard', 'dashboard-content', compact(
@@ -87,7 +90,8 @@ class DashboardController extends Controller
             'recapCardEndLabel',
             'recapCardIsFinal',
             'planCta',
-            'showOnboarding'
+            'showOnboarding',
+            'achievementTeaser'
         ));
     }
 

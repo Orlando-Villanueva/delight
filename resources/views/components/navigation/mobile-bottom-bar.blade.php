@@ -3,7 +3,7 @@
 
 <div
     class="fixed z-50 w-full h-16 max-w-lg -translate-x-1/2 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full bottom-4 left-1/2 dark:bg-gray-800/80 dark:border-gray-700 shadow-xl lg:hidden">
-    <div class="grid h-full max-w-lg grid-cols-4 mx-auto">
+    <div class="grid h-full max-w-lg grid-cols-5 mx-auto">
         {{-- Dashboard --}}
         <x-navigation.nav-link route="dashboard" label="Dashboard" variant="mobile" class="rounded-s-full">
             <x-slot:icon>
@@ -37,10 +37,18 @@
         </div>
 
         {{-- Reading History --}}
-        <x-navigation.nav-link route="logs.index" label="History" variant="mobile" class="rounded-e-full">
+        <x-navigation.nav-link route="logs.index" label="History" variant="mobile">
             <x-slot:icon>
                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M12 8v4l3 3M3.22302 14C4.13247 18.008 7.71683 21 12 21c4.9706 0 9-4.0294 9-9 0-4.97056-4.0294-9-9-9-3.72916 0-6.92858 2.26806-8.29409 5.5M7 9H3V5" />
+            </x-slot:icon>
+        </x-navigation.nav-link>
+
+        {{-- Achievements --}}
+        <x-navigation.nav-link route="achievements.index" label="Achievements" variant="mobile" class="rounded-e-full">
+            <x-slot:icon>
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Zm10 2h2a2 2 0 0 1 0 4h-2M7 6H5a2 2 0 0 0 0 4h2" />
             </x-slot:icon>
         </x-navigation.nav-link>
     </div>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AchievementsController;
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\AnnualRecapController;
@@ -110,6 +111,9 @@ Route::middleware('auth')->group(function () {
 
     // Annual Recap
     Route::get('/recap/{year?}', [AnnualRecapController::class, 'show'])->name('recap.show');
+
+    // Achievements
+    Route::get('/achievements', [AchievementsController::class, 'index'])->name('achievements.index');
 
     // Settings
     Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');

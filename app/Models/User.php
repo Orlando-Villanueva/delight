@@ -77,6 +77,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the permanent achievements earned by the user.
+     */
+    public function achievements(): HasMany
+    {
+        return $this->hasMany(UserAchievement::class);
+    }
+
+    /**
      * Get the book progress records for the user.
      */
     public function bookProgress(): HasMany

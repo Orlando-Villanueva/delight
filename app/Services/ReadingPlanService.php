@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\DB;
 class ReadingPlanService
 {
     public function __construct(
-        private ReadingLogService $readingLogService
+        private ReadingLogService $readingLogService,
+        private AchievementService $achievementService
     ) {}
 
     /**
@@ -234,6 +235,7 @@ class ReadingPlanService
 
         if ($resetCache) {
             $subscription->resetCompletedDaysCountCache();
+            $this->achievementService->evaluateAndAward($user);
         }
 
         return $readingLog;
@@ -257,6 +259,7 @@ class ReadingPlanService
         }
 
         $subscription->resetCompletedDaysCountCache();
+        $this->achievementService->evaluateAndAward($user);
 
         return $logged;
     }
