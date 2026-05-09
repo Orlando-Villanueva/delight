@@ -13,6 +13,7 @@ it('seeds the deuterocanonical books release announcement', function () {
         ->and($announcement->type)->toBe('info')
         ->and($announcement->hero_image_path)->toBe('images/deuterocanonical-books-hero.jpg')
         ->and($announcement->social_image_path)->toBe('images/deuterocanonical-books-social.jpg')
+        ->and($announcement->starts_at->toDateTimeString())->toBe('2026-04-30 12:00:00')
         ->and($announcement->ends_at)->toBeNull()
         ->and($announcement->content)->toContain('## What changed')
         ->and($announcement->content)->not->toContain('### Deuterocanonical books are now available')

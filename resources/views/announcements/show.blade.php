@@ -5,9 +5,12 @@
 @section('meta')
     @php($heroImageUrl = $announcement->heroImageUrl())
     @php($socialImageUrl = $announcement->socialImageUrl())
-    <meta name="description" content="{{ Str::limit(strip_tags(Str::markdown($announcement->content)), 150) }}">
+    @php($seoDescription = $announcement->seoDescription(150))
+    <meta name="description" content="{{ $seoDescription }}">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{{ route('announcements.show', $announcement->slug) }}">
     <meta property="og:title" content="{{ $announcement->title }}">
-    <meta property="og:description" content="{{ Str::limit(strip_tags(Str::markdown($announcement->content)), 200) }}">
+    <meta property="og:description" content="{{ $announcement->seoDescription(200) }}">
     <meta property="og:type" content="article">
     <meta property="og:url" content="{{ route('announcements.show', $announcement->slug) }}">
     <meta property="article:published_time" content="{{ $announcement->starts_at->toIso8601String() }}">
@@ -40,7 +43,7 @@
                                  "url": "{{ asset('images/logo-64.png') }}"
                             }
                         },
-                        "description": "{{ Str::limit(strip_tags(Str::markdown($announcement->content)), 150) }}"
+                        "description": {!! json_encode($seoDescription, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
                     }
                     </script>
 @endsection

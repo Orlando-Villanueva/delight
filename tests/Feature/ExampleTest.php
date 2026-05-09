@@ -4,6 +4,7 @@ test('the application returns a successful response', function () {
     $response = $this->get('/');
 
     $response->assertSuccessful()
+        ->assertSee('href="'.route('announcements.index').'"', false)
         ->assertSeeText('66-book canon by default')
         ->assertSeeText('optional Catholic 73-book deuterocanonical support')
         ->assertSeeTextInOrder([
