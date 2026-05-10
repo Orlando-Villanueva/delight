@@ -83,32 +83,35 @@
                                 </div>
                             @endif
 
-                            <x-ui.achievement-teaser :teaser="$achievementTeaser ?? ['latest' => null, 'next' => null]" />
-
-                            <!-- Cards Grid: 2x2 on tablet (shares row with calendar), 2-up until ultra-wide, 3-up on 2xl -->
+                            <!-- Cards Grid: core habit cards first, then a full-width achievement nudge -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-4">
                                 <!-- Weekly Journey - Primary Focus -->
-                                <div class="sm:col-span-1 lg:col-span-1 xl:col-span-1">
+                                <div class="order-1 sm:col-span-1 lg:col-span-1 xl:col-span-1">
                                     <x-ui.weekly-journey-card :currentProgress="$weeklyJourneyCard['currentProgress']" :days="$weeklyJourneyCard['days']" :weekRangeText="$weeklyJourneyCard['weekRangeText']"
                                         :weeklyTarget="$weeklyJourneyCard['weeklyTarget']" :ctaEnabled="$weeklyJourneyCard['ctaEnabled']" :ctaVisible="$weeklyJourneyCard['ctaVisible']" :status="$weeklyJourneyCard['status']"
                                         :journeyAltText="$weeklyJourneyCard['journeyAltText']" :planCta="$planCta ?? []" class="h-full" />
                                 </div>
 
                                 <!-- Daily Streak - Secondary Achievement -->
-                                <div class="sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-1">
+                                <div class="order-2 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-1">
                                     <x-ui.streak-counter :currentStreak="$stats['streaks']['current_streak']" :longestStreak="$stats['streaks']['longest_streak']" :streakSeries="$stats['streaks']['current_streak_series'] ?? []"
                                         :stateClasses="$streakStateClasses" :message="$streakMessage" :messageTone="$streakMessageTone" :recordStatus="data_get($stats, 'streaks.record_status', 'none')"
                                         :recordJustBroken="data_get($stats, 'streaks.record_just_broken', false)" class="h-full" />
                                 </div>
 
+                                <!-- Next Milestone - Achievement nudge -->
+                                <div class="order-3 sm:col-span-2 2xl:order-4 2xl:col-span-3">
+                                    <x-ui.achievement-teaser :teaser="$achievementTeaser ?? ['latest' => null, 'next' => null]" class="h-full" />
+                                </div>
+
                                 <!-- Summary Stats - shares row with calendar on tablet, full-width at xl, third column on 2xl -->
-                                <div class="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-2 2xl:col-span-1">
+                                <div class="order-4 col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-2 xl:col-span-2 2xl:order-3 2xl:col-span-1">
                                     <x-ui.summary-stats :daysRead="$stats['reading_summary']['total_reading_days']" :totalChapters="$stats['reading_summary']['total_readings']" :bibleProgress="$stats['book_progress']['overall_progress_percent']"
                                         :averageChaptersPerDay="$stats['reading_summary']['average_chapters_per_day']" class="h-full" />
                                 </div>
 
                                 <!-- Mobile/Tablet Calendar - pairs with quick stats from sm breakpoint -->
-                                <div class="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:hidden">
+                                <div class="order-5 col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:hidden">
                                     <x-bible.calendar-heatmap :calendar="$calendarData['calendar']" :monthName="$calendarData['monthName']" :thisMonthReadings="$calendarData['thisMonthReadings']"
                                         :thisMonthChapters="$calendarData['thisMonthChapters']" :successRate="$calendarData['successRate']" :showLegend="false" class="h-full text-sm" />
                                 </div>

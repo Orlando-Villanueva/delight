@@ -3,6 +3,7 @@
 use App\Models\BookProgress;
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Models\UserAchievement;
 use App\Services\AchievementService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -48,6 +49,43 @@ function achievement_page_book_progress(User $user, int $bookId, string $bookNam
         'is_completed' => count($chaptersRead) >= $totalChapters,
         'last_updated' => now(),
     ]);
+}
+
+function achievement_page_complete_dashboard_teaser_goals(User $user): void
+{
+    $definitions = config('achievements.definitions');
+
+    collect([
+        ['first_reading', 'first-reading'],
+        ['first_week', 'reading-days:7'],
+        ['first_month', 'reading-days:30'],
+        ['reading_streak_7', 'streak:7'],
+        ['reading_streak_30', 'streak:30'],
+        ['reading_streak_100', 'streak:100'],
+        ['reading_streak_365', 'streak:365'],
+        ['weekly_consistency_4', 'weekly-target:4'],
+        ['weekly_consistency_8', 'weekly-target:8'],
+        ['weekly_consistency_12', 'weekly-target:12'],
+        ['bible_progress_25', 'progress:25'],
+        ['bible_progress_50', 'progress:50'],
+        ['bible_progress_75', 'progress:75'],
+        ['bible_progress_100', 'progress:100'],
+    ])->each(function (array $achievement) use ($user, $definitions): void {
+        [$key, $contextKey] = $achievement;
+        $definition = $definitions[$key];
+
+        UserAchievement::factory()->for($user)->create([
+            'achievement_key' => $key,
+            'context_key' => $contextKey,
+            'category' => $definition['category'],
+            'display_name' => $definition['display_name'],
+            'description' => $definition['description'],
+            'icon' => $definition['icon'],
+            'style' => $definition['style'],
+            'sort_order' => $definition['sort_order'],
+            'earned_at' => now()->addSeconds($definition['sort_order']),
+        ]);
+    });
 }
 
 it('requires authentication for the trophy shelf', function () {
@@ -114,7 +152,38 @@ it('links achievements from navigation and shows a dashboard teaser', function (
     $response->assertSuccessful()
         ->assertSee(route('achievements.index'))
         ->assertSee('Achievements')
-        ->assertSee('Latest trophy')
-        ->assertSee('images/achievements/badge-book-completed.png')
-        ->assertSee('Completed John');
+        ->assertSee('Next milestone')
+        ->assertSee('View shelf')
+        ->assertSee('images/achievements/badge-calendar.png')
+        ->assertSee('First week')
+        ->assertSee('1/7')
+        ->assertSee('Latest trophy: <span class="text-gray-700 dark:text-gray-200">Completed John</span>', false)
+        ->assertSeeInOrder(['Weekly Journey', 'Daily Streak', 'Next milestone', 'Days Read']);
+});
+
+it('shows the first reading milestone on the dashboard for new users', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->get(route('dashboard'));
+
+    $response->assertSuccessful()
+        ->assertSee('Next milestone')
+        ->assertSee('First reading')
+        ->assertSee('0/1')
+        ->assertSee('images/achievements/badge-first-reading.png')
+        ->assertSeeInOrder(['Weekly Journey', 'Daily Streak', 'Next milestone', 'Days Read']);
+});
+
+it('falls back to the latest trophy on the dashboard when no milestone remains', function () {
+    $user = User::factory()->create();
+    achievement_page_complete_dashboard_teaser_goals($user);
+
+    $response = $this->actingAs($user)->get(route('dashboard'));
+
+    $response->assertSuccessful()
+        ->assertSee('Next milestone')
+        ->assertSee('Latest trophy: 100% Bible progress')
+        ->assertSee('You completed the Bible by chapters.')
+        ->assertSee('images/achievements/badge-progress.png')
+        ->assertDontSee('First milestone');
 });

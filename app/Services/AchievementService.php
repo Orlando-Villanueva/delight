@@ -224,8 +224,29 @@ class AchievementService
 
         return [
             'latest' => $latest,
-            'next' => $locked->first(),
+            'next' => $this->dashboardNextMilestone($locked),
         ];
+    }
+
+    private function dashboardNextMilestone(Collection $locked): ?array
+    {
+        $firstMilestone = $locked
+            ->first(fn (array $achievement): bool => $achievement['category'] === 'firsts');
+
+        if ($firstMilestone !== null) {
+            return $firstMilestone;
+        }
+
+        $inProgress = $locked
+            ->filter(fn (array $achievement): bool => (int) $achievement['current'] > 0)
+            ->sortByDesc(fn (array $achievement): int|float => $achievement['progress_percent'])
+            ->first();
+
+        if ($inProgress !== null) {
+            return $inProgress;
+        }
+
+        return $locked->first();
     }
 
     /**
