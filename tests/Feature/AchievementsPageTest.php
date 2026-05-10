@@ -37,13 +37,28 @@ function achievement_page_completed_john(User $user): void
     ]);
 }
 
+function achievement_page_book_progress(User $user, int $bookId, string $bookName, int $totalChapters, array $chaptersRead): void
+{
+    BookProgress::factory()->for($user)->create([
+        'book_id' => $bookId,
+        'book_name' => $bookName,
+        'total_chapters' => $totalChapters,
+        'chapters_read' => $chaptersRead,
+        'completion_percent' => round((count($chaptersRead) / $totalChapters) * 100, 2),
+        'is_completed' => count($chaptersRead) >= $totalChapters,
+        'last_updated' => now(),
+    ]);
+}
+
 it('requires authentication for the trophy shelf', function () {
     $this->get(route('achievements.index'))->assertRedirect(route('login'));
 });
 
-it('renders earned achievements and locked progress on the trophy shelf', function () {
+it('renders earned achievements and curated next goals on the trophy shelf', function () {
     $user = User::factory()->create();
     achievement_page_completed_john($user);
+    achievement_page_book_progress($user, 1, 'Genesis', 50, array_values(array_diff(range(1, 50), [7, 19, 28, 41])));
+    achievement_page_book_progress($user, 2, 'Exodus', 40, [1, 2, 3]);
 
     app(AchievementService::class)->evaluateAndAward($user);
 
@@ -52,17 +67,27 @@ it('renders earned achievements and locked progress on the trophy shelf', functi
     $response->assertSuccessful()
         ->assertSee('Achievements')
         ->assertSee('Trophy Shelf')
-        ->assertSee('Latest wins')
+        ->assertSee('Next goals')
+        ->assertSee('The closest milestones in your reading journey.')
+        ->assertSee('Almost finished')
+        ->assertSee('Genesis')
+        ->assertSee('46/50 chapters')
+        ->assertSee('4 left')
+        ->assertSee('Missing 7, 19, 28, 41')
+        ->assertDontSee('Exodus')
+        ->assertDontSee('Latest wins')
         ->assertDontSee('Recently earned achievements')
         ->assertSee('Completed John')
         ->assertSee('images/achievements/badge-book-completed.png')
         ->assertSee('images/achievements/badge-streak.png')
         ->assertSee('Earned May 6, 2026')
-        ->assertSee('Reading streak')
-        ->assertSee('Locked');
+        ->assertSee('7-day reading streak')
+        ->assertSee('25% Bible progress')
+        ->assertSee('In progress')
+        ->assertDontSee('Later milestones')
+        ->assertDontSee('Locked');
 
-    expect(substr_count($response->getContent(), 'Completed John'))->toBeGreaterThanOrEqual(2)
-        ->and(substr_count($response->getContent(), 'You completed John.'))->toBe(1);
+    expect(substr_count($response->getContent(), 'You completed John.'))->toBe(1);
 });
 
 it('returns the achievements content fragment for htmx navigation', function () {

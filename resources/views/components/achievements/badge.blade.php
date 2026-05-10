@@ -28,7 +28,11 @@
     ];
 
     $image = $assets[$icon] ?? $assets['trophy'];
-    $stateClasses = $state === 'locked' ? 'grayscale opacity-55' : 'opacity-100';
+    $stateClasses = match ($state) {
+        'locked' => 'grayscale opacity-55',
+        'muted' => 'grayscale opacity-80',
+        default => 'opacity-100',
+    };
 @endphp
 
 <span {{ $attributes->merge(['class' => 'inline-flex shrink-0 items-center justify-center']) }}>

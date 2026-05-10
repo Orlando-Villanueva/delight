@@ -110,6 +110,50 @@ it('builds celebration payload with earned achievements and relevant locked prog
         ]);
 });
 
+it('stores first reading context on the first reading achievement', function () {
+    $user = User::factory()->create();
+
+    achievement_log_reading($user, today()->toDateString(), 3);
+
+    $result = app(AchievementService::class)->evaluateAndAward($user);
+    $firstReading = $result['awarded_achievements']->firstWhere('achievement_key', 'first_reading');
+
+    expect($firstReading)->not->toBeNull()
+        ->and($firstReading->metadata)->toMatchArray([
+            'book_id' => 1,
+            'book_name' => 'Genesis',
+            'chapter' => 3,
+            'passage' => 'Genesis 3',
+            'date_read' => '2026-05-06',
+        ]);
+});
+
+it('builds curated next goals with almost finished books first', function () {
+    $user = User::factory()->create();
+
+    achievement_log_reading($user, today()->toDateString(), 1);
+    achievement_progress($user, 1, 'Genesis', 50, array_values(array_diff(range(1, 50), [7, 19, 28, 41])));
+    achievement_progress($user, 2, 'Exodus', 40, [1, 2, 3]);
+    achievement_progress($user, 43, 'John', 21, array_values(array_diff(range(1, 21), [20, 21])));
+
+    app(AchievementService::class)->evaluateAndAward($user);
+
+    $shelf = app(AchievementService::class)->getShelfData($user);
+
+    expect($shelf['next_goals']['books'])->toHaveCount(2)
+        ->and($shelf['next_goals']['books']->pluck('book_name')->all())->toBe(['John', 'Genesis'])
+        ->and($shelf['next_goals']['books']->first())->toMatchArray([
+            'book_name' => 'John',
+            'chapters_read' => 19,
+            'total_chapters' => 21,
+            'chapters_remaining' => 2,
+            'missing_chapters' => [20, 21],
+        ])
+        ->and($shelf['next_goals']['progress'])->not->toBeEmpty()
+        ->and($shelf['next_goals']['progress']->pluck('display_name')->all())->toContain('25% Bible progress')
+        ->and($shelf['next_goals']['progress']->pluck('display_name')->all())->not->toContain('4-week target streak');
+});
+
 it('treats a duplicate inserted during award creation as a skipped duplicate', function () {
     $user = User::factory()->create();
     achievement_log_reading($user, today()->toDateString(), 1);

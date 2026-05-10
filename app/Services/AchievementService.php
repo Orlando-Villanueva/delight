@@ -133,7 +133,7 @@ class AchievementService
     }
 
     /**
-     * @return array{earned: Collection<string, Collection<int, UserAchievement>>, locked: Collection<int, array<string, mixed>>, recent: Collection<int, UserAchievement>}
+     * @return array{earned: Collection<string, Collection<int, UserAchievement>>, locked: Collection<int, array<string, mixed>>, next_goals: array{books: Collection<int, array<string, mixed>>, progress: Collection<int, array<string, mixed>>}, recent: Collection<int, UserAchievement>}
      */
     public function getShelfData(User $user): array
     {
@@ -145,8 +145,69 @@ class AchievementService
         return [
             'earned' => $earned->groupBy('category'),
             'locked' => $this->getLockedAchievements($user, $earned),
+            'next_goals' => $this->nextGoals($user, $earned),
             'recent' => $earned->take(3),
         ];
+    }
+
+    /**
+     * @param  Collection<int, UserAchievement>  $earned
+     * @return array{books: Collection<int, array<string, mixed>>, progress: Collection<int, array<string, mixed>>}
+     */
+    private function nextGoals(User $user, Collection $earned): array
+    {
+        return [
+            'books' => $this->almostFinishedBooks($user),
+            'progress' => $this->getLockedAchievements($user, $earned)
+                ->filter(fn (array $achievement): bool => (int) $achievement['current'] > 0)
+                ->sortByDesc(fn (array $achievement): int|float => $achievement['progress_percent'])
+                ->take(4)
+                ->values(),
+        ];
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function almostFinishedBooks(User $user): Collection
+    {
+        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
+
+        return $user->bookProgress()
+            ->inProgress()
+            ->get()
+            ->filter(fn ($progress): bool => $progress->book_id <= 66 || $includeDeuterocanonical)
+            ->map(function ($progress): array {
+                $chaptersRead = collect($progress->chapters_read ?? [])
+                    ->map(fn ($chapter): int => (int) $chapter)
+                    ->filter(fn (int $chapter): bool => $chapter >= 1 && $chapter <= $progress->total_chapters)
+                    ->unique()
+                    ->sort()
+                    ->values()
+                    ->all();
+                $missingChapters = array_values(array_diff(range(1, $progress->total_chapters), $chaptersRead));
+                $chaptersReadCount = count($chaptersRead);
+                $chaptersRemaining = count($missingChapters);
+                $progressPercent = $progress->total_chapters > 0
+                    ? round(($chaptersReadCount / $progress->total_chapters) * 100)
+                    : 0;
+
+                return [
+                    'book_id' => $progress->book_id,
+                    'book_name' => $progress->book_name,
+                    'chapters_read' => $chaptersReadCount,
+                    'total_chapters' => $progress->total_chapters,
+                    'chapters_remaining' => $chaptersRemaining,
+                    'missing_chapters' => $chaptersRemaining <= 10 ? $missingChapters : [],
+                    'progress_percent' => $progressPercent,
+                    'icon' => 'book-open',
+                    'style' => 'success',
+                ];
+            })
+            ->filter(fn (array $goal): bool => $goal['chapters_remaining'] <= 5 || $goal['progress_percent'] >= 75)
+            ->sortBy(fn (array $goal): array => [$goal['chapters_remaining'], -$goal['progress_percent']])
+            ->take(3)
+            ->values();
     }
 
     /**
@@ -182,7 +243,7 @@ class AchievementService
         $candidates = collect();
 
         if ($distinctReadingDays >= 1) {
-            $candidates->push($this->candidate('first_reading', 'first-reading'));
+            $candidates->push($this->candidate('first_reading', 'first-reading', $this->firstReadingMetadata($user)));
         }
 
         foreach (['first_week', 'first_month'] as $key) {
@@ -257,6 +318,36 @@ class AchievementService
             'sort_order' => $definition['sort_order'] ?? 0,
             'metadata' => $metadata,
             'earned_at' => now(),
+        ];
+    }
+
+    /**
+     * @return array{book_id?: int, book_name?: string, chapter?: int, passage?: string, date_read?: string}
+     */
+    private function firstReadingMetadata(User $user): array
+    {
+        $firstReading = $user->readingLogs()
+            ->orderBy('date_read')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->first();
+
+        if (! $firstReading) {
+            return [];
+        }
+
+        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks() || $firstReading->book_id > 66;
+        $bookName = $this->bibleReferenceService->getLocalizedBookName(
+            $firstReading->book_id,
+            includeDeuterocanonical: $includeDeuterocanonical
+        );
+
+        return [
+            'book_id' => $firstReading->book_id,
+            'book_name' => $bookName,
+            'chapter' => $firstReading->chapter,
+            'passage' => $firstReading->passage_text ?: "{$bookName} {$firstReading->chapter}",
+            'date_read' => $firstReading->date_read->toDateString(),
         ];
     }
 
