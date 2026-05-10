@@ -94,7 +94,7 @@
                 "Book Completion Grid",
                 "Optional Catholic 73-Book Support",
                 "Reading Statistics",
-                "Weekly Journey"
+                "Next Milestone Guidance"
             ]
         }
     </script>
@@ -475,7 +475,7 @@
                         </x-ui.card>
                     </div>
 
-                    <!-- Feature 6: Weekly Journey Widget -->
+                    <!-- Feature 6: Next Milestone Widget -->
                     <div role="listitem">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full flex flex-col">
                             <x-ui.card-content class="space-y-3">
@@ -485,61 +485,48 @@
                                             <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" width="24"
                                                 height="24" fill="currentColor" viewBox="0 0 24 24">
                                                 <path fill-rule="evenodd"
-                                                    d="M6 5V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v2H3V7a2 2 0 0 1 2-2h1ZM3 19v-8h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Zm5-6a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2H8Z"
+                                                    d="M12 2a1 1 0 0 1 .894.553l2.447 4.96 5.473.795a1 1 0 0 1 .554 1.706l-3.96 3.86.935 5.451a1 1 0 0 1-1.451 1.054L12 17.807l-4.892 2.572a1 1 0 0 1-1.451-1.054l.935-5.451-3.96-3.86a1 1 0 0 1 .554-1.706l5.473-.795 2.447-4.96A1 1 0 0 1 12 2Z"
                                                     clip-rule="evenodd" />
                                             </svg>
                                         </span>
-                                        <x-ui.card-title class="mb-0">Weekly Journey</x-ui.card-title>
+                                        <x-ui.card-title class="mb-0">Next Milestone</x-ui.card-title>
                                     </div>
                                     <span
                                         class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">New</span>
                                 </div>
-                                <p class="text-gray-400 text-xs">See momentum over the week</p>
+                                <p class="text-gray-400 text-xs">Know what to aim for next</p>
 
-                                <!-- Compact preview of the widget, styled like the real component -->
+                                <!-- Compact preview of the dashboard milestone card -->
                                 <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2 shadow-sm"
-                                    aria-label="Preview of the Weekly Journey widget">
-                                    <div class="flex items-center justify-between text-sm text-gray-700">
-                                        <span class="font-medium">4 days</span>
-                                        <span class="text-gray-500 text-xs">this week</span>
+                                    aria-label="Preview of the Next Milestone widget">
+                                    <div class="flex items-start gap-3">
+                                        <div
+                                            class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-orange-50 text-orange-500">
+                                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"
+                                                aria-hidden="true">
+                                                <path
+                                                    d="M13.5 2.5c.7 2.4.2 4.2-1.4 5.4-1.1.8-1.7 1.8-1.7 3 0 .8.2 1.4.7 1.9.1-1 .5-1.9 1.2-2.6.8 1.1 1.2 2.2 1.2 3.5 0 1.7-1.3 3-3.1 3-2.4 0-4.4-2-4.4-4.8 0-2.9 1.5-5.3 4.4-7.2.9-.6 1.9-1.3 3.1-2.2ZM15.4 6c2.2 1.8 3.4 4.1 3.4 6.8 0 4-3.1 7.2-7 7.2-1.4 0-2.7-.4-3.8-1.1.8.3 1.6.5 2.5.5 3.2 0 5.7-2.5 5.7-5.8 0-1.8-.7-3.4-2-4.8.7-.8 1.1-1.7 1.2-2.8Z" />
+                                            </svg>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-semibold text-gray-900">7-day reading streak</p>
+                                            <p class="text-xs leading-5 text-gray-500">Build your next steady run.</p>
+                                        </div>
                                     </div>
-                                    @php
-                                        $dayStates = [
-                                            'complete',
-                                            'complete',
-                                            'complete',
-                                            'today',
-                                            'upcoming',
-                                            'upcoming',
-                                            'upcoming',
-                                        ];
-                                        $dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-                                    @endphp
-                                    <div class="grid grid-cols-7 gap-1" aria-hidden="true">
-                                        @foreach ($dayStates as $index => $state)
-                                            @php
-                                                $stateClasses = [
-                                                    'complete' => 'bg-success-500 border-transparent',
-                                                    'missed' => 'bg-destructive-100 border-destructive-200',
-                                                    'today' =>
-                                                        'bg-gray-200 border-transparent ring-2 ring-primary-400 ring-offset-1 ring-offset-white',
-                                                    'upcoming' => 'bg-gray-200 border-transparent',
-                                                ];
-                                                $barClasses = $stateClasses[$state] ?? $stateClasses['upcoming'];
-                                            @endphp
-                                            <div class="flex flex-col items-center gap-1">
-                                                <span
-                                                    class="w-8 h-4 rounded-sm border {{ $barClasses }} transition-colors"></span>
-                                                <span
-                                                    class="text-[11px] text-gray-500">{{ $dayLabels[$index] }}</span>
-                                            </div>
-                                        @endforeach
+                                    <div class="space-y-1.5">
+                                        <div class="flex items-center justify-between text-xs text-gray-500">
+                                            <span>Progress</span>
+                                            <span>3/7</span>
+                                        </div>
+                                        <div class="h-2 overflow-hidden rounded-full bg-gray-100">
+                                            <div class="h-full w-[43%] rounded-full bg-blue-600"></div>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    See your week at a glance with a simple, visual tracker. Highlight today,
-                                    track completed days, and build steady momentum toward your reading goals.
+                                    See the most useful next goal for your current season, from streaks to book
+                                    completion and Bible progress milestones.
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>

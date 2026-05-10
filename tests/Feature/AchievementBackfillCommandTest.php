@@ -83,3 +83,23 @@ it('can backfill a single user', function () {
     expect($target->achievements()->count())->toBeGreaterThan(0)
         ->and($other->achievements()->count())->toBe(0);
 });
+
+it('does not backfill first week for seven distinct non consecutive reading days', function () {
+    $user = User::factory()->create();
+
+    foreach (range(0, 6) as $offset) {
+        ReadingLog::factory()->for($user)->create([
+            'book_id' => 1,
+            'chapter' => $offset + 1,
+            'passage_text' => 'Genesis '.($offset + 1),
+            'date_read' => today()->subDays($offset * 2)->toDateString(),
+        ]);
+    }
+
+    $this->artisan("achievements:backfill {$user->id}")
+        ->expectsOutput('Users scanned: 1')
+        ->assertSuccessful();
+
+    expect($user->achievements()->where('achievement_key', 'first_week')->exists())->toBeFalse()
+        ->and($user->achievements()->where('achievement_key', 'reading_streak_7')->exists())->toBeFalse();
+});

@@ -12,7 +12,6 @@ class UserStatisticsService
     public function __construct(
         private ReadingLogService $readingLogService,
         private WeeklyGoalService $weeklyGoalService,
-        private WeeklyJourneyService $weeklyJourneyService,
         private ?BibleReferenceService $bibleReferenceService = null
     ) {}
 
@@ -33,7 +32,6 @@ class UserStatisticsService
                     'book_progress' => $this->getBookProgressSummary($user),
                     'recent_activity' => $this->getRecentActivity($user),
                     'weekly_goal' => $weeklyGoal,
-                    'weekly_journey' => $weeklyGoal['journey'] ?? null,
                 ];
             }
         );
@@ -111,19 +109,7 @@ class UserStatisticsService
         return Cache::remember(
             "user_weekly_goal_v2_{$user->id}_{$weekStart}",
             900, // 15 minutes TTL - light query with date range filter
-            function () use ($user) {
-                $weeklyGoalData = $this->weeklyGoalService->getWeeklyGoalData($user);
-
-                return array_merge(
-                    $weeklyGoalData,
-                    [
-                        'journey' => $this->weeklyJourneyService->getWeeklyJourneyData(
-                            $user,
-                            $weeklyGoalData['current_progress'] ?? null
-                        ),
-                    ]
-                );
-            }
+            fn () => $this->weeklyGoalService->getWeeklyGoalData($user)
         );
     }
 

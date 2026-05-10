@@ -57,7 +57,6 @@ function achievement_page_complete_dashboard_teaser_goals(User $user): void
 
     collect([
         ['first_reading', 'first-reading'],
-        ['first_week', 'reading-days:7'],
         ['first_month', 'reading-days:30'],
         ['reading_streak_7', 'streak:7'],
         ['reading_streak_30', 'streak:30'],
@@ -152,13 +151,15 @@ it('links achievements from navigation and shows a dashboard teaser', function (
     $response->assertSuccessful()
         ->assertSee(route('achievements.index'))
         ->assertSee('Achievements')
-        ->assertSee('Next milestone')
+        ->assertSee('Next Milestone')
         ->assertSee('View shelf')
-        ->assertSee('images/achievements/badge-calendar.png')
-        ->assertSee('First week')
+        ->assertSee('images/achievements/badge-streak.png')
+        ->assertSee('7-day reading streak')
         ->assertSee('1/7')
         ->assertSee('Latest trophy: <span class="text-gray-700 dark:text-gray-200">Completed John</span>', false)
-        ->assertSeeInOrder(['Weekly Journey', 'Daily Streak', 'Next milestone', 'Days Read']);
+        ->assertSeeInOrder(['Daily Streak', 'Next Milestone', 'Days Read'])
+        ->assertDontSee('Weekly Journey')
+        ->assertDontSee('First week');
 });
 
 it('shows the first reading milestone on the dashboard for new users', function () {
@@ -167,23 +168,39 @@ it('shows the first reading milestone on the dashboard for new users', function 
     $response = $this->actingAs($user)->get(route('dashboard'));
 
     $response->assertSuccessful()
-        ->assertSee('Next milestone')
+        ->assertSee('Next Milestone')
         ->assertSee('First reading')
         ->assertSee('0/1')
         ->assertSee('images/achievements/badge-first-reading.png')
-        ->assertSeeInOrder(['Weekly Journey', 'Daily Streak', 'Next milestone', 'Days Read']);
+        ->assertSeeInOrder(['Daily Streak', 'Next Milestone', 'Days Read'])
+        ->assertDontSee('Weekly Journey');
 });
 
 it('falls back to the latest trophy on the dashboard when no milestone remains', function () {
     $user = User::factory()->create();
+    ReadingLog::factory()->for($user)->create([
+        'book_id' => 1,
+        'chapter' => 1,
+        'passage_text' => 'Genesis 1',
+        'date_read' => today()->subMonth()->toDateString(),
+    ]);
     achievement_page_complete_dashboard_teaser_goals($user);
 
     $response = $this->actingAs($user)->get(route('dashboard'));
 
     $response->assertSuccessful()
-        ->assertSee('Next milestone')
+        ->assertSee('Next Milestone')
         ->assertSee('Latest trophy: 100% Bible progress')
         ->assertSee('You completed the Bible by chapters.')
         ->assertSee('images/achievements/badge-progress.png')
         ->assertDontSee('First milestone');
+});
+
+it('does not advertise weekly journey on the landing page', function () {
+    $response = $this->get('/');
+
+    $response->assertSuccessful()
+        ->assertSee('Next Milestone')
+        ->assertSee('Next Milestone Guidance')
+        ->assertDontSee('Weekly Journey');
 });

@@ -13,6 +13,12 @@ class AchievementService
 {
     private const int WEEKLY_TARGET_DAYS = 4;
 
+    private const array STREAK_THRESHOLDS = [7, 30, 100, 365];
+
+    private const array WEEKLY_CONSISTENCY_THRESHOLDS = [4, 8, 12];
+
+    private const array BIBLE_PROGRESS_THRESHOLDS = [25, 50, 75, 100];
+
     public function __construct(
         private BibleReferenceService $bibleReferenceService
     ) {}
@@ -211,42 +217,140 @@ class AchievementService
     }
 
     /**
-     * @return array{latest: ?UserAchievement, next: ?array<string, mixed>}
+     * @return array{latest: ?UserAchievement, milestone: ?array<string, mixed>}
      */
-    public function getDashboardTeaser(User $user): array
+    public function getDashboardMilestone(User $user): array
     {
         $latest = $user->achievements()
             ->latest('earned_at')
             ->orderByDesc('sort_order')
             ->first();
 
-        $locked = $this->getLockedAchievements($user, $user->achievements()->get());
+        $earned = $user->achievements()->get();
 
         return [
             'latest' => $latest,
-            'next' => $this->dashboardNextMilestone($locked),
+            'milestone' => $this->dashboardMilestone($user, $earned),
         ];
     }
 
-    private function dashboardNextMilestone(Collection $locked): ?array
+    /**
+     * @param  Collection<int, UserAchievement>  $earned
+     * @return array<string, mixed>|null
+     */
+    private function dashboardMilestone(User $user, Collection $earned): ?array
     {
-        $firstMilestone = $locked
-            ->first(fn (array $achievement): bool => $achievement['category'] === 'firsts');
+        $readingDates = $this->readingDates($user);
+        $readingDays = $readingDates->count();
 
-        if ($firstMilestone !== null) {
-            return $firstMilestone;
+        if ($readingDays === 0) {
+            return $this->dashboardPayload(
+                key: 'first_reading',
+                contextKey: 'first-reading',
+                displayName: 'First reading',
+                description: 'Log your first Bible reading.',
+                icon: 'sparkles',
+                style: 'success',
+                current: 0,
+                target: 1,
+                priority: 0,
+                sortOrder: $this->definitions()['first_reading']['sort_order'] ?? 0
+            );
         }
 
-        $inProgress = $locked
-            ->filter(fn (array $achievement): bool => (int) $achievement['current'] > 0)
-            ->sortByDesc(fn (array $achievement): int|float => $achievement['progress_percent'])
+        $earnedContexts = $this->earnedContextLookup($earned);
+        $candidates = collect();
+        $currentStreak = $this->currentStreak($readingDates);
+        $longestStreak = $this->longestStreak($readingDates);
+        $weeklyConsistency = $this->weeklyConsistencyStreak($readingDates);
+        $bibleProgress = $this->bibleProgress($user);
+
+        $streakMilestone = $this->nextStreakDashboardMilestone($currentStreak, $earnedContexts);
+        if ($streakMilestone !== null) {
+            $candidates->push($streakMilestone);
+        }
+
+        $weeklyRhythmMilestone = $this->weeklyRhythmDashboardMilestone($readingDates);
+        if ($weeklyRhythmMilestone !== null) {
+            $candidates->push($weeklyRhythmMilestone);
+        }
+
+        if (! $earnedContexts->has('first_month|reading-days:30')) {
+            $candidates->push($this->dashboardPayload(
+                key: 'first_month',
+                contextKey: 'reading-days:30',
+                displayName: $this->definitions()['first_month']['display_name'],
+                description: $this->definitions()['first_month']['description'],
+                icon: $this->definitions()['first_month']['icon'],
+                style: $this->definitions()['first_month']['style'],
+                current: $readingDays,
+                target: 30,
+                priority: 30,
+                sortOrder: $this->definitions()['first_month']['sort_order']
+            ));
+        }
+
+        $bibleProgressMilestone = $this->nextBibleProgressDashboardMilestone($bibleProgress, $earnedContexts);
+        if ($bibleProgressMilestone !== null) {
+            $candidates->push($bibleProgressMilestone);
+        }
+
+        $this->almostFinishedBooks($user)
+            ->each(fn (array $book): mixed => $candidates->push($this->dashboardPayload(
+                key: 'book_completed',
+                contextKey: 'book:'.$book['book_id'],
+                displayName: 'Finish '.$book['book_name'],
+                description: $book['chapters_remaining'].' '.str('chapter')->plural($book['chapters_remaining']).' left to complete '.$book['book_name'].'.',
+                icon: $book['icon'],
+                style: $book['style'],
+                current: $book['chapters_read'],
+                target: $book['total_chapters'],
+                priority: 30,
+                sortOrder: 100 + (int) $book['book_id']
+            )));
+
+        $this->testamentProgressGoals($user)
+            ->each(fn (array $testament): mixed => $candidates->push($this->dashboardPayload(
+                key: 'testament_completed',
+                contextKey: 'testament:'.$testament['testament'],
+                displayName: 'Complete the '.$testament['label'],
+                description: $testament['books_remaining'].' '.str('book')->plural($testament['books_remaining']).' left in the '.$testament['label'].'.',
+                icon: 'library',
+                style: 'warning',
+                current: $testament['books_completed'],
+                target: $testament['total_books'],
+                priority: 30,
+                sortOrder: 200
+            )));
+
+        $weeklyConsistencyMilestone = $this->nextWeeklyConsistencyDashboardMilestone($weeklyConsistency, $earnedContexts);
+        if ($weeklyConsistencyMilestone !== null) {
+            $candidates->push($weeklyConsistencyMilestone);
+        }
+
+        if ($candidates->isEmpty()) {
+            return $this->getLockedAchievements($user, $earned)
+                ->reject(fn (array $achievement): bool => $achievement['achievement_key'] === 'personal_best_streak')
+                ->first();
+        }
+
+        return $candidates
+            ->sort(function (array $a, array $b): int {
+                return [
+                    $a['priority'],
+                    -$a['progress_percent'],
+                    $a['remaining'],
+                    $a['sort_order'],
+                    $a['display_name'],
+                ] <=> [
+                    $b['priority'],
+                    -$b['progress_percent'],
+                    $b['remaining'],
+                    $b['sort_order'],
+                    $b['display_name'],
+                ];
+            })
             ->first();
-
-        if ($inProgress !== null) {
-            return $inProgress;
-        }
-
-        return $locked->first();
     }
 
     /**
@@ -267,15 +371,13 @@ class AchievementService
             $candidates->push($this->candidate('first_reading', 'first-reading', $this->firstReadingMetadata($user)));
         }
 
-        foreach (['first_week', 'first_month'] as $key) {
-            if ($distinctReadingDays >= (int) $definitions[$key]['threshold']) {
-                $candidates->push($this->candidate($key, 'reading-days:'.$definitions[$key]['threshold'], [
-                    'reading_days' => $distinctReadingDays,
-                ]));
-            }
+        if ($distinctReadingDays >= (int) $definitions['first_month']['threshold']) {
+            $candidates->push($this->candidate('first_month', 'reading-days:'.$definitions['first_month']['threshold'], [
+                'reading_days' => $distinctReadingDays,
+            ]));
         }
 
-        foreach ([7, 30, 100, 365] as $threshold) {
+        foreach (self::STREAK_THRESHOLDS as $threshold) {
             $key = "reading_streak_{$threshold}";
             if ($longestStreak >= $threshold) {
                 $candidates->push($this->candidate($key, "streak:{$threshold}", [
@@ -294,7 +396,7 @@ class AchievementService
             ]));
         }
 
-        foreach ([4, 8, 12] as $threshold) {
+        foreach (self::WEEKLY_CONSISTENCY_THRESHOLDS as $threshold) {
             $key = "weekly_consistency_{$threshold}";
             if ($weeklyConsistency >= $threshold) {
                 $candidates->push($this->candidate($key, "weekly-target:{$threshold}", [
@@ -304,7 +406,7 @@ class AchievementService
             }
         }
 
-        foreach ([25, 50, 75, 100] as $threshold) {
+        foreach (self::BIBLE_PROGRESS_THRESHOLDS as $threshold) {
             $key = "bible_progress_{$threshold}";
             if ($bibleProgress['percentage'] >= $threshold) {
                 $candidates->push($this->candidate($key, "progress:{$threshold}", [
@@ -450,6 +552,60 @@ class AchievementService
 
             return $chaptersRead >= (int) $book['chapters'];
         });
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function testamentProgressGoals(User $user): Collection
+    {
+        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
+        $progress = $user->bookProgress()->get()->keyBy('book_id');
+
+        return collect([
+            'old' => 'Old Testament',
+            'new' => 'New Testament',
+            'deuterocanonical' => 'Deuterocanonical books',
+        ])
+            ->filter(fn (string $label, string $testament): bool => $testament !== 'deuterocanonical' || $includeDeuterocanonical)
+            ->map(function (string $label, string $testament) use ($includeDeuterocanonical, $progress): ?array {
+                $books = collect($this->bibleReferenceService->listBibleBooks($testament, includeDeuterocanonical: $includeDeuterocanonical));
+
+                if ($books->isEmpty()) {
+                    return null;
+                }
+
+                $completed = $books->filter(function (array $book) use ($progress): bool {
+                    $bookProgress = $progress->get($book['id']);
+
+                    if (! $bookProgress) {
+                        return false;
+                    }
+
+                    return collect($bookProgress->chapters_read ?? [])
+                        ->filter(fn (int $chapter): bool => $chapter >= 1 && $chapter <= (int) $book['chapters'])
+                        ->unique()
+                        ->count() >= (int) $book['chapters'];
+                })->count();
+
+                $total = $books->count();
+                $remaining = $total - $completed;
+                $progressPercent = $total > 0 ? round(($completed / $total) * 100) : 0;
+
+                return [
+                    'testament' => $testament,
+                    'label' => $label,
+                    'books_completed' => $completed,
+                    'total_books' => $total,
+                    'books_remaining' => $remaining,
+                    'progress_percent' => $progressPercent,
+                ];
+            })
+            ->filter()
+            ->filter(fn (array $goal): bool => $goal['books_remaining'] > 0)
+            ->filter(fn (array $goal): bool => $goal['books_remaining'] <= 5 || $goal['progress_percent'] >= 75)
+            ->sortBy(fn (array $goal): array => [$goal['books_remaining'], -$goal['progress_percent']])
+            ->values();
     }
 
     /**
@@ -611,19 +767,18 @@ class AchievementService
 
         $locked = collect([
             $this->lockedPayload('first_reading', 'first-reading', min($readingDays, 1), 1),
-            $this->lockedPayload('first_week', 'reading-days:7', $readingDays, 7),
             $this->lockedPayload('first_month', 'reading-days:30', $readingDays, 30),
         ]);
 
-        foreach ([7, 30, 100, 365] as $threshold) {
+        foreach (self::STREAK_THRESHOLDS as $threshold) {
             $locked->push($this->lockedPayload("reading_streak_{$threshold}", "streak:{$threshold}", $longestStreak, $threshold));
         }
 
-        foreach ([4, 8, 12] as $threshold) {
+        foreach (self::WEEKLY_CONSISTENCY_THRESHOLDS as $threshold) {
             $locked->push($this->lockedPayload("weekly_consistency_{$threshold}", "weekly-target:{$threshold}", $weeklyConsistency, $threshold));
         }
 
-        foreach ([25, 50, 75, 100] as $threshold) {
+        foreach (self::BIBLE_PROGRESS_THRESHOLDS as $threshold) {
             $locked->push($this->lockedPayload("bible_progress_{$threshold}", "progress:{$threshold}", (int) floor($bibleProgress['percentage']), $threshold));
         }
 
@@ -648,6 +803,171 @@ class AchievementService
             'current' => min($current, $target),
             'target' => $target,
             'progress_percent' => $target > 0 ? min(100, round(($current / $target) * 100)) : 0,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, UserAchievement>  $earned
+     * @return Collection<string, int>
+     */
+    private function earnedContextLookup(Collection $earned): Collection
+    {
+        return $earned
+            ->map(fn (UserAchievement $achievement): string => $achievement->achievement_key.'|'.$achievement->context_key)
+            ->flip();
+    }
+
+    private function nextStreakDashboardMilestone(int $currentStreak, Collection $earnedContexts): ?array
+    {
+        if ($currentStreak <= 0) {
+            return null;
+        }
+
+        foreach (self::STREAK_THRESHOLDS as $threshold) {
+            $key = "reading_streak_{$threshold}";
+            $contextKey = "streak:{$threshold}";
+
+            if ($earnedContexts->has($key.'|'.$contextKey)) {
+                continue;
+            }
+
+            $definition = $this->definitions()[$key];
+
+            return $this->dashboardPayload(
+                key: $key,
+                contextKey: $contextKey,
+                displayName: $definition['display_name'],
+                description: $definition['description'],
+                icon: $definition['icon'],
+                style: $definition['style'],
+                current: $currentStreak,
+                target: $threshold,
+                priority: 10,
+                sortOrder: $definition['sort_order']
+            );
+        }
+
+        return null;
+    }
+
+    private function weeklyRhythmDashboardMilestone(Collection $readingDates): ?array
+    {
+        $weekStart = today()->startOfWeek(Carbon::SUNDAY);
+        $weekEnd = $weekStart->copy()->addDays(6)->endOfDay();
+        $current = $readingDates
+            ->filter(fn (Carbon $date): bool => $date->betweenIncluded($weekStart, $weekEnd))
+            ->count();
+
+        if ($current <= 0 || $current >= self::WEEKLY_TARGET_DAYS) {
+            return null;
+        }
+
+        return $this->dashboardPayload(
+            key: 'weekly_rhythm',
+            contextKey: 'weekly-rhythm:'.self::WEEKLY_TARGET_DAYS,
+            displayName: '4 days this week',
+            description: 'Build a steady weekly rhythm without chasing another streak.',
+            icon: 'target',
+            style: 'primary',
+            current: $current,
+            target: self::WEEKLY_TARGET_DAYS,
+            priority: 20,
+            sortOrder: 390
+        );
+    }
+
+    private function nextBibleProgressDashboardMilestone(array $bibleProgress, Collection $earnedContexts): ?array
+    {
+        foreach (self::BIBLE_PROGRESS_THRESHOLDS as $threshold) {
+            $key = "bible_progress_{$threshold}";
+            $contextKey = "progress:{$threshold}";
+
+            if ($earnedContexts->has($key.'|'.$contextKey)) {
+                continue;
+            }
+
+            $definition = $this->definitions()[$key];
+
+            return $this->dashboardPayload(
+                key: $key,
+                contextKey: $contextKey,
+                displayName: $definition['display_name'],
+                description: $definition['description'],
+                icon: $definition['icon'],
+                style: $definition['style'],
+                current: (int) floor($bibleProgress['percentage']),
+                target: $threshold,
+                priority: 30,
+                sortOrder: $definition['sort_order']
+            );
+        }
+
+        return null;
+    }
+
+    private function nextWeeklyConsistencyDashboardMilestone(int $weeklyConsistency, Collection $earnedContexts): ?array
+    {
+        if ($weeklyConsistency <= 0) {
+            return null;
+        }
+
+        foreach (self::WEEKLY_CONSISTENCY_THRESHOLDS as $threshold) {
+            $key = "weekly_consistency_{$threshold}";
+            $contextKey = "weekly-target:{$threshold}";
+
+            if ($earnedContexts->has($key.'|'.$contextKey)) {
+                continue;
+            }
+
+            $definition = $this->definitions()[$key];
+
+            return $this->dashboardPayload(
+                key: $key,
+                contextKey: $contextKey,
+                displayName: $definition['display_name'],
+                description: $definition['description'],
+                icon: $definition['icon'],
+                style: $definition['style'],
+                current: $weeklyConsistency,
+                target: $threshold,
+                priority: 30,
+                sortOrder: $definition['sort_order']
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dashboardPayload(
+        string $key,
+        string $contextKey,
+        string $displayName,
+        string $description,
+        string $icon,
+        string $style,
+        int $current,
+        int $target,
+        int $priority,
+        int $sortOrder
+    ): array {
+        $current = min($current, $target);
+
+        return [
+            'achievement_key' => $key,
+            'context_key' => $contextKey,
+            'display_name' => $displayName,
+            'description' => $description,
+            'icon' => $icon,
+            'style' => $style,
+            'current' => $current,
+            'target' => $target,
+            'progress_percent' => $target > 0 ? min(100, round(($current / $target) * 100)) : 0,
+            'remaining' => max(0, $target - $current),
+            'priority' => $priority,
+            'sort_order' => $sortOrder,
         ];
     }
 

@@ -11,23 +11,6 @@
                 <div class="space-y-6 lg:space-y-4 xl:space-y-6 lg:pb-0" id="dashboard-main-content-wrapper"
                     hx-trigger="readingLogAdded from:body" hx-get="{{ route('dashboard') }}" hx-target="#main-content"
                     hx-swap="outerHTML" hx-select="#main-content" hx-disinherit="hx-select">
-                    @php
-                        $journeyPayload = $weeklyJourney ?? ($weeklyGoal['journey'] ?? []);
-                        $weeklyJourneyCard = array_merge(
-                            [
-                                'currentProgress' => 0,
-                                'days' => [],
-                                'weekRangeText' => '',
-                                'weeklyTarget' => 7,
-                                'ctaEnabled' => true,
-                                'ctaVisible' => false,
-                                'status' => null,
-                                'journeyAltText' => null,
-                            ],
-                            is_array($journeyPayload) ? $journeyPayload : [],
-                        );
-                    @endphp
-
                     <!-- Main Dashboard Layout (responsive grid) -->
                     <div class="grid grid-cols-1 xl:grid-cols-4 gap-6 lg:gap-4">
 
@@ -83,35 +66,28 @@
                                 </div>
                             @endif
 
-                            <!-- Cards Grid: core habit cards first, then a full-width achievement nudge -->
+                            <!-- Cards Grid: current run, next aim, broader progress -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-4">
-                                <!-- Weekly Journey - Primary Focus -->
+                                <!-- Daily Streak - current run -->
                                 <div class="order-1 sm:col-span-1 lg:col-span-1 xl:col-span-1">
-                                    <x-ui.weekly-journey-card :currentProgress="$weeklyJourneyCard['currentProgress']" :days="$weeklyJourneyCard['days']" :weekRangeText="$weeklyJourneyCard['weekRangeText']"
-                                        :weeklyTarget="$weeklyJourneyCard['weeklyTarget']" :ctaEnabled="$weeklyJourneyCard['ctaEnabled']" :ctaVisible="$weeklyJourneyCard['ctaVisible']" :status="$weeklyJourneyCard['status']"
-                                        :journeyAltText="$weeklyJourneyCard['journeyAltText']" :planCta="$planCta ?? []" class="h-full" />
-                                </div>
-
-                                <!-- Daily Streak - Secondary Achievement -->
-                                <div class="order-2 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-1">
                                     <x-ui.streak-counter :currentStreak="$stats['streaks']['current_streak']" :longestStreak="$stats['streaks']['longest_streak']" :streakSeries="$stats['streaks']['current_streak_series'] ?? []"
                                         :stateClasses="$streakStateClasses" :message="$streakMessage" :messageTone="$streakMessageTone" :recordStatus="data_get($stats, 'streaks.record_status', 'none')"
                                         :recordJustBroken="data_get($stats, 'streaks.record_just_broken', false)" class="h-full" />
                                 </div>
 
-                                <!-- Next Milestone - Achievement nudge -->
-                                <div class="order-3 sm:col-span-2 2xl:order-4 2xl:col-span-3">
-                                    <x-ui.achievement-teaser :teaser="$achievementTeaser ?? ['latest' => null, 'next' => null]" class="h-full" />
+                                <!-- Next Milestone - best live goal -->
+                                <div class="order-2 sm:col-span-1 lg:col-span-1 xl:col-span-1">
+                                    <x-ui.next-milestone-card :milestoneData="$dashboardMilestone ?? ['latest' => null, 'milestone' => null]" class="h-full" />
                                 </div>
 
-                                <!-- Summary Stats - shares row with calendar on tablet, full-width at xl, third column on 2xl -->
-                                <div class="order-4 col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-2 xl:col-span-2 2xl:order-3 2xl:col-span-1">
+                                <!-- Summary Stats - broader progress -->
+                                <div class="order-3 col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-2 xl:col-span-2 2xl:col-span-1">
                                     <x-ui.summary-stats :daysRead="$stats['reading_summary']['total_reading_days']" :totalChapters="$stats['reading_summary']['total_readings']" :bibleProgress="$stats['book_progress']['overall_progress_percent']"
                                         :averageChaptersPerDay="$stats['reading_summary']['average_chapters_per_day']" class="h-full" />
                                 </div>
 
                                 <!-- Mobile/Tablet Calendar - pairs with quick stats from sm breakpoint -->
-                                <div class="order-5 col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:hidden">
+                                <div class="order-4 col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:hidden">
                                     <x-bible.calendar-heatmap :calendar="$calendarData['calendar']" :monthName="$calendarData['monthName']" :thisMonthReadings="$calendarData['thisMonthReadings']"
                                         :thisMonthChapters="$calendarData['thisMonthChapters']" :successRate="$calendarData['successRate']" :showLegend="false" class="h-full text-sm" />
                                 </div>

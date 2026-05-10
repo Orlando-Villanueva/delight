@@ -61,7 +61,6 @@ class DashboardControllerTest extends TestCase
         $response = $this->get('/dashboard');
 
         $response->assertViewHas('weeklyGoal');
-        $response->assertViewHas('weeklyJourney');
 
         $weeklyGoal = $response->viewData('weeklyGoal');
         $this->assertArrayHasKey('current_progress', $weeklyGoal);
@@ -75,7 +74,8 @@ class DashboardControllerTest extends TestCase
         $response->assertStatus(200);
 
         // Match current content
-        $response->assertSee('Weekly Journey');
+        $response->assertSee('Next Milestone');
+        $response->assertDontSee('Weekly Journey');
     }
 
     public function test_index_uses_active_plan_for_cta()

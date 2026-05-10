@@ -36,7 +36,6 @@ class DashboardController extends Controller
 
         // Extract weekly goal data for easier access in views
         $weeklyGoal = $stats['weekly_goal'];
-        $weeklyJourney = $stats['weekly_journey'] ?? ($weeklyGoal['journey'] ?? null);
 
         // Get monthly calendar data for calendar widget
         $calendarData = $this->statisticsService->getMonthlyCalendarData($user);
@@ -72,7 +71,7 @@ class DashboardController extends Controller
 
         // Check if user needs onboarding
         $showOnboarding = $user->needsOnboarding();
-        $achievementTeaser = $this->achievementService->getDashboardTeaser($user);
+        $dashboardMilestone = $this->achievementService->getDashboardMilestone($user);
 
         // Return appropriate view based on request type
         return response()->htmx('dashboard', 'dashboard-content', compact(
@@ -83,7 +82,6 @@ class DashboardController extends Controller
             'streakMessageTone',
             'stats',
             'weeklyGoal',
-            'weeklyJourney',
             'calendarData',
             'showRecapCard',
             'recapCardYear',
@@ -91,7 +89,7 @@ class DashboardController extends Controller
             'recapCardIsFinal',
             'planCta',
             'showOnboarding',
-            'achievementTeaser'
+            'dashboardMilestone'
         ));
     }
 

@@ -5,6 +5,7 @@ use App\Models\ReadingLog;
 use App\Models\User;
 use App\Models\UserAchievement;
 use App\Services\AchievementService;
+use App\Services\BibleReferenceService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -45,6 +46,26 @@ function achievement_progress(User $user, int $bookId, string $bookName, int $to
     ]);
 }
 
+function achievement_spread_bible_progress(User $user, int $chaptersToRead): void
+{
+    $books = collect(app(BibleReferenceService::class)->listBibleBooks());
+    $remaining = $chaptersToRead;
+
+    $books->each(function (array $book) use ($user, &$remaining): void {
+        if ($remaining <= 0) {
+            return;
+        }
+
+        $readCount = $book['chapters'] <= 10
+            ? min($book['chapters'], $remaining)
+            : min((int) floor($book['chapters'] * 0.4), $remaining);
+        $chaptersRead = range(1, max(1, $readCount));
+        $remaining -= count($chaptersRead);
+
+        achievement_progress($user, $book['id'], $book['name'], $book['chapters'], $chaptersRead);
+    });
+}
+
 it('awards milestone achievements idempotently with stable context keys', function () {
     $user = User::factory()->create();
 
@@ -70,7 +91,6 @@ it('awards milestone achievements idempotently with stable context keys', functi
 
     expect($user->achievements()->pluck('context_key', 'achievement_key')->all())->toMatchArray([
         'first_reading' => 'first-reading',
-        'first_week' => 'reading-days:7',
         'first_month' => 'reading-days:30',
         'reading_streak_7' => 'streak:7',
         'reading_streak_30' => 'streak:30',
@@ -89,6 +109,125 @@ it('awards milestone achievements idempotently with stable context keys', functi
             'book_id' => 43,
             'book_name' => 'John',
         ]);
+});
+
+it('does not award first week for seven distinct non consecutive reading days', function () {
+    $user = User::factory()->create();
+
+    foreach (range(0, 6) as $offset) {
+        achievement_log_reading($user, today()->subDays($offset * 2)->toDateString(), $offset + 1);
+    }
+
+    app(AchievementService::class)->evaluateAndAward($user);
+
+    expect($user->achievements()->where('achievement_key', 'first_week')->exists())->toBeFalse()
+        ->and($user->achievements()->where('achievement_key', 'reading_streak_7')->exists())->toBeFalse();
+});
+
+it('uses clear first 30 reading days copy for the distinct day milestone', function () {
+    $user = User::factory()->create();
+
+    foreach (range(0, 29) as $offset) {
+        achievement_log_reading($user, today()->subDays($offset * 2)->toDateString(), $offset + 1);
+    }
+
+    app(AchievementService::class)->evaluateAndAward($user);
+
+    $achievement = $user->achievements()->where('achievement_key', 'first_month')->first();
+
+    expect($achievement)->not->toBeNull()
+        ->and($achievement->display_name)->toBe('First 30 reading days')
+        ->and($achievement->description)->toBe('You logged 30 distinct reading days.');
+});
+
+it('chooses first reading as the dashboard milestone for new users', function () {
+    $user = User::factory()->create();
+
+    $milestone = app(AchievementService::class)->getDashboardMilestone($user)['milestone'];
+
+    expect($milestone)->toMatchArray([
+        'achievement_key' => 'first_reading',
+        'display_name' => 'First reading',
+        'current' => 0,
+        'target' => 1,
+    ]);
+});
+
+it('chooses the active streak threshold as the primary dashboard milestone', function () {
+    $user = User::factory()->create();
+    achievement_log_reading($user, today()->toDateString(), 1);
+
+    $milestone = app(AchievementService::class)->getDashboardMilestone($user)['milestone'];
+
+    expect($milestone)->toMatchArray([
+        'achievement_key' => 'reading_streak_7',
+        'display_name' => '7-day reading streak',
+        'current' => 1,
+        'target' => 7,
+    ]);
+});
+
+it('chooses weekly rhythm when the week is active but the daily streak is broken', function () {
+    $user = User::factory()->create();
+    achievement_log_reading($user, '2026-05-03', 1);
+    achievement_log_reading($user, '2026-05-04', 2);
+
+    $milestone = app(AchievementService::class)->getDashboardMilestone($user)['milestone'];
+
+    expect($milestone)->toMatchArray([
+        'achievement_key' => 'weekly_rhythm',
+        'display_name' => '4 days this week',
+        'current' => 2,
+        'target' => 4,
+    ]);
+});
+
+it('chooses a nearly finished book over low progress catalog goals', function () {
+    $user = User::factory()->create();
+    achievement_log_reading($user, '2026-04-01', 1);
+    achievement_progress($user, 43, 'John', 21, array_values(array_diff(range(1, 21), [20, 21])));
+
+    $milestone = app(AchievementService::class)->getDashboardMilestone($user)['milestone'];
+
+    expect($milestone)->toMatchArray([
+        'achievement_key' => 'book_completed',
+        'context_key' => 'book:43',
+        'display_name' => 'Finish John',
+        'current' => 19,
+        'target' => 21,
+    ]);
+});
+
+it('chooses Bible progress when it is the strongest live milestone', function () {
+    $user = User::factory()->create();
+    achievement_log_reading($user, '2026-04-01', 1);
+    achievement_spread_bible_progress($user, 240);
+
+    $milestone = app(AchievementService::class)->getDashboardMilestone($user)['milestone'];
+
+    expect($milestone)->toMatchArray([
+        'achievement_key' => 'bible_progress_25',
+        'display_name' => '25% Bible progress',
+        'target' => 25,
+    ]);
+});
+
+it('chooses nearly completed testament progress when it is close', function () {
+    $user = User::factory()->create();
+    achievement_log_reading($user, '2026-04-01', 1);
+    $books = collect(app(BibleReferenceService::class)->listBibleBooks('new'));
+
+    $books->take($books->count() - 4)->each(function (array $book) use ($user): void {
+        achievement_progress($user, $book['id'], $book['name'], $book['chapters'], range(1, $book['chapters']));
+    });
+
+    $milestone = app(AchievementService::class)->getDashboardMilestone($user)['milestone'];
+
+    expect($milestone)->toMatchArray([
+        'achievement_key' => 'testament_completed',
+        'context_key' => 'testament:new',
+        'display_name' => 'Complete the New Testament',
+    ]);
 });
 
 it('builds celebration payload with earned achievements and relevant locked progress', function () {
