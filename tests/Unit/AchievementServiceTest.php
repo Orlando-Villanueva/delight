@@ -94,9 +94,10 @@ it('awards milestone achievements idempotently with stable context keys', functi
         'first_month' => 'reading-days:30',
         'reading_streak_7' => 'streak:7',
         'reading_streak_30' => 'streak:30',
-        'personal_best_streak' => 'streak:30',
         'bible_progress_25' => 'progress:25',
     ]);
+
+    expect($user->achievements()->where('achievement_key', 'personal_best_streak')->exists())->toBeFalse();
 
     $completedJohn = $user->achievements()
         ->where('achievement_key', 'book_completed')
@@ -122,6 +123,87 @@ it('does not award first week for seven distinct non consecutive reading days', 
 
     expect($user->achievements()->where('achievement_key', 'first_week')->exists())->toBeFalse()
         ->and($user->achievements()->where('achievement_key', 'reading_streak_7')->exists())->toBeFalse();
+});
+
+it('does not persist or surface a personal best for a first uninterrupted streak', function () {
+    $user = User::factory()->create();
+    achievement_log_reading($user, today()->subDay()->toDateString(), 1);
+    achievement_log_reading($user, today()->toDateString(), 2);
+
+    $result = app(AchievementService::class)->evaluateAndAward($user);
+    $payload = app(AchievementService::class)->getCelebrationPayload(
+        $user,
+        collect(),
+        $user->readingLogs()->latest('date_read')->first(),
+        true
+    );
+
+    expect($result['candidates']->pluck('achievement_key')->all())->not->toContain('personal_best_streak')
+        ->and($user->achievements()->where('achievement_key', 'personal_best_streak')->exists())->toBeFalse()
+        ->and($payload['record'])->toBeNull();
+});
+
+it('returns a transient personal best record only when a new run beats a previous best', function () {
+    $user = User::factory()->create();
+
+    foreach (['2026-04-01', '2026-04-02', '2026-04-03'] as $index => $date) {
+        achievement_log_reading($user, $date, $index + 1);
+    }
+
+    foreach (['2026-05-03', '2026-05-04', '2026-05-05', '2026-05-06'] as $index => $date) {
+        achievement_log_reading($user, $date, $index + 4);
+    }
+
+    $log = $user->readingLogs()->whereDate('date_read', '2026-05-06')->first();
+    $payload = app(AchievementService::class)->getCelebrationPayload($user, collect(), $log, true);
+
+    expect($payload['record'])->toMatchArray([
+        'eyebrow' => 'Personal best',
+        'title' => 'Longest streak: 4 days',
+        'description' => 'You beat your previous best of 3 days.',
+        'current_streak' => 4,
+        'previous_best' => 3,
+    ]);
+});
+
+it('does not return another personal best record after the exact record-breaking day', function () {
+    $user = User::factory()->create();
+
+    foreach (['2026-04-01', '2026-04-02', '2026-04-03'] as $index => $date) {
+        achievement_log_reading($user, $date, $index + 1);
+    }
+
+    foreach (['2026-05-02', '2026-05-03', '2026-05-04', '2026-05-05', '2026-05-06'] as $index => $date) {
+        achievement_log_reading($user, $date, $index + 4);
+    }
+
+    $log = $user->readingLogs()->whereDate('date_read', '2026-05-06')->first();
+    $payload = app(AchievementService::class)->getCelebrationPayload($user, collect(), $log, true);
+
+    expect($payload['record'])->toBeNull();
+});
+
+it('still awards fixed streak milestones when a run breaks the previous best', function () {
+    $user = User::factory()->create();
+
+    foreach (range(0, 5) as $offset) {
+        achievement_log_reading($user, Carbon::parse('2026-04-01')->addDays($offset)->toDateString(), $offset + 1);
+    }
+
+    foreach (range(0, 6) as $offset) {
+        achievement_log_reading($user, Carbon::parse('2026-04-30')->addDays($offset)->toDateString(), $offset + 10);
+    }
+
+    $log = $user->readingLogs()->whereDate('date_read', '2026-05-06')->first();
+    $result = app(AchievementService::class)->evaluateAndAward($user);
+    $payload = app(AchievementService::class)->getCelebrationPayload($user, $result['awarded_achievements'], $log, true);
+
+    expect($result['awarded_achievements']->pluck('achievement_key')->all())->toContain('reading_streak_7')
+        ->and($result['awarded_achievements']->pluck('achievement_key')->all())->not->toContain('personal_best_streak')
+        ->and($payload['record'])->toMatchArray([
+            'title' => 'Longest streak: 7 days',
+            'previous_best' => 6,
+        ]);
 });
 
 it('uses clear first 30 reading days copy for the distinct day milestone', function () {
@@ -237,7 +319,7 @@ it('builds celebration payload with earned achievements and relevant locked prog
 
     $log = $user->readingLogs()->first();
     $result = app(AchievementService::class)->evaluateAndAward($user);
-    $payload = app(AchievementService::class)->getCelebrationPayload($user, $result['awarded_achievements'], $log);
+    $payload = app(AchievementService::class)->getCelebrationPayload($user, $result['awarded_achievements'], $log, true);
 
     expect($payload['earned'])->not->toBeEmpty()
         ->and(collect($payload['earned'])->pluck('display_name')->all())->toContain('First reading')

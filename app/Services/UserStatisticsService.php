@@ -86,7 +86,9 @@ class UserStatisticsService
             }
         }
 
-        $recordJustBroken = $recordStatus === 'record' && $currentStreak === ($previousLongest + 1);
+        $recordJustBroken = $recordStatus === 'record'
+            && $previousLongest > 0
+            && $currentStreak === ($previousLongest + 1);
 
         return [
             'current_streak' => $currentStreak,

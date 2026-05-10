@@ -5,11 +5,20 @@
 @php
     $earned = collect($payload['earned'] ?? []);
     $progress = collect($payload['progress'] ?? []);
+    $record = $payload['record'] ?? null;
     $reading = $payload['reading'] ?? [];
-    $heroIcon = $earned->count() === 1 ? ($earned->first()['icon'] ?? 'trophy') : 'trophy';
+    $hasEarned = $earned->isNotEmpty();
+    $hasRecord = ! empty($record);
+    $heroIcon = $earned->count() === 1 ? ($earned->first()['icon'] ?? 'trophy') : ($record['icon'] ?? 'trophy');
+    $eyebrow = $hasEarned
+        ? ($earned->count() === 1 ? 'Achievement unlocked' : 'Achievements unlocked')
+        : ($record['eyebrow'] ?? 'Personal best');
+    $title = $hasEarned
+        ? ($earned->count() === 1 ? $earned->first()['display_name'] : $earned->count().' achievements unlocked')
+        : ($record['title'] ?? '');
 @endphp
 
-@if ($earned->isNotEmpty())
+@if ($hasEarned || $hasRecord)
     <div id="achievement-celebration-root" hx-swap-oob="innerHTML">
         <div id="achievement-celebration-modal"
             class="fixed inset-0 z-stack-modal flex items-center justify-center bg-gray-950/70 px-4 py-6 backdrop-blur-sm"
@@ -48,10 +57,10 @@
 
                         <div class="text-center">
                             <p class="text-xs font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">
-                                {{ $earned->count() === 1 ? 'Achievement unlocked' : 'Achievements unlocked' }}
+                                {{ $eyebrow }}
                             </p>
                             <h2 id="achievement-celebration-title" class="mt-1 text-2xl font-bold text-gray-950 dark:text-white sm:text-3xl">
-                                {{ $earned->count() === 1 ? $earned->first()['display_name'] : $earned->count().' achievements unlocked' }}
+                                {{ $title }}
                             </h2>
                             @if (! empty($reading['passage']) && ! empty($reading['date']))
                                 <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
@@ -62,19 +71,48 @@
                     </div>
 
                     <div class="bg-gray-50 px-5 py-5 dark:bg-[#2f3746] sm:px-6">
-                        <div class="space-y-3">
-                            @foreach ($earned as $achievement)
-                                <article class="rounded-lg border border-gray-200/70 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
-                                    <div class="flex gap-3">
-                                        <x-achievements.badge :icon="$achievement['icon'] ?? 'trophy'" :label="$achievement['display_name']" size="sm" class="mt-0.5" />
-                                        <div class="min-w-0">
-                                            <h3 class="font-semibold text-gray-950 dark:text-white">{{ $achievement['display_name'] }}</h3>
-                                            <p class="mt-1 text-sm leading-5 text-gray-700 dark:text-gray-300">{{ $achievement['description'] }}</p>
+                        @if ($hasEarned)
+                            <div class="space-y-3">
+                                @foreach ($earned as $achievement)
+                                    <article class="rounded-lg border border-gray-200/70 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
+                                        <div class="flex gap-3">
+                                            <x-achievements.badge :icon="$achievement['icon'] ?? 'trophy'" :label="$achievement['display_name']" size="sm" class="mt-0.5" />
+                                            <div class="min-w-0">
+                                                <h3 class="font-semibold text-gray-950 dark:text-white">{{ $achievement['display_name'] }}</h3>
+                                                <p class="mt-1 text-sm leading-5 text-gray-700 dark:text-gray-300">{{ $achievement['description'] }}</p>
+                                            </div>
                                         </div>
+                                    </article>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        @if ($hasRecord)
+                            <article class="{{ $hasEarned ? 'mt-3' : '' }} rounded-lg border border-primary-200/70 bg-white p-4 shadow-sm dark:border-primary-400/20 dark:bg-white/5">
+                                <div class="flex gap-3">
+                                    <span class="mt-0.5 inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            aria-hidden="true">
+                                            <path d="M8 21h8" />
+                                            <path d="M12 17v4" />
+                                            <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" />
+                                            <path d="M5 5H3v2a4 4 0 0 0 4 4" />
+                                            <path d="M19 5h2v2a4 4 0 0 1-4 4" />
+                                        </svg>
+                                    </span>
+                                    <div class="min-w-0">
+                                        @if ($hasEarned)
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">
+                                                {{ $record['eyebrow'] ?? 'Personal best' }}
+                                            </p>
+                                        @endif
+                                        <h3 class="font-semibold text-gray-950 dark:text-white">{{ $record['title'] }}</h3>
+                                        <p class="mt-1 text-sm leading-5 text-gray-700 dark:text-gray-300">{{ $record['description'] }}</p>
                                     </div>
-                                </article>
-                            @endforeach
-                        </div>
+                                </div>
+                            </article>
+                        @endif
 
                         @if ($progress->isNotEmpty())
                             <section class="mt-6" aria-labelledby="achievement-next-up-title">
@@ -109,15 +147,17 @@
                             @click="open = false">
                             Keep reading
                         </button>
-                        <a href="{{ route('achievements.index') }}"
-                            hx-get="{{ route('achievements.index') }}"
-                            hx-target="#page-container"
-                            hx-swap="innerHTML"
-                            hx-push-url="true"
-                            class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 rounded-lg"
-                            @click="open = false">
-                            View trophy shelf
-                        </a>
+                        @if ($hasEarned)
+                            <a href="{{ route('achievements.index') }}"
+                                hx-get="{{ route('achievements.index') }}"
+                                hx-target="#page-container"
+                                hx-swap="innerHTML"
+                                hx-push-url="true"
+                                class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 rounded-lg"
+                                @click="open = false">
+                                View trophy shelf
+                            </a>
+                        @endif
                     </div>
                 </div>
             </div>

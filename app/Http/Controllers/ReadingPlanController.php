@@ -235,7 +235,7 @@ class ReadingPlanController extends Controller
         $viewData = $this->getTodayViewData($subscription, $dayNumber);
 
         $content = view('plans.today', $viewData)->fragment('reading-list');
-        $content .= $this->achievementCelebrationFragment($user, $result->awardedAchievements, $result->log);
+        $content .= $this->achievementCelebrationFragment($user, $result->awardedAchievements, $result->log, $result->isFirstReadingOfDay);
 
         return response($content);
     }
@@ -329,17 +329,21 @@ class ReadingPlanController extends Controller
             return '';
         }
 
-        return $this->achievementCelebrationFragment($user, $awardedAchievements, $lastResult->log);
+        $isFirstReadingOfDay = $results->contains(fn ($result): bool => $result->isFirstReadingOfDay);
+
+        return $this->achievementCelebrationFragment($user, $awardedAchievements, $lastResult->log, $isFirstReadingOfDay);
     }
 
-    private function achievementCelebrationFragment(User $user, \Illuminate\Support\Collection $awardedAchievements, ReadingLog $log): string
+    private function achievementCelebrationFragment(User $user, \Illuminate\Support\Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): string
     {
-        if ($awardedAchievements->isEmpty()) {
+        $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log, $isFirstReadingOfDay);
+
+        if (empty($payload['earned']) && empty($payload['record'])) {
             return '';
         }
 
         return view('components.celebrations.achievement-unlocks', [
-            'payload' => $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log),
+            'payload' => $payload,
         ])->render();
     }
 

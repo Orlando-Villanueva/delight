@@ -137,7 +137,7 @@ class ReadingLogController extends Controller
                     $formContext
                 ))->fragment('reading-form');
 
-                $content .= $this->achievementCelebrationFragment($user, $result->awardedAchievements, $log);
+                $content .= $this->achievementCelebrationFragment($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay);
 
                 return response($content)->header('HX-Trigger', 'readingLogAdded');
             } else {
@@ -202,14 +202,16 @@ class ReadingLogController extends Controller
         }
     }
 
-    private function achievementCelebrationFragment($user, $awardedAchievements, ReadingLog $log): string
+    private function achievementCelebrationFragment($user, $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): string
     {
-        if ($awardedAchievements->isEmpty()) {
+        $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log, $isFirstReadingOfDay);
+
+        if (empty($payload['earned']) && empty($payload['record'])) {
             return '';
         }
 
         return view('components.celebrations.achievement-unlocks', [
-            'payload' => $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log),
+            'payload' => $payload,
         ])->render();
     }
 

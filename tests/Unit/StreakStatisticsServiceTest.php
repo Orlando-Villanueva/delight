@@ -50,6 +50,21 @@ class StreakStatisticsServiceTest extends TestCase
         $this->assertCount(4, $stats['current_streak_series']);
     }
 
+    public function test_get_streak_statistics_does_not_mark_first_run_as_just_broken()
+    {
+        Carbon::setTestNow('2024-01-03 09:00:00');
+        $user = User::factory()->create();
+
+        $this->createReadings($user, ['2024-01-01', '2024-01-02', '2024-01-03']);
+
+        $stats = $this->statisticsService->getStreakStatistics($user);
+
+        $this->assertSame(3, $stats['current_streak']);
+        $this->assertSame('record', $stats['record_status']);
+        $this->assertFalse($stats['record_just_broken']);
+        $this->assertSame(0, $stats['record_previous_best']);
+    }
+
     public function test_get_streak_statistics_detects_tied_record()
     {
         Carbon::setTestNow('2024-02-04 08:00:00');

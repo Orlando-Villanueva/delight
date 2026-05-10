@@ -44,14 +44,6 @@ return [
             'style' => 'warning',
             'sort_order' => 200,
         ],
-        'personal_best_streak' => [
-            'category' => 'streaks',
-            'display_name' => 'New longest streak',
-            'description' => 'You set a new personal-best reading streak.',
-            'icon' => 'trending-up',
-            'style' => 'accent',
-            'sort_order' => 300,
-        ],
         'reading_streak_7' => [
             'category' => 'streaks',
             'display_name' => '7-day reading streak',

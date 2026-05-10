@@ -156,10 +156,13 @@ it('links achievements from navigation and shows a dashboard teaser', function (
         ->assertSee('images/achievements/badge-streak.png')
         ->assertSee('7-day reading streak')
         ->assertSee('1/7')
-        ->assertSee('Latest trophy: <span class="text-gray-700 dark:text-gray-200">Completed John</span>', false)
+        ->assertSee('Latest trophy: <span class="font-medium text-gray-700 dark:text-gray-200">Completed John</span>', false)
         ->assertSeeInOrder(['Daily Streak', 'Next Milestone', 'Days Read'])
+        ->assertSee('Best: 1')
+        ->assertDontSee('RECORD')
         ->assertDontSee('Weekly Journey')
-        ->assertDontSee('First week');
+        ->assertDontSee('First week')
+        ->assertDontSee('New longest streak');
 });
 
 it('shows the first reading milestone on the dashboard for new users', function () {
@@ -173,6 +176,7 @@ it('shows the first reading milestone on the dashboard for new users', function 
         ->assertSee('0/1')
         ->assertSee('images/achievements/badge-first-reading.png')
         ->assertSeeInOrder(['Daily Streak', 'Next Milestone', 'Days Read'])
+        ->assertDontSee('RECORD')
         ->assertDontSee('Weekly Journey');
 });
 
@@ -190,7 +194,7 @@ it('falls back to the latest trophy on the dashboard when no milestone remains',
 
     $response->assertSuccessful()
         ->assertSee('Next Milestone')
-        ->assertSee('Latest trophy: 100% Bible progress')
+        ->assertSee('Latest trophy: <span class="font-medium text-gray-700 dark:text-gray-200">100% Bible progress</span>', false)
         ->assertSee('You completed the Bible by chapters.')
         ->assertSee('images/achievements/badge-progress.png')
         ->assertDontSee('First milestone');

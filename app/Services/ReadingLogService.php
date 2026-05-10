@@ -95,7 +95,7 @@ class ReadingLogService
 
             $achievementResult = $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
 
-            return new ReadingLogResult($log, $achievementResult['awarded_achievements']);
+            return new ReadingLogResult($log, $achievementResult['awarded_achievements'], ! $hasReadToday);
         }
 
         // Single chapter logging
@@ -120,7 +120,7 @@ class ReadingLogService
 
         $achievementResult = $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
 
-        return new ReadingLogResult($readingLog, $achievementResult['awarded_achievements']);
+        return new ReadingLogResult($readingLog, $achievementResult['awarded_achievements'], ! $hasReadToday);
     }
 
     /**

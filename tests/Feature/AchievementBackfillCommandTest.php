@@ -103,3 +103,24 @@ it('does not backfill first week for seven distinct non consecutive reading days
     expect($user->achievements()->where('achievement_key', 'first_week')->exists())->toBeFalse()
         ->and($user->achievements()->where('achievement_key', 'reading_streak_7')->exists())->toBeFalse();
 });
+
+it('does not backfill personal best streak records', function () {
+    $user = User::factory()->create();
+
+    foreach (range(0, 29) as $offset) {
+        ReadingLog::factory()->for($user)->create([
+            'book_id' => 1,
+            'chapter' => $offset + 1,
+            'passage_text' => 'Genesis '.($offset + 1),
+            'date_read' => today()->subDays(29 - $offset)->toDateString(),
+        ]);
+    }
+
+    $this->artisan("achievements:backfill {$user->id}")
+        ->expectsOutput('Users scanned: 1')
+        ->assertSuccessful();
+
+    expect($user->achievements()->where('achievement_key', 'reading_streak_7')->exists())->toBeTrue()
+        ->and($user->achievements()->where('achievement_key', 'reading_streak_30')->exists())->toBeTrue()
+        ->and($user->achievements()->where('achievement_key', 'personal_best_streak')->exists())->toBeFalse();
+});

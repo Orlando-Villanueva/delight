@@ -791,7 +791,7 @@ class StreakStateServiceTest extends \Tests\TestCase
 
         $payload = $service->getMessagePayload(12, 'active', 30, false, 'tied', false);
 
-        $this->assertSame("You've matched your best streak of 12 days. Read tomorrow to set a new record.", $payload['message']);
+        $this->assertSame("You've matched your best streak of 12 days. Read tomorrow to set a new best.", $payload['message']);
         $this->assertSame('default', $payload['tone']);
     }
 
@@ -801,7 +801,7 @@ class StreakStateServiceTest extends \Tests\TestCase
 
         $payload = $service->getMessagePayload(15, 'active', 14, false, 'record', true);
 
-        $this->assertSame('New personal record! Your 15-day streak is now the one to beat.', $payload['message']);
+        $this->assertSame('New best! Your 15-day streak is now the one to beat.', $payload['message']);
         $this->assertSame('accent', $payload['tone']);
     }
 

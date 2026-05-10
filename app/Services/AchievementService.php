@@ -91,9 +91,9 @@ class AchievementService
 
     /**
      * @param  Collection<int, UserAchievement>  $awardedAchievements
-     * @return array{earned: array<int, array<string, mixed>>, progress: array<int, array<string, mixed>>, reading: array<string, string>}
+     * @return array{earned: array<int, array<string, mixed>>, progress: array<int, array<string, mixed>>, record: ?array<string, mixed>, reading: array<string, string>}
      */
-    public function getCelebrationPayload(User $user, Collection $awardedAchievements, ReadingLog $log): array
+    public function getCelebrationPayload(User $user, Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): array
     {
         $earned = $awardedAchievements
             ->sortBy([
@@ -131,6 +131,7 @@ class AchievementService
         return [
             'earned' => $earned,
             'progress' => $progress,
+            'record' => $isFirstReadingOfDay ? $this->recordCelebrationPayload($user) : null,
             'reading' => [
                 'passage' => $log->passage_text,
                 'date' => $log->date_read->format('M j, Y'),
@@ -222,6 +223,7 @@ class AchievementService
     public function getDashboardMilestone(User $user): array
     {
         $latest = $user->achievements()
+            ->where('achievement_key', '!=', 'personal_best_streak')
             ->latest('earned_at')
             ->orderByDesc('sort_order')
             ->first();
@@ -330,7 +332,6 @@ class AchievementService
 
         if ($candidates->isEmpty()) {
             return $this->getLockedAchievements($user, $earned)
-                ->reject(fn (array $achievement): bool => $achievement['achievement_key'] === 'personal_best_streak')
                 ->first();
         }
 
@@ -362,7 +363,6 @@ class AchievementService
         $readingDates = $this->readingDates($user);
         $distinctReadingDays = $readingDates->count();
         $longestStreak = $this->longestStreak($readingDates);
-        $currentStreak = $this->currentStreak($readingDates);
         $weeklyConsistency = $this->weeklyConsistencyStreak($readingDates);
         $bibleProgress = $this->bibleProgress($user);
         $candidates = collect();
@@ -385,15 +385,6 @@ class AchievementService
                     'longest_streak' => $longestStreak,
                 ]));
             }
-        }
-
-        if ($currentStreak > 1 && $currentStreak > $this->previousBestBeforeCurrentRun($readingDates)) {
-            $candidates->push($this->candidate('personal_best_streak', "streak:{$currentStreak}", [
-                'streak_days' => $currentStreak,
-            ], [
-                'display_name' => "New longest streak: {$currentStreak} days",
-                'description' => "You set a {$currentStreak}-day personal-best reading streak.",
-            ]));
         }
 
         foreach (self::WEEKLY_CONSISTENCY_THRESHOLDS as $threshold) {
@@ -441,6 +432,30 @@ class AchievementService
             'sort_order' => $definition['sort_order'] ?? 0,
             'metadata' => $metadata,
             'earned_at' => now(),
+        ];
+    }
+
+    /**
+     * @return array{eyebrow: string, title: string, description: string, icon: string, style: string, current_streak: int, previous_best: int}|null
+     */
+    private function recordCelebrationPayload(User $user): ?array
+    {
+        $readingDates = $this->readingDates($user);
+        $currentStreak = $this->currentStreak($readingDates);
+        $previousBest = $this->previousBestBeforeCurrentRun($readingDates);
+
+        if ($previousBest <= 0 || $currentStreak !== $previousBest + 1) {
+            return null;
+        }
+
+        return [
+            'eyebrow' => 'Personal best',
+            'title' => "Longest streak: {$currentStreak} days",
+            'description' => "You beat your previous best of {$previousBest} days.",
+            'icon' => 'trophy',
+            'style' => 'accent',
+            'current_streak' => $currentStreak,
+            'previous_best' => $previousBest,
         ];
     }
 

@@ -12,6 +12,7 @@ class ReadingLogResult
      */
     public function __construct(
         public readonly ReadingLog $log,
-        public readonly Collection $awardedAchievements
+        public readonly Collection $awardedAchievements,
+        public readonly bool $isFirstReadingOfDay = false
     ) {}
 }
