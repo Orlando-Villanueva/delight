@@ -160,4 +160,56 @@ class ReadingFormServiceTest extends TestCase
             $contextData['hasReadToday']
         );
     }
+
+    public function test_get_form_context_data_hides_yesterday_when_it_does_not_preserve_recent_streak(): void
+    {
+        $this->user->forceFill([
+            'created_at' => today()->subMonth(),
+        ])->save();
+
+        $contextData = $this->service->getFormContextData($this->user);
+
+        $this->assertFalse($contextData['allowYesterday']);
+        $this->assertFalse($contextData['hasReadingTwoDaysAgo']);
+    }
+
+    public function test_get_form_context_data_allows_yesterday_when_recent_streak_gap_can_be_caught_up(): void
+    {
+        $this->user->forceFill([
+            'created_at' => today()->subMonth(),
+        ])->save();
+
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 1,
+            'chapter' => 1,
+            'date_read' => today()->subDays(2)->toDateString(),
+        ]);
+
+        $contextData = $this->service->getFormContextData($this->user);
+
+        $this->assertTrue($contextData['allowYesterday']);
+        $this->assertTrue($contextData['hasReadingTwoDaysAgo']);
+    }
+
+    public function test_get_form_context_data_hides_yesterday_when_yesterday_is_already_logged(): void
+    {
+        $this->user->forceFill([
+            'created_at' => today()->subMonth(),
+        ])->save();
+
+        foreach ([today()->subDay(), today()->subDays(2)] as $date) {
+            ReadingLog::factory()->create([
+                'user_id' => $this->user->id,
+                'book_id' => 1,
+                'chapter' => 1,
+                'date_read' => $date->toDateString(),
+            ]);
+        }
+
+        $contextData = $this->service->getFormContextData($this->user);
+
+        $this->assertFalse($contextData['allowYesterday']);
+        $this->assertTrue($contextData['hasReadYesterday']);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ReadingLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -170,6 +171,42 @@ describe('Navigation Routes', function () {
         $response->assertSuccessful();
         $response->assertSee('Log Reading');
         $response->assertSee("Record today's Bible reading.");
+    });
+
+    it('shows a compact today-only log form when yesterday catch-up is not useful', function () {
+        $user = User::factory()->create([
+            'created_at' => today()->subMonth(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('logs.create'));
+
+        $response->assertSuccessful();
+        $response->assertSeeText('Logging for today');
+        $response->assertSee('type="hidden" name="date_read"', false);
+        $response->assertDontSeeText('Grace Period');
+        $response->assertDontSeeText('Already logged');
+        $response->assertDontSeeText('Yesterday');
+    });
+
+    it('shows yesterday catch-up only when a recent streak gap can be repaired', function () {
+        $user = User::factory()->create([
+            'created_at' => today()->subMonth(),
+        ]);
+
+        ReadingLog::factory()->create([
+            'user_id' => $user->id,
+            'book_id' => 1,
+            'chapter' => 1,
+            'date_read' => today()->subDays(2)->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('logs.create'));
+
+        $response->assertSuccessful();
+        $response->assertSeeText('When did you read?');
+        $response->assertSeeText('Yesterday');
+        $response->assertSeeText('Today');
+        $response->assertSeeText('Catch-up is available for yesterday.');
     });
 
     it('navigates to reading history successfully', function () {

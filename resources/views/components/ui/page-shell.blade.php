@@ -5,6 +5,7 @@
 @php
     $widthClass = match ($width) {
         'narrow' => 'max-w-2xl',
+        'form' => 'max-w-md',
         'medium' => 'max-w-3xl',
         'list' => 'max-w-4xl',
         'wide' => 'max-w-7xl',
