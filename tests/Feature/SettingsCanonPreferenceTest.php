@@ -16,6 +16,8 @@ it('shows the Catholic canon setting as disabled by default', function () {
 
     $response->assertSuccessful()
         ->assertViewIs('settings.edit')
+        ->assertSee('Settings')
+        ->assertSee('Manage your reading preferences.')
         ->assertSee('Deuterocanonical books')
         ->assertSee('name="include_deuterocanonical"', false)
         ->assertSee('Disabled');

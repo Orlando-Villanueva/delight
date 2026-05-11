@@ -5,15 +5,11 @@
 
 @section('content')
     @fragment('content')
-        <div class="flex-1">
-            <div id="main-content">
-                <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
-                    {{-- Page Header --}}
-                    <div class="mb-6">
-                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Reading Plans</h1>
-                        <p class="mt-1 text-gray-600 dark:text-gray-400">Structured guides to help you read the Bible
-                            consistently</p>
-                    </div>
+        <x-ui.page-shell width="medium" id="main-content">
+            <x-ui.page-header
+                title="Reading Plans"
+                subtitle="Structured guides to help you read the Bible consistently"
+            />
 
                     <div class="space-y-6">
                         @forelse ($plans as $planData)
@@ -155,8 +151,6 @@
                             </div>
                         @endforelse
                     </div>
-                </div>
-            </div>
-        </div>
+        </x-ui.page-shell>
     @endfragment
 @endsection

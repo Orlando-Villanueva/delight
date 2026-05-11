@@ -62,6 +62,8 @@ describe('Reading Plans Index', function () {
             ->get(route('plans.index'));
 
         $response->assertOk();
+        $response->assertSee('Reading Plans');
+        $response->assertSee('Structured guides to help you read the Bible consistently');
         $response->assertSee('Test Reading Plan');
         $response->assertSee('A test plan');
     });

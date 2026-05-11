@@ -1,20 +1,15 @@
 @extends('layouts.authenticated')
 
 @section('page-title', 'Achievements')
-@section('page-subtitle', 'Your permanent trophy shelf')
+@section('page-subtitle', 'Permanent milestones from your Bible reading journey.')
 
 @section('content')
     @fragment('content')
-        <div class="space-y-6">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <p class="text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Achievements</p>
-                    <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">Trophy Shelf</h1>
-                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                        Lasting milestones from your Bible reading journey.
-                    </p>
-                </div>
-            </div>
+        <x-ui.page-shell width="wide">
+            <x-ui.page-header
+                title="Achievements"
+                subtitle="Permanent milestones from your Bible reading journey."
+            />
 
             @php
                 $nextGoals = $shelf['next_goals'];
@@ -126,6 +121,6 @@
                 @endforelse
             </section>
 
-        </div>
+        </x-ui.page-shell>
     @endfragment
 @endsection

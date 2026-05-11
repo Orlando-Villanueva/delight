@@ -1,13 +1,16 @@
 @extends('layouts.authenticated')
 
 @section('page-title', 'Log Reading')
-@section('page-subtitle', 'Record your Bible reading progress')
+@section('page-subtitle', 'Record today\'s Bible reading.')
 
 @section('content')
     @fragment('page-content')
-        <div class="flex-1">
-            <div id="main-content">
-                <div class="max-w-2xl mx-auto sm:px-20 lg:px-32">
+        <x-ui.page-shell width="medium" id="main-content">
+            <x-ui.page-header
+                title="Log Reading"
+                subtitle="Record today's Bible reading."
+            />
+
                     @fragment('reading-form')
                         <div id="reading-log-form-container">
                                 @php
@@ -28,7 +31,7 @@
                                 @endphp
 
                                 <form hx-post="{{ route('logs.store') }}" hx-target="#reading-log-form-container" hx-swap="outerHTML"
-                                    class="space-y-6" x-data="readingLogForm({
+                                    class="max-w-md space-y-6" x-data="readingLogForm({
                                         initialTestament: '{{ $initialTestament }}',
                                         initialBookId: '{{ old('book_id') }}',
                                         books: {
@@ -305,8 +308,6 @@
                                 </script>
                         </div>
                     @endfragment
-                </div>
-            </div>
-        </div>
+        </x-ui.page-shell>
     @endfragment
 @endsection

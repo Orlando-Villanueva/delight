@@ -168,6 +168,8 @@ describe('Navigation Routes', function () {
         $response = $this->actingAs($user)->get(route('logs.create'));
 
         $response->assertSuccessful();
+        $response->assertSee('Log Reading');
+        $response->assertSee("Record today's Bible reading.");
     });
 
     it('navigates to reading history successfully', function () {
@@ -176,6 +178,8 @@ describe('Navigation Routes', function () {
         $response = $this->actingAs($user)->get(route('logs.index'));
 
         $response->assertSuccessful();
+        $response->assertSee('Reading History');
+        $response->assertSee('Review and manage past readings.');
     });
 
     it('redirects unauthenticated users from dashboard to login', function () {

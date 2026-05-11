@@ -100,7 +100,7 @@ it('renders earned achievements and curated next goals on the trophy shelf', fun
 
     $response->assertSuccessful()
         ->assertSee('Achievements')
-        ->assertSee('Trophy Shelf')
+        ->assertSee('Permanent milestones from your Bible reading journey.')
         ->assertSee('Next goals')
         ->assertSee('The closest milestones in your reading journey.')
         ->assertSee('Almost finished')
@@ -134,7 +134,8 @@ it('returns the achievements content fragment for htmx navigation', function () 
     ]);
 
     $response->assertSuccessful()
-        ->assertSee('Trophy Shelf')
+        ->assertSee('Achievements')
+        ->assertSee('Permanent milestones from your Bible reading journey.')
         ->assertDontSee('<html', false)
         ->assertDontSee('<!DOCTYPE', false);
 });
