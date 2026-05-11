@@ -111,7 +111,7 @@
                                         x-cloak
                                         x-show="graceHelpOpen"
                                         x-transition
-                                        class="absolute left-0 top-7 z-20 w-64 rounded-lg border border-gray-200 bg-white p-3 text-xs leading-5 text-gray-600 shadow-lg dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                        class="fixed left-4 right-4 top-44 z-50 w-auto rounded-lg border border-gray-200 bg-white p-3 text-xs leading-5 text-gray-600 shadow-lg dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 sm:absolute sm:left-0 sm:right-auto sm:top-7 sm:w-64"
                                     >
                                         You can catch up on yesterday when it helps preserve a recent reading streak.
                                     </div>
