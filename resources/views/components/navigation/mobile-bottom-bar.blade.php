@@ -47,8 +47,9 @@
         {{-- Achievements --}}
         <x-navigation.nav-link route="achievements.index" label="Achievements" variant="mobile" class="rounded-e-full">
             <x-slot:icon>
+                <circle cx="12" cy="8" r="6" stroke="currentColor" stroke-width="2" />
                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Zm10 2h2a2 2 0 0 1 0 4h-2M7 6H5a2 2 0 0 0 0 4h2" />
+                    d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
             </x-slot:icon>
         </x-navigation.nav-link>
     </div>
