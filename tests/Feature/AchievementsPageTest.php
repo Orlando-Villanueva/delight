@@ -62,9 +62,6 @@ function achievement_page_complete_dashboard_teaser_goals(User $user): void
         ['reading_streak_30', 'streak:30'],
         ['reading_streak_100', 'streak:100'],
         ['reading_streak_365', 'streak:365'],
-        ['weekly_consistency_4', 'weekly-target:4'],
-        ['weekly_consistency_8', 'weekly-target:8'],
-        ['weekly_consistency_12', 'weekly-target:12'],
         ['bible_progress_25', 'progress:25'],
         ['bible_progress_50', 'progress:50'],
         ['bible_progress_75', 'progress:75'],
@@ -122,6 +119,8 @@ it('renders earned achievements and curated next goals on the trophy shelf', fun
         ->assertSee('25% Bible progress')
         ->assertSee('In progress')
         ->assertDontSee('Later milestones')
+        ->assertDontSee('Weekly consistency')
+        ->assertDontSee('4-week target streak')
         ->assertDontSee('Locked');
 
     expect(substr_count($response->getContent(), 'You completed John.'))->toBe(1);

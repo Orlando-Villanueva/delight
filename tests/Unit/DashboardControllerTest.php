@@ -56,18 +56,7 @@ class DashboardControllerTest extends TestCase
         $response->assertViewHas('stats');
     }
 
-    public function test_index_includes_weekly_goal_data_for_regular_request()
-    {
-        $response = $this->get('/dashboard');
-
-        $response->assertViewHas('weeklyGoal');
-
-        $weeklyGoal = $response->viewData('weeklyGoal');
-        $this->assertArrayHasKey('current_progress', $weeklyGoal);
-        $this->assertArrayHasKey('weekly_target', $weeklyGoal);
-    }
-
-    public function test_index_includes_weekly_goal_data_for_htmx_request()
+    public function test_index_renders_next_milestone_for_htmx_request()
     {
         $response = $this->get('/dashboard', ['HX-Request' => 'true']);
 

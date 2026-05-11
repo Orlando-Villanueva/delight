@@ -124,3 +124,29 @@ it('does not backfill personal best streak records', function () {
         ->and($user->achievements()->where('achievement_key', 'reading_streak_30')->exists())->toBeTrue()
         ->and($user->achievements()->where('achievement_key', 'personal_best_streak')->exists())->toBeFalse();
 });
+
+it('does not backfill permanent weekly target streak achievements', function () {
+    $user = User::factory()->create();
+    $weekStart = Carbon::parse('2026-02-08');
+    $chapter = 1;
+
+    foreach (range(0, 11) as $weekOffset) {
+        foreach ([0, 1, 3, 5] as $dayOffset) {
+            ReadingLog::factory()->for($user)->create([
+                'book_id' => 1,
+                'chapter' => $chapter,
+                'passage_text' => "Genesis {$chapter}",
+                'date_read' => $weekStart->copy()->addWeeks($weekOffset)->addDays($dayOffset)->toDateString(),
+            ]);
+            $chapter++;
+        }
+    }
+
+    $this->artisan("achievements:backfill {$user->id}")
+        ->expectsOutput('Users scanned: 1')
+        ->assertSuccessful();
+
+    expect($user->achievements()->where('achievement_key', 'weekly_consistency_4')->exists())->toBeFalse()
+        ->and($user->achievements()->where('achievement_key', 'weekly_consistency_8')->exists())->toBeFalse()
+        ->and($user->achievements()->where('achievement_key', 'weekly_consistency_12')->exists())->toBeFalse();
+});

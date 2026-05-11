@@ -15,8 +15,6 @@ class AchievementService
 
     private const array STREAK_THRESHOLDS = [7, 30, 100, 365];
 
-    private const array WEEKLY_CONSISTENCY_THRESHOLDS = [4, 8, 12];
-
     private const array BIBLE_PROGRESS_THRESHOLDS = [25, 50, 75, 100];
 
     public function __construct(
@@ -264,7 +262,6 @@ class AchievementService
         $candidates = collect();
         $currentStreak = $this->currentStreak($readingDates);
         $longestStreak = $this->longestStreak($readingDates);
-        $weeklyConsistency = $this->weeklyConsistencyStreak($readingDates);
         $bibleProgress = $this->bibleProgress($user);
 
         $streakMilestone = $this->nextStreakDashboardMilestone($currentStreak, $earnedContexts);
@@ -325,11 +322,6 @@ class AchievementService
                 sortOrder: 200
             )));
 
-        $weeklyConsistencyMilestone = $this->nextWeeklyConsistencyDashboardMilestone($weeklyConsistency, $earnedContexts);
-        if ($weeklyConsistencyMilestone !== null) {
-            $candidates->push($weeklyConsistencyMilestone);
-        }
-
         if ($candidates->isEmpty()) {
             return $this->getLockedAchievements($user, $earned)
                 ->first();
@@ -363,7 +355,6 @@ class AchievementService
         $readingDates = $this->readingDates($user);
         $distinctReadingDays = $readingDates->count();
         $longestStreak = $this->longestStreak($readingDates);
-        $weeklyConsistency = $this->weeklyConsistencyStreak($readingDates);
         $bibleProgress = $this->bibleProgress($user);
         $candidates = collect();
 
@@ -383,16 +374,6 @@ class AchievementService
                 $candidates->push($this->candidate($key, "streak:{$threshold}", [
                     'streak_days' => $threshold,
                     'longest_streak' => $longestStreak,
-                ]));
-            }
-        }
-
-        foreach (self::WEEKLY_CONSISTENCY_THRESHOLDS as $threshold) {
-            $key = "weekly_consistency_{$threshold}";
-            if ($weeklyConsistency >= $threshold) {
-                $candidates->push($this->candidate($key, "weekly-target:{$threshold}", [
-                    'weeks' => $threshold,
-                    'best_weekly_target_streak' => $weeklyConsistency,
                 ]));
             }
         }
@@ -731,41 +712,6 @@ class AchievementService
         return $this->longestStreak($readingDates->slice(0, max(0, $readingDates->count() - $currentStreak))->values());
     }
 
-    private function weeklyConsistencyStreak(Collection $readingDates): int
-    {
-        if ($readingDates->isEmpty()) {
-            return 0;
-        }
-
-        $achievedWeeks = $readingDates
-            ->groupBy(fn (Carbon $date): string => $date->copy()->startOfWeek(Carbon::SUNDAY)->toDateString())
-            ->filter(fn (Collection $dates): bool => $dates->count() >= self::WEEKLY_TARGET_DAYS)
-            ->keys()
-            ->map(fn (string $date): Carbon => Carbon::parse($date))
-            ->values();
-
-        if ($achievedWeeks->isEmpty()) {
-            return 0;
-        }
-
-        $best = 1;
-        $current = 1;
-        $previous = $achievedWeeks->first();
-
-        foreach ($achievedWeeks->skip(1) as $weekStart) {
-            if ((int) $previous->diffInWeeks($weekStart) === 1) {
-                $current++;
-                $best = max($best, $current);
-            } else {
-                $current = 1;
-            }
-
-            $previous = $weekStart;
-        }
-
-        return $best;
-    }
-
     /**
      * @return Collection<int, array<string, mixed>>
      */
@@ -777,7 +723,6 @@ class AchievementService
         $definitions = $this->definitions();
         $readingDays = $this->readingDates($user)->count();
         $longestStreak = $this->longestStreak($this->readingDates($user));
-        $weeklyConsistency = $this->weeklyConsistencyStreak($this->readingDates($user));
         $bibleProgress = $this->bibleProgress($user);
 
         $locked = collect([
@@ -787,10 +732,6 @@ class AchievementService
 
         foreach (self::STREAK_THRESHOLDS as $threshold) {
             $locked->push($this->lockedPayload("reading_streak_{$threshold}", "streak:{$threshold}", $longestStreak, $threshold));
-        }
-
-        foreach (self::WEEKLY_CONSISTENCY_THRESHOLDS as $threshold) {
-            $locked->push($this->lockedPayload("weekly_consistency_{$threshold}", "weekly-target:{$threshold}", $weeklyConsistency, $threshold));
         }
 
         foreach (self::BIBLE_PROGRESS_THRESHOLDS as $threshold) {
@@ -911,39 +852,6 @@ class AchievementService
                 icon: $definition['icon'],
                 style: $definition['style'],
                 current: (int) floor($bibleProgress['percentage']),
-                target: $threshold,
-                priority: 30,
-                sortOrder: $definition['sort_order']
-            );
-        }
-
-        return null;
-    }
-
-    private function nextWeeklyConsistencyDashboardMilestone(int $weeklyConsistency, Collection $earnedContexts): ?array
-    {
-        if ($weeklyConsistency <= 0) {
-            return null;
-        }
-
-        foreach (self::WEEKLY_CONSISTENCY_THRESHOLDS as $threshold) {
-            $key = "weekly_consistency_{$threshold}";
-            $contextKey = "weekly-target:{$threshold}";
-
-            if ($earnedContexts->has($key.'|'.$contextKey)) {
-                continue;
-            }
-
-            $definition = $this->definitions()[$key];
-
-            return $this->dashboardPayload(
-                key: $key,
-                contextKey: $contextKey,
-                displayName: $definition['display_name'],
-                description: $definition['description'],
-                icon: $definition['icon'],
-                style: $definition['style'],
-                current: $weeklyConsistency,
                 target: $threshold,
                 priority: 30,
                 sortOrder: $definition['sort_order']

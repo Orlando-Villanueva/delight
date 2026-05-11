@@ -11,7 +11,6 @@ class UserStatisticsService
 {
     public function __construct(
         private ReadingLogService $readingLogService,
-        private WeeklyGoalService $weeklyGoalService,
         private ?BibleReferenceService $bibleReferenceService = null
     ) {}
 
@@ -23,17 +22,12 @@ class UserStatisticsService
         return Cache::remember(
             "user_dashboard_stats_{$user->id}",
             300, // 5 minutes TTL
-            function () use ($user) {
-                $weeklyGoal = $this->getWeeklyGoalStatistics($user);
-
-                return [
-                    'streaks' => $this->getStreakStatistics($user),
-                    'reading_summary' => $this->getReadingSummary($user),
-                    'book_progress' => $this->getBookProgressSummary($user),
-                    'recent_activity' => $this->getRecentActivity($user),
-                    'weekly_goal' => $weeklyGoal,
-                ];
-            }
+            fn () => [
+                'streaks' => $this->getStreakStatistics($user),
+                'reading_summary' => $this->getReadingSummary($user),
+                'book_progress' => $this->getBookProgressSummary($user),
+                'recent_activity' => $this->getRecentActivity($user),
+            ]
         );
     }
 
@@ -102,20 +96,6 @@ class UserStatisticsService
     }
 
     /**
-     * Get weekly goal statistics.
-     */
-    public function getWeeklyGoalStatistics(User $user): array
-    {
-        $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
-
-        return Cache::remember(
-            "user_weekly_goal_v2_{$user->id}_{$weekStart}",
-            900, // 15 minutes TTL - light query with date range filter
-            fn () => $this->weeklyGoalService->getWeeklyGoalData($user)
-        );
-    }
-
-    /**
      * Get reading summary statistics.
      */
     public function getReadingSummary(User $user): array
@@ -140,7 +120,7 @@ class UserStatisticsService
             'total_reading_days' => $this->getTotalReadingDays($user),
             'average_chapters_per_day' => $this->getAverageChaptersPerDay($user, $totalReadings, $daysSinceFirst),
             'this_month_days' => $this->getThisMonthReadingDays($user),
-            'this_week_days' => $this->weeklyGoalService->getThisWeekReadingDays($user),
+            'this_week_days' => $this->getThisWeekReadingDays($user),
         ];
     }
 
@@ -182,6 +162,17 @@ class UserStatisticsService
         return $user->readingLogs()
             ->whereMonth('date_read', now()->month)
             ->whereYear('date_read', now()->year)
+            ->distinct('date_read')
+            ->count('date_read');
+    }
+
+    private function getThisWeekReadingDays(User $user): int
+    {
+        return $user->readingLogs()
+            ->whereBetween('date_read', [
+                now()->startOfWeek(Carbon::SUNDAY)->toDateString(),
+                now()->endOfWeek(Carbon::SATURDAY)->toDateString(),
+            ])
             ->distinct('date_read')
             ->count('date_read');
     }
@@ -502,14 +493,11 @@ class UserStatisticsService
         $currentYear = now()->year;
         $previousYear = $currentYear - 1;
         $currentMonth = now()->format('Y-m');
-        $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
 
         // Clear all user-specific caches
         Cache::forget("user_dashboard_stats_{$user->id}");
         Cache::forget("user_current_streak_{$user->id}");
         Cache::forget("user_longest_streak_{$user->id}");
-        Cache::forget("user_weekly_goal_v2_{$user->id}_{$weekStart}");
-        Cache::forget("user_weekly_goal_{$user->id}_{$weekStart}");
         Cache::forget("user_calendar_{$user->id}_{$currentYear}");
         Cache::forget("user_calendar_{$user->id}_{$previousYear}");
         Cache::forget("user_monthly_calendar_{$user->id}_{$currentMonth}");

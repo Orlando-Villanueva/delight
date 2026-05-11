@@ -415,7 +415,7 @@ it('treats a duplicate inserted during award creation as a skipped duplicate', f
         ->and($user->achievements()->where('achievement_key', 'first_reading')->count())->toBe(1);
 });
 
-it('evaluates weekly target streaks across consecutive achieved weeks', function () {
+it('does not create permanent weekly target streak achievements', function () {
     $user = User::factory()->create();
     $weekStart = Carbon::parse('2026-02-08');
     $chapter = 1;
@@ -432,10 +432,13 @@ it('evaluates weekly target streaks across consecutive achieved weeks', function
     }
 
     app(AchievementService::class)->evaluateAndAward($user);
+    $shelf = app(AchievementService::class)->getShelfData($user);
 
-    expect($user->achievements()->where('achievement_key', 'weekly_consistency_4')->exists())->toBeTrue()
-        ->and($user->achievements()->where('achievement_key', 'weekly_consistency_8')->exists())->toBeTrue()
-        ->and($user->achievements()->where('achievement_key', 'weekly_consistency_12')->exists())->toBeTrue();
+    expect($user->achievements()->where('achievement_key', 'weekly_consistency_4')->exists())->toBeFalse()
+        ->and($user->achievements()->where('achievement_key', 'weekly_consistency_8')->exists())->toBeFalse()
+        ->and($user->achievements()->where('achievement_key', 'weekly_consistency_12')->exists())->toBeFalse()
+        ->and($shelf['locked']->pluck('achievement_key')->all())->not->toContain('weekly_consistency_4')
+        ->and($shelf['next_goals']['progress']->pluck('display_name')->all())->not->toContain('4-week target streak');
 });
 
 it('keeps earned deuterocanonical achievements visible after opt out but does not newly evaluate them while opted out', function () {

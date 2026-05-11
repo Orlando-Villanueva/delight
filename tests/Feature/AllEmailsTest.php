@@ -50,16 +50,6 @@ test('pwa announcement email renders with new styles', function () {
     expect($html)->not->toContain('class="notice"');
 });
 
-test('weekly target email renders with new styles', function () {
-    $view = View::make('emails.weekly-target-announcement');
-    $html = $view->render();
-
-    expect($html)->toContain('Introducing Weekly Targets');
-    expect($html)->toContain('class="alert alert-success"');
-    expect($html)->toContain('class="card"');
-    expect($html)->not->toContain('class="notice"');
-});
-
 test('feedback received email renders with new styles', function () {
     $data = [
         'user_name' => 'Test User',

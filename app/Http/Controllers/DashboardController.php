@@ -34,9 +34,6 @@ class DashboardController extends Controller
         // Get dashboard statistics
         $stats = $this->statisticsService->getDashboardStatistics($user);
 
-        // Extract weekly goal data for easier access in views
-        $weeklyGoal = $stats['weekly_goal'];
-
         // Get monthly calendar data for calendar widget
         $calendarData = $this->statisticsService->getMonthlyCalendarData($user);
 
@@ -81,7 +78,6 @@ class DashboardController extends Controller
             'streakMessage',
             'streakMessageTone',
             'stats',
-            'weeklyGoal',
             'calendarData',
             'showRecapCard',
             'recapCardYear',

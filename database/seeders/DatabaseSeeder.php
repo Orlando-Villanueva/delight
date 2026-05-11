@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Announcement;
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\AchievementService;
 use App\Services\BibleReferenceService;
 use App\Services\BookProgressSyncService;
 use Carbon\Carbon;
@@ -50,6 +51,8 @@ class DatabaseSeeder extends Seeder
         $this->command->info('Syncing book progress for seeduser2...');
         $stats2 = $syncService->syncBookProgressForUser($seedUser2);
         $this->command->info("Synced {$stats2['processed_logs']} reading logs and updated {$stats2['updated_books_count']} books with book progress.");
+
+        $this->backfillSeededAchievements([$seedUser, $seedUser2]);
 
         // Clear all caches to ensure fresh statistics
         $this->command->info('Clearing application caches...');
@@ -257,5 +260,29 @@ MD;
         $this->command->info("Created recent week test data for {$user->name}:");
         $this->command->info('- 3 reading days in the most recent week (goal not achieved yet)');
         $this->command->info('- Weekly goal remains below target until a 4th reading is added');
+    }
+
+    /**
+     * @param  array<int, User>  $users
+     */
+    private function backfillSeededAchievements(array $users): void
+    {
+        $achievementService = app(AchievementService::class);
+        $awarded = 0;
+        $skippedDuplicates = 0;
+
+        foreach ($users as $user) {
+            if (! $user->readingLogs()->exists()) {
+                continue;
+            }
+
+            $result = $achievementService->evaluateAndAward($user);
+            $awarded += $result['awarded'];
+            $skippedDuplicates += $result['skipped_duplicates'];
+        }
+
+        $this->command->info('Backfilled achievements for '.count($users).' seeded users.');
+        $this->command->info("Achievements awarded: {$awarded}");
+        $this->command->info("Skipped duplicate achievements: {$skippedDuplicates}");
     }
 }

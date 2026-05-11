@@ -591,10 +591,7 @@ class ReadingLogService
 
         // Smart invalidation - only invalidate on first reading of the day
         if ($isFirstReadingOfDay) {
-            // First reading of the day - streak and weekly goal will change
-            $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
-            Cache::forget("user_weekly_goal_v2_{$user->id}_{$weekStart}");
-            Cache::forget("user_weekly_goal_{$user->id}_{$weekStart}");
+            // First reading of the day - streak will change
             Cache::forget("user_current_streak_{$user->id}");
 
             // Longest streak - only invalidate if current streak might exceed it
@@ -610,7 +607,7 @@ class ReadingLogService
                 }
             }
         }
-        // If not first reading of the day, streak and weekly goal won't change
+        // If not first reading of the day, streak won't change
         // so skip expensive invalidations
     }
 
