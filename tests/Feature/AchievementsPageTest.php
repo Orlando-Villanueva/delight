@@ -200,11 +200,33 @@ it('falls back to the latest trophy on the dashboard when no milestone remains',
         ->assertDontSee('First milestone');
 });
 
-it('does not advertise weekly journey on the landing page', function () {
+it('advertises the simplified milestone and achievement model on the landing page', function () {
     $response = $this->get('/');
+    $content = $response->getContent();
 
     $response->assertSuccessful()
         ->assertSee('Next Milestone')
         ->assertSee('Next Milestone Guidance')
-        ->assertDontSee('Weekly Journey');
+        ->assertSee('Finish Amos')
+        ->assertSee('One chapter completes the book.')
+        ->assertSee('8/9')
+        ->assertSee('Permanent Achievements')
+        ->assertSee('A trophy shelf that never rewinds')
+        ->assertSee('Streaks')
+        ->assertSee('Books')
+        ->assertSee('Progress')
+        ->assertSee('from-amber-50 to-white border border-amber-100', false)
+        ->assertSee('daily streak, next milestone, summary stats, calendar, and reading progress grid')
+        ->assertDontSee('Weekly Journey')
+        ->assertDontSee('weekly journey')
+        ->assertDontSee('weekly momentum')
+        ->assertDontSee('First reading');
+
+    expect($content)
+        ->toMatch('/<div role="listitem" class="order-1">.*Daily Reading Log/s')
+        ->toMatch('/<div role="listitem" class="order-2">.*Daily Streak Tracking/s')
+        ->toMatch('/<div role="listitem" class="order-3">.*Next Milestone/s')
+        ->toMatch('/<div role="listitem" class="order-4">.*Book Completion Grid/s')
+        ->toMatch('/<div role="listitem" class="order-5">.*Permanent Achievements.*>New<\/span>/s')
+        ->toMatch('/<div role="listitem" class="order-6">.*Reading Plans/s');
 });
