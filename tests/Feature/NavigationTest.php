@@ -46,6 +46,21 @@ describe('Navigation Component Rendering', function () {
         $response->assertSee('History', false);
     });
 
+    it('centers the log reading action in the mobile bottom navigation order', function () {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $content = substr($response->getContent(), strpos($response->getContent(), 'id="mobile-bottom-navigation"'));
+
+        expect(strpos($content, 'id="mobile-plans-link"'))
+            ->toBeLessThan(strpos($content, 'hx-get="'.route('logs.create').'"'))
+            ->and(strpos($content, 'hx-get="'.route('logs.create').'"'))
+            ->toBeLessThan(strpos($content, 'hx-get="'.route('logs.index').'"'))
+            ->and(strpos($content, 'hx-get="'.route('logs.index').'"'))
+            ->toBeLessThan(strpos($content, 'hx-get="'.route('achievements.index').'"'));
+    });
+
     it('displays user initial in profile avatar', function () {
         $user = User::factory()->create([
             'name' => 'Alice Smith',
