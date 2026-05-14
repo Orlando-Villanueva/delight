@@ -42,7 +42,7 @@ it('seeds the permanent achievements release announcement', function () {
         ->and($announcement->type)->toBe('info')
         ->and($announcement->hero_image_path)->toBe('images/permanent-achievements-release.png')
         ->and($announcement->social_image_path)->toBe('images/permanent-achievements-release.png')
-        ->and($announcement->starts_at->toDateTimeString())->toBe('2026-05-15 08:00:00')
+        ->and($announcement->starts_at->toDateTimeString())->toBe('2026-05-14 16:00:00')
         ->and($announcement->ends_at)->toBeNull()
         ->and($announcement->content)->toContain('## What changed')
         ->and($announcement->content)->toContain('Delight now gives your Bible reading milestones a permanent place to live.')

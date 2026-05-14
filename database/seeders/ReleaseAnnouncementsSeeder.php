@@ -115,7 +115,7 @@ MD;
                 'type' => 'info',
                 'hero_image_path' => 'images/permanent-achievements-release.png',
                 'social_image_path' => 'images/permanent-achievements-release.png',
-                'starts_at' => Carbon::create(2026, 5, 15, 8, 0, 0, config('app.timezone')),
+                'starts_at' => Carbon::create(2026, 5, 14, 16, 0, 0, config('app.timezone')),
                 'ends_at' => null,
             ]
         );
