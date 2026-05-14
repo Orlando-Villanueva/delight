@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\OnboardingStep;
 use App\Http\Requests\UpdateReadingNotesRequest;
 use App\Models\ReadingLog;
+use App\Models\User;
 use App\Services\AchievementService;
 use App\Services\BibleReferenceService;
 use App\Services\OnboardingService;
@@ -13,6 +14,7 @@ use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\MessageBag;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -202,7 +204,7 @@ class ReadingLogController extends Controller
         }
     }
 
-    private function achievementCelebrationFragment($user, $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): string
+    private function achievementCelebrationFragment(User $user, Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): string
     {
         $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log, $isFirstReadingOfDay);
 

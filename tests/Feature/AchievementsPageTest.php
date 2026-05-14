@@ -223,10 +223,34 @@ it('advertises the simplified milestone and achievement model on the landing pag
         ->assertDontSee('First reading');
 
     expect($content)
-        ->toMatch('/<div role="listitem" class="order-1">.*Daily Reading Log/s')
-        ->toMatch('/<div role="listitem" class="order-2">.*Daily Streak Tracking/s')
-        ->toMatch('/<div role="listitem" class="order-3">.*Next Milestone/s')
-        ->toMatch('/<div role="listitem" class="order-4">.*Book Completion Grid/s')
-        ->toMatch('/<div role="listitem" class="order-5">.*Permanent Achievements.*>New<\/span>/s')
-        ->toMatch('/<div role="listitem" class="order-6">.*Reading Plans/s');
+        ->toMatch('/<li class="order-1">.*Daily Reading Log/s')
+        ->toMatch('/<li class="order-2">.*Daily Streak Tracking/s')
+        ->toMatch('/<li class="order-3">.*Next Milestone/s')
+        ->toMatch('/<li class="order-4">.*Book Completion Grid/s')
+        ->toMatch('/<li class="order-5">.*Permanent Achievements.*>New<\/span>/s')
+        ->toMatch('/<li class="order-6">.*Reading Plans/s');
+});
+
+it('renders the landing page when a screenshot asset is missing', function () {
+    $path = public_path('images/screenshots/link-preview.png');
+
+    if (! file_exists($path)) {
+        $this->get('/')->assertSuccessful();
+
+        return;
+    }
+
+    $backupPath = $path.'.'.bin2hex(random_bytes(4)).'.bak';
+
+    rename($path, $backupPath);
+
+    try {
+        $response = $this->get('/');
+
+        $response->assertSuccessful()
+            ->assertSee('images/screenshots/link-preview.png', false)
+            ->assertDontSee('images/screenshots/link-preview.png?v=', false);
+    } finally {
+        rename($backupPath, $path);
+    }
 });

@@ -44,7 +44,7 @@ class ReadingLogService
     /**
      * Log a new Bible reading entry and return the log with any achievements unlocked by it.
      */
-    public function logReadingWithResult(User $user, array $data): ReadingLogResult
+    public function logReadingWithResult(User $user, array $data, bool $evaluateAchievements = true): ReadingLogResult
     {
         // Validate and format the Bible reference
         $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
@@ -93,7 +93,7 @@ class ReadingLogService
                 );
             }
 
-            $achievementResult = $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
+            $achievementResult = $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead, $evaluateAchievements);
 
             return new ReadingLogResult($log, $achievementResult['awarded_achievements'], ! $hasReadToday);
         }
@@ -118,7 +118,7 @@ class ReadingLogService
             );
         }
 
-        $achievementResult = $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
+        $achievementResult = $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead, $evaluateAchievements);
 
         return new ReadingLogResult($readingLog, $achievementResult['awarded_achievements'], ! $hasReadToday);
     }
@@ -178,14 +178,32 @@ class ReadingLogService
     /**
      * @return array{awarded: int, skipped_duplicates: int, would_award: int, candidates: Collection<int, array<string, mixed>>, awarded_achievements: Collection<int, \App\Models\UserAchievement>}
      */
-    private function handlePostLogSideEffects(User $user, bool $isFirstReadingOfDay, string $loggedDate): array
+    public function evaluateAchievements(User $user): array
+    {
+        return $this->achievementService->evaluateAndAward($user);
+    }
+
+    /**
+     * @return array{awarded: int, skipped_duplicates: int, would_award: int, candidates: Collection<int, array<string, mixed>>, awarded_achievements: Collection<int, \App\Models\UserAchievement>}
+     */
+    private function handlePostLogSideEffects(User $user, bool $isFirstReadingOfDay, string $loggedDate, bool $evaluateAchievements = true): array
     {
         // Server-side state updated - HTMX will handle UI updates
         $this->invalidateUserStatisticsCache($user, $isFirstReadingOfDay);
         $this->markChurnRecoveryCampaignsReactivated($user, $loggedDate);
         $this->maybeResetChurnRecovery($user);
 
-        return $this->achievementService->evaluateAndAward($user);
+        if (! $evaluateAchievements) {
+            return [
+                'awarded' => 0,
+                'skipped_duplicates' => 0,
+                'would_award' => 0,
+                'candidates' => collect(),
+                'awarded_achievements' => collect(),
+            ];
+        }
+
+        return $this->evaluateAchievements($user);
     }
 
     /**

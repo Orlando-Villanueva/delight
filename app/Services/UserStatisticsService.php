@@ -162,7 +162,7 @@ class UserStatisticsService
         return $user->readingLogs()
             ->whereMonth('date_read', now()->month)
             ->whereYear('date_read', now()->year)
-            ->distinct('date_read')
+            ->distinct()
             ->count('date_read');
     }
 
@@ -173,7 +173,7 @@ class UserStatisticsService
                 now()->startOfWeek(Carbon::SUNDAY)->toDateString(),
                 now()->endOfWeek(Carbon::SATURDAY)->toDateString(),
             ])
-            ->distinct('date_read')
+            ->distinct()
             ->count('date_read');
     }
 

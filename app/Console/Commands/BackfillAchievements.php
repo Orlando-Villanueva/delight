@@ -35,7 +35,7 @@ class BackfillAchievements extends Command
         $users = User::query()
             ->when($userId, fn ($query) => $query->whereKey($userId))
             ->whereHas('readingLogs')
-            ->get();
+            ->lazy();
 
         $totals = [
             'users_scanned' => 0,

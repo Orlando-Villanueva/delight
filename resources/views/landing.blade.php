@@ -1,7 +1,14 @@
 @php
-    $desktopScreenshot = asset('images/screenshots/desktop-v3.png').'?v='.filemtime(public_path('images/screenshots/desktop-v3.png'));
-    $mobileScreenshot = asset('images/screenshots/mobile-v3.png').'?v='.filemtime(public_path('images/screenshots/mobile-v3.png'));
-    $linkPreviewScreenshot = asset('images/screenshots/link-preview.png').'?v='.filemtime(public_path('images/screenshots/link-preview.png'));
+    $versionedAsset = function (string $path): string {
+        $absolutePath = public_path($path);
+        $url = asset($path);
+
+        return file_exists($absolutePath) ? $url.'?v='.filemtime($absolutePath) : $url;
+    };
+
+    $desktopScreenshot = $versionedAsset('images/screenshots/desktop-v3.png');
+    $mobileScreenshot = $versionedAsset('images/screenshots/mobile-v3.png');
+    $linkPreviewScreenshot = $versionedAsset('images/screenshots/link-preview.png');
 @endphp
 
 <!DOCTYPE html>
@@ -236,10 +243,10 @@
                 </div>
 
                 <!-- Features Grid -->
-                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8" role="list"
+                <ul class="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
                     aria-label="Key features of Delight">
                     <!-- Feature 1: Daily Streak Tracking (Featured) -->
-                    <div role="listitem" class="order-2">
+                    <li class="order-2">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center justify-between gap-3">
@@ -284,10 +291,10 @@
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
-                    </div>
+                    </li>
 
                     <!-- Feature 2: Reading Plans (Featured) -->
-                    <div role="listitem" class="order-6">
+                    <li class="order-6">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center gap-3">
@@ -332,10 +339,10 @@
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
-                    </div>
+                    </li>
 
                     <!-- Feature 3: Daily Reading Log -->
-                    <div role="listitem" class="order-1">
+                    <li class="order-1">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center gap-3">
@@ -376,10 +383,10 @@
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
-                    </div>
+                    </li>
 
                     <!-- Feature 4: Book Completion Grid -->
-                    <div role="listitem" class="order-4">
+                    <li class="order-4">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center gap-3">
@@ -428,10 +435,10 @@
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
-                    </div>
+                    </li>
 
                     <!-- Feature 5: Permanent Achievements -->
-                    <div role="listitem" class="order-5">
+                    <li class="order-5">
                         <x-ui.card
                             class="bg-gradient-to-br from-amber-50 to-white border border-amber-100 shadow-lg/20 hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content class="space-y-3">
@@ -484,10 +491,10 @@
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
-                    </div>
+                    </li>
 
                     <!-- Feature 6: Next Milestone Widget -->
-                    <div role="listitem" class="order-3">
+                    <li class="order-3">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full flex flex-col">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center gap-3">
@@ -540,8 +547,8 @@
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
-                    </div>
-                </div>
+                    </li>
+                </ul>
             </div>
         </section>
 

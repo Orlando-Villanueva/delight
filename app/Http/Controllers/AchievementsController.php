@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Services\AchievementService;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\View\View;
 
 class AchievementsController extends Controller
 {
@@ -11,7 +13,7 @@ class AchievementsController extends Controller
         private AchievementService $achievementService
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): Response|View
     {
         $shelf = $this->achievementService->getShelfData($request->user());
         $categoryLabels = config('achievements.categories', []);

@@ -27,19 +27,21 @@ class AchievementService
     public function evaluateAndAward(User $user, bool $dryRun = false): array
     {
         $candidates = $this->buildAwardCandidates($user);
+        $existingContexts = $user->achievements()
+            ->get(['achievement_key', 'context_key'])
+            ->mapWithKeys(fn (UserAchievement $achievement): array => [
+                $achievement->achievement_key.'|'.$achievement->context_key => true,
+            ]);
         $awardedAchievements = collect();
         $awarded = 0;
         $skippedDuplicates = 0;
         $wouldAward = 0;
 
         foreach ($candidates as $candidate) {
-            if ($dryRun) {
-                $exists = $user->achievements()
-                    ->where('achievement_key', $candidate['achievement_key'])
-                    ->where('context_key', $candidate['context_key'])
-                    ->exists();
+            $contextKey = $candidate['achievement_key'].'|'.$candidate['context_key'];
 
-                if ($exists) {
+            if ($dryRun) {
+                if ($existingContexts->has($contextKey)) {
                     $skippedDuplicates++;
 
                     continue;
@@ -50,12 +52,7 @@ class AchievementService
                 continue;
             }
 
-            $exists = $user->achievements()
-                ->where('achievement_key', $candidate['achievement_key'])
-                ->where('context_key', $candidate['context_key'])
-                ->exists();
-
-            if ($exists) {
+            if ($existingContexts->has($contextKey)) {
                 $skippedDuplicates++;
 
                 continue;
@@ -63,6 +60,7 @@ class AchievementService
 
             try {
                 $awardedAchievements->push($user->achievements()->create($candidate));
+                $existingContexts->put($contextKey, true);
                 $awarded++;
             } catch (UniqueConstraintViolationException $exception) {
                 $exists = $user->achievements()
@@ -74,6 +72,7 @@ class AchievementService
                     throw $exception;
                 }
 
+                $existingContexts->put($contextKey, true);
                 $skippedDuplicates++;
             }
         }
@@ -355,7 +354,9 @@ class AchievementService
         $readingDates = $this->readingDates($user);
         $distinctReadingDays = $readingDates->count();
         $longestStreak = $this->longestStreak($readingDates);
-        $bibleProgress = $this->bibleProgress($user);
+        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
+        $bookProgress = $user->bookProgress()->get()->keyBy('book_id');
+        $bibleProgress = $this->bibleProgress($user, $bookProgress, $includeDeuterocanonical);
         $candidates = collect();
 
         if ($distinctReadingDays >= 1) {
@@ -389,8 +390,8 @@ class AchievementService
             }
         }
 
-        $this->bookCompletionCandidates($user)->each(fn (array $candidate) => $candidates->push($candidate));
-        $this->testamentCompletionCandidates($user)->each(fn (array $candidate) => $candidates->push($candidate));
+        $this->bookCompletionCandidates($user, $bookProgress, $includeDeuterocanonical)->each(fn (array $candidate) => $candidates->push($candidate));
+        $this->testamentCompletionCandidates($user, $bookProgress, $includeDeuterocanonical)->each(fn (array $candidate) => $candidates->push($candidate));
 
         return $candidates->sortBy([
             ['sort_order', 'asc'],
@@ -473,13 +474,13 @@ class AchievementService
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function bookCompletionCandidates(User $user): Collection
+    private function bookCompletionCandidates(User $user, ?Collection $bookProgress = null, ?bool $includeDeuterocanonical = null): Collection
     {
-        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
+        $includeDeuterocanonical ??= $user->includesDeuterocanonicalBooks();
+        $progress = $bookProgress ?? $user->bookProgress()->get()->keyBy('book_id');
 
-        return $user->bookProgress()
-            ->where('is_completed', true)
-            ->get()
+        return $progress
+            ->filter(fn ($progress): bool => (bool) $progress->is_completed)
             ->filter(fn ($progress): bool => $progress->book_id <= 66 || $includeDeuterocanonical)
             ->map(function ($progress) use ($includeDeuterocanonical) {
                 $bookName = $this->bibleReferenceService->getLocalizedBookName(
@@ -502,15 +503,17 @@ class AchievementService
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function testamentCompletionCandidates(User $user): Collection
+    private function testamentCompletionCandidates(User $user, ?Collection $bookProgress = null, ?bool $includeDeuterocanonical = null): Collection
     {
+        $includeDeuterocanonical ??= $user->includesDeuterocanonicalBooks();
+
         return collect([
             'old' => 'Old Testament',
             'new' => 'New Testament',
             'deuterocanonical' => 'Deuterocanonical books',
         ])
-            ->filter(fn (string $label, string $testament): bool => $testament !== 'deuterocanonical' || $user->includesDeuterocanonicalBooks())
-            ->filter(fn (string $label, string $testament): bool => $this->isTestamentCompleted($user, $testament))
+            ->filter(fn (string $label, string $testament): bool => $testament !== 'deuterocanonical' || $includeDeuterocanonical)
+            ->filter(fn (string $label, string $testament): bool => $this->isTestamentCompleted($user, $testament, $bookProgress, $includeDeuterocanonical))
             ->map(function (string $label, string $testament) {
                 return $this->candidate('testament_completed', "testament:{$testament}", [
                     'testament' => $testament,
@@ -523,16 +526,16 @@ class AchievementService
             ->values();
     }
 
-    private function isTestamentCompleted(User $user, string $testament): bool
+    private function isTestamentCompleted(User $user, string $testament, ?Collection $bookProgress = null, ?bool $includeDeuterocanonical = null): bool
     {
-        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
+        $includeDeuterocanonical ??= $user->includesDeuterocanonicalBooks();
         $books = collect($this->bibleReferenceService->listBibleBooks($testament, includeDeuterocanonical: $includeDeuterocanonical));
 
         if ($books->isEmpty()) {
             return false;
         }
 
-        $progress = $user->bookProgress()->get()->keyBy('book_id');
+        $progress = $bookProgress ?? $user->bookProgress()->get()->keyBy('book_id');
 
         return $books->every(function (array $book) use ($progress): bool {
             $bookProgress = $progress->get($book['id']);
@@ -607,14 +610,16 @@ class AchievementService
     /**
      * @return array{percentage: float, chapters_read: int, total_chapters: int}
      */
-    private function bibleProgress(User $user): array
+    private function bibleProgress(User $user, ?Collection $bookProgress = null, ?bool $includeDeuterocanonical = null): array
     {
-        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
+        $includeDeuterocanonical ??= $user->includesDeuterocanonicalBooks();
         $books = collect($this->bibleReferenceService->listBibleBooks(includeDeuterocanonical: $includeDeuterocanonical))
             ->keyBy('id');
-        $progress = $user->bookProgress()
-            ->whereIn('book_id', $books->keys()->all())
-            ->get();
+        $progress = $bookProgress
+            ? $bookProgress->only($books->keys()->all())
+            : $user->bookProgress()
+                ->whereIn('book_id', $books->keys()->all())
+                ->get();
 
         $chaptersRead = $progress->sum(function ($bookProgress) use ($books): int {
             $book = $books->get($bookProgress->book_id);
@@ -721,8 +726,9 @@ class AchievementService
             ->map(fn (UserAchievement $achievement): string => $achievement->achievement_key.'|'.$achievement->context_key)
             ->flip();
         $definitions = $this->definitions();
-        $readingDays = $this->readingDates($user)->count();
-        $longestStreak = $this->longestStreak($this->readingDates($user));
+        $readingDates = $this->readingDates($user);
+        $readingDays = $readingDates->count();
+        $longestStreak = $this->longestStreak($readingDates);
         $bibleProgress = $this->bibleProgress($user);
 
         $locked = collect([
