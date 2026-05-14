@@ -33,6 +33,36 @@ function achievement_log_reading(User $user, string $date, int $chapter): void
     ]);
 }
 
+function achievementLogConsecutiveReadings(User $user, int $days, int $firstChapter = 1): void
+{
+    foreach (range(0, $days - 1) as $offset) {
+        achievement_log_reading($user, today()->subDays($days - 1 - $offset)->toDateString(), $firstChapter + $offset);
+    }
+}
+
+function achievementExpectDashboardMilestone(
+    User $user,
+    string $achievementKey,
+    string $displayName,
+    int $current,
+    int $target,
+    ?string $contextKey = null
+): void {
+    $milestone = app(AchievementService::class)->getDashboardMilestone($user)['milestone'];
+    $expected = [
+        'achievement_key' => $achievementKey,
+        'display_name' => $displayName,
+        'current' => $current,
+        'target' => $target,
+    ];
+
+    if ($contextKey !== null) {
+        $expected['context_key'] = $contextKey;
+    }
+
+    expect($milestone)->toMatchArray($expected);
+}
+
 function achievement_progress(User $user, int $bookId, string $bookName, int $totalChapters, array $chaptersRead): BookProgress
 {
     return BookProgress::factory()->for($user)->create([
@@ -269,15 +299,36 @@ it('chooses a nearly finished book over low progress catalog goals', function ()
     achievement_log_reading($user, '2026-04-01', 1);
     achievement_progress($user, 43, 'John', 21, array_values(array_diff(range(1, 21), [20, 21])));
 
-    $milestone = app(AchievementService::class)->getDashboardMilestone($user)['milestone'];
+    achievementExpectDashboardMilestone($user, 'book_completed', 'Finish John', 19, 21, 'book:43');
+});
 
-    expect($milestone)->toMatchArray([
-        'achievement_key' => 'book_completed',
-        'context_key' => 'book:43',
-        'display_name' => 'Finish John',
-        'current' => 19,
-        'target' => 21,
-    ]);
+it('chooses a one chapter book goal over a far away yearly streak milestone', function () {
+    $user = User::factory()->create();
+    achievementLogConsecutiveReadings($user, 112);
+    achievement_progress($user, 15, 'Ezra', 10, range(1, 9));
+
+    app(AchievementService::class)->evaluateAndAward($user);
+
+    achievementExpectDashboardMilestone($user, 'book_completed', 'Finish Ezra', 9, 10, 'book:15');
+});
+
+it('keeps a near streak threshold eligible when no closer book goal exists', function () {
+    $user = User::factory()->create();
+    achievementLogConsecutiveReadings($user, 98);
+
+    app(AchievementService::class)->evaluateAndAward($user);
+
+    achievementExpectDashboardMilestone($user, 'reading_streak_100', '100-day reading streak', 98, 100);
+});
+
+it('chooses a nearer streak threshold over a less close book goal', function () {
+    $user = User::factory()->create();
+    achievementLogConsecutiveReadings($user, 99);
+    achievement_progress($user, 43, 'John', 21, range(1, 16));
+
+    app(AchievementService::class)->evaluateAndAward($user);
+
+    achievementExpectDashboardMilestone($user, 'reading_streak_100', '100-day reading streak', 99, 100);
 });
 
 it('chooses Bible progress when it is the strongest live milestone', function () {
