@@ -26,7 +26,7 @@ it('renders announcement index seo directives for guests', function () {
 });
 
 it('renders announcement article seo directives and a body-first description for guests', function () {
-    Carbon::setTestNow(Carbon::create(2026, 5, 14, 9, 0, 0));
+    Carbon::setTestNow(Carbon::create(2026, 5, 15, 9, 0, 0));
 
     $this->seed(ReleaseAnnouncementsSeeder::class);
 
@@ -71,7 +71,7 @@ it('keeps scheduled announcements hidden from public lists and notifications unt
         ->assertOk()
         ->assertDontSee($announcement->title);
 
-    Carbon::setTestNow(Carbon::create(2026, 5, 14, 8, 0, 0));
+    Carbon::setTestNow(Carbon::create(2026, 5, 15, 8, 0, 0));
 
     $this->get(route('announcements.index'))
         ->assertOk()
