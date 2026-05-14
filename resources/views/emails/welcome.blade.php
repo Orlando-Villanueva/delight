@@ -42,7 +42,7 @@
             <span class="card-title" style="color: #2563eb;">Your Dashboard</span>
         </div>
         <p class="card-text">
-            View your current streak, weekly journey progress, and access all your reading tools in one place.
+            View your current streak, next milestone, achievements, and all your reading tools in one place.
         </p>
     </a>
 </div>
