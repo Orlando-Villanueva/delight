@@ -64,3 +64,21 @@ it('prefers a dedicated social image for social metadata', function () {
     $response->assertSee('property="twitter:image" content="'.asset(SOCIAL_IMAGE_PATH).'"', false);
     $response->assertSee('"image": "'.asset(SOCIAL_IMAGE_PATH).'"', false);
 });
+
+it('styles announcement body images with rounded article figure treatment', function () {
+    $announcement = Announcement::create([
+        'title' => 'Image Body Feature',
+        'slug' => 'image-body-feature',
+        'content' => '![Body image](/images/social-article.png)',
+        'type' => 'info',
+        'starts_at' => now()->subMinute(),
+    ]);
+
+    $response = $this->get(route('announcements.show', $announcement->slug));
+
+    $response->assertOk()
+        ->assertSee('prose-img:rounded-xl', false)
+        ->assertSee('prose-img:border-gray-200', false)
+        ->assertDontSee('prose-img:bg-white', false)
+        ->assertSee('<img src="/images/social-article.png" alt="Body image" />', false);
+});
