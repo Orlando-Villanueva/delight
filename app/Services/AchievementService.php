@@ -15,6 +15,13 @@ class AchievementService
 
     private const array STREAK_THRESHOLDS = [7, 30, 100, 365];
 
+    private const array DASHBOARD_STREAK_WINDOWS = [
+        7 => 7,
+        30 => 7,
+        100 => 7,
+        365 => 18,
+    ];
+
     private const array BIBLE_PROGRESS_THRESHOLDS = [25, 50, 75, 100];
 
     public function __construct(
@@ -302,7 +309,7 @@ class AchievementService
                 style: $book['style'],
                 current: $book['chapters_read'],
                 target: $book['total_chapters'],
-                priority: 30,
+                priority: 5,
                 sortOrder: 100 + (int) $book['book_id']
             )));
 
@@ -329,14 +336,14 @@ class AchievementService
             ->sort(function (array $a, array $b): int {
                 return [
                     $a['priority'],
-                    -$a['progress_percent'],
                     $a['remaining'],
+                    -$a['progress_percent'],
                     $a['sort_order'],
                     $a['display_name'],
                 ] <=> [
                     $b['priority'],
-                    -$b['progress_percent'],
                     $b['remaining'],
+                    -$b['progress_percent'],
                     $b['sort_order'],
                     $b['display_name'],
                 ];
@@ -790,6 +797,13 @@ class AchievementService
 
             if ($earnedContexts->has($key.'|'.$contextKey)) {
                 continue;
+            }
+
+            $remaining = $threshold - $currentStreak;
+            $window = self::DASHBOARD_STREAK_WINDOWS[$threshold] ?? 7;
+
+            if ($remaining > $window) {
+                return null;
             }
 
             $definition = $this->definitions()[$key];

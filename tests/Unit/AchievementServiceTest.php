@@ -280,6 +280,51 @@ it('chooses a nearly finished book over low progress catalog goals', function ()
     ]);
 });
 
+it('chooses a one chapter book goal over a far away yearly streak milestone', function () {
+    $user = User::factory()->create();
+
+    foreach (range(0, 99) as $offset) {
+        achievement_log_reading($user, Carbon::parse('2025-12-24')->addDays($offset)->toDateString(), $offset + 1);
+    }
+
+    foreach (range(0, 11) as $offset) {
+        achievement_log_reading($user, today()->subDays(11 - $offset)->toDateString(), $offset + 101);
+    }
+
+    achievement_progress($user, 15, 'Ezra', 10, range(1, 9));
+
+    app(AchievementService::class)->evaluateAndAward($user);
+
+    $milestone = app(AchievementService::class)->getDashboardMilestone($user)['milestone'];
+
+    expect($milestone)->toMatchArray([
+        'achievement_key' => 'book_completed',
+        'context_key' => 'book:15',
+        'display_name' => 'Finish Ezra',
+        'current' => 9,
+        'target' => 10,
+    ]);
+});
+
+it('keeps a near streak threshold eligible when no closer book goal exists', function () {
+    $user = User::factory()->create();
+
+    foreach (range(0, 97) as $offset) {
+        achievement_log_reading($user, today()->subDays(97 - $offset)->toDateString(), $offset + 1);
+    }
+
+    app(AchievementService::class)->evaluateAndAward($user);
+
+    $milestone = app(AchievementService::class)->getDashboardMilestone($user)['milestone'];
+
+    expect($milestone)->toMatchArray([
+        'achievement_key' => 'reading_streak_100',
+        'display_name' => '100-day reading streak',
+        'current' => 98,
+        'target' => 100,
+    ]);
+});
+
 it('chooses Bible progress when it is the strongest live milestone', function () {
     $user = User::factory()->create();
     achievement_log_reading($user, '2026-04-01', 1);
