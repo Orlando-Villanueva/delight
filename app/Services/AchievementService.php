@@ -260,7 +260,6 @@ class AchievementService
         $earnedContexts = $this->earnedContextLookup($earned);
         $candidates = collect();
         $currentStreak = $this->currentStreak($readingDates);
-        $longestStreak = $this->longestStreak($readingDates);
         $bibleProgress = $this->bibleProgress($user);
 
         $streakMilestone = $this->nextStreakDashboardMilestone($currentStreak, $earnedContexts);
