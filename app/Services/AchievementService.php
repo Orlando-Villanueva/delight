@@ -309,7 +309,7 @@ class AchievementService
                 style: $book['style'],
                 current: $book['chapters_read'],
                 target: $book['total_chapters'],
-                priority: 5,
+                priority: 10,
                 sortOrder: 100 + (int) $book['book_id']
             )));
 
