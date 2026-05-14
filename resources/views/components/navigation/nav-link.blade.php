@@ -28,7 +28,7 @@
     {{-- Mobile Bottom Bar Style --}}
     <button type="button" hx-get="{{ $finalUrl }}" hx-target="#page-container" hx-swap="innerHTML"
         hx-push-url="true"
-        {{ $attributes->merge(['class' => 'inline-flex flex-col items-center justify-center px-5 active:bg-gray-100/50 dark:active:bg-gray-800/50 group transition-colors']) }}>
+        {{ $attributes->merge(['class' => 'inline-flex flex-col items-center justify-center px-3 sm:px-5 active:bg-gray-100/50 dark:active:bg-gray-800/50 group transition-colors']) }}>
         <svg class="w-6 h-6 text-gray-600 dark:text-gray-400 group-active:text-gray-800 dark:group-active:text-gray-200 transition-colors"
             aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
             viewBox="0 0 24 24">

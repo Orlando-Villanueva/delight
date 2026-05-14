@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /dashboard
+Disallow: /achievements
 Disallow: /logs
 Disallow: /login
 Disallow: /register

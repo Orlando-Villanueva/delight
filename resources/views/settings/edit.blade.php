@@ -1,11 +1,16 @@
 @extends('layouts.authenticated')
 
 @section('page-title', 'Settings')
-@section('page-subtitle', 'Manage your account preferences')
+@section('page-subtitle', 'Manage your reading preferences.')
 
 @section('content')
     @fragment('page-content')
-        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <x-ui.page-shell width="medium">
+            <x-ui.page-header
+                title="Settings"
+                subtitle="Manage your reading preferences."
+            />
+
             <form method="POST" action="{{ route('settings.update') }}"
                 class="space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 @csrf
@@ -43,6 +48,6 @@
                     </x-ui.button>
                 </div>
             </form>
-        </div>
+        </x-ui.page-shell>
     @endfragment
 @endsection

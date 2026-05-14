@@ -1,15 +1,18 @@
 @extends('layouts.authenticated')
 
-@section('page-title', 'Send Feedback')
-@section('page-subtitle', 'Help us improve Delight')
+@section('page-title', 'Feedback')
+@section('page-subtitle', 'Share bugs, ideas, or anything that would make Delight better.')
 
 @section('content')
     @fragment('page-content')
-        <div class="flex-1">
-            <div class="max-w-2xl mx-auto sm:px-20 lg:px-32">
-                @include('partials.feedback-form')
-            </div>
-        </div>
+        <x-ui.page-shell width="medium">
+            <x-ui.page-header
+                title="Feedback"
+                subtitle="Share bugs, ideas, or anything that would make Delight better."
+            />
+
+            @include('partials.feedback-form')
+        </x-ui.page-shell>
     @endfragment
 
     {{-- For successful submissions, we provide the success message as a fragment --}}

@@ -7,8 +7,10 @@ use App\Models\ReadingPlan;
 use App\Models\ReadingPlanDayCompletion;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
+use App\Services\AchievementService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery\MockInterface;
 
 uses(RefreshDatabase::class);
 
@@ -62,6 +64,8 @@ describe('Reading Plans Index', function () {
             ->get(route('plans.index'));
 
         $response->assertOk();
+        $response->assertSee('Reading Plans');
+        $response->assertSee('Structured guides to help you read the Bible consistently');
         $response->assertSee('Test Reading Plan');
         $response->assertSee('A test plan');
     });
@@ -275,6 +279,36 @@ describe('Chapter Logging', function () {
         expect(ReadingPlanDayCompletion::where('reading_plan_subscription_id', $this->subscription->id)
             ->where('reading_plan_day', 1)
             ->count())->toBe(3);
+    });
+
+    it('evaluates achievements once when logging all chapters at once', function () {
+        $this->mock(AchievementService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('evaluateAndAward')
+                ->once()
+                ->andReturn([
+                    'awarded' => 0,
+                    'skipped_duplicates' => 0,
+                    'would_award' => 0,
+                    'candidates' => collect(),
+                    'awarded_achievements' => collect(),
+                ]);
+            $mock->shouldReceive('getCelebrationPayload')
+                ->zeroOrMoreTimes()
+                ->andReturn([
+                    'earned' => [],
+                    'progress' => [],
+                    'record' => null,
+                    'reading' => [],
+                ]);
+        });
+
+        $this->actingAs($this->user)
+            ->post(route('plans.logAll', $this->plan), [
+                'day' => 1,
+            ])
+            ->assertOk();
+
+        expect(ReadingLog::where('user_id', $this->user->id)->count())->toBe(3);
     });
 
     it('it_can_apply_todays_readings_without_creating_new_logs', function () {

@@ -1,10 +1,5 @@
 <div id="feedback-form-container"
     class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
-    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">We value your feedback</h2>
-    <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
-        Please let us know what you think, report a bug, or suggest a feature.
-    </p>
-
     <form action="{{ route('feedback.store') }}" method="POST" class="space-y-6" hx-post="{{ route('feedback.store') }}"
         hx-target="#feedback-form-container" hx-swap="outerHTML">
         @csrf

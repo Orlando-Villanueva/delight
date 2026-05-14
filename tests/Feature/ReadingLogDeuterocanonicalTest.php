@@ -3,7 +3,7 @@
 use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\ReadingLogService;
-use App\Services\WeeklyGoalService;
+use App\Services\UserStatisticsService;
 use Carbon\Carbon;
 
 const TOBIT_CHAPTER_ONE = 'Tobit 1';
@@ -98,7 +98,7 @@ it('keeps existing deuterocanonical logs visible and counted after disabling', f
         ->assertSee(TOBIT_CHAPTER_ONE);
 
     expect(app(ReadingLogService::class)->calculateCurrentStreak($user))->toBe(1)
-        ->and(app(WeeklyGoalService::class)->getThisWeekReadingDays($user))->toBe(1);
+        ->and(app(UserStatisticsService::class)->getDashboardStatistics($user)['reading_summary']['this_week_days'])->toBe(1);
 
     Carbon::setTestNow();
 });

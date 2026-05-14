@@ -25,6 +25,8 @@ test('welcome email renders with new styles', function () {
     // Check for new sections
     expect($html)->toContain('Log Your Reading');
     expect($html)->toContain('Your Dashboard');
+    expect($html)->toContain('next milestone, achievements');
+    expect($html)->not->toContain('weekly journey progress');
 });
 
 test('password reset email renders with new styles', function () {
@@ -45,16 +47,6 @@ test('pwa announcement email renders with new styles', function () {
     $html = $view->render();
 
     expect($html)->toContain('Great news, Test User');
-    expect($html)->toContain('class="alert alert-success"');
-    expect($html)->toContain('class="card"');
-    expect($html)->not->toContain('class="notice"');
-});
-
-test('weekly target email renders with new styles', function () {
-    $view = View::make('emails.weekly-target-announcement');
-    $html = $view->render();
-
-    expect($html)->toContain('Introducing Weekly Targets');
     expect($html)->toContain('class="alert alert-success"');
     expect($html)->toContain('class="card"');
     expect($html)->not->toContain('class="notice"');

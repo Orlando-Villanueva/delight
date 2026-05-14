@@ -1,3 +1,16 @@
+@php
+    $versionedAsset = function (string $path): string {
+        $absolutePath = public_path($path);
+        $url = asset($path);
+
+        return file_exists($absolutePath) ? $url.'?v='.filemtime($absolutePath) : $url;
+    };
+
+    $desktopScreenshot = $versionedAsset('images/screenshots/desktop-v3.png');
+    $mobileScreenshot = $versionedAsset('images/screenshots/mobile-v3.png');
+    $linkPreviewScreenshot = $versionedAsset('images/screenshots/link-preview.png');
+@endphp
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -9,7 +22,7 @@
     <!-- SEO Meta Tags -->
     <title>{{ config('app.name', 'Delight') }} - Bible Reading Tracker</title>
     <meta name="description"
-        content="Track your Bible reading with streaks, progress visualization, and structured reading plans. Build lasting habits with gentle motivation and a plan to guide your journey.">
+        content="Track your Bible reading with streaks, progress visualization, structured reading plans, next milestone guidance, and permanent achievement rewards.">
     <meta name="keywords"
         content="bible reading plan, bible reading plan app, bible tracking app, bible reading tracker, bible habit tracker, bible reading accountability, scripture reading app, daily bible reading, bible progress tracker">
     <meta name="author" content="Delight">
@@ -30,18 +43,18 @@
     <!-- Open Graph Meta Tags -->
     <meta property="og:title" content="Delight - Bible Reading Tracker for Consistency">
     <meta property="og:description"
-        content="Track your Bible reading with streaks and structured reading plans. Follow a guided plan or log freely—stay consistent with gentle motivation.">
+        content="Track your Bible reading with streaks, structured plans, next milestone guidance, and permanent achievement rewards. Follow a plan or log freely with gentle motivation.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ config('app.url') }}">
-    <meta property="og:image" content="{{ asset('images/screenshots/link-preview.png') }}">
+    <meta property="og:image" content="{{ $linkPreviewScreenshot }}">
     <meta property="og:site_name" content="Delight">
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Delight - Bible Tracking App for Consistency">
     <meta name="twitter:description"
-        content="Track Bible reading with streaks, progress visualization, and structured reading plans. Build lasting habits with gentle accountability.">
-    <meta name="twitter:image" content="{{ asset('images/screenshots/link-preview.png') }}">
+        content="Track Bible reading with streaks, progress visualization, structured plans, next milestone guidance, and permanent achievement rewards.">
+    <meta name="twitter:image" content="{{ $linkPreviewScreenshot }}">
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
@@ -54,8 +67,8 @@
     @vite(['resources/css/app.css'])
 
     <!-- Preload critical hero image for faster LCP (desktop only) -->
-    <link rel="preload" as="image" href="{{ asset('images/screenshots/desktop-v3.png') }}"
-        imagesrcset="{{ asset('images/screenshots/desktop-v3.png') }} 1x" fetchpriority="high"
+    <link rel="preload" as="image" href="{{ $desktopScreenshot }}"
+        imagesrcset="{{ $desktopScreenshot }} 1x" fetchpriority="high"
         media="(min-width: 1024px)">
 
     <!-- Structured Data -->
@@ -64,7 +77,7 @@
             "@@context": "https://schema.org",
             "@@type": "WebApplication",
             "name": "Delight",
-            "description": "Track your Bible reading with streaks, progress visualization, and structured reading plans. Build lasting habits with a guided plan to help you stay on track.",
+            "description": "Track your Bible reading with streaks, progress visualization, structured reading plans, next milestone guidance, and permanent achievement rewards.",
             "url": "{{ config('app.url') }}",
             "applicationCategory": "LifestyleApplication",
             "operatingSystem": "Web Browser",
@@ -86,7 +99,7 @@
                 "name": "Delight"
             },
             "keywords": "bible reading plan, bible reading plan app, bible tracking app, bible reading tracker, bible habit tracker",
-            "screenshot": "{{ asset('images/screenshots/desktop-v3.png') }}",
+            "screenshot": "{{ $desktopScreenshot }}",
             "featureList": [
                 "Reading Plans",
                 "Daily Streak Tracking",
@@ -94,7 +107,8 @@
                 "Book Completion Grid",
                 "Optional Catholic 73-Book Support",
                 "Reading Statistics",
-                "Weekly Journey"
+                "Permanent Achievement Shelf",
+                "Next Milestone Guidance"
             ]
         }
     </script>
@@ -159,8 +173,8 @@
                             Keep Every Bible Reading Visible, Stay on Track
                         </h1>
                         <p class="text-xl text-gray-600 mb-6 leading-relaxed">
-                            Delight logs each chapter in seconds, keeps your streaks and weekly momentum in view, and
-                            makes your progress obvious—or follow a structured reading plan to guide your journey.
+                            Delight logs each chapter in seconds, keeps your current streak and next milestone in view,
+                            and makes permanent achievements feel earned without overwhelming the habit.
                         </p>
 
                         <!-- Primary CTA -->
@@ -182,9 +196,9 @@
                         <!-- Desktop Screenshot - Hidden on mobile -->
                         <div class="hidden lg:block bg-white rounded-2xl shadow-2xl p-0 transform rotate-1">
                             <div class="rounded-lg overflow-hidden">
-                                <img src="{{ asset('images/screenshots/desktop-v3.png') }}"
-                                    alt="Delight desktop dashboard showing weekly journey, streak tracker, calendar, and reading progress grid"
-                                    class="w-full h-auto max-w-full" width="3456" height="2168" loading="eager"
+                                <img src="{{ $desktopScreenshot }}"
+                                    alt="Delight desktop dashboard showing daily streak, next milestone, summary stats, calendar, and reading progress grid"
+                                    class="w-full h-auto max-w-full" width="3456" height="1924" loading="eager"
                                     fetchpriority="high" decoding="async" />
                             </div>
                         </div>
@@ -193,9 +207,9 @@
                         <div class="lg:hidden flex justify-center mt-8">
                             <div class="bg-white rounded-2xl shadow-2xl p-0 max-w-xs w-full">
                                 <div class="rounded-lg overflow-hidden">
-                                    <img src="{{ asset('images/screenshots/mobile-v3.png') }}"
-                                        alt="Delight mobile dashboard featuring weekly journey and daily streak widgets with reading stats"
-                                        class="w-full h-auto" width="864" height="1866" loading="lazy"
+                                    <img src="{{ $mobileScreenshot }}"
+                                        alt="Delight mobile dashboard featuring daily streak, next milestone, reading stats, and bottom navigation"
+                                        class="w-full h-auto" width="726" height="1570" loading="lazy"
                                         decoding="async" />
                                 </div>
                             </div>
@@ -205,9 +219,9 @@
                         <div
                             class="hidden lg:block absolute -bottom-6 -right-6 w-36 sm:w-40 lg:w-48 bg-white rounded-xl shadow-xl p-0 transform rotate-6">
                             <div class="rounded-lg overflow-hidden">
-                                <img src="{{ asset('images/screenshots/mobile-v3.png') }}"
-                                    alt="Delight mobile dashboard featuring weekly journey and daily streak widgets with reading stats"
-                                    class="w-full h-auto max-w-full" width="864" height="1866" loading="lazy"
+                                <img src="{{ $mobileScreenshot }}"
+                                    alt="Delight mobile dashboard featuring daily streak, next milestone, reading stats, and bottom navigation"
+                                    class="w-full h-auto max-w-full" width="726" height="1570" loading="lazy"
                                     decoding="async" fetchpriority="low" />
                             </div>
                         </div>
@@ -229,12 +243,11 @@
                 </div>
 
                 <!-- Features Grid -->
-                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8" role="list"
+                <ul class="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
                     aria-label="Key features of Delight">
                     <!-- Feature 1: Daily Streak Tracking (Featured) -->
-                    <div role="listitem">
-                        <x-ui.card
-                            class="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100 shadow-lg/20 hover:shadow-xl transition-shadow h-full">
+                    <li class="order-2">
+                        <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center justify-between gap-3">
                                     <div class="flex items-center gap-3">
@@ -251,7 +264,7 @@
                                         class="text-[11px] font-semibold text-orange-700 bg-white/70 border border-orange-100 px-2 py-1 rounded-full">Core
                                         habit</span>
                                 </div>
-                                <p class="text-orange-700 text-xs">Watch consistency grow</p>
+                                <p class="text-gray-400 text-xs">Watch consistency grow</p>
 
                                 <!-- Mini preview: mirrors streak-counter component states -->
                                 <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2 shadow-sm"
@@ -272,35 +285,30 @@
                                     </div>
                                 </div>
 
-                                <p class="text-orange-800 leading-relaxed">
+                                <p class="text-gray-600 leading-relaxed">
                                     Build momentum with daily reading streaks. See your current and longest streaks to
                                     stay motivated and celebrate consistency.
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
-                    </div>
+                    </li>
 
                     <!-- Feature 2: Reading Plans (Featured) -->
-                    <div role="listitem">
-                        <x-ui.card
-                            class="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 shadow-lg/20 hover:shadow-xl transition-shadow h-full">
+                    <li class="order-6">
+                        <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content class="space-y-3">
-                                <div class="flex items-center justify-between gap-3">
-                                    <div class="flex items-center gap-3">
-                                        <span class="shrink-0 text-indigo-500" aria-hidden="true">
-                                            <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" fill="none"
-                                                viewBox="0 0 24 24">
-                                                <path stroke="currentColor" stroke-linecap="round"
-                                                    stroke-linejoin="round" stroke-width="2"
-                                                    d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" />
-                                            </svg>
-                                        </span>
-                                        <x-ui.card-title class="mb-0">Reading Plans</x-ui.card-title>
-                                    </div>
-                                    <span
-                                        class="text-[11px] font-semibold text-indigo-700 bg-white/70 border border-indigo-100 px-2 py-1 rounded-full">New</span>
+                                <div class="flex items-center gap-3">
+                                    <span class="shrink-0 text-indigo-500" aria-hidden="true">
+                                        <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" fill="none"
+                                            viewBox="0 0 24 24">
+                                            <path stroke="currentColor" stroke-linecap="round"
+                                                stroke-linejoin="round" stroke-width="2"
+                                                d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" />
+                                        </svg>
+                                    </span>
+                                    <x-ui.card-title class="mb-0">Reading Plans</x-ui.card-title>
                                 </div>
-                                <p class="text-indigo-700 text-xs">Structured daily guidance</p>
+                                <p class="text-gray-400 text-xs">Structured daily guidance</p>
 
                                 <!-- Mini preview: reading plan progress -->
                                 <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2 shadow-sm"
@@ -325,16 +333,16 @@
                                     </div>
                                 </div>
 
-                                <p class="text-indigo-800 leading-relaxed">
+                                <p class="text-gray-600 leading-relaxed">
                                     Follow structured reading plans to guide your Bible journey. Track daily
                                     progress, mark chapters complete, and never lose your place.
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
-                    </div>
+                    </li>
 
                     <!-- Feature 3: Daily Reading Log -->
-                    <div role="listitem">
+                    <li class="order-1">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center gap-3">
@@ -375,10 +383,10 @@
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
-                    </div>
+                    </li>
 
                     <!-- Feature 4: Book Completion Grid -->
-                    <div role="listitem">
+                    <li class="order-4">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center gap-3">
@@ -427,124 +435,120 @@
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
-                    </div>
+                    </li>
 
-                    <!-- Feature 5: Reading Statistics -->
-                    <div role="listitem">
-                        <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
+                    <!-- Feature 5: Permanent Achievements -->
+                    <li class="order-5">
+                        <x-ui.card
+                            class="bg-gradient-to-br from-amber-50 to-white border border-amber-100 shadow-lg/20 hover:shadow-xl transition-shadow h-full">
+                            <x-ui.card-content class="space-y-3">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="flex items-center gap-3">
+                                        <span class="shrink-0 text-amber-600" aria-hidden="true">
+                                            <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" width="24"
+                                                height="24" fill="none" viewBox="0 0 24 24">
+                                                <circle cx="12" cy="8" r="6" stroke="currentColor" stroke-width="2" />
+                                                <path stroke="currentColor" stroke-linecap="round"
+                                                    stroke-linejoin="round" stroke-width="2"
+                                                    d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+                                            </svg>
+                                        </span>
+                                        <x-ui.card-title class="mb-0">Permanent Achievements</x-ui.card-title>
+                                    </div>
+                                    <span
+                                        class="text-[11px] font-semibold text-amber-700 bg-white/70 border border-amber-100 px-2 py-1 rounded-full">New</span>
+                                </div>
+                                <p class="text-amber-700 text-xs">A trophy shelf that never rewinds</p>
+
+                                <!-- Mini preview: mirrors the durable achievement shelf categories -->
+                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-3 shadow-sm"
+                                    aria-label="Preview of permanent achievements">
+                                    <div class="grid grid-cols-3 gap-2">
+                                        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3 text-center">
+                                            <img src="{{ asset('images/achievements/badge-streak.png') }}" alt=""
+                                                class="mx-auto h-10 w-10" loading="lazy" decoding="async">
+                                            <span class="mt-2 block text-xs font-semibold text-gray-700">Streaks</span>
+                                            <span class="mt-0.5 block text-[11px] text-gray-500">7, 30, 100</span>
+                                        </div>
+                                        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3 text-center">
+                                            <img src="{{ asset('images/achievements/badge-library.png') }}" alt=""
+                                                class="mx-auto h-10 w-10" loading="lazy" decoding="async">
+                                            <span class="mt-2 block text-xs font-semibold text-gray-700">Books</span>
+                                            <span class="mt-0.5 block text-[11px] text-gray-500">Completed</span>
+                                        </div>
+                                        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3 text-center">
+                                            <img src="{{ asset('images/achievements/badge-progress.png') }}" alt=""
+                                                class="mx-auto h-10 w-10" loading="lazy" decoding="async">
+                                            <span class="mt-2 block text-xs font-semibold text-gray-700">Progress</span>
+                                            <span class="mt-0.5 block text-[11px] text-gray-500">25-100%</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p class="text-gray-600 leading-relaxed">
+                                    Unlock lasting milestones for streak thresholds, completed books, and Bible
+                                    progress. Earned achievements stay on your shelf even as live goals change.
+                                </p>
+                            </x-ui.card-content>
+                        </x-ui.card>
+                    </li>
+
+                    <!-- Feature 6: Next Milestone Widget -->
+                    <li class="order-3">
+                        <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full flex flex-col">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center gap-3">
                                     <span class="shrink-0 text-gray-800" aria-hidden="true">
                                         <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" width="24"
-                                            height="24" fill="none" viewBox="0 0 24 24">
-                                            <path stroke="currentColor" stroke-linecap="round"
-                                                stroke-linejoin="round" stroke-width="2"
-                                                d="M3 15v4m6-6v6m6-4v4m6-6v6M3 11l6-5 6 5 5.5-5.5" />
+                                            height="24" fill="currentColor" viewBox="0 0 24 24">
+                                            <path fill-rule="evenodd"
+                                                d="M12 2a1 1 0 0 1 .894.553l2.447 4.96 5.473.795a1 1 0 0 1 .554 1.706l-3.96 3.86.935 5.451a1 1 0 0 1-1.451 1.054L12 17.807l-4.892 2.572a1 1 0 0 1-1.451-1.054l.935-5.451-3.96-3.86a1 1 0 0 1 .554-1.706l5.473-.795 2.447-4.96A1 1 0 0 1 12 2Z"
+                                                clip-rule="evenodd" />
                                         </svg>
                                     </span>
-                                    <x-ui.card-title class="mb-0">Reading Statistics</x-ui.card-title>
+                                    <x-ui.card-title class="mb-0">Next Milestone</x-ui.card-title>
                                 </div>
-                                <p class="text-gray-400 text-xs">Celebrate every milestone</p>
+                                <p class="text-gray-400 text-xs">Know what to aim for next</p>
 
-                                <!-- Mini preview: mirrors summary stats + dual sparklines -->
-                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-3 shadow-sm"
-                                    aria-label="Preview of reading statistics">
-                                    <div class="grid grid-cols-2 gap-2 text-sm text-gray-800">
-                                        <div class="flex flex-col gap-1">
-                                            <span class="text-xs text-gray-500">Bible progress</span>
-                                            <span class="text-base font-semibold">25.6%</span>
-                                        </div>
-                                        <div class="flex flex-col items-end gap-1">
-                                            <span class="text-xs text-gray-500">Avg/day</span>
-                                            <span class="text-base font-semibold">3.4</span>
-                                        </div>
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <span
-                                            class="h-10 w-full rounded-lg bg-gradient-to-r from-green-100 to-green-200 border border-green-200"></span>
-                                        <span
-                                            class="h-10 w-full rounded-lg bg-gradient-to-r from-blue-100 to-blue-200 border border-blue-200"></span>
-                                    </div>
-                                </div>
-
-                                <p class="text-gray-600 leading-relaxed">
-                                    See your reading journey in numbers: total days read, chapters completed, overall
-                                    Bible progress, and reading velocity. Track your transformation.
-                                </p>
-                            </x-ui.card-content>
-                        </x-ui.card>
-                    </div>
-
-                    <!-- Feature 6: Weekly Journey Widget -->
-                    <div role="listitem">
-                        <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full flex flex-col">
-                            <x-ui.card-content class="space-y-3">
-                                <div class="flex items-center justify-between gap-3">
-                                    <div class="flex items-center gap-3">
-                                        <span class="shrink-0 text-gray-800" aria-hidden="true">
-                                            <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" width="24"
-                                                height="24" fill="currentColor" viewBox="0 0 24 24">
-                                                <path fill-rule="evenodd"
-                                                    d="M6 5V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v2H3V7a2 2 0 0 1 2-2h1ZM3 19v-8h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Zm5-6a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2H8Z"
-                                                    clip-rule="evenodd" />
-                                            </svg>
-                                        </span>
-                                        <x-ui.card-title class="mb-0">Weekly Journey</x-ui.card-title>
-                                    </div>
-                                    <span
-                                        class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">New</span>
-                                </div>
-                                <p class="text-gray-400 text-xs">See momentum over the week</p>
-
-                                <!-- Compact preview of the widget, styled like the real component -->
+                                <!-- Compact preview of the dashboard milestone card -->
                                 <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2 shadow-sm"
-                                    aria-label="Preview of the Weekly Journey widget">
-                                    <div class="flex items-center justify-between text-sm text-gray-700">
-                                        <span class="font-medium">4 days</span>
-                                        <span class="text-gray-500 text-xs">this week</span>
+                                    aria-label="Preview of the Next Milestone widget">
+                                    <div class="flex items-start gap-3">
+                                        <div
+                                            class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600">
+                                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                aria-hidden="true">
+                                                <path d="M12 7v14" />
+                                                <path
+                                                    d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+                                            </svg>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-semibold text-gray-900">Finish Amos</p>
+                                            <p class="text-xs leading-5 text-gray-500">One chapter completes the book.</p>
+                                        </div>
                                     </div>
-                                    @php
-                                        $dayStates = [
-                                            'complete',
-                                            'complete',
-                                            'complete',
-                                            'today',
-                                            'upcoming',
-                                            'upcoming',
-                                            'upcoming',
-                                        ];
-                                        $dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-                                    @endphp
-                                    <div class="grid grid-cols-7 gap-1" aria-hidden="true">
-                                        @foreach ($dayStates as $index => $state)
-                                            @php
-                                                $stateClasses = [
-                                                    'complete' => 'bg-success-500 border-transparent',
-                                                    'missed' => 'bg-destructive-100 border-destructive-200',
-                                                    'today' =>
-                                                        'bg-gray-200 border-transparent ring-2 ring-primary-400 ring-offset-1 ring-offset-white',
-                                                    'upcoming' => 'bg-gray-200 border-transparent',
-                                                ];
-                                                $barClasses = $stateClasses[$state] ?? $stateClasses['upcoming'];
-                                            @endphp
-                                            <div class="flex flex-col items-center gap-1">
-                                                <span
-                                                    class="w-8 h-4 rounded-sm border {{ $barClasses }} transition-colors"></span>
-                                                <span
-                                                    class="text-[11px] text-gray-500">{{ $dayLabels[$index] }}</span>
-                                            </div>
-                                        @endforeach
+                                    <div class="space-y-1.5">
+                                        <div class="flex items-center justify-between text-xs text-gray-500">
+                                            <span>Progress</span>
+                                            <span>8/9</span>
+                                        </div>
+                                        <div class="h-2 overflow-hidden rounded-full bg-gray-100">
+                                            <div class="h-full w-[89%] rounded-full bg-blue-600"></div>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    See your week at a glance with a simple, visual tracker. Highlight today,
-                                    track completed days, and build steady momentum toward your reading goals.
+                                    See the most useful live goal for your current season: a streak threshold, a nearly
+                                    finished book, or the next Bible progress milestone.
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
-                    </div>
-                </div>
+                    </li>
+                </ul>
             </div>
         </section>
 

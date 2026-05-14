@@ -1,323 +1,357 @@
 @extends('layouts.authenticated')
 
 @section('page-title', 'Log Reading')
-@section('page-subtitle', 'Record your Bible reading progress')
+@section('page-subtitle', 'Record today\'s Bible reading.')
 
 @section('content')
     @fragment('page-content')
-        <div class="flex-1">
-            <div id="main-content">
-                <div class="max-w-2xl mx-auto sm:px-20 lg:px-32">
-                    @fragment('reading-form')
-                        <div id="reading-log-form-container">
-                            @if (isset($isFirstReading) && $isFirstReading)
-                                {{-- First Reading Celebration - replaces form entirely --}}
-                                <x-celebrations.first-reading
-                                    :action="route('logs.create')"
-                                    target="#reading-log-form-container"
-                                    select="#reading-log-form-container"
-                                    button-text="Log Another Reading"
-                                    :show-icon="true"
-                                />
-                            @else
-                                @php
-                                    $oldTestament = collect($books)->where('testament', 'old')->values();
-                                    $newTestament = collect($books)->where('testament', 'new')->values();
-                                    $deuterocanonicalBooks = collect($books)->where('testament', 'deuterocanonical')->values();
+        <x-ui.page-shell width="form" id="main-content">
+            <x-ui.page-header
+                title="Log Reading"
+                subtitle="Record today's Bible reading."
+            />
 
-                                    $initialTestament = 'old';
-                                    $oldBookId = old('book_id');
+            @fragment('reading-form')
+                <div id="reading-log-form-container">
+                    @php
+                        $oldTestament = collect($books)->where('testament', 'old')->values();
+                        $newTestament = collect($books)->where('testament', 'new')->values();
+                        $deuterocanonicalBooks = collect($books)->where('testament', 'deuterocanonical')->values();
 
-                                    if ($oldBookId) {
-                                        if ($newTestament->firstWhere('id', $oldBookId)) {
-                                            $initialTestament = 'new';
-                                        } elseif ($deuterocanonicalBooks->firstWhere('id', $oldBookId)) {
-                                            $initialTestament = 'deuterocanonical';
-                                        }
-                                    }
-                                @endphp
+                        $initialTestament = 'old';
+                        $oldBookId = old('book_id');
 
-                                <form hx-post="{{ route('logs.store') }}" hx-target="#reading-log-form-container" hx-swap="outerHTML"
-                                    class="space-y-6" x-data="readingLogForm({
-                                        initialTestament: '{{ $initialTestament }}',
-                                        initialBookId: '{{ old('book_id') }}',
-                                        books: {
-                                            old: {{ $oldTestament->toJson() }},
-                                            new: {{ $newTestament->toJson() }},
-                                            deuterocanonical: {{ $deuterocanonicalBooks->toJson() }}
-                                        }
-                                    })" x-init="init()">
-                                    @csrf
+                        if ($oldBookId) {
+                            if ($newTestament->firstWhere('id', $oldBookId)) {
+                                $initialTestament = 'new';
+                            } elseif ($deuterocanonicalBooks->firstWhere('id', $oldBookId)) {
+                                $initialTestament = 'deuterocanonical';
+                            }
+                        }
 
-                                    <!-- Date Selection: Today or Yesterday -->
-                                    <fieldset class="space-y-2">
-                                        <legend class="block text-sm font-medium text-gray-700 dark:text-gray-300">When did you
-                                            read?</legend>
-                                        <div class="space-y-3">
-                                            <div class="flex items-center">
-                                                <input type="radio" id="today" name="date_read"
-                                                    value="{{ today()->toDateString() }}"
-                                                    {{ old('date_read', today()->toDateString()) == today()->toDateString() ? 'checked' : '' }}
-                                                    class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700">
-                                                <label for="today"
-                                                    class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    📖 Today ({{ today()->format('M d, Y') }})
-                                                </label>
-                                            </div>
+                        $notesExpanded = filled(old('notes_text')) || (bool) $errors->first('notes_text');
+                    @endphp
 
-                                            @if (isset($allowYesterday) && $allowYesterday)
-                                                <div class="flex items-center">
-                                                    <input type="radio" id="yesterday" name="date_read"
-                                                        value="{{ today()->subDay()->toDateString() }}"
-                                                        {{ old('date_read') == today()->subDay()->toDateString() ? 'checked' : '' }}
-                                                        class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700">
-                                                    <label for="yesterday"
-                                                        class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                        📅 Yesterday ({{ today()->subDay()->format('M d, Y') }}) - <span
-                                                            class="text-gray-500 dark:text-gray-400 italic">I forgot to log
-                                                            it</span>
-                                                    </label>
-                                                </div>
-                                            @elseif(isset($allowYesterday))
-                                                {{-- Show why yesterday is not available --}}
-                                                <div class="flex items-center opacity-50">
-                                                    <input type="radio" id="yesterday-disabled" disabled
-                                                        class="h-4 w-4 text-gray-400 border-gray-300 dark:border-gray-600 cursor-not-allowed">
-                                                    <label for="yesterday-disabled"
-                                                        class="ml-3 block text-sm font-medium text-gray-400 dark:text-gray-500 cursor-not-allowed">
-                                                        📅 Yesterday ({{ today()->subDay()->format('M d, Y') }}) -
-                                                        @if (isset($hasReadYesterday) &&
-                                                                !$hasReadYesterday &&
-                                                                isset($currentStreak) &&
-                                                                $currentStreak > 0 &&
-                                                                isset($hasReadToday) &&
-                                                                !$hasReadToday)
-                                                            <span class="italic">Would break your
-                                                                {{ $currentStreak }}-day streak</span>
-                                                        @else
-                                                            <span class="italic">Already logged</span>
-                                                        @endif
-                                                    </label>
-                                                </div>
-                                            @endif
-                                        </div>
-                                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                            💡 <strong>Grace Period:</strong> You can log today's reading or catch up on
-                                            yesterday if you forgot.
-                                        </div>
-                                    </fieldset>
+                    <form
+                        hx-post="{{ route('logs.store') }}"
+                        hx-target="#reading-log-form-container"
+                        hx-swap="outerHTML"
+                        class="space-y-6"
+                        x-data="readingLogForm({
+                            initialTestament: '{{ $initialTestament }}',
+                            initialBookId: '{{ old('book_id') }}',
+                            initialNotesOpen: @js($notesExpanded),
+                            books: {
+                                old: {{ $oldTestament->toJson() }},
+                                new: {{ $newTestament->toJson() }},
+                                deuterocanonical: {{ $deuterocanonicalBooks->toJson() }}
+                            }
+                        })"
+                        x-init="init()"
+                    >
+                        @csrf
 
-                                    <!-- Bible Book Selection -->
-                                    <div class="space-y-2 max-w-md">
-                                        <label for="book_id" class="form-label">
-                                            📚 Bible Book
+                        @if (isset($allowYesterday) && $allowYesterday)
+                            <fieldset class="space-y-2">
+                                <legend class="text-sm font-medium text-gray-700 dark:text-gray-300">When did you read?</legend>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="flex items-center">
+                                        <input
+                                            type="radio"
+                                            id="yesterday"
+                                            name="date_read"
+                                            value="{{ today()->subDay()->toDateString() }}"
+                                            {{ old('date_read') == today()->subDay()->toDateString() ? 'checked' : '' }}
+                                            class="peer sr-only"
+                                        >
+                                        <label
+                                            for="yesterday"
+                                            class="flex w-full cursor-pointer items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 peer-checked:border-primary-600 peer-checked:bg-primary-50 peer-checked:text-primary-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:peer-checked:border-primary-500 dark:peer-checked:bg-primary-900/30 dark:peer-checked:text-primary-300"
+                                        >
+                                            Yesterday
                                         </label>
-
-                                        <div class="flex relative">
-                                            <!-- Testament Dropdown Button -->
-                                            <button id="testament-button" data-dropdown-toggle="testament-dropdown"
-                                                data-dropdown-placement="bottom-start"
-                                                class="shrink-0 inline-flex items-center py-2 px-4 text-sm font-medium text-center text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-s-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:z-10 dark:focus:ring-primary-600 shadow-sm z-10"
-                                                type="button">
-                                                <span x-text="testamentLabel"></span>
-                                                <svg class="w-2.5 h-2.5 ms-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
-                                                    fill="none" viewBox="0 0 10 6">
-                                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2" d="m1 1 4 4 4-4" />
-                                                </svg>
-                                            </button>
-
-                                            <!-- Testament Dropdown Menu -->
-                                            <div id="testament-dropdown"
-                                                class="z-10 hidden bg-white dark:bg-gray-700 divide-y divide-gray-100 dark:divide-gray-600 rounded-lg shadow w-52">
-                                                <ul class="py-2 text-sm text-gray-700 dark:text-gray-200"
-                                                    aria-labelledby="testament-button">
-                                                    <li>
-                                                        <button type="button" @click="updateTestament('old')"
-                                                            class="inline-flex w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                                            <span class="inline-flex items-center">
-                                                                📜 Old Testament
-                                                            </span>
-                                                        </button>
-                                                    </li>
-                                                    @if ($deuterocanonicalBooks->isNotEmpty())
-                                                        <li>
-                                                            <button type="button" @click="updateTestament('deuterocanonical')"
-                                                                class="inline-flex w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                                                <span class="inline-flex items-center">
-                                                                    📖 Deuterocanonical
-                                                                </span>
-                                                            </button>
-                                                        </li>
-                                                    @endif
-                                                    <li>
-                                                        <button type="button" @click="updateTestament('new')"
-                                                            class="inline-flex w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                                            <span class="inline-flex items-center">
-                                                                ✝️ New Testament
-                                                            </span>
-                                                        </button>
-                                                    </li>
-                                                </ul>
-                                            </div>
-
-                                            <!-- Book Select List -->
-                                            <div class="flex-1 relative focus-within:z-20">
-                                                <select id="book_id" name="book_id" required class="form-input rounded-s-none -ml-px w-full"
-                                                    aria-label="Select Bible book" x-model="selectedBook"
-                                                    @change="updateChapterPlaceholder($event.target.value)">
-                                                    <option value="">Select a book...</option>
-                                                    <template x-for="book in books[testament]" :key="book.id">
-                                                        <option :value="book.id" x-text="book.name"
-                                                            :selected="book.id == selectedBook"></option>
-                                                    </template>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        @if ($errors->first('book_id'))
-                                            <p class="form-error" role="alert">
-                                                {{ $errors->first('book_id') }}
-                                            </p>
-                                        @endif
                                     </div>
 
-                                    <!-- Chapter Input -->
-                                    <div class="max-w-md">
-                                        <div class="grid grid-cols-2 gap-4">
-                                            <x-ui.input name="start_chapter" label="Start Chapter" inputmode="numeric" pattern="[0-9]*"
-                                                x-bind:placeholder="startChapterPlaceholder" :value="old('start_chapter')" required />
-
-                                            <x-ui.input name="end_chapter" label="End Chapter (Optional)" inputmode="numeric"
-                                                pattern="[0-9]*" x-bind:placeholder="endChapterPlaceholder" :value="old('end_chapter')"
-                                                :error="$errors->first('end_chapter')" />
-                                        </div>
-
-                                        <p x-show="chapterNote" x-text="chapterNote" x-cloak
-                                            class="mt-2 text-sm text-gray-500 dark:text-gray-400"></p>
-
-                                        @if ($errors->first('start_chapter'))
-                                            <p class="form-error mt-2">{{ $errors->first('start_chapter') }}</p>
-                                        @endif
+                                    <div class="flex items-center">
+                                        <input
+                                            type="radio"
+                                            id="today"
+                                            name="date_read"
+                                            value="{{ today()->toDateString() }}"
+                                            {{ old('date_read', today()->toDateString()) == today()->toDateString() ? 'checked' : '' }}
+                                            class="peer sr-only"
+                                        >
+                                        <label
+                                            for="today"
+                                            class="flex w-full cursor-pointer items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 peer-checked:border-primary-600 peer-checked:bg-primary-50 peer-checked:text-primary-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:peer-checked:border-primary-500 dark:peer-checked:bg-primary-900/30 dark:peer-checked:text-primary-300"
+                                        >
+                                            Today
+                                        </label>
                                     </div>
+                                </div>
 
-                                    <!-- Notes Section -->
-                                    <x-ui.textarea name="notes_text" label="Notes (Optional)"
-                                        placeholder="Share any thoughts, insights, or questions from your reading..." :value="old('notes_text')"
-                                        rows="4" maxlength="1000" :showCounter="true" :error="$errors->first('notes_text')" />
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Catch-up is available for yesterday.</p>
+                            </fieldset>
+                        @else
+                            <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                <input type="hidden" name="date_read" value="{{ today()->toDateString() }}">
+                                <span>Logging for today, {{ today()->format('M j') }}</span>
 
-                                    <!-- Form Actions -->
-                                    <div class="pt-6 border-t border-gray-200 dark:border-gray-600">
-                                        <div class="flex items-start">
-                                            <x-ui.button type="submit" variant="accent" size="lg" hx-indicator="#save-loading"
-                                                class="w-full sm:w-auto px-6 py-3 text-base font-medium shadow-sm">
-                                                <span id="save-loading" class="htmx-indicator hidden">
-                                                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                        <circle class="opacity-25" cx="12" cy="12" r="10"
-                                                            stroke="currentColor" stroke-width="4"></circle>
-                                                        <path class="opacity-75" fill="currentColor"
-                                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                                                        </path>
-                                                    </svg>
-                                                    Saving...
+                                <div class="relative" @mouseenter="graceHelpOpen = true" @mouseleave="graceHelpOpen = false">
+                                    <button
+                                        type="button"
+                                        @click="graceHelpOpen = ! graceHelpOpen"
+                                        class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500 transition hover:bg-gray-200 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                                        aria-label="Grace period help"
+                                    >
+                                        ?
+                                    </button>
+                                    <div
+                                        x-cloak
+                                        x-show="graceHelpOpen"
+                                        x-transition
+                                        class="fixed left-4 right-4 top-44 z-50 w-auto rounded-lg border border-gray-200 bg-white p-3 text-xs leading-5 text-gray-600 shadow-lg dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 sm:absolute sm:left-0 sm:right-auto sm:top-7 sm:w-64"
+                                    >
+                                        You can catch up on yesterday when it helps preserve a recent reading streak.
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
+                        <div class="space-y-2">
+                            <label for="book_id" class="form-label">
+                                📚 Bible Book
+                            </label>
+
+                            <div class="relative flex">
+                                <button
+                                    id="testament-button"
+                                    data-dropdown-toggle="testament-dropdown"
+                                    data-dropdown-placement="bottom-start"
+                                    class="z-10 inline-flex shrink-0 items-center rounded-s-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:z-10 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus:ring-primary-600"
+                                    type="button"
+                                >
+                                    <span x-text="testamentLabel"></span>
+                                    <svg class="ms-2.5 h-2.5 w-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                                        fill="none" viewBox="0 0 10 6">
+                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                            stroke-width="2" d="m1 1 4 4 4-4" />
+                                    </svg>
+                                </button>
+
+                                <div
+                                    id="testament-dropdown"
+                                    class="z-10 hidden w-52 divide-y divide-gray-100 rounded-lg bg-white shadow dark:divide-gray-600 dark:bg-gray-700"
+                                >
+                                    <ul class="py-2 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="testament-button">
+                                        <li>
+                                            <button
+                                                type="button"
+                                                @click="updateTestament('old')"
+                                                class="inline-flex w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600"
+                                            >
+                                                <span class="inline-flex items-center">
+                                                    📜 Old Testament
                                                 </span>
-                                                <span class="htmx-indicator-hidden">Log Reading</span>
-                                            </x-ui.button>
-                                        </div>
-
-                                        @if (isset($successMessage) || session('success'))
-                                            <p class="form-success mt-4">✅ {{ $successMessage ?? session('success') }}</p>
+                                            </button>
+                                        </li>
+                                        @if ($deuterocanonicalBooks->isNotEmpty())
+                                            <li>
+                                                <button
+                                                    type="button"
+                                                    @click="updateTestament('deuterocanonical')"
+                                                    class="inline-flex w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600"
+                                                >
+                                                    <span class="inline-flex items-center">
+                                                        📖 Deuterocanonical
+                                                    </span>
+                                                </button>
+                                            </li>
                                         @endif
-                                    </div>
-                                </form>
+                                        <li>
+                                            <button
+                                                type="button"
+                                                @click="updateTestament('new')"
+                                                class="inline-flex w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600"
+                                            >
+                                                <span class="inline-flex items-center">
+                                                    ✝️ New Testament
+                                                </span>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
 
-                                <style>
-                                    /* HTMX loading indicator styles */
-                                    .htmx-indicator {
-                                        display: none;
-                                    }
+                                <div class="relative flex-1 focus-within:z-20">
+                                    <select
+                                        id="book_id"
+                                        name="book_id"
+                                        required
+                                        class="form-input -ml-px w-full rounded-s-none"
+                                        aria-label="Select Bible book"
+                                        x-model="selectedBook"
+                                        @change="updateChapterPlaceholder($event.target.value)"
+                                    >
+                                        <option value="">Select a book...</option>
+                                        <template x-for="book in books[testament]" :key="book.id">
+                                            <option :value="book.id" x-text="book.name" :selected="book.id == selectedBook"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
 
-                                    .htmx-request .htmx-indicator {
-                                        display: flex;
-                                        pointer-events: all;
-                                    }
-
-                                    .htmx-request .htmx-indicator-hidden {
-                                        display: none !important;
-                                    }
-                                </style>
-
-                                <script>
-                                    function readingLogForm(config) {
-                                        return {
-                                            testament: config.initialTestament,
-                                            testamentLabel: testamentLabelFor(config.initialTestament),
-                                            books: config.books,
-                                            selectedBook: config.initialBookId,
-                                            startChapterPlaceholder: 'e.g. 1',
-                                            endChapterPlaceholder: 'e.g. 5',
-                                            chapterNote: '',
-
-                                            init() {
-                                                this.updateChapterPlaceholder(this.selectedBook);
-                                            },
-
-                                            updateChapterPlaceholder(bookId) {
-                                                if (!bookId) {
-                                                    this.startChapterPlaceholder = 'e.g. 1';
-                                                    this.endChapterPlaceholder = 'e.g. 5';
-                                                    this.chapterNote = '';
-                                                    return;
-                                                }
-
-                                                const allBooks = [...this.books.old, ...this.books.new, ...this.books.deuterocanonical];
-                                                const book = allBooks.find(b => b.id == bookId);
-
-                                                if (book) {
-                                                    this.startChapterPlaceholder = '1';
-                                                    this.endChapterPlaceholder = `${book.chapters}`;
-                                                    this.chapterNote = chapterNoteFor(book);
-                                                } else {
-                                                    this.startChapterPlaceholder = 'e.g. 1';
-                                                    this.endChapterPlaceholder = 'e.g. 5';
-                                                    this.chapterNote = '';
-                                                }
-                                            },
-
-                                            updateTestament(newTestament) {
-                                                this.testament = newTestament;
-                                                this.testamentLabel = testamentLabelFor(newTestament);
-                                                document.getElementById('testament-button').click();
-                                            }
-                                        }
-                                    }
-
-                                    function testamentLabelFor(testament) {
-                                        if (testament === 'deuterocanonical') {
-                                            return '📖 Deuterocanonical';
-                                        }
-
-                                        return testament === 'old' ? '📜 Old Testament' : '✝️ New Testament';
-                                    }
-
-                                    function chapterNoteFor(book) {
-                                        if (book.id == 17 && book.chapters == 16) {
-                                            return 'Esther 11-16 are the Greek additions in Vulgate/Douay-Rheims-style numbering.';
-                                        }
-
-                                        if (book.id == 27 && book.chapters == 14) {
-                                            return 'Daniel 3 includes the Prayer of Azariah and Song of the Three Young Men; Daniel 13 is Susanna; Daniel 14 is Bel and the Dragon.';
-                                        }
-
-                                        return '';
-                                    }
-                                </script>
+                            @if ($errors->first('book_id'))
+                                <p class="form-error" role="alert">
+                                    {{ $errors->first('book_id') }}
+                                </p>
                             @endif
                         </div>
-                    @endfragment
+
+                        <div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <x-ui.input name="start_chapter" label="Start Chapter" inputmode="numeric" pattern="[0-9]*"
+                                    x-bind:placeholder="startChapterPlaceholder" :value="old('start_chapter')" required />
+
+                                <x-ui.input name="end_chapter" label="End Chapter (Optional)" inputmode="numeric"
+                                    pattern="[0-9]*" x-bind:placeholder="endChapterPlaceholder" :value="old('end_chapter')"
+                                    :error="$errors->first('end_chapter')" />
+                            </div>
+
+                            <p x-show="chapterNote" x-text="chapterNote" x-cloak class="mt-2 text-sm text-gray-500 dark:text-gray-400"></p>
+
+                            @if ($errors->first('start_chapter'))
+                                <p class="form-error mt-2">{{ $errors->first('start_chapter') }}</p>
+                            @endif
+                        </div>
+
+                        <div class="space-y-3">
+                            <button
+                                type="button"
+                                x-show="! notesOpen"
+                                @click="notesOpen = true"
+                                class="inline-flex items-center gap-2 text-sm font-medium text-primary-600 transition hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                            >
+                                <span aria-hidden="true">+</span>
+                                Add a note or reflection
+                            </button>
+
+                            <div x-show="notesOpen" x-cloak>
+                                <x-ui.textarea name="notes_text" label="Note or reflection"
+                                    placeholder="Share any thoughts, insights, or questions from your reading..." :value="old('notes_text')"
+                                    rows="3" maxlength="1000" :showCounter="true" :error="$errors->first('notes_text')" />
+                            </div>
+                        </div>
+
+                        <div class="border-t border-gray-200 pt-6 dark:border-gray-600">
+                            <div class="flex items-start">
+                                <x-ui.button type="submit" variant="accent" size="lg" hx-indicator="#save-loading"
+                                    class="w-full px-6 py-3 text-base font-medium shadow-sm sm:w-auto">
+                                    <span id="save-loading" class="htmx-indicator hidden">
+                                        <svg class="-ml-1 mr-3 h-5 w-5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg"
+                                            fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                                stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                            </path>
+                                        </svg>
+                                        Saving...
+                                    </span>
+                                    <span class="htmx-indicator-hidden">Log Reading</span>
+                                </x-ui.button>
+                            </div>
+
+                            @if (isset($successMessage) || session('success'))
+                                <p class="form-success mt-4">✅ {{ $successMessage ?? session('success') }}</p>
+                            @endif
+                        </div>
+                    </form>
+
+                    <style>
+                        .htmx-indicator {
+                            display: none;
+                        }
+
+                        .htmx-request .htmx-indicator {
+                            display: flex;
+                            pointer-events: all;
+                        }
+
+                        .htmx-request .htmx-indicator-hidden {
+                            display: none !important;
+                        }
+                    </style>
+
+                    <script>
+                        function readingLogForm(config) {
+                            return {
+                                testament: config.initialTestament,
+                                testamentLabel: testamentLabelFor(config.initialTestament),
+                                books: config.books,
+                                selectedBook: config.initialBookId,
+                                graceHelpOpen: false,
+                                notesOpen: config.initialNotesOpen,
+                                startChapterPlaceholder: 'e.g. 1',
+                                endChapterPlaceholder: 'e.g. 5',
+                                chapterNote: '',
+
+                                init() {
+                                    this.updateChapterPlaceholder(this.selectedBook);
+                                },
+
+                                updateChapterPlaceholder(bookId) {
+                                    if (!bookId) {
+                                        this.startChapterPlaceholder = 'e.g. 1';
+                                        this.endChapterPlaceholder = 'e.g. 5';
+                                        this.chapterNote = '';
+                                        return;
+                                    }
+
+                                    const allBooks = [...this.books.old, ...this.books.new, ...this.books.deuterocanonical];
+                                    const book = allBooks.find(b => b.id == bookId);
+
+                                    if (book) {
+                                        this.startChapterPlaceholder = '1';
+                                        this.endChapterPlaceholder = `${book.chapters}`;
+                                        this.chapterNote = chapterNoteFor(book);
+                                    } else {
+                                        this.startChapterPlaceholder = 'e.g. 1';
+                                        this.endChapterPlaceholder = 'e.g. 5';
+                                        this.chapterNote = '';
+                                    }
+                                },
+
+                                updateTestament(newTestament) {
+                                    this.testament = newTestament;
+                                    this.testamentLabel = testamentLabelFor(newTestament);
+                                    document.getElementById('testament-button').click();
+                                }
+                            }
+                        }
+
+                        function testamentLabelFor(testament) {
+                            if (testament === 'deuterocanonical') {
+                                return '📖 Deuterocanonical';
+                            }
+
+                            return testament === 'old' ? '📜 Old Testament' : '✝️ New Testament';
+                        }
+
+                        function chapterNoteFor(book) {
+                            if (book.id == 17 && book.chapters == 16) {
+                                return 'Esther 11-16 are the Greek additions in Vulgate/Douay-Rheims-style numbering.';
+                            }
+
+                            if (book.id == 27 && book.chapters == 14) {
+                                return 'Daniel 3 includes the Prayer of Azariah and Song of the Three Young Men; Daniel 13 is Susanna; Daniel 14 is Bel and the Dragon.';
+                            }
+
+                            return '';
+                        }
+                    </script>
                 </div>
-            </div>
-        </div>
+            @endfragment
+        </x-ui.page-shell>
     @endfragment
 @endsection

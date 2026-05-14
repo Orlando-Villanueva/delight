@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\AchievementService;
 use App\Services\AnnualRecapService;
 use App\Services\ReadingFormService;
 use App\Services\ReadingPlanService;
@@ -16,7 +17,8 @@ class DashboardController extends Controller
         private UserStatisticsService $statisticsService,
         private StreakStateService $streakStateService,
         private AnnualRecapService $recapService,
-        private ReadingPlanService $planService
+        private ReadingPlanService $planService,
+        private AchievementService $achievementService
     ) {}
 
     /**
@@ -31,10 +33,6 @@ class DashboardController extends Controller
 
         // Get dashboard statistics
         $stats = $this->statisticsService->getDashboardStatistics($user);
-
-        // Extract weekly goal data for easier access in views
-        $weeklyGoal = $stats['weekly_goal'];
-        $weeklyJourney = $stats['weekly_journey'] ?? ($weeklyGoal['journey'] ?? null);
 
         // Get monthly calendar data for calendar widget
         $calendarData = $this->statisticsService->getMonthlyCalendarData($user);
@@ -70,6 +68,7 @@ class DashboardController extends Controller
 
         // Check if user needs onboarding
         $showOnboarding = $user->needsOnboarding();
+        $dashboardMilestone = $this->achievementService->getDashboardMilestone($user);
 
         // Return appropriate view based on request type
         return response()->htmx('dashboard', 'dashboard-content', compact(
@@ -79,15 +78,14 @@ class DashboardController extends Controller
             'streakMessage',
             'streakMessageTone',
             'stats',
-            'weeklyGoal',
-            'weeklyJourney',
             'calendarData',
             'showRecapCard',
             'recapCardYear',
             'recapCardEndLabel',
             'recapCardIsFinal',
             'planCta',
-            'showOnboarding'
+            'showOnboarding',
+            'dashboardMilestone'
         ));
     }
 

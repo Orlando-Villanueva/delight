@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Enums\OnboardingStep;
 use App\Http\Requests\UpdateReadingNotesRequest;
 use App\Models\ReadingLog;
+use App\Models\User;
+use App\Services\AchievementService;
 use App\Services\BibleReferenceService;
 use App\Services\OnboardingService;
 use App\Services\ReadingFormService;
@@ -12,6 +14,7 @@ use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\MessageBag;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -24,7 +27,8 @@ class ReadingLogController extends Controller
         private ReadingLogService $readingLogService,
         private ReadingFormService $readingFormService,
         private UserStatisticsService $userStatisticsService,
-        private OnboardingService $onboardingService
+        private OnboardingService $onboardingService,
+        private AchievementService $achievementService
     ) {}
 
     /**
@@ -116,10 +120,8 @@ class ReadingLogController extends Controller
             $user = $request->user();
 
             // Create reading log using service
-            $log = $this->readingLogService->logReading($user, $validated);
-
-            // Check if this was the user's first reading celebration
-            $isFirstReading = $user->wasChanged('celebrated_first_reading_at');
+            $result = $this->readingLogService->logReadingWithResult($user, $validated);
+            $log = $result->log;
 
             // Check if this is an HTMX request for the form replacement
             if ($request->header('HX-Request')) {
@@ -132,10 +134,14 @@ class ReadingLogController extends Controller
                 $successMessage = "{$log->passage_text} recorded for {$log->date_read->format('M d, Y')}";
 
                 // Return just the form fragment with success message and reset form
-                return response()->htmx('logs.create', 'reading-form', array_merge(
-                    compact('books', 'errors', 'successMessage', 'isFirstReading'),
+                $content = view('logs.create', array_merge(
+                    compact('books', 'errors', 'successMessage'),
                     $formContext
-                ))->header('HX-Trigger', 'readingLogAdded');
+                ))->fragment('reading-form');
+
+                $content .= $this->achievementCelebrationFragment($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay);
+
+                return response($content)->header('HX-Trigger', 'readingLogAdded');
             } else {
                 // For non-HTMX requests (tests, direct submissions), return the success message
                 // This maintains backwards compatibility with existing tests
@@ -196,6 +202,19 @@ class ReadingLogController extends Controller
             // Re-throw if it's a different database error
             throw $e;
         }
+    }
+
+    private function achievementCelebrationFragment(User $user, Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): string
+    {
+        $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log, $isFirstReadingOfDay);
+
+        if (empty($payload['earned']) && empty($payload['record'])) {
+            return '';
+        }
+
+        return view('components.celebrations.achievement-unlocks', [
+            'payload' => $payload,
+        ])->render();
     }
 
     /**

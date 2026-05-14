@@ -6,6 +6,8 @@ use App\Enums\OnboardingStep;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
+use App\Models\User;
+use App\Services\AchievementService;
 use App\Services\BibleReferenceService;
 use App\Services\OnboardingService;
 use App\Services\ReadingPlanService;
@@ -19,7 +21,8 @@ class ReadingPlanController extends Controller
     public function __construct(
         private ReadingPlanService $planService,
         private OnboardingService $onboardingService,
-        private BibleReferenceService $bibleReferenceService
+        private BibleReferenceService $bibleReferenceService,
+        private AchievementService $achievementService
     ) {}
 
     /**
@@ -226,14 +229,15 @@ class ReadingPlanController extends Controller
             return response()->json(['error' => 'Plan day already complete'], 409);
         }
 
-        $this->planService->logChapter($user, $subscription, $dayNumber, $chapter, Carbon::today());
-        $isFirstReading = $user->wasChanged('celebrated_first_reading_at');
+        $result = $this->planService->logChapter($user, $subscription, $dayNumber, $chapter, Carbon::today());
 
         // Return updated today view
         $viewData = $this->getTodayViewData($subscription, $dayNumber);
-        $viewData['isFirstReading'] = $isFirstReading;
 
-        return response()->htmx('plans.today', 'reading-list', $viewData);
+        $content = view('plans.today', $viewData)->fragment('reading-list');
+        $content .= $this->achievementCelebrationFragment($user, $result->awardedAchievements, $result->log, $result->isFirstReadingOfDay);
+
+        return response($content);
     }
 
     /**
@@ -258,14 +262,15 @@ class ReadingPlanController extends Controller
             fn ($ch) => ! $ch['completed']
         );
 
-        $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, Carbon::today());
-        $isFirstReading = $user->wasChanged('celebrated_first_reading_at');
+        $results = $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, Carbon::today());
 
         // Return updated today view
         $viewData = $this->getTodayViewData($subscription, $dayNumber);
-        $viewData['isFirstReading'] = $isFirstReading;
 
-        return response()->htmx('plans.today', 'reading-list', $viewData);
+        $content = view('plans.today', $viewData)->fragment('reading-list');
+        $content .= $this->achievementCelebrationFragmentForResults($user, $results);
+
+        return response($content);
     }
 
     /**
@@ -290,7 +295,7 @@ class ReadingPlanController extends Controller
             }));
 
             if (! empty($chaptersToApply)) {
-                $this->planService->logAllChapters(
+                $results = $this->planService->logAllChapters(
                     $user,
                     $subscription,
                     $dayNumber,
@@ -300,12 +305,46 @@ class ReadingPlanController extends Controller
             }
         }
 
-        $isFirstReading = $user->wasChanged('celebrated_first_reading_at');
-
         $viewData = $this->getTodayViewData($subscription, $dayNumber);
-        $viewData['isFirstReading'] = $isFirstReading;
 
-        return response()->htmx('plans.today', 'reading-list', $viewData);
+        $content = view('plans.today', $viewData)->fragment('reading-list');
+
+        if (isset($results)) {
+            $content .= $this->achievementCelebrationFragmentForResults($user, $results);
+        }
+
+        return response($content);
+    }
+
+    private function achievementCelebrationFragmentForResults(User $user, \Illuminate\Support\Collection $results): string
+    {
+        $awardedAchievements = $results
+            ->flatMap(fn ($result) => $result->awardedAchievements)
+            ->unique('id')
+            ->values();
+
+        $lastResult = $results->last();
+
+        if (! $lastResult) {
+            return '';
+        }
+
+        $isFirstReadingOfDay = $results->contains(fn ($result): bool => $result->isFirstReadingOfDay);
+
+        return $this->achievementCelebrationFragment($user, $awardedAchievements, $lastResult->log, $isFirstReadingOfDay);
+    }
+
+    private function achievementCelebrationFragment(User $user, \Illuminate\Support\Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): string
+    {
+        $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log, $isFirstReadingOfDay);
+
+        if (empty($payload['earned']) && empty($payload['record'])) {
+            return '';
+        }
+
+        return view('components.celebrations.achievement-unlocks', [
+            'payload' => $payload,
+        ])->render();
     }
 
     /**

@@ -135,9 +135,9 @@ class StreakStateService
         $normalizedRecordStatus = strtolower($recordStatus);
 
         if ($normalizedRecordStatus === 'tied' && $currentStreak > 0) {
-            $message = "You've matched your best streak of {$currentStreak} days. Read tomorrow to set a new record.";
+            $message = "You've matched your best streak of {$currentStreak} days. Read tomorrow to set a new best.";
         } elseif ($normalizedRecordStatus === 'record' && $recordJustBroken) {
-            $message = "New personal record! Your {$currentStreak}-day streak is now the one to beat.";
+            $message = "New best! Your {$currentStreak}-day streak is now the one to beat.";
             $tone = 'accent';
         }
 

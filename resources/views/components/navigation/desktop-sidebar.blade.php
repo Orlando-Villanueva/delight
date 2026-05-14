@@ -47,6 +47,15 @@
                     </x-slot:icon>
                 </x-navigation.nav-link>
             </li>
+            <li>
+                <x-navigation.nav-link route="achievements.index" label="Achievements" variant="sidebar">
+                    <x-slot:icon>
+                        <circle cx="12" cy="8" r="6" stroke="currentColor" stroke-width="2" />
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+                    </x-slot:icon>
+                </x-navigation.nav-link>
+            </li>
         </ul>
     </div>
 

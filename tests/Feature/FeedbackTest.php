@@ -9,8 +9,11 @@ test('feedback page is accessible', function () {
 
     $response = $this->actingAs($user)->get(route('feedback.create'));
 
-    $response->assertStatus(200);
-    $response->assertSee('Send Feedback');
+    $response->assertSuccessful()
+        ->assertSee('Feedback')
+        ->assertSee('Share bugs, ideas, or anything that would make Delight better.')
+        ->assertSee('Send Feedback')
+        ->assertDontSee('We value your feedback');
 });
 
 test('feedback page is not accessible to guests', function () {
@@ -60,6 +63,7 @@ test('feedback page returns partial for HTMX requests', function () {
     ]);
 
     $response->assertStatus(200);
+    $response->assertSee('Feedback');
     $response->assertSee('id="feedback-form-container"', false);
     $response->assertDontSee('<!DOCTYPE html>');
 });

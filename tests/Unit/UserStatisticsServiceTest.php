@@ -5,8 +5,6 @@ namespace Tests\Unit;
 use App\Contracts\ReadingLogInterface;
 use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
-use App\Services\WeeklyGoalService;
-use App\Services\WeeklyJourneyService;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 
@@ -14,22 +12,14 @@ class UserStatisticsServiceTest extends TestCase
 {
     protected ReadingLogService $readingLogService;
 
-    protected WeeklyGoalService $weeklyGoalService;
-
-    protected WeeklyJourneyService $weeklyJourneyService;
-
     protected UserStatisticsService $service;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->readingLogService = $this->createMock(ReadingLogService::class);
-        $this->weeklyGoalService = $this->createMock(WeeklyGoalService::class);
-        $this->weeklyJourneyService = $this->createMock(WeeklyJourneyService::class);
         $this->service = new UserStatisticsService(
-            $this->readingLogService,
-            $this->weeklyGoalService,
-            $this->weeklyJourneyService
+            $this->readingLogService
         );
     }
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ReadingLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -43,6 +44,21 @@ describe('Navigation Component Rendering', function () {
         // Check for sr-only labels in mobile navigation
         $response->assertSee('Dashboard', false);
         $response->assertSee('History', false);
+    });
+
+    it('centers the log reading action in the mobile bottom navigation order', function () {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $content = substr($response->getContent(), strpos($response->getContent(), 'id="mobile-bottom-navigation"'));
+
+        expect(strpos($content, 'id="mobile-plans-link"'))
+            ->toBeLessThan(strpos($content, 'hx-get="'.route('logs.create').'"'))
+            ->and(strpos($content, 'hx-get="'.route('logs.create').'"'))
+            ->toBeLessThan(strpos($content, 'hx-get="'.route('logs.index').'"'))
+            ->and(strpos($content, 'hx-get="'.route('logs.index').'"'))
+            ->toBeLessThan(strpos($content, 'hx-get="'.route('achievements.index').'"'));
     });
 
     it('displays user initial in profile avatar', function () {
@@ -168,6 +184,44 @@ describe('Navigation Routes', function () {
         $response = $this->actingAs($user)->get(route('logs.create'));
 
         $response->assertSuccessful();
+        $response->assertSee('Log Reading');
+        $response->assertSee("Record today's Bible reading.");
+    });
+
+    it('shows a compact today-only log form when yesterday catch-up is not useful', function () {
+        $user = User::factory()->create([
+            'created_at' => today()->subMonth(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('logs.create'));
+
+        $response->assertSuccessful();
+        $response->assertSeeText('Logging for today');
+        $response->assertSee('type="hidden" name="date_read"', false);
+        $response->assertDontSeeText('Grace Period');
+        $response->assertDontSeeText('Already logged');
+        $response->assertDontSeeText('Yesterday');
+    });
+
+    it('shows yesterday catch-up only when a recent streak gap can be repaired', function () {
+        $user = User::factory()->create([
+            'created_at' => today()->subMonth(),
+        ]);
+
+        ReadingLog::factory()->create([
+            'user_id' => $user->id,
+            'book_id' => 1,
+            'chapter' => 1,
+            'date_read' => today()->subDays(2)->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('logs.create'));
+
+        $response->assertSuccessful();
+        $response->assertSeeText('When did you read?');
+        $response->assertSeeText('Yesterday');
+        $response->assertSeeText('Today');
+        $response->assertSeeText('Catch-up is available for yesterday.');
     });
 
     it('navigates to reading history successfully', function () {
@@ -176,6 +230,8 @@ describe('Navigation Routes', function () {
         $response = $this->actingAs($user)->get(route('logs.index'));
 
         $response->assertSuccessful();
+        $response->assertSee('Reading History');
+        $response->assertSee('Review and manage past readings.');
     });
 
     it('redirects unauthenticated users from dashboard to login', function () {

@@ -21,7 +21,8 @@ class ReadingLogService
 
     public function __construct(
         BibleReferenceService $bibleService,
-        private OnboardingService $onboardingService
+        private OnboardingService $onboardingService,
+        private AchievementService $achievementService
     ) {
         $this->bibleService = $bibleService;
     }
@@ -36,6 +37,14 @@ class ReadingLogService
      * Note: The controller parses 'chapter_input' from forms and converts it to the appropriate format.
      */
     public function logReading(User $user, array $data): ReadingLog
+    {
+        return $this->logReadingWithResult($user, $data)->log;
+    }
+
+    /**
+     * Log a new Bible reading entry and return the log with any achievements unlocked by it.
+     */
+    public function logReadingWithResult(User $user, array $data, bool $evaluateAchievements = true): ReadingLogResult
     {
         // Validate and format the Bible reference
         $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
@@ -84,9 +93,9 @@ class ReadingLogService
                 );
             }
 
-            $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
+            $achievementResult = $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead, $evaluateAchievements);
 
-            return $log;
+            return new ReadingLogResult($log, $achievementResult['awarded_achievements'], ! $hasReadToday);
         }
 
         // Single chapter logging
@@ -109,9 +118,9 @@ class ReadingLogService
             );
         }
 
-        $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead);
+        $achievementResult = $this->handlePostLogSideEffects($user, ! $hasReadToday, $dateRead, $evaluateAchievements);
 
-        return $readingLog;
+        return new ReadingLogResult($readingLog, $achievementResult['awarded_achievements'], ! $hasReadToday);
     }
 
     /**
@@ -166,12 +175,35 @@ class ReadingLogService
             ]);
     }
 
-    private function handlePostLogSideEffects(User $user, bool $isFirstReadingOfDay, string $loggedDate): void
+    /**
+     * @return array{awarded: int, skipped_duplicates: int, would_award: int, candidates: Collection<int, array<string, mixed>>, awarded_achievements: Collection<int, \App\Models\UserAchievement>}
+     */
+    public function evaluateAchievements(User $user): array
+    {
+        return $this->achievementService->evaluateAndAward($user);
+    }
+
+    /**
+     * @return array{awarded: int, skipped_duplicates: int, would_award: int, candidates: Collection<int, array<string, mixed>>, awarded_achievements: Collection<int, \App\Models\UserAchievement>}
+     */
+    private function handlePostLogSideEffects(User $user, bool $isFirstReadingOfDay, string $loggedDate, bool $evaluateAchievements = true): array
     {
         // Server-side state updated - HTMX will handle UI updates
         $this->invalidateUserStatisticsCache($user, $isFirstReadingOfDay);
         $this->markChurnRecoveryCampaignsReactivated($user, $loggedDate);
         $this->maybeResetChurnRecovery($user);
+
+        if (! $evaluateAchievements) {
+            return [
+                'awarded' => 0,
+                'skipped_duplicates' => 0,
+                'would_award' => 0,
+                'candidates' => collect(),
+                'awarded_achievements' => collect(),
+            ];
+        }
+
+        return $this->evaluateAchievements($user);
     }
 
     /**
@@ -577,10 +609,7 @@ class ReadingLogService
 
         // Smart invalidation - only invalidate on first reading of the day
         if ($isFirstReadingOfDay) {
-            // First reading of the day - streak and weekly goal will change
-            $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
-            Cache::forget("user_weekly_goal_v2_{$user->id}_{$weekStart}");
-            Cache::forget("user_weekly_goal_{$user->id}_{$weekStart}");
+            // First reading of the day - streak will change
             Cache::forget("user_current_streak_{$user->id}");
 
             // Longest streak - only invalidate if current streak might exceed it
@@ -596,7 +625,7 @@ class ReadingLogService
                 }
             }
         }
-        // If not first reading of the day, streak and weekly goal won't change
+        // If not first reading of the day, streak won't change
         // so skip expensive invalidations
     }
 

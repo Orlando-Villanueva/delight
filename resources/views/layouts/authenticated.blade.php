@@ -84,6 +84,7 @@
 
     {{-- Global container for HTMX out-of-band modal swaps --}}
     <div id="reading-log-modals"></div>
+    <div id="achievement-celebration-root"></div>
 
     <!-- HTMX History Configuration & Navigation Helpers -->
     <script>

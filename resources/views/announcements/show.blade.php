@@ -82,7 +82,9 @@
             </figure>
         @endif
 
-        <div class="prose prose-blue prose-lg mx-auto dark:prose-invert">
+        <div
+            class="prose prose-blue prose-lg mx-auto dark:prose-invert
+                prose-img:mx-auto prose-img:rounded-xl prose-img:border prose-img:border-gray-200 prose-img:shadow-sm dark:prose-img:border-gray-700">
             {!! Str::markdown($announcement->content) !!}
         </div>
 

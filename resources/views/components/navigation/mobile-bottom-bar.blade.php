@@ -1,9 +1,9 @@
 {{-- Mobile Bottom Navigation Bar Component --}}
 {{-- Uniform icon navigation with accent-colored Log button --}}
 
-<div
+<div id="mobile-bottom-navigation"
     class="fixed z-50 w-full h-16 max-w-lg -translate-x-1/2 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full bottom-4 left-1/2 dark:bg-gray-800/80 dark:border-gray-700 shadow-xl lg:hidden">
-    <div class="grid h-full max-w-lg grid-cols-4 mx-auto">
+    <div class="grid h-full max-w-lg grid-cols-5 mx-auto">
         {{-- Dashboard --}}
         <x-navigation.nav-link route="dashboard" label="Dashboard" variant="mobile" class="rounded-s-full">
             <x-slot:icon>
@@ -11,6 +11,16 @@
                     d="M3 15v4m6-6v6m6-4v4m6-6v6M3 11l6-5 6 5 5.5-5.5" />
             </x-slot:icon>
         </x-navigation.nav-link>
+
+        {{-- Reading Plans --}}
+        <div id="mobile-plans-link" class="contents">
+            <x-navigation.nav-link :url="$smartPlansUrl" label="Plans" variant="mobile">
+                <x-slot:icon>
+                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" />
+                </x-slot:icon>
+            </x-navigation.nav-link>
+        </div>
 
         {{-- Log Reading (accent colored) --}}
         <button type="button" hx-get="{{ route('logs.create') }}" hx-target="#page-container" hx-swap="innerHTML"
@@ -26,21 +36,20 @@
             <span class="sr-only">Log Reading</span>
         </button>
 
-        {{-- Reading Plans --}}
-        <div id="mobile-plans-link" class="contents">
-            <x-navigation.nav-link :url="$smartPlansUrl" label="Plans" variant="mobile">
-                <x-slot:icon>
-                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" />
-                </x-slot:icon>
-            </x-navigation.nav-link>
-        </div>
-
         {{-- Reading History --}}
-        <x-navigation.nav-link route="logs.index" label="History" variant="mobile" class="rounded-e-full">
+        <x-navigation.nav-link route="logs.index" label="History" variant="mobile">
             <x-slot:icon>
                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M12 8v4l3 3M3.22302 14C4.13247 18.008 7.71683 21 12 21c4.9706 0 9-4.0294 9-9 0-4.97056-4.0294-9-9-9-3.72916 0-6.92858 2.26806-8.29409 5.5M7 9H3V5" />
+            </x-slot:icon>
+        </x-navigation.nav-link>
+
+        {{-- Achievements --}}
+        <x-navigation.nav-link route="achievements.index" label="Achievements" variant="mobile" class="rounded-e-full">
+            <x-slot:icon>
+                <circle cx="12" cy="8" r="6" stroke="currentColor" stroke-width="2" />
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
             </x-slot:icon>
         </x-navigation.nav-link>
     </div>

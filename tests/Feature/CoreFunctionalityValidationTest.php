@@ -417,9 +417,9 @@ class CoreFunctionalityValidationTest extends TestCase
     }
 
     /**
-     * Test weekly goal statistics integration in dashboard
+     * Test current week reading day statistics in dashboard
      */
-    public function test_weekly_goal_statistics_integration(): void
+    public function test_current_week_reading_day_statistics_integration(): void
     {
         $user = User::factory()->create();
 
@@ -450,25 +450,17 @@ class CoreFunctionalityValidationTest extends TestCase
         $response = $this->actingAs($user)->get('/dashboard');
         $response->assertStatus(200);
 
-        // Test that dashboard statistics include weekly goal data
         $response->assertViewHas('stats');
         $stats = $response->viewData('stats');
 
-        $this->assertArrayHasKey('weekly_goal', $stats);
-        $this->assertArrayHasKey('current_progress', $stats['weekly_goal']);
-        $this->assertArrayHasKey('weekly_target', $stats['weekly_goal']);
-        $this->assertArrayHasKey('is_goal_achieved', $stats['weekly_goal']);
-
-        // Should show 3 days of progress this week
-        $this->assertEquals(3, $stats['weekly_goal']['current_progress']);
-        $this->assertEquals(4, $stats['weekly_goal']['weekly_target']);
-        $this->assertFalse($stats['weekly_goal']['is_goal_achieved']);
+        $this->assertArrayNotHasKey('weekly_goal', $stats);
+        $this->assertEquals(3, $stats['reading_summary']['this_week_days']);
     }
 
     /**
-     * Test weekly goal achieved state
+     * Test current week reading day counting
      */
-    public function test_weekly_goal_achieved_state(): void
+    public function test_current_week_reading_day_counting(): void
     {
         $user = User::factory()->create();
 
@@ -489,10 +481,8 @@ class CoreFunctionalityValidationTest extends TestCase
 
         $stats = $response->viewData('stats');
 
-        // Should show goal achieved
-        $this->assertEquals(4, $stats['weekly_goal']['current_progress']);
-        $this->assertTrue($stats['weekly_goal']['is_goal_achieved']);
-        $this->assertEquals(100.0, $stats['weekly_goal']['progress_percentage']);
+        $this->assertArrayNotHasKey('weekly_goal', $stats);
+        $this->assertEquals(4, $stats['reading_summary']['this_week_days']);
     }
 
     /**
