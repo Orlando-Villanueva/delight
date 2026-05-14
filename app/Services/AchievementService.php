@@ -787,42 +787,44 @@ class AchievementService
 
     private function nextStreakDashboardMilestone(int $currentStreak, Collection $earnedContexts): ?array
     {
-        if ($currentStreak <= 0) {
-            return null;
+        $milestone = null;
+
+        if ($currentStreak > 0) {
+            foreach (self::STREAK_THRESHOLDS as $threshold) {
+                $key = "reading_streak_{$threshold}";
+                $contextKey = "streak:{$threshold}";
+
+                if ($earnedContexts->has($key.'|'.$contextKey)) {
+                    continue;
+                }
+
+                $remaining = $threshold - $currentStreak;
+                $window = self::DASHBOARD_STREAK_WINDOWS[$threshold] ?? 7;
+
+                if ($remaining > $window) {
+                    break;
+                }
+
+                $definition = $this->definitions()[$key];
+
+                $milestone = $this->dashboardPayload(
+                    key: $key,
+                    contextKey: $contextKey,
+                    displayName: $definition['display_name'],
+                    description: $definition['description'],
+                    icon: $definition['icon'],
+                    style: $definition['style'],
+                    current: $currentStreak,
+                    target: $threshold,
+                    priority: 10,
+                    sortOrder: $definition['sort_order']
+                );
+
+                break;
+            }
         }
 
-        foreach (self::STREAK_THRESHOLDS as $threshold) {
-            $key = "reading_streak_{$threshold}";
-            $contextKey = "streak:{$threshold}";
-
-            if ($earnedContexts->has($key.'|'.$contextKey)) {
-                continue;
-            }
-
-            $remaining = $threshold - $currentStreak;
-            $window = self::DASHBOARD_STREAK_WINDOWS[$threshold] ?? 7;
-
-            if ($remaining > $window) {
-                return null;
-            }
-
-            $definition = $this->definitions()[$key];
-
-            return $this->dashboardPayload(
-                key: $key,
-                contextKey: $contextKey,
-                displayName: $definition['display_name'],
-                description: $definition['description'],
-                icon: $definition['icon'],
-                style: $definition['style'],
-                current: $currentStreak,
-                target: $threshold,
-                priority: 10,
-                sortOrder: $definition['sort_order']
-            );
-        }
-
-        return null;
+        return $milestone;
     }
 
     private function weeklyRhythmDashboardMilestone(Collection $readingDates): ?array
