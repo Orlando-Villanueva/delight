@@ -256,11 +256,11 @@
             </p>
 
             @if ($showCta)
-                <button type="button" hx-get="{{ route('logs.create') }}" hx-target="#page-container"
+                <a href="{{ route('logs.create') }}" hx-get="{{ route('logs.create') }}" hx-target="#page-container"
                     hx-swap="innerHTML" hx-push-url="true"
                     class="inline-flex shrink-0 items-center text-sm font-medium text-accent-600 transition hover:text-accent-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-400 dark:hover:text-accent-300 dark:focus-visible:outline-accent-400">
                     Log today
-                </button>
+                </a>
             @endif
         </div>
     @endif
