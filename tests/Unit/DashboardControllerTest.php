@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
@@ -12,6 +13,10 @@ use Tests\TestCase;
 class DashboardControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    private const LOG_TODAY_LABEL = 'Log today';
+
+    private const STREAK_PASSAGE_TEXT = 'Psalms 1';
 
     private User $user;
 
@@ -65,6 +70,76 @@ class DashboardControllerTest extends TestCase
         // Match current content
         $response->assertSee('Next Milestone');
         $response->assertDontSee('Weekly Journey');
+    }
+
+    public function test_index_renders_pending_streak_status_before_warning_time()
+    {
+        Carbon::setTestNow('2026-05-16 14:00:00');
+
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 19,
+            'chapter' => 1,
+            'passage_text' => self::STREAK_PASSAGE_TEXT,
+            'date_read' => today()->subDay(),
+        ]);
+
+        $response = $this->get('/dashboard');
+
+        $response->assertStatus(200);
+        $response->assertSee('Not read today');
+        $response->assertDontSee('Keep your streak active.');
+        $response->assertSee(self::LOG_TODAY_LABEL);
+        $response->assertSee('href="'.route('logs.create').'"', false);
+        $response->assertSee('hx-push-url="true"', false);
+        $response->assertDontSee('Streak at risk');
+
+        Carbon::setTestNow();
+    }
+
+    public function test_index_renders_danger_streak_status_after_warning_time()
+    {
+        Carbon::setTestNow('2026-05-16 18:00:00');
+
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 19,
+            'chapter' => 1,
+            'passage_text' => self::STREAK_PASSAGE_TEXT,
+            'date_read' => today()->subDay(),
+        ]);
+
+        $response = $this->get('/dashboard');
+
+        $response->assertStatus(200);
+        $response->assertSee('Streak at risk');
+        $response->assertSee('text-accent-700 dark:text-accent-300', false);
+        $response->assertDontSee('Keep your 1-day streak.');
+        $response->assertSee(self::LOG_TODAY_LABEL);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_index_renders_streak_status_for_htmx_request()
+    {
+        Carbon::setTestNow('2026-05-16 14:00:00');
+
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 19,
+            'chapter' => 1,
+            'passage_text' => self::STREAK_PASSAGE_TEXT,
+            'date_read' => today()->subDay(),
+        ]);
+
+        $response = $this->get('/dashboard', ['HX-Request' => 'true']);
+
+        $response->assertStatus(200);
+        $response->assertSee('Not read today');
+        $response->assertSee(self::LOG_TODAY_LABEL);
+        $response->assertDontSee('<!DOCTYPE html>');
+
+        Carbon::setTestNow();
     }
 
     public function test_index_uses_active_plan_for_cta()

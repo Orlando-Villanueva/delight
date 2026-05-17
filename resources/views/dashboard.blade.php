@@ -67,12 +67,13 @@
                             @endif
 
                             <!-- Cards Grid: current run, next aim, broader progress -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1.15fr)_minmax(17.5rem,0.85fr)] gap-4 lg:gap-4">
                                 <!-- Daily Streak - current run -->
                                 <div class="order-1 sm:col-span-1 lg:col-span-1 xl:col-span-1">
                                     <x-ui.streak-counter :currentStreak="$stats['streaks']['current_streak']" :longestStreak="$stats['streaks']['longest_streak']" :streakSeries="$stats['streaks']['current_streak_series'] ?? []"
                                         :stateClasses="$streakStateClasses" :message="$streakMessage" :messageTone="$streakMessageTone" :recordStatus="data_get($stats, 'streaks.record_status', 'none')"
-                                        :recordJustBroken="data_get($stats, 'streaks.record_just_broken', false)" class="h-full" />
+                                        :recordJustBroken="data_get($stats, 'streaks.record_just_broken', false)" :statusLabel="$streakStatusLabel" :showCta="$streakShowCta"
+                                        class="h-full" />
                                 </div>
 
                                 <!-- Next Milestone - best live goal -->
@@ -81,12 +82,12 @@
                                 </div>
 
                                 <!-- Summary Stats - broader progress -->
-                                <div class="order-3 col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-2 xl:col-span-2 2xl:col-span-1">
+                                <div class="order-3 col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-2 2xl:col-span-1">
                                     <x-ui.summary-stats :daysRead="$stats['reading_summary']['total_reading_days']" :totalChapters="$stats['reading_summary']['total_readings']" :bibleProgress="$stats['book_progress']['overall_progress_percent']"
                                         :averageChaptersPerDay="$stats['reading_summary']['average_chapters_per_day']" class="h-full" />
                                 </div>
 
-                                <!-- Mobile/Tablet Calendar - pairs with quick stats from sm breakpoint -->
+                                <!-- Mobile/Tablet Calendar - pairs with quick stats from tablet breakpoint -->
                                 <div class="order-4 col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:hidden">
                                     <x-bible.calendar-heatmap :calendar="$calendarData['calendar']" :monthName="$calendarData['monthName']" :thisMonthReadings="$calendarData['thisMonthReadings']"
                                         :thisMonthChapters="$calendarData['thisMonthChapters']" :successRate="$calendarData['successRate']" :showLegend="false" class="h-full text-sm" />
