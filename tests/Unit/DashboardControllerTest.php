@@ -108,6 +108,7 @@ class DashboardControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('Streak at risk');
+        $response->assertSee('text-accent-700 dark:text-accent-300', false);
         $response->assertDontSee('Keep your 1-day streak.');
         $response->assertSee('Log today');
 
