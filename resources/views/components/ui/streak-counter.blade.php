@@ -142,6 +142,10 @@
         'pending' => 'text-gray-700 dark:text-gray-200',
         'danger' => 'text-gray-700 dark:text-gray-200',
     ];
+    $statusLabelToneClasses = [
+        'pending' => 'text-gray-700 dark:text-gray-200',
+        'danger' => 'text-accent-700 dark:text-accent-300',
+    ];
     $baseClass =
         'card h-full flex flex-col border border-[#D1D7E0] dark:border-gray-700 dark:bg-gray-800 shadow-lg transition-colors';
     $shouldShowStatusLabel = in_array($messageTone, ['pending', 'danger'], true) && filled($statusLabel);
@@ -246,7 +250,7 @@
             class="card-footer border-t border-gray-100 dark:border-gray-700 pt-4 flex items-center justify-between gap-6 {{ $footerPaddingClasses[$size] ?? $footerPaddingClasses['default'] }}">
             <p class="min-w-0 flex-1 text-sm leading-relaxed {{ $messageToneClasses[$messageTone] ?? $messageToneClasses['default'] }}">
                 @if ($shouldShowStatusLabel)
-                    <span class="font-medium text-gray-700 dark:text-gray-200">{{ $statusLabel }}</span>
+                    <span class="font-medium {{ $statusLabelToneClasses[$messageTone] ?? $messageToneClasses[$messageTone] ?? $messageToneClasses['default'] }}">{{ $statusLabel }}</span>
                 @endif
                 {{ $message }}
             </p>
