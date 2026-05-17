@@ -14,6 +14,10 @@ class DashboardControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const LOG_TODAY_LABEL = 'Log today';
+
+    private const STREAK_PASSAGE_TEXT = 'Psalms 1';
+
     private User $user;
 
     protected function setUp(): void
@@ -76,7 +80,7 @@ class DashboardControllerTest extends TestCase
             'user_id' => $this->user->id,
             'book_id' => 19,
             'chapter' => 1,
-            'passage_text' => 'Psalms 1',
+            'passage_text' => self::STREAK_PASSAGE_TEXT,
             'date_read' => today()->subDay(),
         ]);
 
@@ -85,7 +89,7 @@ class DashboardControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Not read today');
         $response->assertDontSee('Keep your streak active.');
-        $response->assertSee('Log today');
+        $response->assertSee(self::LOG_TODAY_LABEL);
         $response->assertSee('href="'.route('logs.create').'"', false);
         $response->assertSee('hx-push-url="true"', false);
         $response->assertDontSee('Streak at risk');
@@ -101,7 +105,7 @@ class DashboardControllerTest extends TestCase
             'user_id' => $this->user->id,
             'book_id' => 19,
             'chapter' => 1,
-            'passage_text' => 'Psalms 1',
+            'passage_text' => self::STREAK_PASSAGE_TEXT,
             'date_read' => today()->subDay(),
         ]);
 
@@ -111,7 +115,7 @@ class DashboardControllerTest extends TestCase
         $response->assertSee('Streak at risk');
         $response->assertSee('text-accent-700 dark:text-accent-300', false);
         $response->assertDontSee('Keep your 1-day streak.');
-        $response->assertSee('Log today');
+        $response->assertSee(self::LOG_TODAY_LABEL);
 
         Carbon::setTestNow();
     }
@@ -124,7 +128,7 @@ class DashboardControllerTest extends TestCase
             'user_id' => $this->user->id,
             'book_id' => 19,
             'chapter' => 1,
-            'passage_text' => 'Psalms 1',
+            'passage_text' => self::STREAK_PASSAGE_TEXT,
             'date_read' => today()->subDay(),
         ]);
 
@@ -132,7 +136,7 @@ class DashboardControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('Not read today');
-        $response->assertSee('Log today');
+        $response->assertSee(self::LOG_TODAY_LABEL);
         $response->assertDontSee('<!DOCTYPE html>');
 
         Carbon::setTestNow();
