@@ -56,6 +56,8 @@ class DashboardController extends Controller
         );
         $streakMessage = $messagePayload['message'];
         $streakMessageTone = $messagePayload['tone'] ?? 'default';
+        $streakStatusLabel = $messagePayload['label'] ?? null;
+        $streakShowCta = $messagePayload['show_cta'] ?? false;
 
         $recapCard = $this->recapService->getDashboardCardState();
         $showRecapCard = $recapCard['show'];
@@ -77,6 +79,8 @@ class DashboardController extends Controller
             'streakStateClasses',
             'streakMessage',
             'streakMessageTone',
+            'streakStatusLabel',
+            'streakShowCta',
             'stats',
             'calendarData',
             'showRecapCard',

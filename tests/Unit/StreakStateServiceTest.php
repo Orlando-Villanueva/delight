@@ -776,8 +776,8 @@ class StreakStateServiceTest extends \Tests\TestCase
 
         Carbon::setTestNow(Carbon::parse('2024-02-01'));
 
-        $baseMessage = $service->selectMessage(5, 'active', 0, false);
-        $payload = $service->getMessagePayload(5, 'active', 0, false);
+        $baseMessage = $service->selectMessage(5, 'active', 0, true);
+        $payload = $service->getMessagePayload(5, 'active', 0, true);
 
         $this->assertSame($baseMessage, $payload['message']);
         $this->assertSame('default', $payload['tone']);
@@ -785,24 +785,74 @@ class StreakStateServiceTest extends \Tests\TestCase
         Carbon::setTestNow();
     }
 
+    public function test_message_payload_marks_unread_active_streak_as_pending_before_warning_time()
+    {
+        $service = new StreakStateService;
+
+        Carbon::setTestNow(Carbon::parse('2026-05-16 14:00:00'));
+
+        $payload = $service->getMessagePayload(5, 'active', 10, false);
+
+        $this->assertSame('Not read today', $payload['label']);
+        $this->assertSame('', $payload['message']);
+        $this->assertSame('pending', $payload['tone']);
+        $this->assertTrue($payload['show_cta']);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_message_payload_marks_unread_active_streak_as_danger_after_warning_time()
+    {
+        $service = new StreakStateService;
+
+        Carbon::setTestNow(Carbon::parse('2026-05-16 18:00:00'));
+
+        $payload = $service->getMessagePayload(5, 'warning', 10, false);
+
+        $this->assertSame('Streak at risk', $payload['label']);
+        $this->assertSame('', $payload['message']);
+        $this->assertSame('danger', $payload['tone']);
+        $this->assertTrue($payload['show_cta']);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_message_payload_avoids_danger_language_when_no_streak_exists()
+    {
+        $service = new StreakStateService;
+
+        $payload = $service->getMessagePayload(0, 'inactive', 10, false);
+
+        $this->assertSame('Start a streak', $payload['label']);
+        $this->assertSame('', $payload['message']);
+        $this->assertSame('pending', $payload['tone']);
+        $this->assertTrue($payload['show_cta']);
+        $this->assertStringNotContainsString('risk', $payload['message']);
+        $this->assertStringNotContainsString('still alive', $payload['message']);
+    }
+
     public function test_message_payload_overrides_for_tied_records()
     {
         $service = new StreakStateService;
 
-        $payload = $service->getMessagePayload(12, 'active', 30, false, 'tied', false);
+        $payload = $service->getMessagePayload(12, 'active', 30, true, 'tied', false);
 
         $this->assertSame("You've matched your best streak of 12 days. Read tomorrow to set a new best.", $payload['message']);
         $this->assertSame('default', $payload['tone']);
+        $this->assertSame('Today complete', $payload['label']);
+        $this->assertFalse($payload['show_cta']);
     }
 
     public function test_message_payload_overrides_for_new_records_with_accent_tone()
     {
         $service = new StreakStateService;
 
-        $payload = $service->getMessagePayload(15, 'active', 14, false, 'record', true);
+        $payload = $service->getMessagePayload(15, 'active', 14, true, 'record', true);
 
         $this->assertSame('New best! Your 15-day streak is now the one to beat.', $payload['message']);
         $this->assertSame('accent', $payload['tone']);
+        $this->assertSame('Today complete', $payload['label']);
+        $this->assertFalse($payload['show_cta']);
     }
 
     /**

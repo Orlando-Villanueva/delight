@@ -6,9 +6,9 @@
 ])
 
 <div {{ $attributes->merge(['class' => 'bg-white dark:bg-gray-800 border border-[#D1D7E0] dark:border-gray-700 h-full transition-colors rounded-lg shadow-lg']) }}>
-    <div class="p-6 lg:px-3 lg:py-4 xl:p-6 h-full flex items-center">
+    <div class="p-6 lg:px-3 lg:py-4 xl:p-6 2xl:px-4 h-full flex items-center">
         <!-- 2x2 by default, horizontal row on xl, back to 2x2 on 2xl+ -->
-        <div class="grid grid-cols-2 xl:grid-cols-4 2xl:grid-cols-2 gap-x-6 gap-y-6 sm:gap-y-16 lg:gap-x-4 lg:gap-y-16 xl:gap-y-0 2xl:gap-y-12 w-full">
+        <div class="grid grid-cols-2 xl:grid-cols-4 2xl:grid-cols-2 gap-x-6 gap-y-6 sm:gap-y-16 lg:gap-x-4 lg:gap-y-16 xl:gap-y-0 2xl:gap-x-3 2xl:gap-y-12 w-full">
             <!-- Days Read -->
             <div class="flex flex-col items-center text-center">
                 <div class="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 mb-3">
@@ -19,7 +19,7 @@
                 <div class="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-1 leading-[1.5]">
                     {{ $daysRead }}
                 </div>
-                <div class="text-sm font-normal text-gray-500 dark:text-gray-500 leading-[1.5]">Days Read</div>
+                <div class="text-sm font-normal text-gray-500 dark:text-gray-500 leading-[1.5] whitespace-nowrap">Days Read</div>
             </div>
 
             <!-- Total Chapters -->
@@ -32,7 +32,7 @@
                 <div class="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-1 leading-[1.5]">
                     {{ $totalChapters }}
                 </div>
-                <div class="text-sm font-normal text-gray-500 dark:text-gray-500 leading-[1.5]">Total Chapters</div>
+                <div class="text-sm font-normal text-gray-500 dark:text-gray-500 leading-[1.5] whitespace-nowrap">Total Chapters</div>
             </div>
 
             <!-- Bible Progress -->
@@ -45,7 +45,7 @@
                 <div class="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-1 leading-[1.5]">
                     {{ number_format($bibleProgress, 1) }}%
                 </div>
-                <div class="text-sm font-normal text-gray-500 dark:text-gray-500 leading-[1.5]">Bible Progress</div>
+                <div class="text-sm font-normal text-gray-500 dark:text-gray-500 leading-[1.5] whitespace-nowrap">Bible Progress</div>
             </div>
 
             <!-- Average Chapters per Day -->
@@ -58,7 +58,7 @@
                 <div class="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-1 leading-[1.5]">
                     {{ $averageChaptersPerDay > 0 ? number_format($averageChaptersPerDay, 2) : '--' }}
                 </div>
-                <div class="text-sm font-normal text-gray-500 dark:text-gray-500 leading-[1.5]">Avg/Day</div>
+                <div class="text-sm font-normal text-gray-500 dark:text-gray-500 leading-[1.5] whitespace-nowrap">Avg/Day</div>
             </div>
         </div>
     </div>

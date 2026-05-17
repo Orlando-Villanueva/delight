@@ -131,6 +131,31 @@ class StreakStateService
     ): array {
         $message = $this->selectMessage($currentStreak, $state, $longestStreak, $hasReadToday);
         $tone = 'default';
+        $label = $hasReadToday ? 'Today complete' : 'Start a streak';
+        $showCta = ! $hasReadToday;
+
+        if (! $hasReadToday && $currentStreak > 0) {
+            if ($state === 'warning') {
+                return [
+                    'message' => '',
+                    'tone' => 'danger',
+                    'label' => 'Streak at risk',
+                    'show_cta' => true,
+                ];
+            }
+
+            return [
+                'message' => '',
+                'tone' => 'pending',
+                'label' => 'Not read today',
+                'show_cta' => true,
+            ];
+        }
+
+        if (! $hasReadToday && $currentStreak === 0) {
+            $message = '';
+            $tone = 'pending';
+        }
 
         $normalizedRecordStatus = strtolower($recordStatus);
 
@@ -144,6 +169,8 @@ class StreakStateService
         return [
             'message' => $message,
             'tone' => $tone,
+            'label' => $label,
+            'show_cta' => $showCta,
         ];
     }
 

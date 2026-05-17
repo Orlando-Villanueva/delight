@@ -8,6 +8,8 @@
     'messageTone' => 'default',
     'recordStatus' => 'none',
     'recordJustBroken' => false,
+    'statusLabel' => null,
+    'showCta' => false,
 ])
 
 @php
@@ -119,9 +121,6 @@
         $state = 'warning';
     }
 
-    $baseClass =
-        'card h-full flex flex-col border border-[#D1D7E0] dark:border-gray-700 dark:bg-gray-800 shadow-lg transition-colors';
-
     $numberColorClass = 'text-gray-900 dark:text-gray-100';
     $textColorClass = 'text-gray-600 dark:text-gray-300';
     $iconStateClasses = [
@@ -140,7 +139,12 @@
     $messageToneClasses = [
         'default' => 'text-gray-700 dark:text-gray-200',
         'accent' => 'text-accent-600 dark:text-accent-400',
+        'pending' => 'text-gray-700 dark:text-gray-200',
+        'danger' => 'text-gray-700 dark:text-gray-200',
     ];
+    $baseClass =
+        'card h-full flex flex-col border border-[#D1D7E0] dark:border-gray-700 dark:bg-gray-800 shadow-lg transition-colors';
+    $shouldShowStatusLabel = in_array($messageTone, ['pending', 'danger'], true) && filled($statusLabel);
     $bestBadgeLabel = $recordJustBroken ? 'New best' : "Best: {$longestStreak}";
     $bestBadgeClasses = $recordJustBroken
         ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200 dark:bg-primary-900/30 dark:text-primary-200 dark:ring-primary-400/30'
@@ -237,12 +241,23 @@
         </div>
     </div>
 
-    @if ($message)
+    @if ($message || $shouldShowStatusLabel)
         <div
-            class="card-footer border-t border-gray-100 dark:border-gray-700 pt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6 {{ $footerPaddingClasses[$size] ?? $footerPaddingClasses['default'] }}">
-            <p class="text-sm leading-relaxed flex items-center gap-2 flex-1 min-w-0 {{ $messageToneClasses[$messageTone] ?? $messageToneClasses['default'] }}">
+            class="card-footer border-t border-gray-100 dark:border-gray-700 pt-4 flex items-center justify-between gap-6 {{ $footerPaddingClasses[$size] ?? $footerPaddingClasses['default'] }}">
+            <p class="min-w-0 flex-1 text-sm leading-relaxed {{ $messageToneClasses[$messageTone] ?? $messageToneClasses['default'] }}">
+                @if ($shouldShowStatusLabel)
+                    <span class="font-medium text-gray-700 dark:text-gray-200">{{ $statusLabel }}</span>
+                @endif
                 {{ $message }}
             </p>
+
+            @if ($showCta)
+                <button type="button" hx-get="{{ route('logs.create') }}" hx-target="#page-container"
+                    hx-swap="innerHTML" hx-push-url="true"
+                    class="inline-flex shrink-0 items-center text-sm font-medium text-accent-600 transition hover:text-accent-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 dark:text-accent-400 dark:hover:text-accent-300 dark:focus-visible:outline-accent-400">
+                    Log today
+                </button>
+            @endif
         </div>
     @endif
 </div>
