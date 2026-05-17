@@ -86,6 +86,7 @@ class DashboardControllerTest extends TestCase
         $response->assertSee('Not read today');
         $response->assertDontSee('Keep your streak active.');
         $response->assertSee('Log today');
+        $response->assertSee('href="'.route('logs.create').'"', false);
         $response->assertSee('hx-push-url="true"', false);
         $response->assertDontSee('Streak at risk');
 
