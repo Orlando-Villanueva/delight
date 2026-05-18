@@ -58,6 +58,7 @@
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon-app.ico') }}?v={{ config('app.asset_version') }}">
+    <link rel="apple-touch-icon" sizes="192x192" href="{{ asset('images/app-icon-v2-192.png') }}?v={{ config('app.asset_version') }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
@@ -131,8 +132,8 @@
                     <a href="{{ route('landing') }}"
                         class="flex items-center space-x-2 text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md"
                         aria-label="Delight - Go to homepage">
-                        <img src="{{ asset('images/logo-64.png') }}"
-                            srcset="{{ asset('images/logo-64.png') }} 1x, {{ asset('images/logo-64-2x.png') }} 2x"
+                        <img src="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}"
+                            srcset="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }} 1x, {{ asset('images/logo-64-2x.png') }}?v={{ config('app.asset_version') }} 2x"
                             alt="Delight logo - Bible reading habit tracker" class="w-8 h-8" width="32"
                             height="32" loading="eager" decoding="async" />
                         <span>Delight</span>

@@ -40,7 +40,7 @@
                             "name": "Delight",
                             "logo": {
                                  "@@type": "ImageObject",
-                                 "url": "{{ asset('images/logo-64.png') }}"
+                                 "url": "{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}"
                             }
                         },
                         "description": {!! json_encode($seoDescription, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}

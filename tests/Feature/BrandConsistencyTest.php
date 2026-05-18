@@ -46,4 +46,26 @@ class BrandConsistencyTest extends TestCase
         $response->assertSee('<meta name="twitter:title" content="'.$publicBrandName.'">', false);
         $response->assertSee('"name": "'.$publicBrandName.'"', false);
     }
+
+    public function test_landing_page_uses_versioned_brand_assets()
+    {
+        $assetVersion = config('app.asset_version');
+
+        $response = $this->get('/');
+
+        $response->assertSuccessful();
+        $response->assertSee('href="'.asset('favicon-app.ico').'?v='.$assetVersion.'"', false);
+        $response->assertSee('href="'.asset('images/app-icon-v2-192.png').'?v='.$assetVersion.'"', false);
+        $response->assertSee('src="'.asset('images/logo-64.png').'?v='.$assetVersion.'"', false);
+        $response->assertSee(asset('images/logo-64-2x.png').'?v='.$assetVersion, false);
+    }
+
+    public function test_service_worker_matches_versioned_static_asset_requests()
+    {
+        $serviceWorker = file_get_contents(public_path('sw.js'));
+
+        $this->assertStringContainsString('const requestUrl = new URL(event.request.url);', $serviceWorker);
+        $this->assertStringContainsString('STATIC_CACHE_URLS.includes(requestUrl.pathname)', $serviceWorker);
+        $this->assertStringContainsString('caches.match(event.request, { ignoreSearch: true })', $serviceWorker);
+    }
 }

@@ -43,10 +43,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  const requestUrl = new URL(event.request.url);
+
   // For static assets, try cache first
-  if (STATIC_CACHE_URLS.some(url => event.request.url.includes(url))) {
+  if (STATIC_CACHE_URLS.includes(requestUrl.pathname)) {
     event.respondWith(
-      caches.match(event.request)
+      caches.match(event.request, { ignoreSearch: true })
         .then((response) => {
           return response || fetch(event.request);
         })

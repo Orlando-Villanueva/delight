@@ -88,7 +88,7 @@
                 <!-- Logo -->
                 <div class="flex items-center">
                     <a href="{{ route('landing') }}" class="flex items-center gap-2">
-                        <img src="{{ asset('images/logo-64.png') }}" alt="Delight Logo" class="w-8 h-8">
+                        <img src="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}" alt="Delight Logo" class="w-8 h-8">
                         <span class="{{ $logoTextClasses }}">Delight</span>
                     </a>
 
