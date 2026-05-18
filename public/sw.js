@@ -1,11 +1,14 @@
 // Service Worker for Delight PWA
 // Version 1.0 - Basic PWA installation support
 
-const CACHE_NAME = 'delight-v2';
+const CACHE_NAME = 'delight-v3';
 const STATIC_CACHE_URLS = [
-  '/favicon.ico',
+  '/favicon-app.ico',
   '/images/logo-64.png',
   '/images/logo-192.png',
+  '/images/app-icon-v2-64.png',
+  '/images/app-icon-v2-192.png',
+  '/images/app-icon-v2-512.png',
   '/site.webmanifest'
 ];
 
@@ -40,10 +43,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  const requestUrl = new URL(event.request.url);
+
   // For static assets, try cache first
-  if (STATIC_CACHE_URLS.some(url => event.request.url.includes(url))) {
+  if (STATIC_CACHE_URLS.includes(requestUrl.pathname)) {
     event.respondWith(
-      caches.match(event.request)
+      caches.match(event.request, { ignoreSearch: true })
         .then((response) => {
           return response || fetch(event.request);
         })

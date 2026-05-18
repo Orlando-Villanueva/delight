@@ -280,7 +280,7 @@
         <!-- Header -->
         <div class="header">
             <a href="{{ url('/') }}" class="logo">
-                <img src="{{ asset('images/logo-64.png') }}" width="32" height="32" alt="Delight Logo">
+                <img src="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}" width="32" height="32" alt="Delight Logo">
                 <span>Delight</span>
             </a>
         </div>
