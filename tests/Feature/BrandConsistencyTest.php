@@ -33,4 +33,17 @@ class BrandConsistencyTest extends TestCase
         $response = $this->get('/login');
         $response->assertSee('<title>'.config('app.name'), false);
     }
+
+    public function test_landing_page_uses_consistent_public_brand_name()
+    {
+        $publicBrandName = 'Delight - Bible Reading Tracker';
+
+        $response = $this->get('/');
+
+        $response->assertSuccessful();
+        $response->assertSee('<title>'.$publicBrandName.'</title>', false);
+        $response->assertSee('<meta property="og:title" content="'.$publicBrandName.'">', false);
+        $response->assertSee('<meta name="twitter:title" content="'.$publicBrandName.'">', false);
+        $response->assertSee('"name": "'.$publicBrandName.'"', false);
+    }
 }

@@ -41,7 +41,7 @@
     <link rel="sitemap" type="application/xml" title="Sitemap" href="{{ config('app.url') }}/sitemap.xml">
 
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Delight - Bible Reading Tracker for Consistency">
+    <meta property="og:title" content="Delight - Bible Reading Tracker">
     <meta property="og:description"
         content="Track your Bible reading with streaks, structured plans, next milestone guidance, and permanent achievement rewards. Follow a plan or log freely with gentle motivation.">
     <meta property="og:type" content="website">
@@ -51,7 +51,7 @@
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Delight - Bible Tracking App for Consistency">
+    <meta name="twitter:title" content="Delight - Bible Reading Tracker">
     <meta name="twitter:description"
         content="Track Bible reading with streaks, progress visualization, structured plans, next milestone guidance, and permanent achievement rewards.">
     <meta name="twitter:image" content="{{ $linkPreviewScreenshot }}">
@@ -76,7 +76,7 @@
         {
             "@@context": "https://schema.org",
             "@@type": "WebApplication",
-            "name": "Delight",
+            "name": "Delight - Bible Reading Tracker",
             "description": "Track your Bible reading with streaks, progress visualization, structured reading plans, next milestone guidance, and permanent achievement rewards.",
             "url": "{{ config('app.url') }}",
             "applicationCategory": "LifestyleApplication",
