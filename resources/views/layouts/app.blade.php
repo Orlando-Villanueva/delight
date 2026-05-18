@@ -9,8 +9,8 @@
     <title>{{ config('app.name', 'Delight') }}</title>
 
     <!-- Favicon -->
-    <link rel="icon" href="{{ asset('favicon.ico') }}" type="image/x-icon">
-    <link rel="apple-touch-icon" sizes="192x192" href="{{ asset('images/logo-192.png') }}">
+    <link rel="icon" href="{{ asset('favicon-app.ico') }}?v={{ config('app.asset_version') }}" type="image/x-icon">
+    <link rel="apple-touch-icon" sizes="192x192" href="{{ asset('images/app-icon-v2-192.png') }}">
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="{{ asset('site.webmanifest') }}">

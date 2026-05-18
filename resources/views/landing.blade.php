@@ -57,7 +57,7 @@
     <meta name="twitter:image" content="{{ $linkPreviewScreenshot }}">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon-app.ico') }}?v={{ config('app.asset_version') }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
