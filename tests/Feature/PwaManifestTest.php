@@ -14,8 +14,10 @@ test('manifest screenshots reference existing assets with accurate dimensions', 
 
         expect($path)->toBeFile();
 
-        [$width, $height] = getimagesize($path);
+        $image = getimagesize($path);
 
-        expect($screenshot['sizes'])->toBe($width.'x'.$height);
+        expect($image)->not->toBeFalse()
+            ->and($image['mime'])->toBe($screenshot['type'])
+            ->and($screenshot['sizes'])->toBe($image[0].'x'.$image[1]);
     }
 });
