@@ -1,0 +1,92 @@
+{
+  "name": "Delight",
+  "short_name": "Delight",
+  "description": "Track your Bible reading habits and build consistency with streak tracking and progress visualization",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#3366CC",
+  "orientation": "portrait-primary",
+  "categories": ["lifestyle", "productivity", "education"],
+  "lang": "en-US",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/images/app-icon-v2-64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/app-icon-v2-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/app-icon-v2-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/images/app-icon-v2-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Log Reading",
+      "short_name": "Log",
+      "url": "/logs/create",
+      "icons": [
+        {
+          "src": "/images/app-icon-v2-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Today's Plan",
+      "short_name": "Today",
+      "url": "/plans/today",
+      "icons": [
+        {
+          "src": "/images/app-icon-v2-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Reading History",
+      "short_name": "History",
+      "url": "/logs",
+      "icons": [
+        {
+          "src": "/images/app-icon-v2-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/screenshots/mobile-v3.png",
+      "sizes": "726x1570",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Dashboard view on mobile"
+    },
+    {
+      "src": "/images/screenshots/desktop-v3.png",
+      "sizes": "3456x1924",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Dashboard view on desktop"
+    }
+  ]
+}

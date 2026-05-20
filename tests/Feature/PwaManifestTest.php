@@ -6,7 +6,7 @@ use App\Models\User;
 const TODAY_PLAN_SHORTCUT_URL = '/plans/today';
 
 beforeEach(function () {
-    $this->manifest = json_decode(file_get_contents(public_path('site.webmanifest')), true, flags: JSON_THROW_ON_ERROR);
+    $this->manifest = json_decode(file_get_contents(public_path('pwa.webmanifest')), true, flags: JSON_THROW_ON_ERROR);
 });
 
 test('manifest screenshots reference existing assets with accurate dimensions', function () {
