@@ -8,7 +8,7 @@ const STATIC_CACHE_URLS = [
   '/images/logo-192.png',
   '/images/app-icon-v2-64.png',
   '/images/app-icon-v2-192.png',
-  '/images/app-icon-v2-512.png'
+  '/images/app-icon-v2-512.png',
 ];
 
 // Install event - cache static assets
