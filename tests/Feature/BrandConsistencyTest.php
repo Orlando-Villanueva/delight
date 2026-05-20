@@ -60,6 +60,16 @@ class BrandConsistencyTest extends TestCase
         $response->assertSee(asset('images/logo-64-2x.png').'?v='.$assetVersion, false);
     }
 
+    public function test_landing_page_links_versioned_pwa_manifest()
+    {
+        $assetVersion = config('app.asset_version');
+
+        $response = $this->get('/');
+
+        $response->assertSuccessful();
+        $response->assertSee('href="'.asset('pwa.webmanifest').'?v='.$assetVersion.'"', false);
+    }
+
     public function test_service_worker_matches_versioned_static_asset_requests()
     {
         $serviceWorker = file_get_contents(public_path('sw.js'));
@@ -67,5 +77,13 @@ class BrandConsistencyTest extends TestCase
         $this->assertStringContainsString('const requestUrl = new URL(event.request.url);', $serviceWorker);
         $this->assertStringContainsString('STATIC_CACHE_URLS.includes(requestUrl.pathname)', $serviceWorker);
         $this->assertStringContainsString('caches.match(event.request, { ignoreSearch: true })', $serviceWorker);
+    }
+
+    public function test_service_worker_does_not_cache_pwa_manifest()
+    {
+        $serviceWorker = file_get_contents(public_path('sw.js'));
+
+        $this->assertStringNotContainsString("'/site.webmanifest'", $serviceWorker);
+        $this->assertStringNotContainsString("'/pwa.webmanifest'", $serviceWorker);
     }
 }
