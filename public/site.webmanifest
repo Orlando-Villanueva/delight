@@ -37,15 +37,15 @@
   ],
   "screenshots": [
     {
-      "src": "/images/screenshots/mobile_v2.png",
-      "sizes": "432x934",
+      "src": "/images/screenshots/mobile-v3.png",
+      "sizes": "726x1570",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Dashboard view on mobile"
     },
     {
-      "src": "/images/screenshots/desktop_v2.1.png",
-      "sizes": "4112x2580",
+      "src": "/images/screenshots/desktop-v3.png",
+      "sizes": "3456x1924",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Dashboard view on desktop"
