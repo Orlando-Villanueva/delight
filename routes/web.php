@@ -42,6 +42,11 @@ Route::get('/', function () {
 // XML Sitemap
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
+Route::get('/pwa.webmanifest', function () {
+    return response(file_get_contents(public_path('site.webmanifest')), 200)
+        ->header('Content-Type', 'application/manifest+json');
+})->name('pwa.manifest');
+
 // Legal Pages
 Route::get('/privacy-policy', function () {
     return view('legal.privacy-policy');
