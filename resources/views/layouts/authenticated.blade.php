@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     @php($appName = config('app.name', 'Delight'))
@@ -69,10 +69,10 @@
             <main class="flex-1 lg:overflow-y-auto">
                 {{-- Standardized page container with:
                      - Standard horizontal and top padding
-                     - Vertical clearance for mobile bottom navigation (pb-24)
+                     - Vertical clearance for mobile bottom navigation and iOS safe areas
                 --}}
                 <div id="page-container"
-                    class="container mx-auto px-4 pt-4 pb-24 md:pb-4 lg:min-h-full lg:flex lg:flex-col">
+                    class="container mx-auto px-mobile-safe pt-4 pb-mobile-nav-safe lg:pb-4 lg:min-h-full lg:flex lg:flex-col">
                     @yield('content')
                 </div>
             </main>

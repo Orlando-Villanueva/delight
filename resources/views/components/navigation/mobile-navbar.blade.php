@@ -2,7 +2,7 @@
 {{-- Flowbite-based navbar that scrolls with content (not fixed) --}}
 
 <nav class="lg:hidden bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700">
-    <div class="px-4 py-3">
+    <div class="px-mobile-safe pt-mobile-safe pb-3">
         <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
                 <div class="w-8 h-8 rounded-lg flex items-center justify-center">
