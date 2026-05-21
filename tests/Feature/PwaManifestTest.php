@@ -21,6 +21,16 @@ test('pwa manifest route mirrors the canonical site manifest', function () {
     expect($response->content())->toBe(file_get_contents(public_path('site.webmanifest')));
 });
 
+test('pwa manifest route returns not found when canonical manifest is unavailable', function () {
+    $manifestPath = public_path('missing-site.webmanifest');
+
+    expect($manifestPath)->not->toBeFile();
+
+    config(['app.pwa_manifest_path' => $manifestPath]);
+
+    $this->get('/pwa.webmanifest')->assertNotFound();
+});
+
 test('manifest screenshots reference existing assets with accurate dimensions', function () {
     expect($this->manifest['screenshots'])->toHaveCount(2);
     expect(array_column($this->manifest['screenshots'], 'src'))->toBe([

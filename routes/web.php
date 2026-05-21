@@ -43,7 +43,15 @@ Route::get('/', function () {
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
 Route::get('/pwa.webmanifest', function () {
-    return response(file_get_contents(public_path('site.webmanifest')), 200)
+    $manifestPath = config('app.pwa_manifest_path', public_path('site.webmanifest'));
+
+    abort_unless(is_file($manifestPath) && is_readable($manifestPath), 404);
+
+    $manifest = file_get_contents($manifestPath);
+
+    abort_if($manifest === false, 500);
+
+    return response($manifest, 200)
         ->header('Content-Type', 'application/manifest+json');
 })->name('pwa.manifest');
 
