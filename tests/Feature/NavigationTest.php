@@ -44,6 +44,23 @@ describe('Navigation Component Rendering', function () {
         // Check for sr-only labels in mobile navigation
         $response->assertSee('Dashboard', false);
         $response->assertSee('History', false);
+        $response->assertSee('content="width=device-width, initial-scale=1, viewport-fit=cover"', false);
+        $response->assertSee('px-mobile-safe pt-mobile-safe pb-3', false);
+        $response->assertSee('z-stack-nav', false);
+        $response->assertSee('bottom-mobile-nav-safe', false);
+        $response->assertSee('pb-mobile-nav-safe lg:pb-4', false);
+    });
+
+    it('defines safe area utilities for mobile navigation spacing', function () {
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        expect($css)
+            ->toContain('.bottom-mobile-nav-safe')
+            ->toContain('bottom: calc(1rem + env(safe-area-inset-bottom, 0px));')
+            ->toContain('.pb-mobile-nav-safe')
+            ->toContain('padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));')
+            ->toContain('@media (width >= 64rem)')
+            ->toContain('padding-bottom: 1rem;');
     });
 
     it('centers the log reading action in the mobile bottom navigation order', function () {
@@ -422,7 +439,7 @@ describe('Navigation Component Integration', function () {
         // Check that key navigation elements from all components are present
         $response->assertSee('<nav', false); // Desktop navbar
         $response->assertSee('<aside', false); // Desktop sidebar
-        $response->assertSee('rounded-full bottom-4', false); // Mobile bottom bar
+        $response->assertSee('rounded-full bottom-mobile-nav-safe', false); // Mobile bottom bar
     });
 
     it('includes browser navigation support script', function () {

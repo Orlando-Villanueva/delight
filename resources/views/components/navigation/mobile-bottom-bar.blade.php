@@ -2,7 +2,7 @@
 {{-- Uniform icon navigation with accent-colored Log button --}}
 
 <div id="mobile-bottom-navigation"
-    class="fixed z-50 w-full h-16 max-w-lg -translate-x-1/2 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full bottom-4 left-1/2 dark:bg-gray-800/80 dark:border-gray-700 shadow-xl lg:hidden">
+    class="fixed z-stack-nav w-full h-16 max-w-lg -translate-x-1/2 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full bottom-mobile-nav-safe left-1/2 dark:bg-gray-800/80 dark:border-gray-700 shadow-xl lg:hidden">
     <div class="grid h-full max-w-lg grid-cols-5 mx-auto">
         {{-- Dashboard --}}
         <x-navigation.nav-link route="dashboard" label="Dashboard" variant="mobile" class="rounded-s-full">
