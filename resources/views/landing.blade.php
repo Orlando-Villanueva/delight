@@ -59,6 +59,7 @@
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon-app.ico') }}?v={{ config('app.asset_version') }}">
     <link rel="apple-touch-icon" sizes="192x192" href="{{ asset('images/app-icon-v2-192.png') }}?v={{ config('app.asset_version') }}">
+    <link rel="manifest" href="{{ route('pwa.manifest', ['v' => config('app.asset_version')]) }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>

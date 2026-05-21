@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" sizes="192x192" href="{{ asset('images/app-icon-v2-192.png') }}?v={{ config('app.asset_version') }}">
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="{{ asset('site.webmanifest') }}?v={{ config('app.asset_version') }}">
+    <link rel="manifest" href="{{ route('pwa.manifest', ['v' => config('app.asset_version')]) }}">
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#3366CC">

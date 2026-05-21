@@ -1,7 +1,7 @@
 // Service Worker for Delight PWA
 // Version 1.0 - Basic PWA installation support
 
-const CACHE_NAME = 'delight-v3';
+const CACHE_NAME = 'delight-v4';
 const STATIC_CACHE_URLS = [
   '/favicon-app.ico',
   '/images/logo-64.png',
@@ -9,7 +9,6 @@ const STATIC_CACHE_URLS = [
   '/images/app-icon-v2-64.png',
   '/images/app-icon-v2-192.png',
   '/images/app-icon-v2-512.png',
-  '/site.webmanifest'
 ];
 
 // Install event - cache static assets

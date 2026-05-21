@@ -42,6 +42,19 @@ Route::get('/', function () {
 // XML Sitemap
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
+Route::get('/pwa.webmanifest', function () {
+    $manifestPath = config('app.pwa_manifest_path', public_path('site.webmanifest'));
+
+    abort_unless(is_file($manifestPath) && is_readable($manifestPath), 404);
+
+    $manifest = file_get_contents($manifestPath);
+
+    abort_if($manifest === false, 500);
+
+    return response($manifest, 200)
+        ->header('Content-Type', 'application/manifest+json');
+})->name('pwa.manifest');
+
 // Legal Pages
 Route::get('/privacy-policy', function () {
     return view('legal.privacy-policy');
