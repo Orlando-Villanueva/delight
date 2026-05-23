@@ -54,6 +54,12 @@
 </head>
 
 <body class="bg-[#F5F7FA] dark:bg-gray-900 text-gray-600 min-h-screen font-sans antialiased transition-colors">
+    <progress id="page-navigation-loading" data-page-navigation-loading aria-label="Page loading" aria-hidden="true"
+        max="100" value="0"
+        class="page-navigation-loading pointer-events-none fixed inset-x-0 top-0 z-stack-loading h-1 w-full opacity-0 transition-opacity duration-150">
+        Page loading
+    </progress>
+
     <div class="flex h-screen">
         <!-- Desktop: Sidebar and Navbar -->
         <div class="hidden lg:flex">

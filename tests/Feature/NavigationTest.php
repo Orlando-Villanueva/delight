@@ -183,6 +183,36 @@ describe('HTMX Navigation Requests', function () {
         $response->assertSee('hx-target="#page-container"', false);
         $response->assertSee('id="page-container"', false);
     });
+
+    it('renders global page navigation loading feedback without replacing form save indicators', function () {
+        $user = User::factory()->create();
+
+        $dashboardResponse = $this->actingAs($user)->get('/dashboard');
+
+        $dashboardResponse->assertSuccessful();
+        $dashboardResponse->assertSee('<progress', false);
+        $dashboardResponse->assertSee('id="page-navigation-loading"', false);
+        $dashboardResponse->assertSee('data-page-navigation-loading', false);
+        $dashboardResponse->assertSee('max="100"', false);
+        $dashboardResponse->assertSee('value="0"', false);
+
+        $script = file_get_contents(resource_path('js/app.js'));
+
+        expect($script)
+            ->toContain("document.getElementById('page-navigation-loading')")
+            ->toContain("target?.id === 'page-container'")
+            ->toContain('pageNavigationLoading.value = 70')
+            ->toContain('pageNavigationLoading.value = 100')
+            ->toContain("document.body.addEventListener('htmx:beforeRequest'")
+            ->toContain("document.body.addEventListener('htmx:afterRequest', hideIfPageContainerRequest)");
+
+        $response = $this->actingAs($user)->get(route('logs.create'));
+
+        $response->assertSuccessful();
+        $response->assertSee('hx-indicator="#save-loading"', false);
+        $response->assertSee('id="save-loading"', false);
+        $response->assertSee('htmx-indicator-hidden">Log Reading', false);
+    });
 });
 
 describe('Navigation Routes', function () {

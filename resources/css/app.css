@@ -69,6 +69,28 @@ html {
     scroll-behavior: smooth;
 }
 
+.page-navigation-loading {
+    appearance: none;
+    border: 0;
+    background-color: transparent;
+}
+
+.page-navigation-loading::-webkit-progress-bar {
+    background-color: transparent;
+}
+
+.page-navigation-loading::-webkit-progress-value {
+    background-color: var(--color-primary-500);
+    box-shadow: 0 0 12px rgba(51, 102, 204, 0.45);
+    transition: width 180ms ease-out;
+}
+
+.page-navigation-loading::-moz-progress-bar {
+    background-color: var(--color-primary-500);
+    box-shadow: 0 0 12px rgba(51, 102, 204, 0.45);
+    transition: width 180ms ease-out;
+}
+
 /* Scrollbar theming for light/dark modes */
 :root {
     --scrollbar-track: transparent;
@@ -259,6 +281,10 @@ html {
     /* Layered z-index tokens so layout + modals stay in sync */
     .z-stack-nav {
         z-index: 60;
+    }
+
+    .z-stack-loading {
+        z-index: 65;
     }
 
     .px-mobile-safe {
