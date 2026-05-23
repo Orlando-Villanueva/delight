@@ -193,12 +193,16 @@ describe('HTMX Navigation Requests', function () {
         $dashboardResponse->assertSee('<progress', false);
         $dashboardResponse->assertSee('id="page-navigation-loading"', false);
         $dashboardResponse->assertSee('data-page-navigation-loading', false);
+        $dashboardResponse->assertSee('max="100"', false);
+        $dashboardResponse->assertSee('value="0"', false);
 
         $script = file_get_contents(resource_path('js/app.js'));
 
         expect($script)
             ->toContain("document.getElementById('page-navigation-loading')")
             ->toContain("target?.id === 'page-container'")
+            ->toContain('pageNavigationLoading.value = 70')
+            ->toContain('pageNavigationLoading.value = 100')
             ->toContain("document.body.addEventListener('htmx:beforeRequest'")
             ->toContain("document.body.addEventListener('htmx:afterRequest', hideIfPageContainerRequest)");
 

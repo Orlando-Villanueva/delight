@@ -80,21 +80,15 @@ html {
 }
 
 .page-navigation-loading::-webkit-progress-value {
-    animation: page-navigation-loading-pulse 1.5s ease-in-out infinite;
     background-color: var(--color-primary-500);
     box-shadow: 0 0 12px rgba(51, 102, 204, 0.45);
+    transition: width 180ms ease-out;
 }
 
 .page-navigation-loading::-moz-progress-bar {
-    animation: page-navigation-loading-pulse 1.5s ease-in-out infinite;
     background-color: var(--color-primary-500);
     box-shadow: 0 0 12px rgba(51, 102, 204, 0.45);
-}
-
-@keyframes page-navigation-loading-pulse {
-    50% {
-        opacity: 0.5;
-    }
+    transition: width 180ms ease-out;
 }
 
 /* Scrollbar theming for light/dark modes */

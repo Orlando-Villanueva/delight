@@ -57,19 +57,61 @@ if (typeof document !== 'undefined') {
             return target?.id === 'page-container';
         };
 
+        let pageNavigationLoadingStartedAt = 0;
+        let pageNavigationLoadingRampFrame = null;
+        let pageNavigationLoadingFinishTimeout = null;
+        let pageNavigationLoadingHideTimeout = null;
+
+        const clearPageNavigationLoadingTimers = () => {
+            if (pageNavigationLoadingRampFrame) {
+                window.cancelAnimationFrame(pageNavigationLoadingRampFrame);
+                pageNavigationLoadingRampFrame = null;
+            }
+
+            window.clearTimeout(pageNavigationLoadingFinishTimeout);
+            window.clearTimeout(pageNavigationLoadingHideTimeout);
+        };
+
         const showPageNavigationLoading = () => {
             if (pageNavigationLoading) {
+                clearPageNavigationLoadingTimers();
+                pageNavigationLoadingStartedAt = Date.now();
+                pageNavigationLoading.value = 0;
                 pageNavigationLoading.classList.remove('opacity-0');
                 pageNavigationLoading.classList.add('opacity-100');
                 pageNavigationLoading.setAttribute('aria-hidden', 'false');
+
+                pageNavigationLoadingRampFrame = window.requestAnimationFrame(() => {
+                    pageNavigationLoading.value = 70;
+                    pageNavigationLoadingRampFrame = null;
+                });
             }
         };
 
         const hidePageNavigationLoading = () => {
             if (pageNavigationLoading) {
-                pageNavigationLoading.classList.remove('opacity-100');
-                pageNavigationLoading.classList.add('opacity-0');
-                pageNavigationLoading.setAttribute('aria-hidden', 'true');
+                window.clearTimeout(pageNavigationLoadingFinishTimeout);
+                window.clearTimeout(pageNavigationLoadingHideTimeout);
+
+                const minimumVisibleDuration = 180;
+                const elapsed = Date.now() - pageNavigationLoadingStartedAt;
+                const finishDelay = Math.max(minimumVisibleDuration - elapsed, 0);
+
+                pageNavigationLoadingFinishTimeout = window.setTimeout(() => {
+                    if (pageNavigationLoadingRampFrame) {
+                        window.cancelAnimationFrame(pageNavigationLoadingRampFrame);
+                        pageNavigationLoadingRampFrame = null;
+                    }
+
+                    pageNavigationLoading.value = 100;
+
+                    pageNavigationLoadingHideTimeout = window.setTimeout(() => {
+                        pageNavigationLoading.classList.remove('opacity-100');
+                        pageNavigationLoading.classList.add('opacity-0');
+                        pageNavigationLoading.setAttribute('aria-hidden', 'true');
+                        pageNavigationLoading.value = 0;
+                    }, 220);
+                }, finishDelay);
             }
         };
 
