@@ -61,15 +61,34 @@ if (typeof document !== 'undefined') {
         let pageNavigationLoadingRampFrame = null;
         let pageNavigationLoadingFinishTimeout = null;
         let pageNavigationLoadingHideTimeout = null;
+        let pageNavigationLoadingResetTimeout = null;
 
         const clearPageNavigationLoadingTimers = () => {
             if (pageNavigationLoadingRampFrame) {
-                window.cancelAnimationFrame(pageNavigationLoadingRampFrame);
+                globalThis.cancelAnimationFrame(pageNavigationLoadingRampFrame);
                 pageNavigationLoadingRampFrame = null;
             }
 
-            window.clearTimeout(pageNavigationLoadingFinishTimeout);
-            window.clearTimeout(pageNavigationLoadingHideTimeout);
+            globalThis.clearTimeout(pageNavigationLoadingFinishTimeout);
+            globalThis.clearTimeout(pageNavigationLoadingHideTimeout);
+            globalThis.clearTimeout(pageNavigationLoadingResetTimeout);
+        };
+
+        const resetPageNavigationLoading = () => {
+            pageNavigationLoading.value = 0;
+        };
+
+        const hideFinishedPageNavigationLoading = () => {
+            pageNavigationLoading.classList.remove('opacity-100');
+            pageNavigationLoading.classList.add('opacity-0');
+            pageNavigationLoading.setAttribute('aria-hidden', 'true');
+
+            pageNavigationLoadingResetTimeout = globalThis.setTimeout(resetPageNavigationLoading, 180);
+        };
+
+        const finishPageNavigationLoading = () => {
+            pageNavigationLoading.value = 100;
+            pageNavigationLoadingHideTimeout = globalThis.setTimeout(hideFinishedPageNavigationLoading, 220);
         };
 
         const showPageNavigationLoading = () => {
@@ -81,7 +100,7 @@ if (typeof document !== 'undefined') {
                 pageNavigationLoading.classList.add('opacity-100');
                 pageNavigationLoading.setAttribute('aria-hidden', 'false');
 
-                pageNavigationLoadingRampFrame = window.requestAnimationFrame(() => {
+                pageNavigationLoadingRampFrame = globalThis.requestAnimationFrame(() => {
                     pageNavigationLoading.value = 70;
                     pageNavigationLoadingRampFrame = null;
                 });
@@ -90,28 +109,13 @@ if (typeof document !== 'undefined') {
 
         const hidePageNavigationLoading = () => {
             if (pageNavigationLoading) {
-                window.clearTimeout(pageNavigationLoadingFinishTimeout);
-                window.clearTimeout(pageNavigationLoadingHideTimeout);
+                clearPageNavigationLoadingTimers();
 
                 const minimumVisibleDuration = 180;
                 const elapsed = Date.now() - pageNavigationLoadingStartedAt;
                 const finishDelay = Math.max(minimumVisibleDuration - elapsed, 0);
 
-                pageNavigationLoadingFinishTimeout = window.setTimeout(() => {
-                    if (pageNavigationLoadingRampFrame) {
-                        window.cancelAnimationFrame(pageNavigationLoadingRampFrame);
-                        pageNavigationLoadingRampFrame = null;
-                    }
-
-                    pageNavigationLoading.value = 100;
-
-                    pageNavigationLoadingHideTimeout = window.setTimeout(() => {
-                        pageNavigationLoading.classList.remove('opacity-100');
-                        pageNavigationLoading.classList.add('opacity-0');
-                        pageNavigationLoading.setAttribute('aria-hidden', 'true');
-                        pageNavigationLoading.value = 0;
-                    }, 220);
-                }, finishDelay);
+                pageNavigationLoadingFinishTimeout = globalThis.setTimeout(finishPageNavigationLoading, finishDelay);
             }
         };
 
