@@ -49,6 +49,44 @@ if (typeof document !== 'undefined') {
 
         document.body.addEventListener('htmx:afterSwap', initFlowbiteWithPatches);
 
+        const pageNavigationLoading = document.getElementById('page-navigation-loading');
+
+        const isPageContainerRequest = (event) => {
+            const target = event?.detail?.target;
+
+            return target?.id === 'page-container';
+        };
+
+        if (pageNavigationLoading) {
+            const showPageNavigationLoading = () => {
+                pageNavigationLoading.classList.remove('opacity-0');
+                pageNavigationLoading.classList.add('opacity-100');
+                pageNavigationLoading.setAttribute('aria-hidden', 'false');
+            };
+
+            const hidePageNavigationLoading = () => {
+                pageNavigationLoading.classList.remove('opacity-100');
+                pageNavigationLoading.classList.add('opacity-0');
+                pageNavigationLoading.setAttribute('aria-hidden', 'true');
+            };
+
+            document.body.addEventListener('htmx:beforeRequest', (event) => {
+                if (isPageContainerRequest(event)) {
+                    showPageNavigationLoading();
+                }
+            });
+
+            const hideIfPageContainerRequest = (event) => {
+                if (isPageContainerRequest(event)) {
+                    hidePageNavigationLoading();
+                }
+            };
+
+            document.body.addEventListener('htmx:afterSwap', hideIfPageContainerRequest);
+            document.body.addEventListener('htmx:responseError', hideIfPageContainerRequest);
+            document.body.addEventListener('htmx:sendError', hideIfPageContainerRequest);
+        }
+
         // Close all Flowbite dropdowns when a major HTMX navigation occurs
         document.body.addEventListener('htmx:beforeRequest', (event) => {
             const target = event.detail.target;

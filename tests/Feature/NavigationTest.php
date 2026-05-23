@@ -183,6 +183,38 @@ describe('HTMX Navigation Requests', function () {
         $response->assertSee('hx-target="#page-container"', false);
         $response->assertSee('id="page-container"', false);
     });
+
+    it('renders global page navigation loading feedback hooks', function () {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertSuccessful();
+        $response->assertSee('id="page-navigation-loading"', false);
+        $response->assertSee('role="progressbar"', false);
+        $response->assertSee('data-page-navigation-loading', false);
+
+        $script = file_get_contents(resource_path('js/app.js'));
+
+        expect($script)
+            ->toContain("document.getElementById('page-navigation-loading')")
+            ->toContain("target?.id === 'page-container'")
+            ->toContain("document.body.addEventListener('htmx:beforeRequest'")
+            ->toContain("document.body.addEventListener('htmx:afterSwap', hideIfPageContainerRequest)")
+            ->toContain("document.body.addEventListener('htmx:responseError', hideIfPageContainerRequest)")
+            ->toContain("document.body.addEventListener('htmx:sendError', hideIfPageContainerRequest)");
+    });
+
+    it('keeps the log form save loading indicator scoped to the form action', function () {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('logs.create'));
+
+        $response->assertSuccessful();
+        $response->assertSee('hx-indicator="#save-loading"', false);
+        $response->assertSee('id="save-loading"', false);
+        $response->assertSee('htmx-indicator-hidden">Log Reading', false);
+    });
 });
 
 describe('Navigation Routes', function () {

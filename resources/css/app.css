@@ -261,6 +261,10 @@ html {
         z-index: 60;
     }
 
+    .z-stack-loading {
+        z-index: 65;
+    }
+
     .px-mobile-safe {
         padding-left: calc(1rem + env(safe-area-inset-left, 0px));
         padding-right: calc(1rem + env(safe-area-inset-right, 0px));
