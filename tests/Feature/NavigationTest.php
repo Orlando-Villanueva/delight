@@ -184,15 +184,15 @@ describe('HTMX Navigation Requests', function () {
         $response->assertSee('id="page-container"', false);
     });
 
-    it('renders global page navigation loading feedback hooks', function () {
+    it('renders global page navigation loading feedback without replacing form save indicators', function () {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $dashboardResponse = $this->actingAs($user)->get('/dashboard');
 
-        $response->assertSuccessful();
-        $response->assertSee('id="page-navigation-loading"', false);
-        $response->assertSee('role="progressbar"', false);
-        $response->assertSee('data-page-navigation-loading', false);
+        $dashboardResponse->assertSuccessful();
+        $dashboardResponse->assertSee('<progress', false);
+        $dashboardResponse->assertSee('id="page-navigation-loading"', false);
+        $dashboardResponse->assertSee('data-page-navigation-loading', false);
 
         $script = file_get_contents(resource_path('js/app.js'));
 
@@ -200,13 +200,7 @@ describe('HTMX Navigation Requests', function () {
             ->toContain("document.getElementById('page-navigation-loading')")
             ->toContain("target?.id === 'page-container'")
             ->toContain("document.body.addEventListener('htmx:beforeRequest'")
-            ->toContain("document.body.addEventListener('htmx:afterSwap', hideIfPageContainerRequest)")
-            ->toContain("document.body.addEventListener('htmx:responseError', hideIfPageContainerRequest)")
-            ->toContain("document.body.addEventListener('htmx:sendError', hideIfPageContainerRequest)");
-    });
-
-    it('keeps the log form save loading indicator scoped to the form action', function () {
-        $user = User::factory()->create();
+            ->toContain("document.body.addEventListener('htmx:afterRequest', hideIfPageContainerRequest)");
 
         $response = $this->actingAs($user)->get(route('logs.create'));
 

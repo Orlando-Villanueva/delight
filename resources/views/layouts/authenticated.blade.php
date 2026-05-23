@@ -54,11 +54,11 @@
 </head>
 
 <body class="bg-[#F5F7FA] dark:bg-gray-900 text-gray-600 min-h-screen font-sans antialiased transition-colors">
-    <div id="page-navigation-loading" data-page-navigation-loading role="progressbar" aria-label="Page loading"
-        aria-hidden="true"
-        class="pointer-events-none fixed inset-x-0 top-0 z-stack-loading h-1 opacity-0 transition-opacity duration-150">
-        <div class="h-full w-full animate-pulse bg-primary-500 shadow-[0_0_12px_rgba(51,102,204,0.45)]"></div>
-    </div>
+    <progress id="page-navigation-loading" data-page-navigation-loading aria-label="Page loading" aria-hidden="true"
+        max="100" value="100"
+        class="page-navigation-loading pointer-events-none fixed inset-x-0 top-0 z-stack-loading h-1 w-full opacity-0 transition-opacity duration-150">
+        Page loading
+    </progress>
 
     <div class="flex h-screen">
         <!-- Desktop: Sidebar and Navbar -->

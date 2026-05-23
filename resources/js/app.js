@@ -57,40 +57,41 @@ if (typeof document !== 'undefined') {
             return target?.id === 'page-container';
         };
 
-        if (pageNavigationLoading) {
-            const showPageNavigationLoading = () => {
+        const showPageNavigationLoading = () => {
+            if (pageNavigationLoading) {
                 pageNavigationLoading.classList.remove('opacity-0');
                 pageNavigationLoading.classList.add('opacity-100');
                 pageNavigationLoading.setAttribute('aria-hidden', 'false');
-            };
+            }
+        };
 
-            const hidePageNavigationLoading = () => {
+        const hidePageNavigationLoading = () => {
+            if (pageNavigationLoading) {
                 pageNavigationLoading.classList.remove('opacity-100');
                 pageNavigationLoading.classList.add('opacity-0');
                 pageNavigationLoading.setAttribute('aria-hidden', 'true');
-            };
+            }
+        };
 
-            document.body.addEventListener('htmx:beforeRequest', (event) => {
-                if (isPageContainerRequest(event)) {
-                    showPageNavigationLoading();
-                }
-            });
+        const hideIfPageContainerRequest = (event) => {
+            if (isPageContainerRequest(event)) {
+                hidePageNavigationLoading();
+            }
+        };
 
-            const hideIfPageContainerRequest = (event) => {
-                if (isPageContainerRequest(event)) {
-                    hidePageNavigationLoading();
-                }
-            };
-
-            document.body.addEventListener('htmx:afterSwap', hideIfPageContainerRequest);
-            document.body.addEventListener('htmx:responseError', hideIfPageContainerRequest);
-            document.body.addEventListener('htmx:sendError', hideIfPageContainerRequest);
-        }
+        document.body.addEventListener('htmx:afterRequest', hideIfPageContainerRequest);
 
         // Close all Flowbite dropdowns when a major HTMX navigation occurs
         document.body.addEventListener('htmx:beforeRequest', (event) => {
             const target = event.detail.target;
-            if (target?.id === 'page-container' && typeof FlowbiteInstances !== 'undefined') {
+
+            if (target?.id !== 'page-container') {
+                return;
+            }
+
+            showPageNavigationLoading();
+
+            if (typeof FlowbiteInstances !== 'undefined') {
                 const dropdowns = FlowbiteInstances.getInstances('Dropdown');
                 if (dropdowns) {
                     Object.values(dropdowns).forEach(instance => {
