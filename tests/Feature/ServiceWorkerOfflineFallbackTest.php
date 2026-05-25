@@ -6,6 +6,8 @@ test('service worker returns branded offline fallback for failed navigations', f
     expect($serviceWorker)
         ->toContain('request.mode === \'navigate\'')
         ->toContain('fetch(event.request).catch')
+        ->toContain('src="/images/logo-64.png"')
+        ->toContain('alt=""')
         ->toContain('Delight is offline')
         ->toContain('Delight needs a connection to load readings and save new logs.')
         ->toContain('Try again')

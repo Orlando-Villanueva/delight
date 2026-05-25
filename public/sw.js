@@ -57,14 +57,10 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
       color: #93c5fd;
     }
 
-    .mark {
+    .logo {
       width: 2rem;
       height: 2rem;
       border-radius: 0.75rem;
-      background: #2563eb;
-      display: grid;
-      place-items: center;
-      font-size: 1.2rem;
     }
 
     h1 {
@@ -101,7 +97,7 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
 <body>
   <main>
     <div class="brand">
-      <span class="mark" aria-hidden="true">D</span>
+      <img class="logo" src="/images/logo-64.png" alt="" width="32" height="32">
       <span>Delight</span>
     </div>
     <h1>Delight is offline</h1>
@@ -112,7 +108,10 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
 </html>`;
 const OFFLINE_FALLBACK_FRAGMENT = `
 <section class="mx-auto max-w-xl rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800">
-  <p class="text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Delight</p>
+  <div class="flex items-center justify-center gap-3">
+    <img src="/images/logo-64.png" alt="" width="32" height="32" class="h-8 w-8 rounded-xl">
+    <p class="text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Delight</p>
+  </div>
   <h1 class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">Delight is offline</h1>
   <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">Delight needs a connection to load readings and save new logs. Reconnect, then retry this page.</p>
   <button type="button" onclick="window.location.reload()" class="mt-5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800">Try again</button>
