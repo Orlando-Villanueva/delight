@@ -39,6 +39,11 @@ test('service worker full page offline fallback prevents document scrolling', fu
     $serviceWorker = file_get_contents(public_path('sw.js'));
 
     expect($serviceWorker)
+        ->toContain('html {')
+        ->toContain('height: 100%;')
+        ->toContain('position: fixed;')
+        ->toContain('inset: 0;')
+        ->toContain('width: 100%;')
         ->toContain('height: 100dvh;')
         ->toContain('overflow: hidden;')
         ->toContain('overflow-y: auto;')
