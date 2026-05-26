@@ -13,7 +13,17 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      run: |
+        git init .
+        git remote add origin https://github.com/${{ github.repository }}.git
+
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          git fetch --no-tags --depth=1 origin "+refs/pull/${{ github.event.pull_request.number }}/merge:refs/remotes/pull/${{ github.event.pull_request.number }}/merge"
+          git checkout --detach "refs/remotes/pull/${{ github.event.pull_request.number }}/merge"
+        else
+          git fetch --no-tags --depth=1 origin "${{ github.sha }}"
+          git checkout --detach FETCH_HEAD
+        fi
       
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
@@ -57,4 +67,4 @@ jobs:
       run: php artisan migrate --force --env=testing
       
     - name: Run Tests
-      run: ./vendor/bin/pest --parallel 
+      run: ./vendor/bin/pest --parallel
