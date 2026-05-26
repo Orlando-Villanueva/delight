@@ -76,7 +76,8 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
       line-height: 1.65;
     }
 
-    button {
+    .retry {
+      display: inline-block;
       margin-top: 1.75rem;
       min-height: 2.75rem;
       border: 0;
@@ -86,9 +87,10 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
       color: #ffffff;
       font: inherit;
       font-weight: 700;
+      text-decoration: none;
     }
 
-    button:focus-visible {
+    .retry:focus-visible {
       outline: 3px solid #93c5fd;
       outline-offset: 3px;
     }
@@ -102,7 +104,7 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
     </div>
     <h1>Delight is offline</h1>
     <p>Delight needs a connection to load readings and save new logs. Reconnect, then retry this page.</p>
-    <button type="button" onclick="window.location.reload()">Try again</button>
+    <a href="" class="retry">Try again</a>
   </main>
 </body>
 </html>`;
@@ -114,7 +116,7 @@ const OFFLINE_FALLBACK_FRAGMENT = `
   </div>
   <h1 class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">Delight is offline</h1>
   <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">Delight needs a connection to load readings and save new logs. Reconnect, then retry this page.</p>
-  <button type="button" onclick="window.location.reload()" class="mt-5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800">Try again</button>
+  <a href="" class="mt-5 inline-block rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800">Try again</a>
 </section>`;
 
 function offlineFallbackHeaders() {
@@ -124,12 +126,20 @@ function offlineFallbackHeaders() {
   };
 }
 
-function offlineFallbackResponse(body) {
+function offlineFallbackResponse(body, status) {
   return new Response(body, {
-    status: 503,
-    statusText: 'Service Unavailable',
+    status,
+    statusText: status === 200 ? 'OK' : 'Service Unavailable',
     headers: offlineFallbackHeaders(),
   });
+}
+
+function offlineDocumentResponse(body) {
+  return offlineFallbackResponse(body, 503);
+}
+
+function offlineHtmxResponse(body) {
+  return offlineFallbackResponse(body, 200);
 }
 
 function isPageContainerHtmxRequest(request) {
@@ -185,7 +195,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {
-        return offlineFallbackResponse(OFFLINE_FALLBACK_HTML);
+        return offlineDocumentResponse(OFFLINE_FALLBACK_HTML);
       })
     );
 
@@ -195,7 +205,7 @@ self.addEventListener('fetch', (event) => {
   if (isPageContainerHtmxRequest(event.request)) {
     event.respondWith(
       fetch(event.request).catch(() => {
-        return offlineFallbackResponse(OFFLINE_FALLBACK_FRAGMENT);
+        return offlineHtmxResponse(OFFLINE_FALLBACK_FRAGMENT);
       })
     );
 

@@ -11,7 +11,8 @@ test('service worker returns branded offline fallback for failed navigations', f
         ->toContain('Delight is offline')
         ->toContain('Delight needs a connection to load readings and save new logs.')
         ->toContain('Try again')
-        ->toContain('window.location.reload()');
+        ->toContain('offlineDocumentResponse(OFFLINE_FALLBACK_HTML)')
+        ->toContain('offlineFallbackResponse(body, 503)');
 });
 
 test('service worker returns offline fallback fragment for page container htmx navigations', function () {
@@ -21,7 +22,17 @@ test('service worker returns offline fallback fragment for page container htmx n
         ->toContain('request.headers.get(\'HX-Request\') === \'true\'')
         ->toContain('request.headers.get(\'HX-Target\') === \'page-container\'')
         ->toContain('OFFLINE_FALLBACK_FRAGMENT')
-        ->toContain('headers: offlineFallbackHeaders()');
+        ->toContain('offlineHtmxResponse(OFFLINE_FALLBACK_FRAGMENT)')
+        ->toContain('offlineFallbackResponse(body, 200)');
+});
+
+test('service worker retry actions do not require inline javascript', function () {
+    $serviceWorker = file_get_contents(public_path('sw.js'));
+
+    expect($serviceWorker)
+        ->toContain('href=""')
+        ->not->toContain('onclick=')
+        ->not->toContain('window.location.reload()');
 });
 
 test('service worker keeps static asset cache first behavior', function () {
