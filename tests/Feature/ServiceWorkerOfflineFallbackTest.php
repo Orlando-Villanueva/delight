@@ -34,6 +34,7 @@ test('service worker retry actions reset scroll before reloading the current pag
         ->toContain('data-offline-retry')
         ->toContain("history.scrollRestoration = 'manual'")
         ->toContain('window.scrollTo(0, 0)')
+        ->toContain('navigator.onLine === false')
         ->toContain('window.location.replace(window.location.href)')
         ->not->toContain('onclick=')
         ->not->toContain('href=""')

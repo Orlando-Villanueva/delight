@@ -113,6 +113,11 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
       }
 
       window.scrollTo(0, 0);
+
+      if (navigator.onLine === false) {
+        return;
+      }
+
       window.location.replace(window.location.href);
     });
   </script>

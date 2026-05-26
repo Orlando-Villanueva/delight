@@ -222,6 +222,7 @@ describe('HTMX Navigation Requests', function () {
             ->toContain("history.scrollRestoration = 'manual'")
             ->toContain("window.scrollTo({ top: 0, left: 0, behavior: 'auto' })")
             ->toContain("document.querySelector('main.flex-1')?.scrollTo({ top: 0, left: 0 })")
+            ->toContain('navigator.onLine === false')
             ->toContain('window.location.replace(window.location.href)');
     });
 });

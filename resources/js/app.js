@@ -143,6 +143,11 @@ if (typeof document !== 'undefined') {
 
             window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
             document.querySelector('main.flex-1')?.scrollTo({ top: 0, left: 0 });
+
+            if (navigator.onLine === false) {
+                return;
+            }
+
             window.location.replace(window.location.href);
         });
 
