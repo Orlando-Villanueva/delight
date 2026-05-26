@@ -1,74 +1,67 @@
 <?php
 
-test('service worker returns branded offline fallback for failed navigations', function () {
-    $serviceWorker = file_get_contents(public_path('sw.js'));
+function serviceWorkerSource(): string
+{
+    return file_get_contents(public_path('sw.js'));
+}
 
-    expect($serviceWorker)
-        ->toContain('request.mode === \'navigate\'')
-        ->toContain('fetch(event.request).catch')
-        ->toContain('src="/images/logo-64.png"')
-        ->toContain('alt=""')
-        ->toContain('Delight is offline')
-        ->toContain('Delight needs a connection to load readings and save new logs.')
-        ->toContain('Try again')
-        ->toContain('offlineDocumentResponse(OFFLINE_FALLBACK_HTML)')
-        ->toContain('offlineFallbackResponse(body, 503)');
+test('service worker includes the scoped offline fallback behavior', function () {
+    $serviceWorker = serviceWorkerSource();
+
+    $requiredSnippets = [
+        'request.mode === \'navigate\'',
+        'fetch(event.request).catch',
+        'src="/images/logo-64.png"',
+        'alt=""',
+        'Delight is offline',
+        'Delight needs a connection to load readings and save new logs.',
+        'Try again',
+        'offlineDocumentResponse(OFFLINE_FALLBACK_HTML)',
+        'offlineFallbackResponse(body, 503)',
+        'request.headers.get(\'HX-Request\') === \'true\'',
+        'request.headers.get(\'HX-Target\') === \'page-container\'',
+        'OFFLINE_FALLBACK_FRAGMENT',
+        'offlineHtmxResponse(OFFLINE_FALLBACK_FRAGMENT)',
+        'offlineFallbackResponse(body, 200)',
+        'STATIC_CACHE_URLS.includes(requestUrl.pathname)',
+        'caches.match(event.request, { ignoreSearch: true })',
+    ];
+
+    foreach ($requiredSnippets as $snippet) {
+        expect($serviceWorker)->toContain($snippet);
+    }
 });
 
-test('service worker returns offline fallback fragment for page container htmx navigations', function () {
-    $serviceWorker = file_get_contents(public_path('sw.js'));
+test('service worker retry and layout guards stay simple', function () {
+    $serviceWorker = serviceWorkerSource();
+
+    $requiredSnippets = [
+        'type="button"',
+        'data-offline-retry',
+        "history.scrollRestoration = 'manual'",
+        'window.scrollTo(0, 0)',
+        'navigator.onLine === false',
+        'window.location.replace(window.location.href)',
+        'height: 100dvh;',
+        'overflow: hidden;',
+        'overflow-y: auto;',
+        'max-height: calc(100dvh - 2rem);',
+        'color-scheme: light dark;',
+        'background: #f5f7fa;',
+        'background: #ffffff;',
+        '@media (prefers-color-scheme: dark)',
+        'background: #111827;',
+        'background: rgba(31, 41, 55, 0.94);',
+    ];
+
+    foreach ($requiredSnippets as $snippet) {
+        expect($serviceWorker)->toContain($snippet);
+    }
 
     expect($serviceWorker)
-        ->toContain('request.headers.get(\'HX-Request\') === \'true\'')
-        ->toContain('request.headers.get(\'HX-Target\') === \'page-container\'')
-        ->toContain('OFFLINE_FALLBACK_FRAGMENT')
-        ->toContain('offlineHtmxResponse(OFFLINE_FALLBACK_FRAGMENT)')
-        ->toContain('offlineFallbackResponse(body, 200)');
-});
-
-test('service worker retry actions reset scroll before reloading the current page', function () {
-    $serviceWorker = file_get_contents(public_path('sw.js'));
-
-    expect($serviceWorker)
-        ->toContain('type="button"')
-        ->toContain('data-offline-retry')
-        ->toContain("history.scrollRestoration = 'manual'")
-        ->toContain('window.scrollTo(0, 0)')
-        ->toContain('navigator.onLine === false')
-        ->toContain('window.location.replace(window.location.href)')
         ->not->toContain('onclick=')
         ->not->toContain('href=""')
         ->not->toContain('requestAnimationFrame')
-        ->not->toContain('setTimeout');
-});
-
-test('service worker full page offline fallback prevents document scrolling', function () {
-    $serviceWorker = file_get_contents(public_path('sw.js'));
-
-    expect($serviceWorker)
-        ->toContain('height: 100dvh;')
-        ->toContain('overflow: hidden;')
-        ->toContain('overflow-y: auto;')
-        ->toContain('max-height: calc(100dvh - 2rem);');
-});
-
-test('service worker full page offline fallback respects light and dark color schemes', function () {
-    $serviceWorker = file_get_contents(public_path('sw.js'));
-
-    expect($serviceWorker)
-        ->toContain('color-scheme: light dark;')
-        ->toContain('background: #f5f7fa;')
-        ->toContain('background: #ffffff;')
-        ->toContain('@media (prefers-color-scheme: dark)')
-        ->toContain('background: #111827;')
-        ->toContain('background: rgba(31, 41, 55, 0.94);')
+        ->not->toContain('setTimeout')
         ->not->toContain('color-scheme: dark;');
-});
-
-test('service worker keeps static asset cache first behavior', function () {
-    $serviceWorker = file_get_contents(public_path('sw.js'));
-
-    expect($serviceWorker)
-        ->toContain('STATIC_CACHE_URLS.includes(requestUrl.pathname)')
-        ->toContain('caches.match(event.request, { ignoreSearch: true })');
 });

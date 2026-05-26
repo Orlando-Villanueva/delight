@@ -220,10 +220,10 @@ describe('HTMX Navigation Requests', function () {
         expect($script)
             ->toContain('[data-offline-retry]')
             ->toContain("history.scrollRestoration = 'manual'")
-            ->toContain("window.scrollTo({ top: 0, left: 0, behavior: 'auto' })")
+            ->toContain("globalThis.scrollTo({ top: 0, left: 0, behavior: 'auto' })")
             ->toContain("document.querySelector('main.flex-1')?.scrollTo({ top: 0, left: 0 })")
             ->toContain('navigator.onLine === false')
-            ->toContain('window.location.replace(window.location.href)');
+            ->toContain('globalThis.location.replace(globalThis.location.href)');
     });
 });
 

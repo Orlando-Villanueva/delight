@@ -259,8 +259,6 @@ self.addEventListener('fetch', (event) => {
         return offlineHtmxResponse(OFFLINE_FALLBACK_FRAGMENT);
       })
     );
-
-    return;
   }
 
   // For all other requests, go to network (your HTMX app needs fresh data)
