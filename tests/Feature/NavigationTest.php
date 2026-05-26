@@ -222,8 +222,8 @@ describe('HTMX Navigation Requests', function () {
             ->toContain("history.scrollRestoration = 'manual'")
             ->toContain("globalThis.scrollTo({ top: 0, left: 0, behavior: 'auto' })")
             ->toContain("document.querySelector('main.flex-1')?.scrollTo({ top: 0, left: 0 })")
-            ->toContain('navigator.onLine === false')
-            ->toContain('globalThis.location.replace(globalThis.location.href)');
+            ->toContain('globalThis.location.replace(globalThis.location.href)')
+            ->not->toContain('navigator.onLine');
     });
 });
 

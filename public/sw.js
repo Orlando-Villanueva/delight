@@ -139,10 +139,6 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
 
       window.scrollTo(0, 0);
 
-      if (navigator.onLine === false) {
-        return;
-      }
-
       window.location.replace(window.location.href);
     });
   </script>
@@ -163,11 +159,11 @@ const OFFLINE_FALLBACK_FRAGMENT = `
 <section class="mx-auto max-w-xl rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800">
   <div class="flex items-center justify-center gap-3">
     <img src="/images/logo-64.png" alt="" width="32" height="32" class="h-8 w-8 rounded-xl">
-    <p class="text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Delight</p>
+    <p class="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">Delight</p>
   </div>
   <h1 class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">Delight is offline</h1>
   <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">Delight needs a connection to load readings and save new logs. Reconnect, then retry this page.</p>
-  <button type="button" data-offline-retry class="mt-5 inline-block rounded-lg border-0 bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800">Try again</button>
+  <button type="button" data-offline-retry class="mt-5 inline-block rounded-lg border-0 bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800">Try again</button>
 </section>`;
 
 function offlineFallbackHeaders() {

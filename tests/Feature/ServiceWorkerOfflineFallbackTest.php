@@ -2,7 +2,11 @@
 
 function serviceWorkerSource(): string
 {
-    return file_get_contents(public_path('sw.js'));
+    $source = file_get_contents(public_path('sw.js'));
+
+    expect($source)->not->toBeFalse();
+
+    return $source;
 }
 
 test('service worker includes the scoped offline fallback behavior', function () {
@@ -40,7 +44,6 @@ test('service worker retry and layout guards stay simple', function () {
         'data-offline-retry',
         "history.scrollRestoration = 'manual'",
         'window.scrollTo(0, 0)',
-        'navigator.onLine === false',
         'window.location.replace(window.location.href)',
         'height: 100dvh;',
         'overflow: hidden;',
@@ -52,6 +55,9 @@ test('service worker retry and layout guards stay simple', function () {
         '@media (prefers-color-scheme: dark)',
         'background: #111827;',
         'background: rgba(31, 41, 55, 0.94);',
+        'text-primary-600 dark:text-primary-400',
+        'bg-primary-600',
+        'hover:bg-primary-700',
     ];
 
     foreach ($requiredSnippets as $snippet) {
@@ -61,6 +67,7 @@ test('service worker retry and layout guards stay simple', function () {
     expect($serviceWorker)
         ->not->toContain('onclick=')
         ->not->toContain('href=""')
+        ->not->toContain('navigator.onLine')
         ->not->toContain('requestAnimationFrame')
         ->not->toContain('setTimeout')
         ->not->toContain('color-scheme: dark;');

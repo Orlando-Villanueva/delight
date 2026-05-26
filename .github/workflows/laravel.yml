@@ -16,6 +16,7 @@ jobs:
       run: |
         git init .
         git remote add origin https://github.com/${{ github.repository }}.git
+        git config --local http.https://github.com/.extraheader "AUTHORIZATION: bearer ${{ github.token }}"
 
         if [ "${{ github.event_name }}" = "pull_request" ]; then
           git fetch --no-tags --depth=1 origin "+refs/pull/${{ github.event.pull_request.number }}/merge:refs/remotes/pull/${{ github.event.pull_request.number }}/merge"
