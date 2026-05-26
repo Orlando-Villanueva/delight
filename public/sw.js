@@ -18,10 +18,10 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
   <title>Delight is offline</title>
   <style>
     :root {
-      color-scheme: dark;
+      color-scheme: light dark;
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #111827;
-      color: #f9fafb;
+      background: #f5f7fa;
+      color: #111827;
     }
 
     * {
@@ -35,7 +35,7 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
       display: grid;
       place-items: center;
       padding: 1rem;
-      background: #111827;
+      background: #f5f7fa;
       overflow: hidden;
     }
 
@@ -44,10 +44,10 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
       max-height: calc(100dvh - 2rem);
       overflow-y: auto;
       padding: 2rem;
-      border: 1px solid rgba(75, 85, 99, 0.9);
+      border: 1px solid #d1d7e0;
       border-radius: 0.75rem;
-      background: rgba(31, 41, 55, 0.94);
-      box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.35);
+      background: #ffffff;
+      box-shadow: 0 1.5rem 4rem rgba(17, 24, 39, 0.12);
     }
 
     .brand {
@@ -58,7 +58,7 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #93c5fd;
+      color: #3366cc;
     }
 
     .logo {
@@ -75,7 +75,7 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
 
     p {
       margin: 1rem 0 0;
-      color: #d1d5db;
+      color: #4b5563;
       font-size: 1rem;
       line-height: 1.65;
     }
@@ -98,6 +98,31 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
     .retry:focus-visible {
       outline: 3px solid #93c5fd;
       outline-offset: 3px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        background: #111827;
+        color: #f9fafb;
+      }
+
+      body {
+        background: #111827;
+      }
+
+      main {
+        border-color: rgba(75, 85, 99, 0.9);
+        background: rgba(31, 41, 55, 0.94);
+        box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.35);
+      }
+
+      .brand {
+        color: #93c5fd;
+      }
+
+      p {
+        color: #d1d5db;
+      }
     }
   </style>
   <script>

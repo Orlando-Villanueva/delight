@@ -52,6 +52,19 @@ test('service worker full page offline fallback prevents document scrolling', fu
         ->toContain('max-height: calc(100dvh - 2rem);');
 });
 
+test('service worker full page offline fallback respects light and dark color schemes', function () {
+    $serviceWorker = file_get_contents(public_path('sw.js'));
+
+    expect($serviceWorker)
+        ->toContain('color-scheme: light dark;')
+        ->toContain('background: #f5f7fa;')
+        ->toContain('background: #ffffff;')
+        ->toContain('@media (prefers-color-scheme: dark)')
+        ->toContain('background: #111827;')
+        ->toContain('background: rgba(31, 41, 55, 0.94);')
+        ->not->toContain('color-scheme: dark;');
+});
+
 test('service worker keeps static asset cache first behavior', function () {
     $serviceWorker = file_get_contents(public_path('sw.js'));
 
