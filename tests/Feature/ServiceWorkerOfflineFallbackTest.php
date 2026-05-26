@@ -35,6 +35,16 @@ test('service worker retry actions do not require inline javascript', function (
         ->not->toContain('window.location.reload()');
 });
 
+test('service worker full page offline fallback prevents document scrolling', function () {
+    $serviceWorker = file_get_contents(public_path('sw.js'));
+
+    expect($serviceWorker)
+        ->toContain('height: 100dvh;')
+        ->toContain('overflow: hidden;')
+        ->toContain('overflow-y: auto;')
+        ->toContain('max-height: calc(100dvh - 2rem);');
+});
+
 test('service worker keeps static asset cache first behavior', function () {
     $serviceWorker = file_get_contents(public_path('sw.js'));
 

@@ -29,16 +29,20 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
     }
 
     body {
-      min-height: 100vh;
+      height: 100vh;
+      height: 100dvh;
       margin: 0;
       display: grid;
       place-items: center;
-      padding: 2rem;
+      padding: 1rem;
       background: #111827;
+      overflow: hidden;
     }
 
     main {
       width: min(100%, 32rem);
+      max-height: calc(100dvh - 2rem);
+      overflow-y: auto;
       padding: 2rem;
       border: 1px solid rgba(75, 85, 99, 0.9);
       border-radius: 0.75rem;
