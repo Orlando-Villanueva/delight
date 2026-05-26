@@ -127,6 +127,25 @@ if (typeof document !== 'undefined') {
 
         document.body.addEventListener('htmx:afterRequest', hideIfPageContainerRequest);
 
+        document.body.addEventListener('click', (event) => {
+            const target = event.target instanceof Element ? event.target : null;
+            const retryButton = target?.closest('[data-offline-retry]');
+
+            if (!retryButton) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if ('scrollRestoration' in history) {
+                history.scrollRestoration = 'manual';
+            }
+
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+            document.querySelector('main.flex-1')?.scrollTo({ top: 0, left: 0 });
+            window.location.replace(window.location.href);
+        });
+
         // Close all Flowbite dropdowns when a major HTMX navigation occurs
         document.body.addEventListener('htmx:beforeRequest', (event) => {
             const target = event.detail.target;

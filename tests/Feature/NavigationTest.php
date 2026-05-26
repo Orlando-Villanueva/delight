@@ -213,6 +213,17 @@ describe('HTMX Navigation Requests', function () {
         $response->assertSee('id="save-loading"', false);
         $response->assertSee('htmx-indicator-hidden">Log Reading', false);
     });
+
+    it('wires offline retry buttons to reset scroll before reloading', function () {
+        $script = file_get_contents(resource_path('js/app.js'));
+
+        expect($script)
+            ->toContain('[data-offline-retry]')
+            ->toContain("history.scrollRestoration = 'manual'")
+            ->toContain("window.scrollTo({ top: 0, left: 0, behavior: 'auto' })")
+            ->toContain("document.querySelector('main.flex-1')?.scrollTo({ top: 0, left: 0 })")
+            ->toContain('window.location.replace(window.location.href)');
+    });
 });
 
 describe('Navigation Routes', function () {

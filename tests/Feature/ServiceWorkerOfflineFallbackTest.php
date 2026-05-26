@@ -26,24 +26,25 @@ test('service worker returns offline fallback fragment for page container htmx n
         ->toContain('offlineFallbackResponse(body, 200)');
 });
 
-test('service worker retry actions do not require inline javascript', function () {
+test('service worker retry actions reset scroll before reloading the current page', function () {
     $serviceWorker = file_get_contents(public_path('sw.js'));
 
     expect($serviceWorker)
-        ->toContain('href=""')
+        ->toContain('type="button"')
+        ->toContain('data-offline-retry')
+        ->toContain("history.scrollRestoration = 'manual'")
+        ->toContain('window.scrollTo(0, 0)')
+        ->toContain('window.location.replace(window.location.href)')
         ->not->toContain('onclick=')
-        ->not->toContain('window.location.reload()');
+        ->not->toContain('href=""')
+        ->not->toContain('requestAnimationFrame')
+        ->not->toContain('setTimeout');
 });
 
 test('service worker full page offline fallback prevents document scrolling', function () {
     $serviceWorker = file_get_contents(public_path('sw.js'));
 
     expect($serviceWorker)
-        ->toContain('html {')
-        ->toContain('height: 100%;')
-        ->toContain('position: fixed;')
-        ->toContain('inset: 0;')
-        ->toContain('width: 100%;')
         ->toContain('height: 100dvh;')
         ->toContain('overflow: hidden;')
         ->toContain('overflow-y: auto;')

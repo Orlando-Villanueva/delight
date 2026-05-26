@@ -28,15 +28,7 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
       box-sizing: border-box;
     }
 
-    html {
-      height: 100%;
-      overflow: hidden;
-    }
-
     body {
-      position: fixed;
-      inset: 0;
-      width: 100%;
       height: 100vh;
       height: 100dvh;
       margin: 0;
@@ -100,6 +92,7 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
       font: inherit;
       font-weight: 700;
       text-decoration: none;
+      cursor: pointer;
     }
 
     .retry:focus-visible {
@@ -107,6 +100,22 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
       outline-offset: 3px;
     }
   </style>
+  <script>
+    document.addEventListener('click', (event) => {
+      if (!(event.target instanceof Element) || !event.target.closest('[data-offline-retry]')) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+      }
+
+      window.scrollTo(0, 0);
+      window.location.replace(window.location.href);
+    });
+  </script>
 </head>
 <body>
   <main>
@@ -116,7 +125,7 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
     </div>
     <h1>Delight is offline</h1>
     <p>Delight needs a connection to load readings and save new logs. Reconnect, then retry this page.</p>
-    <a href="" class="retry">Try again</a>
+    <button type="button" class="retry" data-offline-retry>Try again</button>
   </main>
 </body>
 </html>`;
@@ -128,7 +137,7 @@ const OFFLINE_FALLBACK_FRAGMENT = `
   </div>
   <h1 class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">Delight is offline</h1>
   <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">Delight needs a connection to load readings and save new logs. Reconnect, then retry this page.</p>
-  <a href="" class="mt-5 inline-block rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800">Try again</a>
+  <button type="button" data-offline-retry class="mt-5 inline-block rounded-lg border-0 bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800">Try again</button>
 </section>`;
 
 function offlineFallbackHeaders() {
