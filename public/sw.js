@@ -28,7 +28,15 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
       box-sizing: border-box;
     }
 
+    html {
+      height: 100%;
+      overflow: hidden;
+    }
+
     body {
+      position: fixed;
+      inset: 0;
+      width: 100%;
       height: 100vh;
       height: 100dvh;
       margin: 0;
