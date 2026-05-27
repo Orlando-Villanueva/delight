@@ -13,18 +13,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      run: |
-        git init .
-        git remote add origin https://github.com/${{ github.repository }}.git
-        git config --local http.https://github.com/.extraheader "AUTHORIZATION: bearer ${{ github.token }}"
-
-        if [ "${{ github.event_name }}" = "pull_request" ]; then
-          git fetch --no-tags --depth=1 origin "+refs/pull/${{ github.event.pull_request.number }}/merge:refs/remotes/pull/${{ github.event.pull_request.number }}/merge"
-          git checkout --detach "refs/remotes/pull/${{ github.event.pull_request.number }}/merge"
-        else
-          git fetch --no-tags --depth=1 origin "${{ github.sha }}"
-          git checkout --detach FETCH_HEAD
-        fi
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       
     - name: Setup PHP
       uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f # 2.35.5
