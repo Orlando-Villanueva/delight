@@ -267,3 +267,44 @@ self.addEventListener('fetch', (event) => {
 
   // For all other requests, go to network (your HTMX app needs fresh data)
 });
+
+self.addEventListener('push', (event) => {
+  if (!event.data) {
+    return;
+  }
+
+  const payload = event.data.json();
+  const title = payload.title || 'Delight';
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/images/app-icon-v2-192.png',
+    badge: payload.badge || '/images/app-icon-v2-64.png',
+    tag: payload.tag,
+    data: payload.data || { url: '/logs/create' },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data.url || '/logs/create';
+  const destination = new URL(targetUrl, self.location.origin).href;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        const clientUrl = new URL(client.url);
+
+        if (clientUrl.origin === self.location.origin) {
+          client.navigate(destination);
+
+          return client.focus();
+        }
+      }
+
+      return clients.openWindow(destination);
+    })
+  );
+});

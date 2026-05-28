@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\DispatchReadingReminderPushes;
 use App\Console\Commands\SendOnboardingReminders;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -16,3 +17,8 @@ Schedule::command(SendOnboardingReminders::class)
     ->withoutOverlapping();
 
 Schedule::command('churn:send-recovery')->dailyAt('14:00');
+
+Schedule::command(DispatchReadingReminderPushes::class)
+    ->everyFifteenMinutes()
+    ->onOneServer()
+    ->withoutOverlapping();

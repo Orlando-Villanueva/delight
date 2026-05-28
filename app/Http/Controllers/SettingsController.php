@@ -26,9 +26,13 @@ class SettingsController extends Controller
         $user = $request->user();
         $wasIncludingDeuterocanonical = $user->includesDeuterocanonicalBooks();
         $shouldIncludeDeuterocanonical = $request->boolean('include_deuterocanonical');
+        $timezone = $request->validated('push_notification_timezone') ?: config('app.timezone');
 
         $user->forceFill([
             'deuterocanonical_books_enabled_at' => $shouldIncludeDeuterocanonical ? now() : null,
+            'daily_reading_reminder_enabled_at' => $request->boolean('daily_reading_reminder_enabled') ? now() : null,
+            'streak_warning_enabled_at' => $request->boolean('streak_warning_enabled') ? now() : null,
+            'push_notification_timezone' => $timezone,
         ])->save();
 
         Cache::forget("user_dashboard_stats_{$user->id}");

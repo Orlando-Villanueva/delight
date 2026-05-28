@@ -8,10 +8,13 @@ use App\Http\Controllers\Auth\GoogleOAuthController;
 use App\Http\Controllers\Auth\XOAuthController;
 use App\Http\Controllers\Dashboard\NotificationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DashboardReminderPromptController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\MarketingPreferencesController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PublicAnnouncementController;
+use App\Http\Controllers\PushPreferenceController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\ReadingPlanController;
 use App\Http\Controllers\SettingsController;
@@ -131,6 +134,19 @@ Route::middleware('auth')->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
+
+    Route::post('/push/subscriptions', [PushSubscriptionController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('push.subscriptions.store');
+    Route::delete('/push/subscriptions', [PushSubscriptionController::class, 'destroy'])
+        ->middleware('throttle:10,1')
+        ->name('push.subscriptions.destroy');
+    Route::patch('/push/preferences', [PushPreferenceController::class, 'update'])
+        ->middleware('throttle:10,1')
+        ->name('push.preferences.update');
+    Route::post('/push/dashboard-prompt/dismiss', [DashboardReminderPromptController::class, 'dismiss'])
+        ->middleware('throttle:10,1')
+        ->name('push.dashboard-prompt.dismiss');
 
     // Reading Plans
     Route::get('/plans', [ReadingPlanController::class, 'index'])->name('plans.index');

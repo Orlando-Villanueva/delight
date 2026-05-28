@@ -77,3 +77,22 @@ test('service worker retry and layout guards stay simple', function () {
         ->not->toContain('setTimeout')
         ->not->toContain('color-scheme: dark;');
 });
+
+test('service worker includes web push notification handlers', function () {
+    $serviceWorker = serviceWorkerSource();
+
+    $requiredSnippets = [
+        "self.addEventListener('push'",
+        'event.data.json()',
+        'self.registration.showNotification',
+        "self.addEventListener('notificationclick'",
+        'event.notification.data.url',
+        'clients.matchAll',
+        'client.focus()',
+        'clients.openWindow',
+    ];
+
+    foreach ($requiredSnippets as $snippet) {
+        expect($serviceWorker)->toContain($snippet);
+    }
+});

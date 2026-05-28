@@ -11,6 +11,31 @@
                 <div class="space-y-6 lg:space-y-4 xl:space-y-6 lg:pb-0" id="dashboard-main-content-wrapper"
                     hx-trigger="readingLogAdded from:body" hx-get="{{ route('dashboard') }}" hx-target="#main-content"
                     hx-swap="outerHTML" hx-select="#main-content" hx-disinherit="hx-select">
+                    @if ($showReadingRemindersPrompt ?? false)
+                        <div data-reading-reminders-discovery
+                            class="rounded-xl bg-blue-50/70 px-4 py-3 dark:bg-blue-950/30">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="min-w-0 space-y-1">
+                                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Reading reminders are off</h2>
+                                    <p class="text-sm leading-6 text-gray-600 dark:text-gray-400">
+                                        Turn on the 09:00 reminder and 18:00 streak warning from Settings.
+                                    </p>
+                                </div>
+                                <div class="flex shrink-0 items-center gap-2">
+                                    <a href="{{ route('settings.edit') }}#reading-reminders"
+                                        class="inline-flex min-h-10 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-semibold text-white transition hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800">
+                                        Set up
+                                    </a>
+                                    <button type="button" data-reading-reminders-discovery-dismiss
+                                        data-dismiss-url="{{ route('push.dashboard-prompt.dismiss') }}"
+                                        class="inline-flex min-h-10 items-center justify-center rounded-lg px-3 text-sm font-semibold text-gray-600 transition hover:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 dark:text-gray-300 dark:hover:bg-gray-800 dark:focus:ring-blue-900">
+                                        Dismiss
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                     <!-- Main Dashboard Layout (responsive grid) -->
                     <div class="grid grid-cols-1 xl:grid-cols-4 gap-6 lg:gap-4">
 

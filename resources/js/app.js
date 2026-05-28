@@ -230,5 +230,419 @@ if (typeof document !== 'undefined') {
             document.body.addEventListener('htmx:responseError', hideIfRelevant);
             document.body.addEventListener('htmx:sendError', hideIfRelevant);
         }
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+        const postJson = (url, method, data = {}) => fetch(url, {
+            method,
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify(data),
+        });
+
+        const isIosLike = () => /iPad|iPhone|iPod/.test(navigator.userAgent)
+            || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        const isStandaloneDisplay = () => window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true;
+
+        const isPushCapable = () => 'serviceWorker' in navigator
+            && 'PushManager' in window
+            && 'Notification' in window;
+
+        const urlBase64ToUint8Array = (base64String) => {
+            const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+
+            for (let index = 0; index < rawData.length; index += 1) {
+                outputArray[index] = rawData.charCodeAt(index);
+            }
+
+            return outputArray;
+        };
+
+        const reminderSettings = document.querySelector('[data-reading-reminders-settings]');
+
+        if (reminderSettings) {
+            const reminderToggle = reminderSettings.querySelector('[data-reading-reminders-toggle]');
+            const reminderToggleLabel = reminderSettings.querySelector('[data-reading-reminders-toggle-label]');
+            const unsupportedNotice = reminderSettings.querySelector('[data-reading-reminders-unsupported]');
+            const blockedNotice = reminderSettings.querySelector('[data-reading-reminders-blocked]');
+            const errorNotice = reminderSettings.querySelector('[data-reading-reminders-error]');
+            const progressNotice = reminderSettings.querySelector('[data-reading-reminders-progress]');
+            const iosGuidance = reminderSettings.querySelector('[data-reading-reminders-ios-guidance]');
+            const status = reminderSettings.querySelector('[data-reading-reminders-status]');
+            const preferencesCopy = reminderSettings.querySelector('[data-reading-reminders-preferences-copy]');
+            const timezoneInput = reminderSettings.querySelector('[data-push-timezone]');
+            const preferenceInputs = reminderSettings.querySelectorAll('[data-reading-reminders-preference]');
+
+            if (timezoneInput && Intl.DateTimeFormat().resolvedOptions().timeZone) {
+                timezoneInput.value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            }
+
+            const setStatus = (message = '', visible = false) => {
+                if (!status) {
+                    return;
+                }
+
+                status.textContent = message;
+                status.hidden = !visible;
+            };
+
+            const setNotice = (activeNotice, message = null) => {
+                [unsupportedNotice, blockedNotice, errorNotice, progressNotice, iosGuidance].forEach((notice) => {
+                    if (notice) {
+                        notice.hidden = notice !== activeNotice;
+                    }
+                });
+
+                if (activeNotice && message) {
+                    activeNotice.textContent = message;
+                }
+            };
+
+            const setPreferenceState = (enabled, activateDefaults = false) => {
+                preferenceInputs.forEach((input) => {
+                    input.disabled = !enabled;
+
+                    if (!enabled) {
+                        input.checked = false;
+                    } else if (activateDefaults && !input.checked) {
+                        input.checked = true;
+                    }
+                });
+
+                if (preferencesCopy) {
+                    preferencesCopy.textContent = enabled
+                        ? 'Choose which reminders this browser should receive.'
+                        : 'Both reminders are included when browser notifications are enabled.';
+                }
+            };
+
+            const setEnabledState = (enabled, activateDefaults = false) => {
+                reminderSettings.dataset.remindersEnabled = enabled ? 'true' : 'false';
+
+                if (reminderToggle) {
+                    reminderToggle.setAttribute('aria-checked', enabled ? 'true' : 'false');
+                    reminderToggle.disabled = false;
+                    reminderToggle.title = enabled
+                        ? 'This browser can receive reading reminders.'
+                        : 'Turn on to connect this browser to Delight reminders.';
+                }
+
+                if (reminderToggleLabel) {
+                    reminderToggleLabel.textContent = enabled ? 'Enabled' : 'Disabled';
+                }
+
+                setPreferenceState(enabled, activateDefaults);
+
+                setStatus();
+            };
+
+            const setBusy = (busy) => {
+                if (reminderToggle) {
+                    reminderToggle.disabled = busy;
+                }
+
+                if (reminderToggleLabel) {
+                    reminderToggleLabel.textContent = busy
+                        ? 'Saving...'
+                        : (reminderSettings.dataset.remindersEnabled === 'true' ? 'Enabled' : 'Disabled');
+                }
+            };
+
+            const showUnsupported = (message) => {
+                setStatus(message, true);
+
+                setNotice(unsupportedNotice);
+
+                if (reminderSettings.dataset.remindersEnabled !== 'true' && reminderToggle) {
+                    reminderToggle.setAttribute('aria-checked', 'false');
+                    reminderToggle.disabled = true;
+                }
+
+                if (reminderToggleLabel) {
+                    reminderToggleLabel.textContent = 'Unavailable';
+                }
+            };
+
+            const showBlocked = () => {
+                setStatus('Notifications are blocked for this browser.', true);
+
+                setNotice(blockedNotice);
+
+                if (reminderSettings.dataset.remindersEnabled !== 'true' && reminderToggle) {
+                    reminderToggle.setAttribute('aria-checked', 'false');
+                    reminderToggle.disabled = true;
+                }
+
+                if (reminderToggleLabel) {
+                    reminderToggleLabel.textContent = 'Blocked';
+                }
+            };
+
+            const showPermissionGrantedButDisconnected = () => {
+                if (reminderSettings.dataset.remindersEnabled === 'true' || !status) {
+                    return;
+                }
+
+                setStatus('Notifications are allowed. Turn this on to connect this browser to Delight reminders.', true);
+            };
+
+            const showError = (
+                message = 'Reminder setup could not finish. Refresh the page and try again.',
+                statusMessage = message,
+            ) => {
+                setStatus(statusMessage, true);
+
+                setNotice(errorNotice, message);
+            };
+
+            const requestPermissionWithTimeout = () => new Promise((resolve, reject) => {
+                const timeout = window.setTimeout(() => {
+                    reject(new Error('The browser permission prompt did not finish.'));
+                }, 20000);
+
+                Notification.requestPermission()
+                    .then((permission) => {
+                        window.clearTimeout(timeout);
+                        resolve(permission);
+                    })
+                    .catch((error) => {
+                        window.clearTimeout(timeout);
+                        reject(error);
+                    });
+            });
+
+            const subscribeWithRegistration = async (registration, publicKey) => {
+                let subscription = await registration.pushManager.getSubscription();
+
+                if (!subscription) {
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(publicKey),
+                    });
+                }
+
+                return subscription;
+            };
+
+            const readyServiceWorkerRegistration = async () => {
+                await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+
+                return navigator.serviceWorker.ready;
+            };
+
+            const getOrCreatePushSubscription = async (publicKey) => {
+                return subscribeWithRegistration(await readyServiceWorkerRegistration(), publicKey);
+            };
+
+            setEnabledState(reminderSettings.dataset.remindersEnabled === 'true');
+
+            if (isIosLike() && !isStandaloneDisplay()) {
+                setNotice(iosGuidance);
+
+                if (reminderToggle) {
+                    reminderToggle.setAttribute('aria-checked', 'false');
+                    reminderToggle.disabled = true;
+                }
+
+                if (reminderToggleLabel) {
+                    reminderToggleLabel.textContent = 'Unavailable';
+                }
+            } else if (!isPushCapable()) {
+                showUnsupported('This browser does not support web push reminders.');
+            } else if (Notification.permission === 'denied') {
+                showBlocked();
+            } else {
+                if (Notification.permission === 'granted') {
+                    showPermissionGrantedButDisconnected();
+                }
+
+                const enableReminders = async () => {
+                    const publicKey = reminderSettings.dataset.pushPublicKey;
+
+                    if (!publicKey) {
+                        setEnabledState(false, false);
+                        showError('Push reminders are not configured yet.');
+
+                        return;
+                    }
+
+                    setBusy(true);
+                    setNotice(progressNotice);
+
+                    setStatus('Waiting for browser permission.', true);
+
+                    try {
+                        const permission = await requestPermissionWithTimeout();
+
+                        if (permission !== 'granted') {
+                            setEnabledState(false, false);
+                            showBlocked();
+
+                            return;
+                        }
+
+                        setStatus('Saving this browser for reminders.', true);
+
+                        const subscription = await getOrCreatePushSubscription(publicKey);
+                        const subscriptionJson = subscription.toJSON();
+
+                        const response = await postJson(reminderSettings.dataset.subscriptionUrl, 'POST', {
+                            endpoint: subscription.endpoint,
+                            keys: subscriptionJson.keys,
+                            contentEncoding: 'aes128gcm',
+                            timezone: timezoneInput?.value || Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        });
+
+                        if (!response.ok) {
+                            console.error('Reading reminder subscription save failed', {
+                                status: response.status,
+                                body: await response.text(),
+                            });
+                            setEnabledState(false, false, false);
+                            showError(
+                                'Delight could not save this browser subscription. Refresh and try again.',
+                                'Subscription could not be saved.',
+                            );
+
+                            return;
+                        }
+
+                        setNotice(null);
+                        setEnabledState(true, true);
+                    } catch (error) {
+                        console.error('Reading reminder setup failed', error);
+
+                        if (error?.name === 'NotAllowedError') {
+                            setEnabledState(false, false, false);
+                            showBlocked();
+
+                            return;
+                        }
+
+                        if (error?.name === 'AbortError') {
+                            setEnabledState(false, false, false);
+                            showError(
+                                'This browser allowed notifications, but could not create a push subscription. Reload Delight and try again. If it repeats, the browser push service may be blocked or unavailable for this profile or network.',
+                                'Browser could not create a push subscription.',
+                            );
+
+                            return;
+                        }
+
+                        if (error?.message === 'The browser permission prompt did not finish.') {
+                            setEnabledState(false, false, false);
+                            showError(
+                                'Choose Allow in the browser permission prompt, then try again.',
+                                'Still waiting for browser permission.',
+                            );
+
+                            return;
+                        }
+
+                        setEnabledState(false, false, false);
+                        showError(
+                            'Notifications were allowed, but Delight could not finish setup. Refresh and try again.',
+                            'Reminder setup did not finish.',
+                        );
+                    } finally {
+                        setBusy(false);
+                    }
+                };
+
+                const disableReminders = async () => {
+                    setBusy(true);
+
+                    try {
+                        const response = await postJson(reminderSettings.dataset.preferencesUrl, 'PATCH', {
+                            push_notifications_enabled: false,
+                        });
+
+                        if (!response.ok) {
+                            setEnabledState(true, false, false);
+                            showError('Reminder preferences could not be updated. Try again.');
+
+                            return;
+                        }
+
+                        setNotice(null);
+                        setEnabledState(false);
+
+                        if (isPushCapable() && Notification.permission === 'denied') {
+                            showBlocked();
+                        }
+                    } catch (error) {
+                        setEnabledState(true, false, false);
+                        showError('Reminder preferences could not be updated. Try again.');
+                    } finally {
+                        setBusy(false);
+                    }
+                };
+
+                reminderToggle?.addEventListener('click', async () => {
+                    if (reminderToggle.getAttribute('aria-checked') === 'true') {
+                        await disableReminders();
+
+                        return;
+                    }
+
+                    await enableReminders();
+                });
+            }
+        }
+
+        const initializeReadingRemindersDiscovery = (root = document) => {
+            root.querySelectorAll('[data-reading-reminders-discovery]').forEach((prompt) => {
+                if (!isPushCapable()
+                    || (isIosLike() && !isStandaloneDisplay())
+                    || Notification.permission === 'denied') {
+                    prompt.hidden = true;
+
+                    return;
+                }
+
+                if (prompt.dataset.readingRemindersDiscoveryInitialized === 'true') {
+                    return;
+                }
+
+                prompt.dataset.readingRemindersDiscoveryInitialized = 'true';
+
+                const dismissButton = prompt.querySelector('[data-reading-reminders-discovery-dismiss]');
+
+                dismissButton?.addEventListener('click', async () => {
+                    const url = dismissButton.dataset.dismissUrl;
+
+                    if (url) {
+                        const response = await postJson(url, 'POST');
+
+                        if (!response.ok) {
+                            return;
+                        }
+                    }
+
+                    prompt.remove();
+                });
+            });
+        };
+
+        initializeReadingRemindersDiscovery();
+
+        document.body.addEventListener('htmx:afterSwap', (event) => {
+            const target = event?.detail?.target;
+
+            if (!(target instanceof Element) || target.id !== 'page-container') {
+                return;
+            }
+
+            initializeReadingRemindersDiscovery(target);
+        });
     });
 }

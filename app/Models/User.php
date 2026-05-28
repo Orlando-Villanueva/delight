@@ -9,11 +9,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasPushSubscriptions, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -30,6 +31,11 @@ class User extends Authenticatable
         'marketing_emails_opted_out_at',
         'onboarding_reminder_requested_at',
         'deuterocanonical_books_enabled_at',
+        'push_notifications_enabled_at',
+        'daily_reading_reminder_enabled_at',
+        'streak_warning_enabled_at',
+        'push_notification_timezone',
+        'reading_reminders_prompt_dismissed_at',
     ];
 
     /**
@@ -57,6 +63,10 @@ class User extends Authenticatable
             'marketing_emails_opted_out_at' => 'datetime',
             'onboarding_reminder_requested_at' => 'datetime',
             'deuterocanonical_books_enabled_at' => 'datetime',
+            'push_notifications_enabled_at' => 'datetime',
+            'daily_reading_reminder_enabled_at' => 'datetime',
+            'streak_warning_enabled_at' => 'datetime',
+            'reading_reminders_prompt_dismissed_at' => 'datetime',
         ];
     }
 
@@ -205,6 +215,32 @@ class User extends Authenticatable
     public function includesDeuterocanonicalBooks(): bool
     {
         return $this->deuterocanonical_books_enabled_at !== null;
+    }
+
+    public function hasPushNotificationsEnabled(): bool
+    {
+        return $this->push_notifications_enabled_at !== null;
+    }
+
+    public function hasDailyReadingReminderEnabled(): bool
+    {
+        return $this->daily_reading_reminder_enabled_at !== null;
+    }
+
+    public function hasStreakWarningEnabled(): bool
+    {
+        return $this->streak_warning_enabled_at !== null;
+    }
+
+    public function shouldShowReadingReminderPrompt(): bool
+    {
+        return ! $this->hasPushNotificationsEnabled()
+            && $this->reading_reminders_prompt_dismissed_at === null;
+    }
+
+    public function pushNotificationTimezone(): string
+    {
+        return $this->push_notification_timezone ?: config('app.timezone');
     }
 
     /**
