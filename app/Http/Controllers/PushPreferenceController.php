@@ -35,6 +35,9 @@ class PushPreferenceController extends Controller
 
         return response()->json([
             'enabled' => $user->fresh()->hasPushNotificationsEnabled(),
+            'daily_reading_reminder_enabled' => $user->fresh()->hasDailyReadingReminderEnabled(),
+            'streak_warning_enabled' => $user->fresh()->hasStreakWarningEnabled(),
+            'push_notification_timezone' => $user->fresh()->pushNotificationTimezone(),
         ]);
     }
 }

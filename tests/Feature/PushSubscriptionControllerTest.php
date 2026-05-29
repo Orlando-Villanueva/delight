@@ -77,3 +77,29 @@ it('disables all push preferences when requested', function () {
         ->and($freshUser->streak_warning_enabled_at)->toBeNull()
         ->and($freshUser->pushSubscriptions()->count())->toBe(0);
 });
+
+it('updates reading reminder preferences independently', function () {
+    $user = User::factory()->create([
+        'push_notifications_enabled_at' => now(),
+        'daily_reading_reminder_enabled_at' => now(),
+        'streak_warning_enabled_at' => now(),
+        'push_notification_timezone' => 'America/Toronto',
+    ]);
+
+    $this->actingAs($user)
+        ->patchJson(route('push.preferences.update'), [
+            'daily_reading_reminder_enabled' => false,
+            'timezone' => 'America/New_York',
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('enabled', true)
+        ->assertJsonPath('daily_reading_reminder_enabled', false)
+        ->assertJsonPath('streak_warning_enabled', true)
+        ->assertJsonPath('push_notification_timezone', 'America/New_York');
+
+    $freshUser = $user->fresh();
+
+    expect($freshUser->hasDailyReadingReminderEnabled())->toBeFalse()
+        ->and($freshUser->hasStreakWarningEnabled())->toBeTrue()
+        ->and($freshUser->push_notification_timezone)->toBe('America/New_York');
+});

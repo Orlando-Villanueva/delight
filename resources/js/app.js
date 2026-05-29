@@ -244,6 +244,51 @@ if (typeof document !== 'undefined') {
             body: JSON.stringify(data),
         });
 
+        const statusTimers = new WeakMap();
+
+        const showInlineStatus = (element, message = '', tone = 'neutral', clearAfter = null) => {
+            if (!element) {
+                return;
+            }
+
+            globalThis.clearTimeout(statusTimers.get(element));
+            element.textContent = message;
+            element.hidden = message === '';
+            element.classList.remove(
+                'text-gray-500',
+                'dark:text-gray-400',
+                'text-success-600',
+                'dark:text-success-400',
+                'text-red-600',
+                'dark:text-red-400',
+            );
+
+            if (tone === 'success') {
+                element.classList.add('text-success-600', 'dark:text-success-400');
+            } else if (tone === 'error') {
+                element.classList.add('text-red-600', 'dark:text-red-400');
+            } else {
+                element.classList.add('text-gray-500', 'dark:text-gray-400');
+            }
+
+            if (clearAfter) {
+                statusTimers.set(element, globalThis.setTimeout(() => {
+                    element.hidden = true;
+                    element.textContent = '';
+                }, clearAfter));
+            }
+        };
+
+        const elementsFor = (root, selector) => {
+            const elements = Array.from(root.querySelectorAll(selector));
+
+            if (root instanceof Element && root.matches(selector)) {
+                elements.unshift(root);
+            }
+
+            return elements;
+        };
+
         const isIosLike = () => /iPad|iPhone|iPod/.test(navigator.userAgent)
             || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
@@ -267,6 +312,66 @@ if (typeof document !== 'undefined') {
             return outputArray;
         };
 
+        const initializeDeuterocanonicalSettings = (root = document) => {
+            elementsFor(root, '[data-deuterocanonical-setting]').forEach((setting) => {
+                if (setting.dataset.deuterocanonicalInitialized === 'true') {
+                    return;
+                }
+
+                setting.dataset.deuterocanonicalInitialized = 'true';
+
+                const toggle = setting.querySelector('[data-deuterocanonical-toggle]');
+                const label = setting.querySelector('[data-deuterocanonical-toggle-label]');
+                const status = setting.querySelector('[data-deuterocanonical-status]');
+                const url = setting.dataset.settingsUrl;
+
+                if (!toggle || !url) {
+                    return;
+                }
+
+                toggle.dataset.savedChecked = toggle.checked ? 'true' : 'false';
+
+                const setLabel = () => {
+                    if (label) {
+                        label.textContent = toggle.checked ? 'Enabled' : 'Disabled';
+                    }
+                };
+
+                toggle.addEventListener('change', async () => {
+                    const previousChecked = toggle.dataset.savedChecked === 'true';
+
+                    toggle.disabled = true;
+                    setLabel();
+                    showInlineStatus(status, 'Saving...');
+
+                    try {
+                        const response = await postJson(url, 'PATCH', {
+                            include_deuterocanonical: toggle.checked,
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Deuterocanonical preference could not be saved.');
+                        }
+
+                        const data = await response.json();
+
+                        toggle.checked = Boolean(data.include_deuterocanonical);
+                        toggle.dataset.savedChecked = toggle.checked ? 'true' : 'false';
+                        setLabel();
+                        showInlineStatus(status, 'Saved', 'success', 2200);
+                    } catch (error) {
+                        toggle.checked = previousChecked;
+                        setLabel();
+                        showInlineStatus(status, 'Could not save. Try again.', 'error');
+                    } finally {
+                        toggle.disabled = false;
+                    }
+                });
+            });
+        };
+
+        initializeDeuterocanonicalSettings();
+
         const reminderSettings = document.querySelector('[data-reading-reminders-settings]');
 
         if (reminderSettings) {
@@ -278,7 +383,7 @@ if (typeof document !== 'undefined') {
             const progressNotice = reminderSettings.querySelector('[data-reading-reminders-progress]');
             const iosGuidance = reminderSettings.querySelector('[data-reading-reminders-ios-guidance]');
             const status = reminderSettings.querySelector('[data-reading-reminders-status]');
-            const preferencesCopy = reminderSettings.querySelector('[data-reading-reminders-preferences-copy]');
+            const preferenceStatus = reminderSettings.querySelector('[data-reading-reminders-preferences-status]');
             const timezoneInput = reminderSettings.querySelector('[data-push-timezone]');
             const preferenceInputs = reminderSettings.querySelectorAll('[data-reading-reminders-preference]');
 
@@ -316,13 +421,9 @@ if (typeof document !== 'undefined') {
                     } else if (activateDefaults && !input.checked) {
                         input.checked = true;
                     }
-                });
 
-                if (preferencesCopy) {
-                    preferencesCopy.textContent = enabled
-                        ? 'Choose which reminders this browser should receive.'
-                        : 'Both reminders are included when browser notifications are enabled.';
-                }
+                    input.dataset.savedChecked = input.checked ? 'true' : 'false';
+                });
             };
 
             const setEnabledState = (enabled, activateDefaults = false) => {
@@ -443,6 +544,51 @@ if (typeof document !== 'undefined') {
                 return subscribeWithRegistration(await readyServiceWorkerRegistration(), publicKey);
             };
 
+            const setPreferenceStatus = (message = '', tone = 'neutral', clearAfter = null) => {
+                showInlineStatus(preferenceStatus, message, tone, clearAfter);
+            };
+
+            const saveReminderPreference = async (input) => {
+                if (reminderSettings.dataset.remindersEnabled !== 'true') {
+                    input.checked = false;
+
+                    return;
+                }
+
+                const previousChecked = input.dataset.savedChecked === 'true';
+                const preferenceName = input.dataset.readingRemindersPreference || input.name;
+
+                input.disabled = true;
+                setPreferenceStatus('Saving...');
+
+                try {
+                    const response = await postJson(reminderSettings.dataset.preferencesUrl, 'PATCH', {
+                        [preferenceName]: input.checked,
+                        timezone: timezoneInput?.value || Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Reminder preference could not be saved.');
+                    }
+
+                    const data = await response.json();
+
+                    if (Object.prototype.hasOwnProperty.call(data, preferenceName)) {
+                        input.checked = Boolean(data[preferenceName]);
+                    }
+
+                    input.dataset.savedChecked = input.checked ? 'true' : 'false';
+                    setPreferenceStatus('Saved', 'success', 2200);
+                } catch (error) {
+                    input.checked = previousChecked;
+                    setPreferenceStatus('Could not save. Try again.', 'error');
+                } finally {
+                    if (reminderSettings.dataset.remindersEnabled === 'true') {
+                        input.disabled = false;
+                    }
+                }
+            };
+
             setEnabledState(reminderSettings.dataset.remindersEnabled === 'true');
 
             if (isIosLike() && !isStandaloneDisplay()) {
@@ -518,6 +664,7 @@ if (typeof document !== 'undefined') {
 
                         setNotice(null);
                         setEnabledState(true, true);
+                        setPreferenceStatus('Saved', 'success', 2200);
                     } catch (error) {
                         console.error('Reading reminder setup failed', error);
 
@@ -575,6 +722,7 @@ if (typeof document !== 'undefined') {
 
                         setNotice(null);
                         setEnabledState(false);
+                        setPreferenceStatus('Saved', 'success', 2200);
 
                         if (isPushCapable() && Notification.permission === 'denied') {
                             showBlocked();
@@ -595,6 +743,12 @@ if (typeof document !== 'undefined') {
                     }
 
                     await enableReminders();
+                });
+
+                preferenceInputs.forEach((input) => {
+                    input.addEventListener('change', () => {
+                        saveReminderPreference(input);
+                    });
                 });
             }
         }
@@ -643,6 +797,7 @@ if (typeof document !== 'undefined') {
             }
 
             initializeReadingRemindersDiscovery(target);
+            initializeDeuterocanonicalSettings(target);
         });
     });
 }

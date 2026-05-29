@@ -16,7 +16,8 @@
                 @csrf
                 @method('PATCH')
 
-                <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                <div data-deuterocanonical-setting data-settings-url="{{ route('settings.update') }}"
+                    class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                     <div class="space-y-2">
                         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Deuterocanonical books</h2>
                         <p class="text-sm leading-6 text-gray-600 dark:text-gray-400">
@@ -25,17 +26,23 @@
                         </p>
                     </div>
 
-                    <label class="inline-flex cursor-pointer items-center gap-3">
-                        <input type="hidden" name="include_deuterocanonical" value="0">
-                        <input type="checkbox" name="include_deuterocanonical" value="1"
-                            @checked(auth()->user()?->includesDeuterocanonicalBooks())
-                            class="peer sr-only">
-                        <span
-                            class="relative h-6 w-11 rounded-full bg-gray-200 after:absolute after:start-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all peer-checked:bg-primary-600 peer-checked:after:translate-x-full peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:bg-gray-700 dark:peer-focus:ring-primary-800 rtl:peer-checked:after:-translate-x-full"></span>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {{ auth()->user()?->includesDeuterocanonicalBooks() ? 'Enabled' : 'Disabled' }}
-                        </span>
-                    </label>
+                    <div class="flex flex-col items-start gap-2 sm:items-end">
+                        <label class="inline-flex cursor-pointer items-center gap-3">
+                            <input type="hidden" name="include_deuterocanonical" value="0">
+                            <input type="checkbox" name="include_deuterocanonical" value="1"
+                                @checked(auth()->user()?->includesDeuterocanonicalBooks())
+                                data-deuterocanonical-toggle
+                                class="peer sr-only">
+                            <span
+                                class="relative h-6 w-11 rounded-full bg-gray-200 after:absolute after:start-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all peer-checked:bg-primary-600 peer-checked:after:translate-x-full peer-disabled:cursor-not-allowed peer-disabled:opacity-60 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:bg-gray-700 dark:peer-focus:ring-primary-800 rtl:peer-checked:after:-translate-x-full"></span>
+                            <span data-deuterocanonical-toggle-label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {{ auth()->user()?->includesDeuterocanonicalBooks() ? 'Enabled' : 'Disabled' }}
+                            </span>
+                        </label>
+
+                        <p data-deuterocanonical-status hidden
+                            class="text-xs font-medium text-gray-500 dark:text-gray-400" role="status" aria-live="polite"></p>
+                    </div>
                 </div>
 
                 <div id="reading-reminders" data-reading-reminders-settings
@@ -91,7 +98,11 @@
 
                     <div>
                         <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Schedule</h3>
+                            <div class="space-y-1">
+                                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Schedule</h3>
+                                <p data-reading-reminders-preferences-status hidden
+                                    class="text-xs font-medium text-gray-500 dark:text-gray-400" role="status" aria-live="polite"></p>
+                            </div>
                             <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                 {{ auth()->user()?->pushNotificationTimezone() }}
                             </p>
@@ -104,7 +115,7 @@
                                 <input type="checkbox" name="daily_reading_reminder_enabled" value="1"
                                     @checked(auth()->user()?->hasDailyReadingReminderEnabled())
                                     @disabled(! auth()->user()?->hasPushNotificationsEnabled())
-                                    data-reading-reminders-preference
+                                    data-reading-reminders-preference="daily_reading_reminder_enabled"
                                     class="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
                                 <span class="space-y-1">
                                     <span class="block text-sm font-semibold text-gray-900 dark:text-white">09:00 daily reminder</span>
@@ -117,7 +128,7 @@
                                 <input type="checkbox" name="streak_warning_enabled" value="1"
                                     @checked(auth()->user()?->hasStreakWarningEnabled())
                                     @disabled(! auth()->user()?->hasPushNotificationsEnabled())
-                                    data-reading-reminders-preference
+                                    data-reading-reminders-preference="streak_warning_enabled"
                                     class="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
                                 <span class="space-y-1">
                                     <span class="block text-sm font-semibold text-gray-900 dark:text-white">18:00 streak warning</span>
@@ -130,19 +141,21 @@
                     <input type="hidden" name="push_notification_timezone" value="{{ auth()->user()?->pushNotificationTimezone() }}" data-push-timezone>
                 </div>
 
-                <div class="grid gap-4 border-t border-gray-200 pt-6 dark:border-gray-700 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                    <div class="min-h-5">
-                        @if (session('status'))
-                            <p class="text-sm font-medium text-success-600 dark:text-success-400" role="status" aria-live="polite">
-                                {{ session('status') }}
-                            </p>
-                        @endif
-                    </div>
+                <noscript>
+                    <div class="grid gap-4 border-t border-gray-200 pt-6 dark:border-gray-700 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                        <div class="min-h-5">
+                            @if (session('status'))
+                                <p class="text-sm font-medium text-success-600 dark:text-success-400" role="status" aria-live="polite">
+                                    {{ session('status') }}
+                                </p>
+                            @endif
+                        </div>
 
-                    <x-ui.button type="submit" variant="accent" class="justify-self-end">
-                        Save settings
-                    </x-ui.button>
-                </div>
+                        <x-ui.button type="submit" variant="accent" class="justify-self-end">
+                            Save settings
+                        </x-ui.button>
+                    </div>
+                </noscript>
             </form>
         </x-ui.page-shell>
     @endfragment

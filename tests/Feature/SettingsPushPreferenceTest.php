@@ -22,7 +22,8 @@ it('shows reading reminder settings with explicit enable control and support gui
         ->assertSee('data-reading-reminders-progress hidden', false)
         ->assertSee('data-reading-reminders-blocked hidden', false)
         ->assertSee('data-reading-reminders-error hidden', false)
-        ->assertSee('data-reading-reminders-preference', false)
+        ->assertSee('data-reading-reminders-preference="daily_reading_reminder_enabled"', false)
+        ->assertSee('data-reading-reminders-preferences-status hidden', false)
         ->assertSee('data-push-public-key', false)
         ->assertSee('Safari -> Add to Home Screen -> open Delight from the Home Screen icon -> enable notifications', false)
         ->assertSee('Schedule')
@@ -92,7 +93,7 @@ it('shows the reminder toggle enabled when browser notifications are enabled', f
         ->assertDontSee('This browser can receive reading reminders.');
 });
 
-it('places the settings saved status in the submit footer', function () {
+it('keeps the no-JS settings fallback submit in noscript', function () {
     $user = User::factory()->create();
 
     $this->withSession(['status' => 'Settings saved.'])
@@ -101,6 +102,7 @@ it('places the settings saved status in the submit footer', function () {
         ->assertSuccessful()
         ->assertSee('role="status"', false)
         ->assertSee('aria-live="polite"', false)
+        ->assertSee('<noscript>', false)
         ->assertSeeInOrder([
             'data-push-timezone',
             'Settings saved.',
@@ -108,14 +110,16 @@ it('places the settings saved status in the submit footer', function () {
         ], false);
 });
 
-it('keeps the save button aligned right when there is no status message', function () {
+it('shows immediate-save hooks for settings controls', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
         ->get(route('settings.edit'))
         ->assertSuccessful()
-        ->assertSee('sm:grid-cols-[minmax(0,1fr)_auto]', false)
-        ->assertSee('justify-self-end', false)
+        ->assertSee('data-deuterocanonical-setting', false)
+        ->assertSee('data-deuterocanonical-toggle', false)
+        ->assertSee('data-deuterocanonical-status hidden', false)
+        ->assertSee('data-reading-reminders-preferences-status hidden', false)
         ->assertDontSee('Settings saved.');
 });
 
@@ -128,6 +132,10 @@ it('uses a single browser-state toggle for reminder visibility', function () {
         ->and($javascript)->toContain('Notification.permission === \'denied\'')
         ->and($javascript)->toContain('showPermissionGrantedButDisconnected')
         ->and($javascript)->toContain('Notifications are allowed. Turn this on to connect this browser to Delight reminders.')
+        ->and($javascript)->toContain('initializeDeuterocanonicalSettings')
+        ->and($javascript)->toContain('saveReminderPreference')
+        ->and($javascript)->toContain("showInlineStatus(status, 'Saved'")
+        ->and($javascript)->toContain('showInlineStatus(preferenceStatus, message')
         ->and($javascript)->toContain('initializeReadingRemindersDiscovery')
         ->and($javascript)->toContain("prompt.dataset.readingRemindersDiscoveryInitialized = 'true'")
         ->and($javascript)->toContain("document.body.addEventListener('htmx:afterSwap'")
