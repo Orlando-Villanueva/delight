@@ -9,7 +9,7 @@ it('shows reading reminder settings with explicit enable control and support gui
 
     $response->assertSuccessful()
         ->assertSee('id="reading-reminders"', false)
-        ->assertSee('data-reminders-enabled="false"', false)
+        ->assertSee('data-account-has-devices="false"', false)
         ->assertSee('Reading reminders')
         ->assertSee('Enable reading reminders')
         ->assertSee('data-reading-reminders-toggle', false)
@@ -25,6 +25,9 @@ it('shows reading reminder settings with explicit enable control and support gui
         ->assertSee('data-reading-reminders-preference="daily_reading_reminder_enabled"', false)
         ->assertSee('data-reading-reminders-preferences-status hidden', false)
         ->assertSee('data-push-public-key', false)
+        ->assertSee('data-status-url', false)
+        ->assertSee('data-disconnect-all-url', false)
+        ->assertSee('data-reading-reminders-disconnect-all', false)
         ->assertSee('Safari -> Add to Home Screen -> open Delight from the Home Screen icon -> enable notifications', false)
         ->assertSee('Schedule')
         ->assertDontSee('Browser notifications can remind you at 09:00', false)
@@ -78,18 +81,21 @@ it('keeps reminder preferences disabled when unchecked', function () {
         ->and($freshUser->push_notification_timezone)->toBe(config('app.timezone'));
 });
 
-it('shows the reminder toggle enabled when browser notifications are enabled', function () {
+it('does not render this browser as enabled from the account-level connected marker', function () {
     $user = User::factory()->create([
         'push_notifications_enabled_at' => now(),
+        'daily_reading_reminder_enabled_at' => now(),
+        'streak_warning_enabled_at' => now(),
     ]);
+    $user->updatePushSubscription('https://example.com/phone', 'key', 'token', 'aes128gcm');
 
     $this->actingAs($user)->get(route('settings.edit'))
         ->assertSuccessful()
-        ->assertSee('data-reminders-enabled="true"', false)
+        ->assertSee('data-account-has-devices="true"', false)
         ->assertSee('data-reading-reminders-status hidden', false)
         ->assertSee('data-reading-reminders-toggle', false)
-        ->assertSee('aria-checked="true"', false)
-        ->assertSee('Enabled')
+        ->assertSee('aria-checked="false"', false)
+        ->assertSee('Disabled')
         ->assertDontSee('This browser can receive reading reminders.');
 });
 
@@ -142,10 +148,16 @@ it('uses a single browser-state toggle for reminder visibility', function () {
         ->and($javascript)->toContain("target.id !== 'page-container'")
         ->and($javascript)->toContain('requestPermissionWithTimeout')
         ->and($javascript)->toContain('readyServiceWorkerRegistration')
+        ->and($javascript)->toContain('currentPushSubscription')
+        ->and($javascript)->toContain('syncCurrentDeviceState')
+        ->and($javascript)->toContain('reminderSettings.dataset.statusUrl')
+        ->and($javascript)->toContain('reminderSettings.dataset.unsubscribeUrl')
+        ->and($javascript)->toContain('reminderSettings.dataset.disconnectAllUrl')
         ->and($javascript)->toContain("navigator.serviceWorker.register('/sw.js', { scope: '/' })")
         ->and($javascript)->toContain('Reading reminder setup failed')
         ->and($javascript)->toContain('Browser could not create a push subscription.')
         ->and($javascript)->toContain('browser push service may be blocked or unavailable')
+        ->and($javascript)->not->toContain('push_notifications_enabled: false')
         ->and($javascript)->not->toContain('refreshServiceWorkerSubscription')
         ->and($javascript)->not->toContain('navigator.serviceWorker.getRegistration')
         ->and($javascript)->not->toContain('unregister()')

@@ -386,6 +386,8 @@ if (typeof document !== 'undefined') {
             const preferenceStatus = reminderSettings.querySelector('[data-reading-reminders-preferences-status]');
             const timezoneInput = reminderSettings.querySelector('[data-push-timezone]');
             const preferenceInputs = reminderSettings.querySelectorAll('[data-reading-reminders-preference]');
+            const disconnectAllButton = reminderSettings.querySelector('[data-reading-reminders-disconnect-all]');
+            let currentPushSubscription = null;
 
             if (timezoneInput && Intl.DateTimeFormat().resolvedOptions().timeZone) {
                 timezoneInput.value = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -412,13 +414,11 @@ if (typeof document !== 'undefined') {
                 }
             };
 
-            const setPreferenceState = (enabled, activateDefaults = false) => {
+            const setPreferenceState = (accountHasDevices, activateDefaults = false) => {
                 preferenceInputs.forEach((input) => {
-                    input.disabled = !enabled;
+                    input.disabled = !accountHasDevices;
 
-                    if (!enabled) {
-                        input.checked = false;
-                    } else if (activateDefaults && !input.checked) {
+                    if (activateDefaults && !input.checked) {
                         input.checked = true;
                     }
 
@@ -426,22 +426,29 @@ if (typeof document !== 'undefined') {
                 });
             };
 
-            const setEnabledState = (enabled, activateDefaults = false) => {
-                reminderSettings.dataset.remindersEnabled = enabled ? 'true' : 'false';
+            const setEnabledState = (deviceEnabled, accountHasDevices = null, activateDefaults = false) => {
+                const hasDevices = accountHasDevices ?? (reminderSettings.dataset.accountHasDevices === 'true');
+
+                reminderSettings.dataset.deviceEnabled = deviceEnabled ? 'true' : 'false';
+                reminderSettings.dataset.accountHasDevices = hasDevices ? 'true' : 'false';
 
                 if (reminderToggle) {
-                    reminderToggle.setAttribute('aria-checked', enabled ? 'true' : 'false');
+                    reminderToggle.setAttribute('aria-checked', deviceEnabled ? 'true' : 'false');
                     reminderToggle.disabled = false;
-                    reminderToggle.title = enabled
+                    reminderToggle.title = deviceEnabled
                         ? 'This browser can receive reading reminders.'
                         : 'Turn on to connect this browser to Delight reminders.';
                 }
 
                 if (reminderToggleLabel) {
-                    reminderToggleLabel.textContent = enabled ? 'Enabled' : 'Disabled';
+                    reminderToggleLabel.textContent = deviceEnabled ? 'Enabled' : 'Disabled';
                 }
 
-                setPreferenceState(enabled, activateDefaults);
+                if (disconnectAllButton) {
+                    disconnectAllButton.hidden = !hasDevices;
+                }
+
+                setPreferenceState(hasDevices, activateDefaults);
 
                 setStatus();
             };
@@ -454,7 +461,7 @@ if (typeof document !== 'undefined') {
                 if (reminderToggleLabel) {
                     reminderToggleLabel.textContent = busy
                         ? 'Saving...'
-                        : (reminderSettings.dataset.remindersEnabled === 'true' ? 'Enabled' : 'Disabled');
+                        : (reminderSettings.dataset.deviceEnabled === 'true' ? 'Enabled' : 'Disabled');
                 }
             };
 
@@ -463,7 +470,7 @@ if (typeof document !== 'undefined') {
 
                 setNotice(unsupportedNotice);
 
-                if (reminderSettings.dataset.remindersEnabled !== 'true' && reminderToggle) {
+                if (reminderSettings.dataset.deviceEnabled !== 'true' && reminderToggle) {
                     reminderToggle.setAttribute('aria-checked', 'false');
                     reminderToggle.disabled = true;
                 }
@@ -478,7 +485,7 @@ if (typeof document !== 'undefined') {
 
                 setNotice(blockedNotice);
 
-                if (reminderSettings.dataset.remindersEnabled !== 'true' && reminderToggle) {
+                if (reminderSettings.dataset.deviceEnabled !== 'true' && reminderToggle) {
                     reminderToggle.setAttribute('aria-checked', 'false');
                     reminderToggle.disabled = true;
                 }
@@ -489,7 +496,7 @@ if (typeof document !== 'undefined') {
             };
 
             const showPermissionGrantedButDisconnected = () => {
-                if (reminderSettings.dataset.remindersEnabled === 'true' || !status) {
+                if (reminderSettings.dataset.deviceEnabled === 'true' || !status) {
                     return;
                 }
 
@@ -549,9 +556,7 @@ if (typeof document !== 'undefined') {
             };
 
             const saveReminderPreference = async (input) => {
-                if (reminderSettings.dataset.remindersEnabled !== 'true') {
-                    input.checked = false;
-
+                if (reminderSettings.dataset.accountHasDevices !== 'true') {
                     return;
                 }
 
@@ -583,13 +588,75 @@ if (typeof document !== 'undefined') {
                     input.checked = previousChecked;
                     setPreferenceStatus('Could not save. Try again.', 'error');
                 } finally {
-                    if (reminderSettings.dataset.remindersEnabled === 'true') {
+                    if (reminderSettings.dataset.accountHasDevices === 'true') {
                         input.disabled = false;
                     }
                 }
             };
 
-            setEnabledState(reminderSettings.dataset.remindersEnabled === 'true');
+            const applySubscriptionState = (data, activateDefaults = false) => {
+                if (Object.prototype.hasOwnProperty.call(data, 'daily_reading_reminder_enabled')) {
+                    const input = reminderSettings.querySelector('[data-reading-reminders-preference="daily_reading_reminder_enabled"]');
+
+                    if (input) {
+                        input.checked = Boolean(data.daily_reading_reminder_enabled);
+                    }
+                }
+
+                if (Object.prototype.hasOwnProperty.call(data, 'streak_warning_enabled')) {
+                    const input = reminderSettings.querySelector('[data-reading-reminders-preference="streak_warning_enabled"]');
+
+                    if (input) {
+                        input.checked = Boolean(data.streak_warning_enabled);
+                    }
+                }
+
+                if (timezoneInput && data.push_notification_timezone) {
+                    timezoneInput.value = data.push_notification_timezone;
+                }
+
+                setEnabledState(
+                    Boolean(data.device_enabled),
+                    Boolean(data.account_has_devices),
+                    activateDefaults,
+                );
+            };
+
+            const getCurrentPushSubscription = async () => {
+                const registration = await readyServiceWorkerRegistration();
+
+                return registration.pushManager.getSubscription();
+            };
+
+            const syncCurrentDeviceState = async () => {
+                currentPushSubscription = await getCurrentPushSubscription();
+
+                if (!currentPushSubscription) {
+                    applySubscriptionState({
+                        device_enabled: false,
+                        account_has_devices: reminderSettings.dataset.accountHasDevices === 'true',
+                    });
+                    showPermissionGrantedButDisconnected();
+
+                    return;
+                }
+
+                const response = await postJson(reminderSettings.dataset.statusUrl, 'POST', {
+                    endpoint: currentPushSubscription.endpoint,
+                });
+
+                if (!response.ok) {
+                    throw new Error('Current browser reminder status could not be loaded.');
+                }
+
+                applySubscriptionState(await response.json());
+
+                if (reminderSettings.dataset.deviceEnabled !== 'true') {
+                    showPermissionGrantedButDisconnected();
+                }
+            };
+
+            setEnabledState(false, reminderSettings.dataset.accountHasDevices === 'true');
 
             if (isIosLike() && !isStandaloneDisplay()) {
                 setNotice(iosGuidance);
@@ -608,7 +675,13 @@ if (typeof document !== 'undefined') {
                 showBlocked();
             } else {
                 if (Notification.permission === 'granted') {
-                    showPermissionGrantedButDisconnected();
+                    syncCurrentDeviceState().catch((error) => {
+                        console.error('Reading reminder status failed', error);
+                        showError(
+                            'Delight could not check this browser reminder status. Refresh and try again.',
+                            'Reminder status could not be checked.',
+                        );
+                    });
                 }
 
                 const enableReminders = async () => {
@@ -639,6 +712,7 @@ if (typeof document !== 'undefined') {
                         setStatus('Saving this browser for reminders.', true);
 
                         const subscription = await getOrCreatePushSubscription(publicKey);
+                        currentPushSubscription = subscription;
                         const subscriptionJson = subscription.toJSON();
 
                         const response = await postJson(reminderSettings.dataset.subscriptionUrl, 'POST', {
@@ -663,7 +737,7 @@ if (typeof document !== 'undefined') {
                         }
 
                         setNotice(null);
-                        setEnabledState(true, true);
+                        applySubscriptionState(await response.json(), true);
                         setPreferenceStatus('Saved', 'success', 2200);
                     } catch (error) {
                         console.error('Reading reminder setup failed', error);
@@ -706,29 +780,43 @@ if (typeof document !== 'undefined') {
                 };
 
                 const disableReminders = async () => {
+                    const previousDeviceEnabled = reminderSettings.dataset.deviceEnabled === 'true';
+                    const previousAccountHasDevices = reminderSettings.dataset.accountHasDevices === 'true';
+
                     setBusy(true);
 
                     try {
-                        const response = await postJson(reminderSettings.dataset.preferencesUrl, 'PATCH', {
-                            push_notifications_enabled: false,
+                        currentPushSubscription ??= await getCurrentPushSubscription();
+
+                        if (!currentPushSubscription) {
+                            setNotice(null);
+                            setEnabledState(false, reminderSettings.dataset.accountHasDevices === 'true');
+                            showPermissionGrantedButDisconnected();
+
+                            return;
+                        }
+
+                        const response = await postJson(reminderSettings.dataset.unsubscribeUrl, 'DELETE', {
+                            endpoint: currentPushSubscription.endpoint,
                         });
 
                         if (!response.ok) {
-                            setEnabledState(true, false, false);
+                            setEnabledState(previousDeviceEnabled, previousAccountHasDevices, false);
                             showError('Reminder preferences could not be updated. Try again.');
 
                             return;
                         }
 
                         setNotice(null);
-                        setEnabledState(false);
+                        applySubscriptionState(await response.json());
+                        currentPushSubscription = null;
                         setPreferenceStatus('Saved', 'success', 2200);
 
                         if (isPushCapable() && Notification.permission === 'denied') {
                             showBlocked();
                         }
                     } catch (error) {
-                        setEnabledState(true, false, false);
+                        setEnabledState(previousDeviceEnabled, previousAccountHasDevices, false);
                         showError('Reminder preferences could not be updated. Try again.');
                     } finally {
                         setBusy(false);
@@ -749,6 +837,31 @@ if (typeof document !== 'undefined') {
                     input.addEventListener('change', () => {
                         saveReminderPreference(input);
                     });
+                });
+
+                disconnectAllButton?.addEventListener('click', async () => {
+                    if (!window.confirm('Turn off reading reminders on every device?')) {
+                        return;
+                    }
+
+                    disconnectAllButton.disabled = true;
+                    setPreferenceStatus('Saving...');
+
+                    try {
+                        const response = await postJson(reminderSettings.dataset.disconnectAllUrl, 'DELETE');
+
+                        if (!response.ok) {
+                            throw new Error('Reminder devices could not be disconnected.');
+                        }
+
+                        currentPushSubscription = null;
+                        applySubscriptionState(await response.json());
+                        setPreferenceStatus('Saved', 'success', 2200);
+                    } catch (error) {
+                        setPreferenceStatus('Could not turn off reminders everywhere. Try again.', 'error');
+                    } finally {
+                        disconnectAllButton.disabled = false;
+                    }
                 });
             }
         }

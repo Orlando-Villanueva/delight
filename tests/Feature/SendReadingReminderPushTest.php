@@ -32,6 +32,25 @@ it('dispatch command creates due daily and streak reminder delivery rows once', 
     Carbon::setTestNow();
 });
 
+it('dispatch command uses subscription rows rather than the account connected marker', function () {
+    Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
+    $user = User::factory()->create([
+        'push_notifications_enabled_at' => null,
+        'daily_reading_reminder_enabled_at' => now(),
+        'streak_warning_enabled_at' => now(),
+        'push_notification_timezone' => 'America/Toronto',
+    ]);
+    $user->updatePushSubscription('https://example.com/subscription-'.$user->id, 'key', 'token', 'aes128gcm');
+
+    $this->artisan('push:dispatch-reading-reminders')
+        ->expectsOutput('Reading reminder pushes queued: 1 due, 0 skipped.')
+        ->assertSuccessful();
+
+    expect(PushReminderDelivery::query()->where('user_id', $user->id)->count())->toBe(1);
+
+    Carbon::setTestNow();
+});
+
 it('send job skips when user logged reading after delivery row was created', function () {
     Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
     $user = pushReminderUser();

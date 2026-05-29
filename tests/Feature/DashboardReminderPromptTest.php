@@ -20,10 +20,21 @@ it('does not show the dashboard prompt when reminders are enabled', function () 
     $user = User::factory()->create([
         'push_notifications_enabled_at' => now(),
     ]);
+    $user->updatePushSubscription('https://example.com/subscription', 'key', 'token', 'aes128gcm');
 
     $this->actingAs($user)->get(route('dashboard'))
         ->assertSuccessful()
         ->assertDontSee('data-reading-reminders-discovery', false);
+});
+
+it('shows the dashboard prompt when only the old account marker remains', function () {
+    $user = User::factory()->create([
+        'push_notifications_enabled_at' => now(),
+    ]);
+
+    $this->actingAs($user)->get(route('dashboard'))
+        ->assertSuccessful()
+        ->assertSee('data-reading-reminders-discovery', false);
 });
 
 it('persists dismissal of the dashboard prompt', function () {

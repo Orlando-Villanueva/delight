@@ -53,6 +53,22 @@ it('does not allow streak warning without an active recent streak', function () 
     expect($service->isEligible($user->fresh(), 'streak_risk', Carbon::parse('2026-05-26 18:00:00', 'America/Toronto')))->toBeFalse();
 });
 
+it('uses actual subscription rows rather than the account connected marker for eligibility', function () {
+    $service = app(ReadingReminderEligibilityService::class);
+    $user = User::factory()->create([
+        'push_notifications_enabled_at' => null,
+        'daily_reading_reminder_enabled_at' => now(),
+        'streak_warning_enabled_at' => now(),
+        'push_notification_timezone' => 'America/Toronto',
+    ]);
+
+    expect($service->isEligible($user, 'daily_reading', Carbon::parse('2026-05-26 09:00:00', 'America/Toronto')))->toBeFalse();
+
+    $user->updatePushSubscription('https://example.com/subscription-'.$user->id, 'key', 'token', 'aes128gcm');
+
+    expect($service->isEligible($user->fresh(), 'daily_reading', Carbon::parse('2026-05-26 09:00:00', 'America/Toronto')))->toBeTrue();
+});
+
 function reminderEligibleUser(): User
 {
     $user = User::factory()->create([

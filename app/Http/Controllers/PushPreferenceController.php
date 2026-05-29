@@ -12,17 +12,6 @@ class PushPreferenceController extends Controller
         $user = $request->user();
         $validated = $request->validated();
 
-        if (array_key_exists('push_notifications_enabled', $validated) && ! $request->boolean('push_notifications_enabled')) {
-            $user->pushSubscriptions()->delete();
-            $user->forceFill([
-                'push_notifications_enabled_at' => null,
-                'daily_reading_reminder_enabled_at' => null,
-                'streak_warning_enabled_at' => null,
-            ])->save();
-
-            return response()->json(['enabled' => false]);
-        }
-
         $user->forceFill([
             'daily_reading_reminder_enabled_at' => array_key_exists('daily_reading_reminder_enabled', $validated)
                 ? ($request->boolean('daily_reading_reminder_enabled') ? now() : null)
@@ -33,11 +22,14 @@ class PushPreferenceController extends Controller
             'push_notification_timezone' => $validated['timezone'] ?? $user->pushNotificationTimezone(),
         ])->save();
 
+        $freshUser = $user->fresh();
+
         return response()->json([
-            'enabled' => $user->fresh()->hasPushNotificationsEnabled(),
-            'daily_reading_reminder_enabled' => $user->fresh()->hasDailyReadingReminderEnabled(),
-            'streak_warning_enabled' => $user->fresh()->hasStreakWarningEnabled(),
-            'push_notification_timezone' => $user->fresh()->pushNotificationTimezone(),
+            'enabled' => $freshUser->pushSubscriptions()->exists(),
+            'account_has_devices' => $freshUser->pushSubscriptions()->exists(),
+            'daily_reading_reminder_enabled' => $freshUser->hasDailyReadingReminderEnabled(),
+            'streak_warning_enabled' => $freshUser->hasStreakWarningEnabled(),
+            'push_notification_timezone' => $freshUser->pushNotificationTimezone(),
         ]);
     }
 }

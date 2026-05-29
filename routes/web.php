@@ -138,6 +138,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/push/subscriptions', [PushSubscriptionController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('push.subscriptions.store');
+    Route::post('/push/subscriptions/status', [PushSubscriptionController::class, 'status'])
+        ->middleware('throttle:10,1')
+        ->name('push.subscriptions.status');
+    Route::delete('/push/subscriptions/all', [PushSubscriptionController::class, 'destroyAll'])
+        ->middleware('throttle:10,1')
+        ->name('push.subscriptions.destroy-all');
     Route::delete('/push/subscriptions', [PushSubscriptionController::class, 'destroy'])
         ->middleware('throttle:10,1')
         ->name('push.subscriptions.destroy');

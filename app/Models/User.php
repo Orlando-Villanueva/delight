@@ -219,7 +219,7 @@ class User extends Authenticatable
 
     public function hasPushNotificationsEnabled(): bool
     {
-        return $this->push_notifications_enabled_at !== null;
+        return $this->pushSubscriptions()->exists();
     }
 
     public function hasDailyReadingReminderEnabled(): bool

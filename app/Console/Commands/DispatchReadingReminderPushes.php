@@ -24,7 +24,6 @@ class DispatchReadingReminderPushes extends Command
         ];
 
         User::query()
-            ->whereNotNull('push_notifications_enabled_at')
             ->whereHas('pushSubscriptions')
             ->select('id')
             ->orderBy('id')

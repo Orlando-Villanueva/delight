@@ -15,7 +15,7 @@ class ReadingReminderEligibilityService
 
     public function isEligible(User $user, string $reminderType, ?CarbonInterface $referenceTime = null): bool
     {
-        if (! $user->hasPushNotificationsEnabled() || $user->pushSubscriptions()->count() === 0) {
+        if ($user->pushSubscriptions()->count() === 0) {
             return false;
         }
 

@@ -45,11 +45,18 @@
                     </div>
                 </div>
 
+                @php
+                    $accountHasReminderDevices = auth()->user()?->pushSubscriptions()->exists() ?? false;
+                @endphp
+
                 <div id="reading-reminders" data-reading-reminders-settings
-                    data-reminders-enabled="{{ auth()->user()?->hasPushNotificationsEnabled() ? 'true' : 'false' }}"
+                    data-device-enabled="false"
+                    data-account-has-devices="{{ $accountHasReminderDevices ? 'true' : 'false' }}"
                     data-push-public-key="{{ config('webpush.vapid.public_key') }}"
                     data-subscription-url="{{ route('push.subscriptions.store') }}"
+                    data-status-url="{{ route('push.subscriptions.status') }}"
                     data-unsubscribe-url="{{ route('push.subscriptions.destroy') }}"
+                    data-disconnect-all-url="{{ route('push.subscriptions.destroy-all') }}"
                     data-preferences-url="{{ route('push.preferences.update') }}"
                     class="flex flex-col gap-4 border-t border-gray-200 pt-6 dark:border-gray-700">
                     <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
@@ -60,12 +67,12 @@
 
                         <div class="flex items-center justify-start gap-3 sm:justify-end">
                             <button type="button" role="switch" aria-label="Enable reading reminders" data-reading-reminders-toggle
-                                aria-checked="{{ auth()->user()?->hasPushNotificationsEnabled() ? 'true' : 'false' }}"
+                                aria-checked="false"
                                 class="group inline-flex cursor-pointer items-center gap-3">
                                 <span
                                     class="relative h-6 w-11 rounded-full bg-gray-200 transition group-aria-checked:bg-primary-600 group-disabled:cursor-not-allowed group-disabled:opacity-60 group-focus:outline-none group-focus:ring-4 group-focus:ring-primary-300 dark:bg-gray-700 dark:group-focus:ring-primary-800 after:absolute after:start-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all group-aria-checked:after:translate-x-full rtl:group-aria-checked:after:-translate-x-full"></span>
                                 <span data-reading-reminders-toggle-label class="min-w-20 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    {{ auth()->user()?->hasPushNotificationsEnabled() ? 'Enabled' : 'Disabled' }}
+                                    Disabled
                                 </span>
                             </button>
                         </div>
@@ -114,7 +121,7 @@
                                 <input type="hidden" name="daily_reading_reminder_enabled" value="0">
                                 <input type="checkbox" name="daily_reading_reminder_enabled" value="1"
                                     @checked(auth()->user()?->hasDailyReadingReminderEnabled())
-                                    @disabled(! auth()->user()?->hasPushNotificationsEnabled())
+                                    @disabled(! $accountHasReminderDevices)
                                     data-reading-reminders-preference="daily_reading_reminder_enabled"
                                     class="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
                                 <span class="space-y-1">
@@ -127,7 +134,7 @@
                                 <input type="hidden" name="streak_warning_enabled" value="0">
                                 <input type="checkbox" name="streak_warning_enabled" value="1"
                                     @checked(auth()->user()?->hasStreakWarningEnabled())
-                                    @disabled(! auth()->user()?->hasPushNotificationsEnabled())
+                                    @disabled(! $accountHasReminderDevices)
                                     data-reading-reminders-preference="streak_warning_enabled"
                                     class="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
                                 <span class="space-y-1">
@@ -135,6 +142,14 @@
                                     <span class="block text-sm leading-6 text-gray-600 dark:text-gray-400">Sends only when yesterday was read and today is still unread.</span>
                                 </span>
                             </label>
+                        </div>
+
+                        <div class="mt-4 flex justify-end">
+                            <button type="button" data-reading-reminders-disconnect-all
+                                @if (! $accountHasReminderDevices) hidden @endif
+                                class="text-sm font-medium text-gray-500 underline-offset-4 hover:text-gray-700 hover:underline dark:text-gray-400 dark:hover:text-gray-200">
+                                Turn off reminders everywhere
+                            </button>
                         </div>
                     </div>
 
