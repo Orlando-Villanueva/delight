@@ -168,6 +168,7 @@ it('notification target uses active plan route while copy stays generic', functi
     expect($notification->via($user))->toBe([WebPushChannel::class])
         ->and($message['title'])->toBe("Time for today's reading")
         ->and($message['body'])->toBe('Open Delight and log one chapter when you are ready.')
+        ->and($message['badge'])->toBe('/images/notification-badge.png')
         ->and($message['data']['url'])->toBe(route('plans.today', $plan));
 });
 

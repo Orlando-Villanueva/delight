@@ -87,6 +87,7 @@ test('service worker includes web push notification handlers', function () {
         'event.data.json()',
         "title: 'Delight'",
         'self.registration.showNotification',
+        "badge: payload.badge || '/images/notification-badge.png'",
         "self.addEventListener('notificationclick'",
         'event.notification.data?.url',
         'clients.matchAll',
@@ -97,4 +98,6 @@ test('service worker includes web push notification handlers', function () {
     foreach ($requiredSnippets as $snippet) {
         expect($serviceWorker)->toContain($snippet);
     }
+
+    expect(public_path('images/notification-badge.png'))->toBeFile();
 });

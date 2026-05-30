@@ -7,6 +7,7 @@ const STATIC_CACHE_URLS = [
   '/images/logo-64.png',
   '/images/logo-192.png',
   '/images/app-icon-v2-64.png',
+  '/images/notification-badge.png',
   '/images/app-icon-v2-192.png',
   '/images/app-icon-v2-512.png',
 ];
@@ -288,7 +289,7 @@ self.addEventListener('push', (event) => {
   const options = {
     body: payload.body || '',
     icon: payload.icon || '/images/app-icon-v2-192.png',
-    badge: payload.badge || '/images/app-icon-v2-64.png',
+    badge: payload.badge || '/images/notification-badge.png',
     tag: payload.tag,
     data: payload.data || { url: '/logs/create' },
   };

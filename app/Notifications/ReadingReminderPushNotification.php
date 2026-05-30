@@ -34,7 +34,7 @@ class ReadingReminderPushNotification extends Notification
             ->title($title)
             ->body($body)
             ->icon('/images/app-icon-v2-192.png')
-            ->badge('/images/app-icon-v2-64.png')
+            ->badge('/images/notification-badge.png')
             ->tag('delight-'.$this->reminderType.'-'.$this->reminderDate)
             ->data([
                 'url' => $this->targetUrl,
