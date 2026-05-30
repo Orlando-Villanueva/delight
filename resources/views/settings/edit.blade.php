@@ -17,31 +17,35 @@
                 @method('PATCH')
 
                 <div data-deuterocanonical-setting data-settings-url="{{ route('settings.update') }}"
-                    class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                    <div class="space-y-2">
+                    class="space-y-2">
+                    <div class="flex items-start justify-between gap-4">
                         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Deuterocanonical books</h2>
+
+                        <div class="flex flex-col items-end gap-2">
+                            <label class="inline-flex cursor-pointer items-center">
+                                <input type="hidden" name="include_deuterocanonical" value="0">
+                                <input type="checkbox" name="include_deuterocanonical" value="1"
+                                    aria-label="Include deuterocanonical books"
+                                    @checked(auth()->user()?->includesDeuterocanonicalBooks())
+                                    data-deuterocanonical-toggle
+                                    class="peer sr-only">
+                                <span
+                                    class="relative h-6 w-11 rounded-full bg-gray-200 after:absolute after:start-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all peer-checked:bg-primary-600 peer-checked:after:translate-x-full peer-disabled:cursor-not-allowed peer-disabled:opacity-60 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:bg-gray-700 dark:peer-focus:ring-primary-800 rtl:peer-checked:after:-translate-x-full"></span>
+                                <span data-deuterocanonical-toggle-label class="sr-only">
+                                    {{ auth()->user()?->includesDeuterocanonicalBooks() ? 'Enabled' : 'Disabled' }}
+                                </span>
+                            </label>
+
+                            <p data-deuterocanonical-status hidden
+                                class="text-xs font-medium text-gray-500 dark:text-gray-400" role="status" aria-live="polite"></p>
+                        </div>
+                    </div>
+
+                    <div>
                         <p class="text-sm leading-6 text-gray-600 dark:text-gray-400">
                             Include Tobit, Judith, Wisdom, Sirach, Baruch, 1-2 Maccabees, and the Catholic-integrated
                             additions to Esther and Daniel when logging readings.
                         </p>
-                    </div>
-
-                    <div class="flex flex-col items-start gap-2 sm:items-end">
-                        <label class="inline-flex cursor-pointer items-center gap-3">
-                            <input type="hidden" name="include_deuterocanonical" value="0">
-                            <input type="checkbox" name="include_deuterocanonical" value="1"
-                                @checked(auth()->user()?->includesDeuterocanonicalBooks())
-                                data-deuterocanonical-toggle
-                                class="peer sr-only">
-                            <span
-                                class="relative h-6 w-11 rounded-full bg-gray-200 after:absolute after:start-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all peer-checked:bg-primary-600 peer-checked:after:translate-x-full peer-disabled:cursor-not-allowed peer-disabled:opacity-60 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:bg-gray-700 dark:peer-focus:ring-primary-800 rtl:peer-checked:after:-translate-x-full"></span>
-                            <span data-deuterocanonical-toggle-label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                {{ auth()->user()?->includesDeuterocanonicalBooks() ? 'Enabled' : 'Disabled' }}
-                            </span>
-                        </label>
-
-                        <p data-deuterocanonical-status hidden
-                            class="text-xs font-medium text-gray-500 dark:text-gray-400" role="status" aria-live="polite"></p>
                     </div>
                 </div>
 
@@ -58,24 +62,22 @@
                     data-unsubscribe-url="{{ route('push.subscriptions.destroy') }}"
                     data-disconnect-all-url="{{ route('push.subscriptions.destroy-all') }}"
                     data-preferences-url="{{ route('push.preferences.update') }}"
-                    class="flex flex-col gap-4 border-t border-gray-200 pt-6 dark:border-gray-700">
-                    <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-                        <div class="max-w-xl space-y-2">
+                    class="mt-6 flex flex-col gap-4 border-t border-gray-200 pt-6 dark:border-gray-700">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="space-y-2">
                             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Reading reminders</h2>
                             <p data-reading-reminders-status hidden class="text-sm leading-6 text-gray-600 dark:text-gray-400"></p>
                         </div>
 
-                        <div class="flex items-center justify-start gap-3 sm:justify-end">
-                            <button type="button" role="switch" aria-label="Enable reading reminders" data-reading-reminders-toggle
-                                aria-checked="false"
-                                class="group inline-flex cursor-pointer items-center gap-3">
-                                <span
-                                    class="relative h-6 w-11 rounded-full bg-gray-200 transition group-aria-checked:bg-primary-600 group-disabled:cursor-not-allowed group-disabled:opacity-60 group-focus:outline-none group-focus:ring-4 group-focus:ring-primary-300 dark:bg-gray-700 dark:group-focus:ring-primary-800 after:absolute after:start-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all group-aria-checked:after:translate-x-full rtl:group-aria-checked:after:-translate-x-full"></span>
-                                <span data-reading-reminders-toggle-label class="min-w-20 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Disabled
-                                </span>
-                            </button>
-                        </div>
+                        <button type="button" role="switch" aria-label="Reading reminders for this browser" data-reading-reminders-toggle
+                            aria-checked="false"
+                            class="group mt-0.5 inline-flex cursor-pointer items-center">
+                            <span
+                                class="relative h-6 w-11 rounded-full bg-gray-200 transition group-aria-checked:bg-primary-600 group-disabled:cursor-not-allowed group-disabled:opacity-60 group-focus:outline-none group-focus:ring-4 group-focus:ring-primary-300 dark:bg-gray-700 dark:group-focus:ring-primary-800 after:absolute after:start-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all group-aria-checked:after:translate-x-full rtl:group-aria-checked:after:-translate-x-full"></span>
+                            <span data-reading-reminders-toggle-label class="sr-only">
+                                Disabled
+                            </span>
+                        </button>
                     </div>
 
                     <div data-reading-reminders-progress hidden
@@ -104,19 +106,11 @@
                     </div>
 
                     <div>
-                        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                            <div class="space-y-1">
-                                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Schedule</h3>
-                                <p data-reading-reminders-preferences-status hidden
-                                    class="text-xs font-medium text-gray-500 dark:text-gray-400" role="status" aria-live="polite"></p>
-                            </div>
-                            <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                {{ auth()->user()?->pushNotificationTimezone() }}
-                            </p>
-                        </div>
+                        <p data-reading-reminders-preferences-status hidden
+                            class="text-xs font-medium text-gray-500 dark:text-gray-400" role="status" aria-live="polite"></p>
 
                         <div
-                            class="mt-3 divide-y divide-gray-200 border-t border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                            class="divide-y divide-gray-200 border-t border-gray-200 dark:divide-gray-700 dark:border-gray-700">
                             <label class="flex items-start gap-3 py-3">
                                 @if ($accountHasReminderDevices)
                                     <input type="hidden" name="daily_reading_reminder_enabled" value="0">
