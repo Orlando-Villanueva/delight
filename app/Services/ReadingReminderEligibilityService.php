@@ -6,6 +6,7 @@ use App\Models\PushReminderDelivery;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use DateTimeZone;
+use Throwable;
 
 class ReadingReminderEligibilityService
 {
@@ -15,7 +16,11 @@ class ReadingReminderEligibilityService
 
     public function isEligible(User $user, string $reminderType, ?CarbonInterface $referenceTime = null): bool
     {
-        if ($user->pushSubscriptions()->count() === 0) {
+        $hasPushSubscription = $user->relationLoaded('pushSubscriptions')
+            ? $user->pushSubscriptions->isNotEmpty()
+            : $user->pushSubscriptions()->exists();
+
+        if (! $hasPushSubscription) {
             return false;
         }
 
@@ -71,7 +76,11 @@ class ReadingReminderEligibilityService
 
     private function localNow(User $user, ?CarbonInterface $referenceTime = null): CarbonInterface
     {
-        $timezone = new DateTimeZone($user->pushNotificationTimezone());
+        try {
+            $timezone = new DateTimeZone($user->pushNotificationTimezone());
+        } catch (Throwable) {
+            $timezone = new DateTimeZone(config('app.timezone'));
+        }
 
         return ($referenceTime ?? now())->copy()->setTimezone($timezone);
     }

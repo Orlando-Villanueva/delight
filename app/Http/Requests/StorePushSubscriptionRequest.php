@@ -24,8 +24,8 @@ class StorePushSubscriptionRequest extends FormRequest
         return [
             'endpoint' => ['required', 'url', 'max:500'],
             'keys' => ['required', 'array'],
-            'keys.p256dh' => ['required', 'string'],
-            'keys.auth' => ['required', 'string'],
+            'keys.p256dh' => ['required', 'string', 'max:255'],
+            'keys.auth' => ['required', 'string', 'max:255'],
             'contentEncoding' => ['nullable', 'string', 'in:aesgcm,aes128gcm'],
             'timezone' => ['nullable', 'timezone'],
         ];

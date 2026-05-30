@@ -78,7 +78,7 @@ it('keeps reminder preferences disabled when unchecked', function () {
 
     expect($freshUser->daily_reading_reminder_enabled_at)->toBeNull()
         ->and($freshUser->streak_warning_enabled_at)->toBeNull()
-        ->and($freshUser->push_notification_timezone)->toBe(config('app.timezone'));
+        ->and($freshUser->push_notification_timezone)->toBe('America/Toronto');
 });
 
 it('does not render this browser as enabled from the account-level connected marker', function () {

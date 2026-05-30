@@ -273,7 +273,17 @@ self.addEventListener('push', (event) => {
     return;
   }
 
-  const payload = event.data.json();
+  let payload = {};
+
+  try {
+    payload = event.data.json();
+  } catch (error) {
+    payload = {
+      title: 'Delight',
+      body: event.data.text(),
+    };
+  }
+
   const title = payload.title || 'Delight';
   const options = {
     body: payload.body || '',
@@ -289,7 +299,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const targetUrl = event.notification.data.url || '/logs/create';
+  const targetUrl = event.notification.data?.url || '/logs/create';
   const destination = new URL(targetUrl, self.location.origin).href;
 
   event.waitUntil(

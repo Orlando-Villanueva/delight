@@ -686,9 +686,10 @@ if (typeof document !== 'undefined') {
 
                 const enableReminders = async () => {
                     const publicKey = reminderSettings.dataset.pushPublicKey;
+                    const previousAccountHasDevices = reminderSettings.dataset.accountHasDevices === 'true';
 
                     if (!publicKey) {
-                        setEnabledState(false, false);
+                        setEnabledState(false, previousAccountHasDevices);
                         showError('Push reminders are not configured yet.');
 
                         return;
@@ -703,8 +704,16 @@ if (typeof document !== 'undefined') {
                         const permission = await requestPermissionWithTimeout();
 
                         if (permission !== 'granted') {
-                            setEnabledState(false, false);
-                            showBlocked();
+                            setEnabledState(false, previousAccountHasDevices);
+
+                            if (permission === 'denied') {
+                                showBlocked();
+                            } else {
+                                showError(
+                                    'Choose Allow in the browser permission prompt, then try again.',
+                                    'Browser permission was not enabled.',
+                                );
+                            }
 
                             return;
                         }
@@ -727,7 +736,7 @@ if (typeof document !== 'undefined') {
                                 status: response.status,
                                 body: await response.text(),
                             });
-                            setEnabledState(false, false, false);
+                            setEnabledState(false, previousAccountHasDevices, false);
                             showError(
                                 'Delight could not save this browser subscription. Refresh and try again.',
                                 'Subscription could not be saved.',
@@ -743,14 +752,14 @@ if (typeof document !== 'undefined') {
                         console.error('Reading reminder setup failed', error);
 
                         if (error?.name === 'NotAllowedError') {
-                            setEnabledState(false, false, false);
+                            setEnabledState(false, previousAccountHasDevices, false);
                             showBlocked();
 
                             return;
                         }
 
                         if (error?.name === 'AbortError') {
-                            setEnabledState(false, false, false);
+                            setEnabledState(false, previousAccountHasDevices, false);
                             showError(
                                 'This browser allowed notifications, but could not create a push subscription. Reload Delight and try again. If it repeats, the browser push service may be blocked or unavailable for this profile or network.',
                                 'Browser could not create a push subscription.',
@@ -760,7 +769,7 @@ if (typeof document !== 'undefined') {
                         }
 
                         if (error?.message === 'The browser permission prompt did not finish.') {
-                            setEnabledState(false, false, false);
+                            setEnabledState(false, previousAccountHasDevices, false);
                             showError(
                                 'Choose Allow in the browser permission prompt, then try again.',
                                 'Still waiting for browser permission.',
@@ -769,7 +778,7 @@ if (typeof document !== 'undefined') {
                             return;
                         }
 
-                        setEnabledState(false, false, false);
+                        setEnabledState(false, previousAccountHasDevices, false);
                         showError(
                             'Notifications were allowed, but Delight could not finish setup. Refresh and try again.',
                             'Reminder setup did not finish.',
@@ -887,15 +896,19 @@ if (typeof document !== 'undefined') {
                 dismissButton?.addEventListener('click', async () => {
                     const url = dismissButton.dataset.dismissUrl;
 
-                    if (url) {
-                        const response = await postJson(url, 'POST');
+                    try {
+                        if (url) {
+                            const response = await postJson(url, 'POST');
 
-                        if (!response.ok) {
-                            return;
+                            if (!response.ok) {
+                                return;
+                            }
                         }
-                    }
 
-                    prompt.remove();
+                        prompt.remove();
+                    } catch (error) {
+                        console.error('Failed to persist reading reminder prompt dismissal', error);
+                    }
                 });
             });
         };

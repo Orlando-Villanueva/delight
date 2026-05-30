@@ -69,6 +69,16 @@ it('uses actual subscription rows rather than the account connected marker for e
     expect($service->isEligible($user->fresh(), 'daily_reading', Carbon::parse('2026-05-26 09:00:00', 'America/Toronto')))->toBeTrue();
 });
 
+it('falls back to the app timezone when a stored reminder timezone is invalid', function () {
+    config(['app.timezone' => 'America/Toronto']);
+
+    $service = app(ReadingReminderEligibilityService::class);
+    $user = reminderEligibleUser();
+    $user->forceFill(['push_notification_timezone' => 'Not/AZone'])->save();
+
+    expect($service->isEligible($user->fresh(), 'daily_reading', Carbon::parse('2026-05-26 13:00:00', 'UTC')))->toBeTrue();
+});
+
 function reminderEligibleUser(): User
 {
     $user = User::factory()->create([

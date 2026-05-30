@@ -14,6 +14,10 @@ beforeEach(function () {
     Notification::fake();
 });
 
+afterEach(function () {
+    Carbon::setTestNow();
+});
+
 it('dispatch command creates due daily and streak reminder delivery rows once', function () {
     Carbon::setTestNow(Carbon::parse('2026-05-26 18:05:00', 'America/Toronto'));
     $user = pushReminderUser();
@@ -29,7 +33,6 @@ it('dispatch command creates due daily and streak reminder delivery rows once', 
 
     expect(PushReminderDelivery::query()->where('user_id', $user->id)->count())->toBe(2);
 
-    Carbon::setTestNow();
 });
 
 it('dispatch command uses subscription rows rather than the account connected marker', function () {
@@ -48,7 +51,6 @@ it('dispatch command uses subscription rows rather than the account connected ma
 
     expect(PushReminderDelivery::query()->where('user_id', $user->id)->count())->toBe(1);
 
-    Carbon::setTestNow();
 });
 
 it('send job skips when user logged reading after delivery row was created', function () {
@@ -68,7 +70,19 @@ it('send job skips when user logged reading after delivery row was created', fun
     Notification::assertNothingSent();
     expect($delivery->fresh()->skipped_at)->not->toBeNull();
 
-    Carbon::setTestNow();
+});
+
+it('send job uses overlapping middleware keyed by delivery id', function () {
+    $delivery = PushReminderDelivery::factory()->create();
+    $job = new SendReadingReminderPush($delivery->id);
+
+    $middleware = $job->middleware();
+
+    expect($middleware)->toHaveCount(1)
+        ->and($middleware[0])->toBeInstanceOf(\Illuminate\Queue\Middleware\WithoutOverlapping::class)
+        ->and($job->tries)->toBe(3)
+        ->and($middleware[0]->releaseAfter)->toBe(30)
+        ->and($middleware[0]->expiresAfter)->toBe(300);
 });
 
 it('notification target uses active plan route while copy stays generic', function () {

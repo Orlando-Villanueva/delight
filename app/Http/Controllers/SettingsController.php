@@ -43,7 +43,7 @@ class SettingsController extends Controller
         }
 
         if (array_key_exists('push_notification_timezone', $validated)) {
-            $updates['push_notification_timezone'] = $validated['push_notification_timezone'] ?: config('app.timezone');
+            $updates['push_notification_timezone'] = $validated['push_notification_timezone'] ?: $user->pushNotificationTimezone();
         }
 
         if ($updates !== []) {

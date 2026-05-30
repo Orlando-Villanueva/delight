@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\PushReminderDelivery;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use NotificationChannels\WebPush\WebPushChannel;
@@ -60,7 +61,7 @@ class ReadingReminderPushNotification extends Notification
      */
     private function copy(): array
     {
-        if ($this->reminderType === 'streak_risk') {
+        if ($this->reminderType === PushReminderDelivery::TYPE_STREAK_RISK) {
             return [
                 'Your streak needs today\'s reading',
                 'Open Delight and log a reading tonight to keep your streak alive.',

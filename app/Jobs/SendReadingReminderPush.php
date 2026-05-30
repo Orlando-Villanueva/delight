@@ -8,15 +8,26 @@ use App\Notifications\ReadingReminderPushNotification;
 use App\Services\ReadingReminderEligibilityService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Throwable;
 
 class SendReadingReminderPush implements ShouldQueue
 {
     use Queueable;
 
+    public int $tries = 3;
+
     public function __construct(
         private int $deliveryId
     ) {}
+
+    /**
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [(new WithoutOverlapping('reading-reminder-delivery-'.$this->deliveryId))->releaseAfter(30)->expireAfter(300)];
+    }
 
     public function handle(?ReadingReminderEligibilityService $eligibility = null): void
     {

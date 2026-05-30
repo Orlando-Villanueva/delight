@@ -83,10 +83,12 @@ test('service worker includes web push notification handlers', function () {
 
     $requiredSnippets = [
         "self.addEventListener('push'",
+        'try {',
         'event.data.json()',
+        "title: 'Delight'",
         'self.registration.showNotification',
         "self.addEventListener('notificationclick'",
-        'event.notification.data.url',
+        'event.notification.data?.url',
         'clients.matchAll',
         'client.focus()',
         'clients.openWindow',

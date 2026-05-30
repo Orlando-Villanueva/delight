@@ -6,6 +6,7 @@ use App\Jobs\SendReadingReminderPush;
 use App\Models\PushReminderDelivery;
 use App\Models\User;
 use App\Services\ReadingReminderEligibilityService;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 
 class DispatchReadingReminderPushes extends Command
@@ -25,40 +26,31 @@ class DispatchReadingReminderPushes extends Command
 
         User::query()
             ->whereHas('pushSubscriptions')
-            ->select('id')
             ->orderBy('id')
             ->chunkById(100, function ($users) use ($eligibility, $types, &$dueCount, &$skippedCount): void {
                 foreach ($users as $user) {
-                    $freshUser = User::query()->find($user->id);
-
-                    if (! $freshUser) {
-                        continue;
-                    }
+                    $referenceTime = now();
 
                     foreach ($types as $type) {
-                        if (! $eligibility->isEligible($freshUser, $type, now())) {
+                        if (! $eligibility->isEligible($user, $type, $referenceTime)) {
                             continue;
                         }
 
-                        $reminderDate = $eligibility->reminderDateFor($freshUser, now());
-                        $existingDelivery = PushReminderDelivery::query()
-                            ->where('user_id', $freshUser->id)
-                            ->where('reminder_type', $type)
-                            ->whereDate('reminder_date', $reminderDate)
-                            ->first();
+                        $reminderDate = $eligibility->reminderDateFor($user, $referenceTime);
+                        $reminderDateKey = CarbonImmutable::parse($reminderDate)->startOfDay();
+                        $delivery = PushReminderDelivery::query()->createOrFirst([
+                            'user_id' => $user->id,
+                            'reminder_type' => $type,
+                            'reminder_date' => $reminderDateKey,
+                        ], [
+                            'scheduled_for_at' => $referenceTime,
+                        ]);
 
-                        if ($existingDelivery) {
+                        if (! $delivery->wasRecentlyCreated) {
                             $skippedCount++;
 
                             continue;
                         }
-
-                        $delivery = PushReminderDelivery::query()->create([
-                            'user_id' => $freshUser->id,
-                            'reminder_type' => $type,
-                            'reminder_date' => $reminderDate,
-                            'scheduled_for_at' => now(),
-                        ]);
 
                         SendReadingReminderPush::dispatch($delivery->id);
                         $dueCount++;

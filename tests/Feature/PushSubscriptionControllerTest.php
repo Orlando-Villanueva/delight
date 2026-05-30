@@ -20,6 +20,20 @@ it('requires authentication to store a push subscription', function () {
         ->assertUnauthorized();
 });
 
+it('rejects oversized push subscription keys', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson(route('push.subscriptions.store'), pushSubscriptionPayload([
+            'keys' => [
+                'p256dh' => str_repeat('a', 256),
+                'auth' => str_repeat('b', 256),
+            ],
+        ]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['keys.p256dh', 'keys.auth']);
+});
+
 it('stores a subscription and enables default reading reminder preferences', function () {
     $user = User::factory()->create();
 
