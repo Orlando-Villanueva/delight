@@ -7,6 +7,7 @@ use App\Models\ReadingPlan;
 use App\Models\User;
 use App\Notifications\ReadingReminderPushNotification;
 use Carbon\Carbon;
+use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Support\Facades\Notification;
 use NotificationChannels\WebPush\WebPushChannel;
 
@@ -70,6 +71,73 @@ it('send job skips when user logged reading after delivery row was created', fun
     Notification::assertNothingSent();
     expect($delivery->fresh()->skipped_at)->not->toBeNull();
 
+});
+
+it('send job skips stale delivery rows from a previous reminder date', function () {
+    Carbon::setTestNow(Carbon::parse('2026-05-27 09:05:00', 'America/Toronto'));
+    $user = pushReminderUser();
+    $delivery = PushReminderDelivery::factory()->create([
+        'user_id' => $user->id,
+        'reminder_type' => 'daily_reading',
+        'reminder_date' => '2026-05-26',
+        'scheduled_for_at' => Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'),
+    ]);
+
+    (new SendReadingReminderPush($delivery->id))->handle();
+
+    Notification::assertNothingSent();
+    expect($delivery->fresh()->skipped_at)->not->toBeNull()
+        ->and($delivery->fresh()->sent_at)->toBeNull();
+});
+
+it('send job lets notification send exceptions bubble for queue retry', function () {
+    Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
+    $user = pushReminderUser();
+    $delivery = PushReminderDelivery::factory()->create([
+        'user_id' => $user->id,
+        'reminder_type' => 'daily_reading',
+        'reminder_date' => '2026-05-26',
+        'scheduled_for_at' => now(),
+    ]);
+    $exception = new RuntimeException('temporary push gateway outage');
+
+    app()->instance(Dispatcher::class, new class($exception) implements Dispatcher
+    {
+        public function __construct(private RuntimeException $exception) {}
+
+        public function send($notifiables, $notification): void
+        {
+            throw $this->exception;
+        }
+
+        public function sendNow($notifiables, $notification, ?array $channels = null): void
+        {
+            throw $this->exception;
+        }
+    });
+
+    expect(fn () => (new SendReadingReminderPush($delivery->id))->handle())
+        ->toThrow(RuntimeException::class, 'temporary push gateway outage');
+
+    expect($delivery->fresh()->failed_at)->toBeNull()
+        ->and($delivery->fresh()->failure_reason)->toBeNull();
+});
+
+it('records exhausted notification send failures through the queue failed hook', function () {
+    Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
+    $delivery = PushReminderDelivery::factory()->create([
+        'reminder_type' => 'daily_reading',
+        'reminder_date' => '2026-05-26',
+        'scheduled_for_at' => now(),
+    ]);
+    $exception = new RuntimeException(str_repeat('x', 300));
+
+    (new SendReadingReminderPush($delivery->id))->failed($exception);
+
+    $freshDelivery = $delivery->fresh();
+
+    expect($freshDelivery->failed_at)->not->toBeNull()
+        ->and($freshDelivery->failure_reason)->toHaveLength(255);
 });
 
 it('send job uses overlapping middleware keyed by delivery id', function () {

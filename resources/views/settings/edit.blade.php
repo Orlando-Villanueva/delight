@@ -118,7 +118,9 @@
                         <div
                             class="mt-3 divide-y divide-gray-200 border-t border-gray-200 dark:divide-gray-700 dark:border-gray-700">
                             <label class="flex items-start gap-3 py-3">
-                                <input type="hidden" name="daily_reading_reminder_enabled" value="0">
+                                @if ($accountHasReminderDevices)
+                                    <input type="hidden" name="daily_reading_reminder_enabled" value="0">
+                                @endif
                                 <input type="checkbox" name="daily_reading_reminder_enabled" value="1"
                                     @checked(auth()->user()?->hasDailyReadingReminderEnabled())
                                     @disabled(! $accountHasReminderDevices)
@@ -131,7 +133,9 @@
                             </label>
 
                             <label class="flex items-start gap-3 py-3">
-                                <input type="hidden" name="streak_warning_enabled" value="0">
+                                @if ($accountHasReminderDevices)
+                                    <input type="hidden" name="streak_warning_enabled" value="0">
+                                @endif
                                 <input type="checkbox" name="streak_warning_enabled" value="1"
                                     @checked(auth()->user()?->hasStreakWarningEnabled())
                                     @disabled(! $accountHasReminderDevices)

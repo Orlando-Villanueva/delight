@@ -40,27 +40,37 @@ class SendReadingReminderPush implements ShouldQueue
         }
 
         $user = $delivery->user;
+        $referenceTime = now();
 
-        if (! $user || ! $eligibility->isEligible($user, $delivery->reminder_type, now())) {
+        if (! $user
+            || $delivery->reminder_date->toDateString() !== $eligibility->reminderDateFor($user, $referenceTime)
+            || ! $eligibility->isEligible($user, $delivery->reminder_type, $referenceTime)) {
             $delivery->forceFill(['skipped_at' => now()])->save();
 
             return;
         }
 
-        try {
-            $user->notify(new ReadingReminderPushNotification(
-                $delivery->reminder_type,
-                $delivery->reminder_date->toDateString(),
-                $this->targetUrlFor($user)
-            ));
+        $user->notify(new ReadingReminderPushNotification(
+            $delivery->reminder_type,
+            $delivery->reminder_date->toDateString(),
+            $this->targetUrlFor($user)
+        ));
 
-            $delivery->forceFill(['sent_at' => now()])->save();
-        } catch (Throwable $exception) {
-            $delivery->forceFill([
-                'failed_at' => now(),
-                'failure_reason' => str($exception->getMessage())->limit(255)->toString(),
-            ])->save();
+        $delivery->forceFill(['sent_at' => now()])->save();
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        $delivery = PushReminderDelivery::query()->find($this->deliveryId);
+
+        if (! $delivery || $delivery->sent_at || $delivery->skipped_at || $delivery->failed_at) {
+            return;
         }
+
+        $delivery->forceFill([
+            'failed_at' => now(),
+            'failure_reason' => str($exception->getMessage())->limit(255, '')->toString(),
+        ])->save();
     }
 
     private function targetUrlFor(User $user): string

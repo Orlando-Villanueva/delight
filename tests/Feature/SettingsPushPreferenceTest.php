@@ -30,6 +30,8 @@ it('shows reading reminder settings with explicit enable control and support gui
         ->assertSee('data-reading-reminders-disconnect-all', false)
         ->assertSee('Safari -> Add to Home Screen -> open Delight from the Home Screen icon -> enable notifications', false)
         ->assertSee('Schedule')
+        ->assertDontSee('name="daily_reading_reminder_enabled" value="0"', false)
+        ->assertDontSee('name="streak_warning_enabled" value="0"', false)
         ->assertDontSee('Browser notifications can remind you at 09:00', false)
         ->assertDontSee('Both reminders are included when browser notifications are enabled.');
 });
@@ -95,6 +97,8 @@ it('does not render this browser as enabled from the account-level connected mar
         ->assertSee('data-reading-reminders-status hidden', false)
         ->assertSee('data-reading-reminders-toggle', false)
         ->assertSee('aria-checked="false"', false)
+        ->assertSee('name="daily_reading_reminder_enabled" value="0"', false)
+        ->assertSee('name="streak_warning_enabled" value="0"', false)
         ->assertSee('Disabled')
         ->assertDontSee('This browser can receive reading reminders.');
 });
