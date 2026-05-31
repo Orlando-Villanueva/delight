@@ -65,7 +65,13 @@
                     class="mt-6 flex flex-col gap-4 border-t border-gray-200 pt-6 dark:border-gray-700">
                     <div class="flex items-start justify-between gap-4">
                         <div class="space-y-2">
-                            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Reading reminders</h2>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Reading reminders</h2>
+                                <span title="Beta: available as an opt-in while browser notification support is being tested."
+                                    class="inline-flex items-center rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700 dark:border-primary-900/60 dark:bg-primary-900/20 dark:text-primary-200">
+                                    Beta
+                                </span>
+                            </div>
                             <p data-reading-reminders-status hidden class="text-sm leading-6 text-gray-600 dark:text-gray-400"></p>
                         </div>
 

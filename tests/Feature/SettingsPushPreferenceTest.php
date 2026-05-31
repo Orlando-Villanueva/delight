@@ -11,6 +11,8 @@ it('shows reading reminder settings with explicit enable control and support gui
         ->assertSee('id="reading-reminders"', false)
         ->assertSee('data-account-has-devices="false"', false)
         ->assertSee('Reading reminders')
+        ->assertSee('Beta')
+        ->assertSee('Beta: available as an opt-in while browser notification support is being tested.', false)
         ->assertSee('Reading reminders for this browser')
         ->assertSee('data-reading-reminders-toggle', false)
         ->assertSee('role="switch"', false)
