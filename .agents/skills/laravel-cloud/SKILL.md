@@ -1,11 +1,15 @@
 ---
 name: laravel-cloud
-description: Laravel Cloud deployment and production operations guidance using official docs. Use when handling Laravel Cloud setup, environment configuration, build or deploy commands, domains or DNS, compute scaling, queues or scheduling, databases/caches/object storage, observability, or production troubleshooting.
+description: Use when interpreting Laravel Cloud concepts, official docs, DNS, compute, queues, scheduler, resources, observability, incidents, and production troubleshooting. Do not use for executing cloud CLI commands, deployment status checks, deploys, remote commands, tinker, env var changes, or resource CRUD; use deploying-laravel-cloud instead.
 ---
 
 # Laravel Cloud
 
 Use official Laravel Cloud documentation first. Start with [references/laravel-cloud-docs.md](references/laravel-cloud-docs.md) and read only the sections relevant to the user request.
+
+## CLI Handoff
+
+Use this skill for docs, troubleshooting guidance, and production playbooks only. Do not use it to execute `cloud` CLI commands, check deployment status, deploy, run remote commands or tinker, change env vars, or create/update/delete Laravel Cloud resources; hand those requests to `deploying-laravel-cloud`.
 
 ## Workflow
 

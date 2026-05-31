@@ -1,12 +1,13 @@
 // Service Worker for Delight PWA
 // Version 1.0 - Basic PWA installation support
 
-const CACHE_NAME = 'delight-v4';
+const CACHE_NAME = 'delight-v5';
 const STATIC_CACHE_URLS = [
   '/favicon-app.ico',
   '/images/logo-64.png',
   '/images/logo-192.png',
   '/images/app-icon-v2-64.png',
+  '/images/notification-badge.png',
   '/images/app-icon-v2-192.png',
   '/images/app-icon-v2-512.png',
 ];
@@ -266,4 +267,55 @@ self.addEventListener('fetch', (event) => {
   }
 
   // For all other requests, go to network (your HTMX app needs fresh data)
+});
+
+self.addEventListener('push', (event) => {
+  if (!event.data) {
+    return;
+  }
+
+  let payload = {};
+
+  try {
+    payload = event.data.json();
+  } catch (error) {
+    payload = {
+      title: 'Delight',
+      body: event.data.text(),
+    };
+  }
+
+  const title = payload.title || 'Delight';
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/images/app-icon-v2-192.png',
+    badge: payload.badge || '/images/notification-badge.png',
+    tag: payload.tag,
+    data: payload.data || { url: '/logs/create' },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data?.url || '/logs/create';
+  const destination = new URL(targetUrl, self.location.origin).href;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        const clientUrl = new URL(client.url);
+
+        if (clientUrl.origin === self.location.origin) {
+          client.navigate(destination);
+
+          return client.focus();
+        }
+      }
+
+      return clients.openWindow(destination);
+    })
+  );
 });

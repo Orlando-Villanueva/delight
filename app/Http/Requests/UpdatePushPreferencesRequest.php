@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateSettingsRequest extends FormRequest
+class UpdatePushPreferencesRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,10 +22,10 @@ class UpdateSettingsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'include_deuterocanonical' => ['nullable', 'boolean'],
+            'push_notifications_enabled' => ['nullable', 'boolean'],
             'daily_reading_reminder_enabled' => ['nullable', 'boolean'],
             'streak_warning_enabled' => ['nullable', 'boolean'],
-            'push_notification_timezone' => ['nullable', 'timezone'],
+            'timezone' => ['nullable', 'timezone'],
         ];
     }
 }
