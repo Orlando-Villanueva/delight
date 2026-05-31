@@ -71,7 +71,6 @@ class DashboardController extends Controller
         // Check if user needs onboarding
         $showOnboarding = $user->needsOnboarding();
         $dashboardMilestone = $this->achievementService->getDashboardMilestone($user);
-        $showReadingRemindersPrompt = $user->shouldShowReadingReminderPrompt();
 
         // Return appropriate view based on request type
         return response()->htmx('dashboard', 'dashboard-content', compact(
@@ -90,8 +89,7 @@ class DashboardController extends Controller
             'recapCardIsFinal',
             'planCta',
             'showOnboarding',
-            'dashboardMilestone',
-            'showReadingRemindersPrompt'
+            'dashboardMilestone'
         ));
     }
 

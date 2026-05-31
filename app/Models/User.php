@@ -35,7 +35,6 @@ class User extends Authenticatable
         'daily_reading_reminder_enabled_at',
         'streak_warning_enabled_at',
         'push_notification_timezone',
-        'reading_reminders_prompt_dismissed_at',
     ];
 
     /**
@@ -66,7 +65,6 @@ class User extends Authenticatable
             'push_notifications_enabled_at' => 'datetime',
             'daily_reading_reminder_enabled_at' => 'datetime',
             'streak_warning_enabled_at' => 'datetime',
-            'reading_reminders_prompt_dismissed_at' => 'datetime',
         ];
     }
 
@@ -230,12 +228,6 @@ class User extends Authenticatable
     public function hasStreakWarningEnabled(): bool
     {
         return $this->streak_warning_enabled_at !== null;
-    }
-
-    public function shouldShowReadingReminderPrompt(): bool
-    {
-        return ! $this->hasPushNotificationsEnabled()
-            && $this->reading_reminders_prompt_dismissed_at === null;
     }
 
     public function pushNotificationTimezone(): string

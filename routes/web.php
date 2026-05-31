@@ -8,7 +8,6 @@ use App\Http\Controllers\Auth\GoogleOAuthController;
 use App\Http\Controllers\Auth\XOAuthController;
 use App\Http\Controllers\Dashboard\NotificationController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\DashboardReminderPromptController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\MarketingPreferencesController;
 use App\Http\Controllers\OnboardingController;
@@ -150,10 +149,6 @@ Route::middleware('auth')->group(function () {
     Route::patch('/push/preferences', [PushPreferenceController::class, 'update'])
         ->middleware('throttle:10,1')
         ->name('push.preferences.update');
-    Route::post('/push/dashboard-prompt/dismiss', [DashboardReminderPromptController::class, 'dismiss'])
-        ->middleware('throttle:10,1')
-        ->name('push.dashboard-prompt.dismiss');
-
     // Reading Plans
     Route::get('/plans', [ReadingPlanController::class, 'index'])->name('plans.index');
     Route::post('/plans/{plan:slug}/subscribe', [ReadingPlanController::class, 'subscribe'])->name('plans.subscribe');

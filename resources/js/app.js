@@ -875,46 +875,6 @@ if (typeof document !== 'undefined') {
             }
         }
 
-        const initializeReadingRemindersDiscovery = (root = document) => {
-            root.querySelectorAll('[data-reading-reminders-discovery]').forEach((prompt) => {
-                if (!isPushCapable()
-                    || (isIosLike() && !isStandaloneDisplay())
-                    || Notification.permission === 'denied') {
-                    prompt.hidden = true;
-
-                    return;
-                }
-
-                if (prompt.dataset.readingRemindersDiscoveryInitialized === 'true') {
-                    return;
-                }
-
-                prompt.dataset.readingRemindersDiscoveryInitialized = 'true';
-
-                const dismissButton = prompt.querySelector('[data-reading-reminders-discovery-dismiss]');
-
-                dismissButton?.addEventListener('click', async () => {
-                    const url = dismissButton.dataset.dismissUrl;
-
-                    try {
-                        if (url) {
-                            const response = await postJson(url, 'POST');
-
-                            if (!response.ok) {
-                                return;
-                            }
-                        }
-
-                        prompt.remove();
-                    } catch (error) {
-                        console.error('Failed to persist reading reminder prompt dismissal', error);
-                    }
-                });
-            });
-        };
-
-        initializeReadingRemindersDiscovery();
-
         document.body.addEventListener('htmx:afterSwap', (event) => {
             const target = event?.detail?.target;
 
@@ -922,7 +882,6 @@ if (typeof document !== 'undefined') {
                 return;
             }
 
-            initializeReadingRemindersDiscovery(target);
             initializeDeuterocanonicalSettings(target);
         });
     });
