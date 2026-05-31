@@ -36,7 +36,6 @@ class PushSubscriptionController extends Controller
             'daily_reading_reminder_enabled_at' => $user->daily_reading_reminder_enabled_at ?? now(),
             'streak_warning_enabled_at' => $user->streak_warning_enabled_at ?? now(),
             'push_notification_timezone' => $validated['timezone'] ?? $user->pushNotificationTimezone(),
-            'reading_reminders_prompt_dismissed_at' => now(),
         ])->save();
 
         return response()->json($this->subscriptionState($user->fresh(), $validated['endpoint']));
