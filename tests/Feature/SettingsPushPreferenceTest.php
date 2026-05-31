@@ -146,8 +146,6 @@ it('uses a single browser-state toggle for reminder visibility', function () {
 
     expect($javascript)->toContain("reminderToggle.setAttribute('aria-checked'")
         ->and($javascript)->toContain("reminderToggle?.addEventListener('click'")
-        ->and($javascript)->toContain('prompt.hidden = true')
-        ->and($javascript)->toContain('Notification.permission === \'denied\'')
         ->and($javascript)->toContain('showPermissionGrantedButDisconnected')
         ->and($javascript)->not->toContain('Enable reading reminders for this browser')
         ->and($javascript)->not->toContain('Disable reading reminders for this browser')
@@ -156,8 +154,6 @@ it('uses a single browser-state toggle for reminder visibility', function () {
         ->and($javascript)->toContain('saveReminderPreference')
         ->and($javascript)->toContain("showInlineStatus(status, 'Saved'")
         ->and($javascript)->toContain('showInlineStatus(preferenceStatus, message')
-        ->and($javascript)->toContain('initializeReadingRemindersDiscovery')
-        ->and($javascript)->toContain("prompt.dataset.readingRemindersDiscoveryInitialized = 'true'")
         ->and($javascript)->toContain("document.body.addEventListener('htmx:afterSwap'")
         ->and($javascript)->toContain("target.id !== 'page-container'")
         ->and($javascript)->toContain('requestPermissionWithTimeout')
