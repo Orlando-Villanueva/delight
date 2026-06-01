@@ -53,7 +53,8 @@ class SendReadingReminderPush implements ShouldQueue
         $user->notify(new ReadingReminderPushNotification(
             $delivery->reminder_type,
             $delivery->reminder_date->toDateString(),
-            $this->targetUrlFor($user)
+            $this->targetUrlFor($user),
+            $delivery->id
         ));
 
         $delivery->forceFill(['sent_at' => now()])->save();
