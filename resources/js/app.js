@@ -299,6 +299,9 @@ if (typeof document !== 'undefined') {
             && 'PushManager' in window
             && 'Notification' in window;
 
+        const isBraveBrowser = () => Boolean(navigator.brave)
+            && typeof navigator.brave.isBrave === 'function';
+
         const urlBase64ToUint8Array = (base64String) => {
             const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
             const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -510,6 +513,20 @@ if (typeof document !== 'undefined') {
                 setStatus(statusMessage, true);
 
                 setNotice(errorNotice, message);
+            };
+
+            const getPushSubscriptionFailureMessage = () => {
+                if (isBraveBrowser()) {
+                    return {
+                        message: 'Brave could not connect to its push service. In Brave, enable Settings > Privacy and security > Use Google services for push messaging, then reload Delight and try again.',
+                        statusMessage: 'Brave could not connect to its push service.',
+                    };
+                }
+
+                return {
+                    message: 'This browser allowed notifications, but could not create a push subscription. Reload Delight and try again. If it repeats, the browser push service may be blocked or unavailable for this profile or network.',
+                    statusMessage: 'Browser could not create a push subscription.',
+                };
             };
 
             const requestPermissionWithTimeout = () => new Promise((resolve, reject) => {
@@ -759,10 +776,12 @@ if (typeof document !== 'undefined') {
                         }
 
                         if (error?.name === 'AbortError') {
+                            const failureMessage = getPushSubscriptionFailureMessage();
+
                             setEnabledState(false, previousAccountHasDevices, false);
                             showError(
-                                'This browser allowed notifications, but could not create a push subscription. Reload Delight and try again. If it repeats, the browser push service may be blocked or unavailable for this profile or network.',
-                                'Browser could not create a push subscription.',
+                                failureMessage.message,
+                                failureMessage.statusMessage,
                             );
 
                             return;
