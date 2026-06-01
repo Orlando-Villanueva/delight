@@ -18,7 +18,7 @@ class RecordPushReminderDeliveryReport
         $delivery = $this->deliveryFrom($data, $userId);
         $endpoint = $event->subscription->endpoint;
         $response = $event->report->getResponse();
-        $responseBody = $response?->getBody()->__toString();
+        $responseBody = $response?->getBody()?->__toString();
 
         PushReminderDeliveryReport::query()->create([
             'push_reminder_delivery_id' => $delivery?->id,

@@ -18,15 +18,7 @@ it('records successful webpush reports for a reminder delivery subscription', fu
     $subscription = pushSubscriptionFor($user, 'https://fcm.googleapis.com/fcm/send/success-token');
     $delivery = pushDeliveryFor($user);
 
-    $message = reminderMessageFor($user, $delivery);
-    $event = new NotificationSent(
-        new MessageSentReport(
-            new Request('POST', $subscription->endpoint),
-            new Response(201, [], 'accepted'),
-        ),
-        $subscription,
-        $message,
-    );
+    $event = sentWebPushEvent($subscription, reminderMessageFor($user, $delivery));
 
     (new RecordPushReminderDeliveryReport)->handle($event);
 
@@ -51,16 +43,12 @@ it('records failed webpush reports without deleting non-expired subscription evi
     $subscription = pushSubscriptionFor($user, 'https://fcm.googleapis.com/fcm/send/failure-token');
     $delivery = pushDeliveryFor($user);
 
-    $message = reminderMessageFor($user, $delivery);
-    $event = new NotificationFailed(
-        new MessageSentReport(
-            new Request('POST', $subscription->endpoint),
-            new Response(403, [], 'VAPID credentials rejected'),
-            false,
-            'Client error: 403 Forbidden',
-        ),
+    $event = failedWebPushEvent(
         $subscription,
-        $message,
+        reminderMessageFor($user, $delivery),
+        403,
+        'VAPID credentials rejected',
+        'Client error: 403 Forbidden',
     );
 
     (new RecordPushReminderDeliveryReport)->handle($event);
@@ -78,24 +66,44 @@ it('records failed webpush reports without deleting non-expired subscription evi
     expect($user->pushSubscriptions()->whereKey($subscription->id)->exists())->toBeTrue();
 });
 
+it('records failed webpush reports without an HTTP response', function () {
+    $user = User::factory()->create();
+    $subscription = pushSubscriptionFor($user, 'https://fcm.googleapis.com/fcm/send/transport-failure-token');
+    $delivery = pushDeliveryFor($user);
+
+    $event = failedWebPushEventWithoutResponse(
+        $subscription,
+        reminderMessageFor($user, $delivery),
+        'cURL error 28: Operation timed out',
+    );
+
+    (new RecordPushReminderDeliveryReport)->handle($event);
+
+    $report = PushReminderDeliveryReport::query()->sole();
+
+    expect($report->push_reminder_delivery_id)->toBe($delivery->id)
+        ->and($report->push_subscription_id)->toBe($subscription->id)
+        ->and($report->status)->toBe(PushReminderDeliveryReport::STATUS_FAILED)
+        ->and($report->http_status)->toBeNull()
+        ->and($report->expired)->toBeFalse()
+        ->and($report->failure_reason)->toBe('cURL error 28: Operation timed out')
+        ->and($report->response_body)->toBeNull();
+});
+
 it('records expired endpoint reports after the subscription row has already been deleted', function () {
     $user = User::factory()->create();
     $subscription = pushSubscriptionFor($user, 'https://fcm.googleapis.com/fcm/send/expired-token');
     $subscriptionId = $subscription->id;
     $delivery = pushDeliveryFor($user);
 
-    $message = reminderMessageFor($user, $delivery);
     $subscription->delete();
 
-    $event = new NotificationFailed(
-        new MessageSentReport(
-            new Request('POST', $subscription->endpoint),
-            new Response(410, [], 'push subscription expired'),
-            false,
-            'Client error: 410 Gone',
-        ),
+    $event = failedWebPushEvent(
         $subscription,
-        $message,
+        reminderMessageFor($user, $delivery),
+        410,
+        'push subscription expired',
+        'Client error: 410 Gone',
     );
 
     (new RecordPushReminderDeliveryReport)->handle($event);
@@ -119,15 +127,7 @@ it('links reports by user and reminder metadata when the payload has no delivery
         $delivery->reminder_date->toDateString(),
         'https://example.com/logs',
     );
-    $message = $notification->toWebPush($user, $notification);
-    $event = new NotificationSent(
-        new MessageSentReport(
-            new Request('POST', $subscription->endpoint),
-            new Response(201, [], 'accepted'),
-        ),
-        $subscription,
-        $message,
-    );
+    $event = sentWebPushEvent($subscription, $notification->toWebPush($user, $notification));
 
     (new RecordPushReminderDeliveryReport)->handle($event);
 
@@ -174,4 +174,52 @@ function reminderMessageFor(User $user, PushReminderDelivery $delivery): WebPush
     );
 
     return $notification->toWebPush($user, $notification);
+}
+
+function sentWebPushEvent(PushSubscription $subscription, WebPushMessage $message): NotificationSent
+{
+    return new NotificationSent(
+        new MessageSentReport(
+            new Request('POST', $subscription->endpoint),
+            new Response(201, [], 'accepted'),
+        ),
+        $subscription,
+        $message,
+    );
+}
+
+function failedWebPushEvent(
+    PushSubscription $subscription,
+    WebPushMessage $message,
+    int $httpStatus,
+    string $responseBody,
+    string $reason,
+): NotificationFailed {
+    return new NotificationFailed(
+        new MessageSentReport(
+            new Request('POST', $subscription->endpoint),
+            new Response($httpStatus, [], $responseBody),
+            false,
+            $reason,
+        ),
+        $subscription,
+        $message,
+    );
+}
+
+function failedWebPushEventWithoutResponse(
+    PushSubscription $subscription,
+    WebPushMessage $message,
+    string $reason,
+): NotificationFailed {
+    return new NotificationFailed(
+        new MessageSentReport(
+            new Request('POST', $subscription->endpoint),
+            null,
+            false,
+            $reason,
+        ),
+        $subscription,
+        $message,
+    );
 }
