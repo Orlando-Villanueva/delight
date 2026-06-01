@@ -21,8 +21,10 @@ it('keeps reminder setup retryable when browser permission is dismissed', functi
 it('gives Brave users actionable guidance when the push service registration fails', function () {
     $javascript = file_get_contents(__DIR__.'/../../resources/js/app.js');
 
-    expect($javascript)->toContain('isBraveBrowser')
+    expect($javascript)->toContain('const isBraveBrowser = async ()')
+        ->and($javascript)->toContain('return await navigator.brave.isBrave()')
         ->and($javascript)->toContain('Use Google services for push messaging')
         ->and($javascript)->toContain('Brave could not connect to its push service.')
-        ->and($javascript)->toContain('getPushSubscriptionFailureMessage');
+        ->and($javascript)->toContain('const getPushSubscriptionFailureMessage = async ()')
+        ->and($javascript)->toContain('await getPushSubscriptionFailureMessage()');
 });

@@ -299,8 +299,17 @@ if (typeof document !== 'undefined') {
             && 'PushManager' in window
             && 'Notification' in window;
 
-        const isBraveBrowser = () => Boolean(navigator.brave)
-            && typeof navigator.brave.isBrave === 'function';
+        const isBraveBrowser = async () => {
+            if (!navigator.brave || typeof navigator.brave.isBrave !== 'function') {
+                return false;
+            }
+
+            try {
+                return await navigator.brave.isBrave();
+            } catch (error) {
+                return false;
+            }
+        };
 
         const urlBase64ToUint8Array = (base64String) => {
             const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -515,8 +524,8 @@ if (typeof document !== 'undefined') {
                 setNotice(errorNotice, message);
             };
 
-            const getPushSubscriptionFailureMessage = () => {
-                if (isBraveBrowser()) {
+            const getPushSubscriptionFailureMessage = async () => {
+                if (await isBraveBrowser()) {
                     return {
                         message: 'Brave could not connect to its push service. In Brave, enable Settings > Privacy and security > Use Google services for push messaging, then reload Delight and try again.',
                         statusMessage: 'Brave could not connect to its push service.',
@@ -776,7 +785,7 @@ if (typeof document !== 'undefined') {
                         }
 
                         if (error?.name === 'AbortError') {
-                            const failureMessage = getPushSubscriptionFailureMessage();
+                            const failureMessage = await getPushSubscriptionFailureMessage();
 
                             setEnabledState(false, previousAccountHasDevices, false);
                             showError(
