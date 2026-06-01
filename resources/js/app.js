@@ -307,6 +307,8 @@ if (typeof document !== 'undefined') {
             try {
                 return await navigator.brave.isBrave();
             } catch (error) {
+                console.error('Brave detection failed', error);
+
                 return false;
             }
         };

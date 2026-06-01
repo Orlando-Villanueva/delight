@@ -1,7 +1,12 @@
 <?php
 
+function readingReminderSettingsJavascript(): string
+{
+    return file_get_contents(__DIR__.'/../../resources/js/app.js');
+}
+
 it('restores previous reminder device state when current-device unsubscribe fails', function () {
-    $javascript = file_get_contents(__DIR__.'/../../resources/js/app.js');
+    $javascript = readingReminderSettingsJavascript();
 
     expect($javascript)->toContain('previousDeviceEnabled')
         ->and($javascript)->toContain('previousAccountHasDevices')
@@ -10,7 +15,7 @@ it('restores previous reminder device state when current-device unsubscribe fail
 });
 
 it('keeps reminder setup retryable when browser permission is dismissed', function () {
-    $javascript = file_get_contents(__DIR__.'/../../resources/js/app.js');
+    $javascript = readingReminderSettingsJavascript();
 
     expect($javascript)->toContain("if (permission === 'denied')")
         ->and($javascript)->toContain('Browser permission was not enabled.')
@@ -19,7 +24,7 @@ it('keeps reminder setup retryable when browser permission is dismissed', functi
 });
 
 it('gives Brave users actionable guidance when the push service registration fails', function () {
-    $javascript = file_get_contents(__DIR__.'/../../resources/js/app.js');
+    $javascript = readingReminderSettingsJavascript();
 
     expect($javascript)->toContain('const isBraveBrowser = async ()')
         ->and($javascript)->toContain('return await navigator.brave.isBrave()')
