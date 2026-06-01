@@ -15,7 +15,8 @@ class ReadingReminderPushNotification extends Notification
     public function __construct(
         private string $reminderType,
         private string $reminderDate,
-        private string $targetUrl
+        private string $targetUrl,
+        private ?int $deliveryId = null
     ) {}
 
     /**
@@ -38,6 +39,7 @@ class ReadingReminderPushNotification extends Notification
             ->tag('delight-'.$this->reminderType.'-'.$this->reminderDate)
             ->data([
                 'url' => $this->targetUrl,
+                'deliveryId' => $this->deliveryId,
                 'reminderType' => $this->reminderType,
                 'reminderDate' => $this->reminderDate,
             ])
@@ -52,6 +54,7 @@ class ReadingReminderPushNotification extends Notification
         return [
             'reminder_type' => $this->reminderType,
             'reminder_date' => $this->reminderDate,
+            'delivery_id' => $this->deliveryId,
             'target_url' => $this->targetUrl,
         ];
     }
