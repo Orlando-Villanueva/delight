@@ -631,9 +631,9 @@
     <!-- Footer -->
     <footer class="bg-gray-900 text-white py-12" role="contentinfo" aria-label="Site footer">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid md:grid-cols-4 gap-8">
+            <div class="grid gap-8 md:grid-cols-3 lg:grid-cols-5">
                 <!-- Brand -->
-                <div class="md:col-span-2">
+                <div class="md:col-span-3 lg:col-span-2">
                     <h3 class="text-2xl font-bold mb-4">Delight</h3>
                     <p class="text-gray-300 leading-relaxed">
                         Your Bible reading tracker for building consistent Scripture habits through simple logging,
@@ -642,7 +642,7 @@
                 </div>
 
                 <!-- Quick Links -->
-                <nav class="md:col-span-1" aria-labelledby="quick-links-heading">
+                <nav aria-labelledby="quick-links-heading">
                     <h4 id="quick-links-heading" class="font-semibold mb-4">Quick Links</h4>
                     <ul class="space-y-2">
                         <li><a href="{{ route('register') }}"
@@ -658,7 +658,7 @@
                 </nav>
 
                 <!-- Legal -->
-                <nav class="md:col-span-1" aria-labelledby="legal-links-heading">
+                <nav aria-labelledby="legal-links-heading">
                     <h4 id="legal-links-heading" class="font-semibold mb-4">Legal</h4>
                     <ul class="space-y-2">
                         <li><a href="{{ route('privacy-policy') }}"
@@ -667,6 +667,23 @@
                         <li><a href="{{ route('terms-of-service') }}"
                                 class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Terms
                                 of Service</a></li>
+                    </ul>
+                </nav>
+
+                <!-- Social Links -->
+                <nav aria-labelledby="social-links-heading">
+                    <h4 id="social-links-heading" class="font-semibold mb-4">Follow</h4>
+                    <ul class="space-y-2">
+                        <li>
+                            <a href="https://x.com/TheDelightApp" target="_blank" rel="noopener noreferrer"
+                                aria-label="Follow Delight on X (opens in a new tab)"
+                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">X</a>
+                        </li>
+                        <li>
+                            <a href="https://www.instagram.com/thedelightapp/" target="_blank" rel="noopener noreferrer"
+                                aria-label="Follow Delight on Instagram (opens in a new tab)"
+                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Instagram</a>
+                        </li>
                     </ul>
                 </nav>
             </div>
