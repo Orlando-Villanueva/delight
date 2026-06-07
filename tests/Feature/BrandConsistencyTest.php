@@ -63,6 +63,18 @@ test('landing page links versioned pwa manifest', function () {
     $response->assertSee('href="'.route('pwa.manifest', ['v' => $assetVersion]).'"', false);
 });
 
+test('landing page footer links app social profiles', function () {
+    $response = $this->get('/');
+
+    $response->assertSuccessful();
+    $response->assertSeeText('Follow');
+    $response->assertSee('href="https://x.com/TheDelightApp"', false);
+    $response->assertSee('href="https://www.instagram.com/thedelightapp/"', false);
+    $response->assertSee('aria-label="Follow Delight on X (opens in a new tab)"', false);
+    $response->assertSee('aria-label="Follow Delight on Instagram (opens in a new tab)"', false);
+    $response->assertSee('target="_blank" rel="noopener noreferrer"', false);
+});
+
 test('app layouts link versioned pwa manifest route', function () {
     $assetVersion = config('app.asset_version');
     $manifestHref = 'href="'.route('pwa.manifest', ['v' => $assetVersion]).'"';
