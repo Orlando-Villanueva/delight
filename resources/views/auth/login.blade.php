@@ -30,7 +30,6 @@
                     <!-- Single Entry Social Login -->
                     <div class="space-y-4">
                         <x-oauth.login-with-google />
-                        <x-oauth.login-with-x />
                         <div class="flex items-center gap-3">
                             <div class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
                             <span class="text-xs font-medium text-gray-500 dark:text-gray-400">

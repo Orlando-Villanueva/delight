@@ -5,7 +5,6 @@ use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\AnnualRecapController;
 use App\Http\Controllers\Auth\GoogleOAuthController;
-use App\Http\Controllers\Auth\XOAuthController;
 use App\Http\Controllers\Dashboard\NotificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedbackController;
@@ -98,9 +97,6 @@ Route::middleware('guest')->group(function () {
 
     Route::get('/auth/google/callback', [GoogleOAuthController::class, 'callback'])
         ->name('oauth.google.callback');
-
-    Route::get('/auth/x/redirect', [XOAuthController::class, 'redirect'])->name('x.redirect');
-    Route::get('/auth/x/callback', [XOAuthController::class, 'callback'])->name('x.callback');
 });
 
 // Authenticated Routes

@@ -11,7 +11,7 @@ The project follows a **Service Layer Architecture**, ensuring controllers remai
 **Key Technologies:**
 
 - **Backend:** Laravel 12.x (PHP 8.5.2)
-- **Authentication:** Laravel Fortify (Passwords) & Laravel Socialite (Google/X OAuth)
+- **Authentication:** Laravel Fortify (Passwords) & Laravel Socialite (Google OAuth)
 - **Frontend:** HTMX, Alpine.js, Tailwind CSS v4 (Vite), Vite
 - **UI Components:** Flowbite
 - **Database:** SQLite (local), PostgreSQL (production)
