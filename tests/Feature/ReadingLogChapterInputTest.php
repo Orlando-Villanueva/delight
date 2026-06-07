@@ -92,6 +92,33 @@ class ReadingLogChapterInputTest extends TestCase
         $this->assertEquals(today()->subDay()->toDateString(), $additionalLog->date_read->toDateString());
     }
 
+    public function test_duplicate_chapter_for_yesterday_displays_the_correct_error(): void
+    {
+        $user = User::factory()->create();
+
+        $user->readingLogs()->create([
+            'book_id' => 1,
+            'chapter' => 1,
+            'passage_text' => 'Genesis 1',
+            'date_read' => today()->subDay()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)->post('/logs', [
+            'book_id' => 1,
+            'start_chapter' => '1',
+            'date_read' => today()->subDay()->toDateString(),
+        ]);
+
+        $response->assertViewHas('errors');
+        $errors = $response->viewData('errors');
+
+        $this->assertEquals(
+            'You have already logged one or more of these chapters for yesterday.',
+            $errors->first('start_chapter')
+        );
+        $this->assertDatabaseCount('reading_logs', 1);
+    }
+
     public function test_reading_cannot_be_logged_before_yesterday(): void
     {
         $user = User::factory()->create();

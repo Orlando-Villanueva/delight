@@ -187,7 +187,8 @@ class ReadingLogController extends Controller
                 $books = $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical);
 
                 // Create error bag for form display
-                $errors = new MessageBag(['start_chapter' => ['You have already logged one or more of these chapters for today.']]);
+                $dateLabel = $request->input('date_read') === $yesterday ? 'yesterday' : 'today';
+                $errors = new MessageBag(['start_chapter' => ["You have already logged one or more of these chapters for {$dateLabel}."]]);
 
                 // Get form context data (yesterday logic, streak info)
                 $formContext = $this->readingFormService->getFormContextData($request->user());
