@@ -22,7 +22,7 @@ class ReadingFormService
 
     /**
      * Get yesterday availability logic and user reading status for the form.
-     * This determines if the "yesterday" option should be available based on streak preservation.
+     * Yesterday is always available for missed-log recovery.
      */
     public function getFormContextData(User $user): array
     {
@@ -38,12 +38,7 @@ class ReadingFormService
 
         $currentStreak = $this->readingLogService->calculateCurrentStreak($user);
 
-        // Check if user is new (created today) to prevent logging for yesterday before they existed
-        $isNewUser = $user->created_at->isToday();
-
-        // Only surface yesterday when it can repair the active streak bridge between
-        // today and the day before yesterday. Otherwise the date choice adds noise.
-        $allowYesterday = ! $hasReadYesterday && ! $isNewUser && $hasReadingTwoDaysAgo;
+        $allowYesterday = true;
 
         return [
             'allowYesterday' => $allowYesterday,

@@ -161,7 +161,7 @@ class ReadingFormServiceTest extends TestCase
         );
     }
 
-    public function test_get_form_context_data_hides_yesterday_when_it_does_not_preserve_recent_streak(): void
+    public function test_get_form_context_data_allows_yesterday_without_a_recent_streak(): void
     {
         $this->user->forceFill([
             'created_at' => today()->subMonth(),
@@ -169,8 +169,15 @@ class ReadingFormServiceTest extends TestCase
 
         $contextData = $this->service->getFormContextData($this->user);
 
-        $this->assertFalse($contextData['allowYesterday']);
+        $this->assertTrue($contextData['allowYesterday']);
         $this->assertFalse($contextData['hasReadingTwoDaysAgo']);
+    }
+
+    public function test_get_form_context_data_allows_yesterday_for_a_new_user(): void
+    {
+        $contextData = $this->service->getFormContextData($this->user);
+
+        $this->assertTrue($contextData['allowYesterday']);
     }
 
     public function test_get_form_context_data_allows_yesterday_when_recent_streak_gap_can_be_caught_up(): void
@@ -192,7 +199,7 @@ class ReadingFormServiceTest extends TestCase
         $this->assertTrue($contextData['hasReadingTwoDaysAgo']);
     }
 
-    public function test_get_form_context_data_hides_yesterday_when_yesterday_is_already_logged(): void
+    public function test_get_form_context_data_allows_yesterday_when_yesterday_is_already_logged(): void
     {
         $this->user->forceFill([
             'created_at' => today()->subMonth(),
@@ -209,7 +216,7 @@ class ReadingFormServiceTest extends TestCase
 
         $contextData = $this->service->getFormContextData($this->user);
 
-        $this->assertFalse($contextData['allowYesterday']);
+        $this->assertTrue($contextData['allowYesterday']);
         $this->assertTrue($contextData['hasReadYesterday']);
     }
 }

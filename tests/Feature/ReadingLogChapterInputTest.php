@@ -63,6 +63,51 @@ class ReadingLogChapterInputTest extends TestCase
         ]);
     }
 
+    public function test_additional_chapter_can_be_logged_for_yesterday(): void
+    {
+        $user = User::factory()->create();
+
+        $user->readingLogs()->create([
+            'book_id' => 1,
+            'chapter' => 1,
+            'passage_text' => 'Genesis 1',
+            'date_read' => today()->subDay()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)->post('/logs', [
+            'book_id' => 1,
+            'start_chapter' => '2',
+            'date_read' => today()->subDay()->toDateString(),
+        ]);
+
+        $response->assertSuccessful();
+        $this->assertDatabaseHas('reading_logs', [
+            'user_id' => $user->id,
+            'book_id' => 1,
+            'chapter' => 2,
+        ]);
+
+        $additionalLog = $user->readingLogs()->where('chapter', 2)->firstOrFail();
+
+        $this->assertEquals(today()->subDay()->toDateString(), $additionalLog->date_read->toDateString());
+    }
+
+    public function test_reading_cannot_be_logged_before_yesterday(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post('/logs', [
+            'book_id' => 1,
+            'start_chapter' => '1',
+            'date_read' => today()->subDays(2)->toDateString(),
+        ]);
+
+        $response->assertViewHas('errors');
+        $errors = $response->viewData('errors');
+        $this->assertTrue($errors->has('date_read'));
+        $this->assertDatabaseCount('reading_logs', 0);
+    }
+
     /**
      * Test that explicit range input creates multiple log entries.
      */
