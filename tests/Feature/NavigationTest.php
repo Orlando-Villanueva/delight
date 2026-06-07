@@ -260,6 +260,8 @@ describe('Navigation Routes', function () {
         $response->assertSeeText('Today');
         $response->assertSeeText('Forgot to log? Choose yesterday.');
         $response->assertSee('data-date-read-segmented-control', false);
+        $response->assertDontSee('Logging for today', false);
+        $response->assertDontSee('Grace period help', false);
         $this->assertMatchesRegularExpression('/for="today".*?Today.*?for="yesterday".*?Yesterday/s', $response->getContent());
         $this->assertMatchesRegularExpression('/id="today".*?checked/s', $response->getContent());
         $this->assertMatchesRegularExpression('/class="[^"]*peer-checked:bg-primary-50[^"]*peer-checked:text-primary-700[^"]*peer-focus-visible:ring-2/', $response->getContent());
@@ -286,6 +288,7 @@ describe('Navigation Routes', function () {
         $response->assertSeeText('Yesterday');
         $response->assertSeeText('Today');
         $response->assertSeeText('Forgot to log? Choose yesterday.');
+        $response->assertDontSee('Logging for today', false);
     });
 
     it('navigates to reading history successfully', function () {

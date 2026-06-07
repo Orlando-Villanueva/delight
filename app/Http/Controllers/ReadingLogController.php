@@ -47,7 +47,7 @@ class ReadingLogController extends Controller
         // Pass empty error bag for consistent template behavior
         $errors = new MessageBag;
 
-        // Get form context data (yesterday logic, streak info)
+        // Get form context data
         $formContext = $this->readingFormService->getFormContextData($request->user());
 
         $data = array_merge(compact('books', 'errors'), $formContext);
@@ -155,12 +155,13 @@ class ReadingLogController extends Controller
             // Pass errors directly to the view
             $errors = new MessageBag($e->errors());
 
-            // Get form context data (yesterday logic, streak info)
+            // Get form context data
             $formContext = $this->readingFormService->getFormContextData($request->user());
+            $selectedDateRead = $this->selectedDateReadForForm($request);
 
             // Return appropriate fragment or view based on request type
             return response()->htmx('logs.create', 'reading-form', array_merge(
-                compact('books', 'errors'),
+                compact('books', 'errors', 'selectedDateRead'),
                 $formContext
             ));
         } catch (InvalidArgumentException $e) {
@@ -171,12 +172,13 @@ class ReadingLogController extends Controller
             // Create error bag for form display
             $errors = new MessageBag(['start_chapter' => [$e->getMessage()]]);
 
-            // Get form context data (yesterday logic, streak info)
+            // Get form context data
             $formContext = $this->readingFormService->getFormContextData($request->user());
+            $selectedDateRead = $this->selectedDateReadForForm($request);
 
             // Return appropriate fragment or view based on request type
             return response()->htmx('logs.create', 'reading-form', array_merge(
-                compact('books', 'errors'),
+                compact('books', 'errors', 'selectedDateRead'),
                 $formContext
             ));
         } catch (QueryException $e) {
@@ -190,12 +192,13 @@ class ReadingLogController extends Controller
                 $dateLabel = $request->input('date_read') === $yesterday ? 'yesterday' : 'today';
                 $errors = new MessageBag(['start_chapter' => ["You have already logged one or more of these chapters for {$dateLabel}."]]);
 
-                // Get form context data (yesterday logic, streak info)
+                // Get form context data
                 $formContext = $this->readingFormService->getFormContextData($request->user());
+                $selectedDateRead = $this->selectedDateReadForForm($request);
 
                 // Return appropriate fragment or view based on request type
                 return response()->htmx('logs.create', 'reading-form', array_merge(
-                    compact('books', 'errors'),
+                    compact('books', 'errors', 'selectedDateRead'),
                     $formContext
                 ));
             }
@@ -216,6 +219,15 @@ class ReadingLogController extends Controller
         return view('components.celebrations.achievement-unlocks', [
             'payload' => $payload,
         ])->render();
+    }
+
+    private function selectedDateReadForForm(Request $request): string
+    {
+        $yesterday = today()->subDay()->toDateString();
+
+        return $request->input('date_read') === $yesterday
+            ? $yesterday
+            : today()->toDateString();
     }
 
     /**

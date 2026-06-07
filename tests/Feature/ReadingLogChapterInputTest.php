@@ -116,7 +116,29 @@ class ReadingLogChapterInputTest extends TestCase
             'You have already logged one or more of these chapters for yesterday.',
             $errors->first('start_chapter')
         );
+        $this->assertMatchesRegularExpression('/<input[^>]+id="yesterday"[^>]+checked/s', $response->getContent());
+        $this->assertDoesNotMatchRegularExpression('/<input[^>]+id="today"[^>]+checked/s', $response->getContent());
         $this->assertDatabaseCount('reading_logs', 1);
+    }
+
+    public function test_yesterday_selection_is_preserved_when_validation_fails(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post('/logs', [
+            'book_id' => 1,
+            'start_chapter' => '3',
+            'end_chapter' => '2',
+            'date_read' => today()->subDay()->toDateString(),
+        ]);
+
+        $response->assertViewHas('errors');
+        $errors = $response->viewData('errors');
+
+        $this->assertTrue($errors->has('start_chapter'));
+        $this->assertMatchesRegularExpression('/<input[^>]+id="yesterday"[^>]+checked/s', $response->getContent());
+        $this->assertDoesNotMatchRegularExpression('/<input[^>]+id="today"[^>]+checked/s', $response->getContent());
+        $this->assertDatabaseCount('reading_logs', 0);
     }
 
     public function test_reading_cannot_be_logged_before_yesterday(): void
