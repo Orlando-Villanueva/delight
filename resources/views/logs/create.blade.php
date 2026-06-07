@@ -50,74 +50,52 @@
                         x-init="init()"
                     >
                         @csrf
+                        @php($selectedDateRead = $selectedDateRead ?? today()->toDateString())
 
-                        @if (isset($allowYesterday) && $allowYesterday)
-                            <fieldset class="space-y-2">
-                                <legend class="text-sm font-medium text-gray-700 dark:text-gray-300">When did you read?</legend>
+                        <fieldset class="space-y-2">
+                            <legend class="text-sm font-medium text-gray-700 dark:text-gray-300">When did you read?</legend>
 
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div class="flex items-center">
-                                        <input
-                                            type="radio"
-                                            id="yesterday"
-                                            name="date_read"
-                                            value="{{ today()->subDay()->toDateString() }}"
-                                            {{ old('date_read') == today()->subDay()->toDateString() ? 'checked' : '' }}
-                                            class="peer sr-only"
-                                        >
-                                        <label
-                                            for="yesterday"
-                                            class="flex w-full cursor-pointer items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 peer-checked:border-primary-600 peer-checked:bg-primary-50 peer-checked:text-primary-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:peer-checked:border-primary-500 dark:peer-checked:bg-primary-900/30 dark:peer-checked:text-primary-300"
-                                        >
-                                            Yesterday
-                                        </label>
-                                    </div>
-
-                                    <div class="flex items-center">
-                                        <input
-                                            type="radio"
-                                            id="today"
-                                            name="date_read"
-                                            value="{{ today()->toDateString() }}"
-                                            {{ old('date_read', today()->toDateString()) == today()->toDateString() ? 'checked' : '' }}
-                                            class="peer sr-only"
-                                        >
-                                        <label
-                                            for="today"
-                                            class="flex w-full cursor-pointer items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 peer-checked:border-primary-600 peer-checked:bg-primary-50 peer-checked:text-primary-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:peer-checked:border-primary-500 dark:peer-checked:bg-primary-900/30 dark:peer-checked:text-primary-300"
-                                        >
-                                            Today
-                                        </label>
-                                    </div>
+                            <div
+                                data-date-read-segmented-control
+                                class="grid grid-cols-2 overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-700"
+                            >
+                                <div class="flex items-center">
+                                    <input
+                                        type="radio"
+                                        id="today"
+                                        name="date_read"
+                                        value="{{ today()->toDateString() }}"
+                                        {{ $selectedDateRead === today()->toDateString() ? 'checked' : '' }}
+                                        class="peer sr-only"
+                                    >
+                                    <label
+                                        for="today"
+                                        class="flex w-full cursor-pointer items-center justify-center bg-transparent px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 peer-checked:bg-primary-50 peer-checked:text-primary-700 peer-checked:hover:bg-primary-50 peer-focus-visible:relative peer-focus-visible:z-10 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-primary-500 peer-focus-visible:ring-inset dark:text-gray-200 dark:hover:bg-gray-600 dark:peer-checked:bg-primary-900/30 dark:peer-checked:text-primary-300 dark:peer-checked:hover:bg-primary-900/30"
+                                    >
+                                        Today
+                                    </label>
                                 </div>
 
-                                <p class="text-xs text-gray-500 dark:text-gray-400">Catch-up is available for yesterday.</p>
-                            </fieldset>
-                        @else
-                            <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                                <input type="hidden" name="date_read" value="{{ today()->toDateString() }}">
-                                <span>Logging for today, {{ today()->format('M j') }}</span>
-
-                                <div class="relative" @mouseenter="graceHelpOpen = true" @mouseleave="graceHelpOpen = false">
-                                    <button
-                                        type="button"
-                                        @click="graceHelpOpen = ! graceHelpOpen"
-                                        class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500 transition hover:bg-gray-200 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                                        aria-label="Grace period help"
+                                <div class="flex items-center border-l border-gray-300 dark:border-gray-600">
+                                    <input
+                                        type="radio"
+                                        id="yesterday"
+                                        name="date_read"
+                                        value="{{ today()->subDay()->toDateString() }}"
+                                        {{ $selectedDateRead === today()->subDay()->toDateString() ? 'checked' : '' }}
+                                        class="peer sr-only"
                                     >
-                                        ?
-                                    </button>
-                                    <div
-                                        x-cloak
-                                        x-show="graceHelpOpen"
-                                        x-transition
-                                        class="fixed left-4 right-4 top-44 z-50 w-auto rounded-lg border border-gray-200 bg-white p-3 text-xs leading-5 text-gray-600 shadow-lg dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 sm:absolute sm:left-0 sm:right-auto sm:top-7 sm:w-64"
+                                    <label
+                                        for="yesterday"
+                                        class="flex w-full cursor-pointer items-center justify-center bg-transparent px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 peer-checked:bg-primary-50 peer-checked:text-primary-700 peer-checked:hover:bg-primary-50 peer-focus-visible:relative peer-focus-visible:z-10 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-primary-500 peer-focus-visible:ring-inset dark:text-gray-200 dark:hover:bg-gray-600 dark:peer-checked:bg-primary-900/30 dark:peer-checked:text-primary-300 dark:peer-checked:hover:bg-primary-900/30"
                                     >
-                                        You can catch up on yesterday when it helps preserve a recent reading streak.
-                                    </div>
+                                        Yesterday
+                                    </label>
                                 </div>
                             </div>
-                        @endif
+
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Forgot to log? Choose yesterday.</p>
+                        </fieldset>
 
                         <div class="space-y-2">
                             <label for="book_id" class="form-label">

@@ -5,8 +5,8 @@ namespace Tests\Unit;
 use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\ReadingFormService;
-use App\Services\ReadingLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ReadingFormServiceTest extends TestCase
@@ -21,8 +21,7 @@ class ReadingFormServiceTest extends TestCase
     {
         parent::setUp();
 
-        $readingLogService = $this->app->make(ReadingLogService::class);
-        $this->service = new ReadingFormService($readingLogService);
+        $this->service = new ReadingFormService;
         $this->user = User::factory()->create();
     }
 
@@ -136,10 +135,7 @@ class ReadingFormServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /**
-     * Test that getFormContextData uses the hasReadToday method
-     */
-    public function test_get_form_context_data_uses_has_read_today_method(): void
+    public function test_get_form_context_data_excludes_unused_read_status(): void
     {
         // Create a reading log for today
         ReadingLog::factory()->create([
@@ -151,17 +147,11 @@ class ReadingFormServiceTest extends TestCase
 
         $contextData = $this->service->getFormContextData($this->user);
 
-        // Verify that hasReadToday is true in the context data
-        $this->assertTrue($contextData['hasReadToday']);
-
-        // Verify the method returns the same result as calling hasReadToday directly
-        $this->assertEquals(
-            $this->service->hasReadToday($this->user),
-            $contextData['hasReadToday']
-        );
+        $this->assertTrue($this->service->hasReadToday($this->user));
+        $this->assertArrayNotHasKey('hasReadToday', $contextData);
     }
 
-    public function test_get_form_context_data_hides_yesterday_when_it_does_not_preserve_recent_streak(): void
+    public function test_get_form_context_data_allows_yesterday_without_a_recent_streak(): void
     {
         $this->user->forceFill([
             'created_at' => today()->subMonth(),
@@ -169,8 +159,14 @@ class ReadingFormServiceTest extends TestCase
 
         $contextData = $this->service->getFormContextData($this->user);
 
-        $this->assertFalse($contextData['allowYesterday']);
-        $this->assertFalse($contextData['hasReadingTwoDaysAgo']);
+        $this->assertTrue($contextData['allowYesterday']);
+    }
+
+    public function test_get_form_context_data_allows_yesterday_for_a_new_user(): void
+    {
+        $contextData = $this->service->getFormContextData($this->user);
+
+        $this->assertTrue($contextData['allowYesterday']);
     }
 
     public function test_get_form_context_data_allows_yesterday_when_recent_streak_gap_can_be_caught_up(): void
@@ -189,10 +185,9 @@ class ReadingFormServiceTest extends TestCase
         $contextData = $this->service->getFormContextData($this->user);
 
         $this->assertTrue($contextData['allowYesterday']);
-        $this->assertTrue($contextData['hasReadingTwoDaysAgo']);
     }
 
-    public function test_get_form_context_data_hides_yesterday_when_yesterday_is_already_logged(): void
+    public function test_get_form_context_data_allows_yesterday_when_yesterday_is_already_logged(): void
     {
         $this->user->forceFill([
             'created_at' => today()->subMonth(),
@@ -209,7 +204,23 @@ class ReadingFormServiceTest extends TestCase
 
         $contextData = $this->service->getFormContextData($this->user);
 
-        $this->assertFalse($contextData['allowYesterday']);
-        $this->assertTrue($contextData['hasReadYesterday']);
+        $this->assertTrue($contextData['allowYesterday']);
+    }
+
+    public function test_get_form_context_data_does_not_query_unused_reading_state(): void
+    {
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 1,
+            'chapter' => 1,
+            'date_read' => today()->subDay()->toDateString(),
+        ]);
+
+        DB::enableQueryLog();
+
+        $contextData = $this->service->getFormContextData($this->user);
+
+        $this->assertTrue($contextData['allowYesterday']);
+        $this->assertEmpty(DB::getQueryLog());
     }
 }

@@ -247,31 +247,9 @@ describe('Navigation Routes', function () {
         $response->assertSee("Record today's Bible reading.");
     });
 
-    it('shows a compact today-only log form when yesterday catch-up is not useful', function () {
+    it('always shows today and yesterday on the log form', function () {
         $user = User::factory()->create([
             'created_at' => today()->subMonth(),
-        ]);
-
-        $response = $this->actingAs($user)->get(route('logs.create'));
-
-        $response->assertSuccessful();
-        $response->assertSeeText('Logging for today');
-        $response->assertSee('type="hidden" name="date_read"', false);
-        $response->assertDontSeeText('Grace Period');
-        $response->assertDontSeeText('Already logged');
-        $response->assertDontSeeText('Yesterday');
-    });
-
-    it('shows yesterday catch-up only when a recent streak gap can be repaired', function () {
-        $user = User::factory()->create([
-            'created_at' => today()->subMonth(),
-        ]);
-
-        ReadingLog::factory()->create([
-            'user_id' => $user->id,
-            'book_id' => 1,
-            'chapter' => 1,
-            'date_read' => today()->subDays(2)->toDateString(),
         ]);
 
         $response = $this->actingAs($user)->get(route('logs.create'));
@@ -280,7 +258,37 @@ describe('Navigation Routes', function () {
         $response->assertSeeText('When did you read?');
         $response->assertSeeText('Yesterday');
         $response->assertSeeText('Today');
-        $response->assertSeeText('Catch-up is available for yesterday.');
+        $response->assertSeeText('Forgot to log? Choose yesterday.');
+        $response->assertSee('data-date-read-segmented-control', false);
+        $response->assertDontSee('Logging for today', false);
+        $response->assertDontSee('Grace period help', false);
+        $this->assertMatchesRegularExpression('/for="today".*?Today.*?for="yesterday".*?Yesterday/s', $response->getContent());
+        $this->assertMatchesRegularExpression('/id="today".*?checked/s', $response->getContent());
+        $this->assertMatchesRegularExpression('/class="[^"]*peer-checked:bg-primary-50[^"]*peer-checked:text-primary-700[^"]*peer-focus-visible:ring-2/', $response->getContent());
+        $response->assertDontSee('peer-checked:ring-1', false);
+        $response->assertDontSee('peer-checked:ring-primary-500', false);
+    });
+
+    it('keeps yesterday available when yesterday is already logged', function () {
+        $user = User::factory()->create([
+            'created_at' => today()->subMonth(),
+        ]);
+
+        ReadingLog::factory()->create([
+            'user_id' => $user->id,
+            'book_id' => 1,
+            'chapter' => 1,
+            'date_read' => today()->subDay()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('logs.create'));
+
+        $response->assertSuccessful();
+        $response->assertSeeText('When did you read?');
+        $response->assertSeeText('Yesterday');
+        $response->assertSeeText('Today');
+        $response->assertSeeText('Forgot to log? Choose yesterday.');
+        $response->assertDontSee('Logging for today', false);
     });
 
     it('navigates to reading history successfully', function () {
