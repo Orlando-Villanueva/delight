@@ -21,24 +21,27 @@ class ReadingPlanService
      * Subscribe a user to a reading plan.
      * Deactivates any other active subscriptions for the user.
      */
-    public function subscribe(User $user, ReadingPlan $plan, ?Carbon $startDate = null): ReadingPlanSubscription
+    public function subscribe(User $user, ReadingPlan $plan, ?Carbon $startDate = null, int $startDay = 1): ReadingPlanSubscription
     {
-        return DB::transaction(function () use ($user, $plan, $startDate) {
+        return DB::transaction(function () use ($user, $plan, $startDate, $startDay) {
             // Deactivate all existing subscriptions for this user
             ReadingPlanSubscription::where('user_id', $user->id)
                 ->update(['is_active' => false]);
 
-            // Create or update the subscription and set it as active
-            return ReadingPlanSubscription::updateOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'reading_plan_id' => $plan->id,
-                ],
-                [
-                    'started_at' => $startDate ?? Carbon::today(),
-                    'is_active' => true,
-                ]
-            );
+            $subscription = ReadingPlanSubscription::firstOrNew([
+                'user_id' => $user->id,
+                'reading_plan_id' => $plan->id,
+            ]);
+
+            if (! $subscription->exists) {
+                $subscription->started_at = $startDate ?? Carbon::today();
+                $subscription->start_day = $startDay;
+            }
+
+            $subscription->is_active = true;
+            $subscription->save();
+
+            return $subscription;
         });
     }
 

@@ -17,6 +17,7 @@ class ReadingPlanSubscriptionFactory extends Factory
             'user_id' => User::factory(),
             'reading_plan_id' => ReadingPlan::factory(),
             'started_at' => now(),
+            'start_day' => 1,
             'is_active' => true,
         ];
     }

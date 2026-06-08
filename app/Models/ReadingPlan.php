@@ -61,6 +61,126 @@ class ReadingPlan extends Model
     }
 
     /**
+     * Get the valid plan day numbers in their reading order.
+     *
+     * @return array<int, int>
+     */
+    public function getOrderedDayNumbers(): array
+    {
+        return collect($this->days ?? [])
+            ->pluck('day')
+            ->filter(fn ($dayNumber): bool => is_numeric($dayNumber))
+            ->map(fn ($dayNumber): int => (int) $dayNumber)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Get the first valid plan day number.
+     */
+    public function getFirstDayNumber(): int
+    {
+        return $this->getOrderedDayNumbers()[0] ?? 0;
+    }
+
+    /**
+     * Get the last valid plan day number.
+     */
+    public function getLastDayNumber(): int
+    {
+        $dayNumbers = $this->getOrderedDayNumbers();
+
+        return $dayNumbers[array_key_last($dayNumbers)] ?? 0;
+    }
+
+    /**
+     * Get the previous valid plan day number.
+     */
+    public function getPreviousDayNumber(int $dayNumber): ?int
+    {
+        $previousDay = null;
+
+        foreach ($this->getOrderedDayNumbers() as $validDayNumber) {
+            if ($validDayNumber === $dayNumber) {
+                return $previousDay;
+            }
+
+            $previousDay = $validDayNumber;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the next valid plan day number.
+     */
+    public function getNextDayNumber(int $dayNumber): ?int
+    {
+        $dayNumbers = $this->getOrderedDayNumbers();
+        $count = count($dayNumbers);
+
+        for ($index = 0; $index < $count; $index++) {
+            if ($dayNumbers[$index] === $dayNumber) {
+                return $dayNumbers[$index + 1] ?? null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve a requested plan day to a valid day number.
+     */
+    public function getValidDayNumber(?int $dayNumber = null, ?int $fallbackDayNumber = null): int
+    {
+        $dayNumbers = $this->getOrderedDayNumbers();
+
+        if ($dayNumbers === []) {
+            return 0;
+        }
+
+        if ($dayNumber !== null && in_array($dayNumber, $dayNumbers, true)) {
+            return $dayNumber;
+        }
+
+        if ($fallbackDayNumber !== null && in_array($fallbackDayNumber, $dayNumbers, true)) {
+            return $fallbackDayNumber;
+        }
+
+        if ($dayNumber !== null) {
+            foreach ($dayNumbers as $validDayNumber) {
+                if ($validDayNumber >= $dayNumber) {
+                    return $validDayNumber;
+                }
+            }
+        }
+
+        return $dayNumbers[array_key_last($dayNumbers)];
+    }
+
+    /**
+     * Get valid plan day numbers from the provided starting day.
+     *
+     * @return array<int, int>
+     */
+    public function getDayNumbersFrom(int $startDay): array
+    {
+        return collect($this->getOrderedDayNumbers())
+            ->filter(fn (int $dayNumber): bool => $dayNumber >= $startDay)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Get the concise name used when the reading-plan context is already clear.
+     */
+    public function getShortName(): string
+    {
+        return preg_replace('/ Reading Plan$/', '', $this->name) ?? $this->name;
+    }
+
+    /**
      * Get the reading for a specific day number.
      */
     public function getDayReading(int $dayNumber): ?array

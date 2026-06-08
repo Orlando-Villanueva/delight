@@ -29,7 +29,7 @@
                                             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                                                 <div class="flex items-center justify-between sm:justify-start gap-2">
                                                     <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
-                                                        {{ $plan->name }}
+                                                        {{ $plan->getShortName() }}
                                                     </h3>
                                                     @if (!$subscription->is_active)
                                                         <span
@@ -74,7 +74,7 @@
                                                             {{ $plan->getDaysCount() }}
                                                         </span>
                                                         <span class="font-medium text-primary-600 dark:text-primary-400">
-                                                            {{ $subscription->getProgress() }}% complete
+                                                            {{ $subscription->getCompletedDaysCount() }} of {{ $subscription->getTrackedDaysCount() }} tracked days complete
                                                         </span>
                                                     </div>
                                                     <div class="mt-2 w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
@@ -91,7 +91,7 @@
                                                         Day {{ $subscription->getDayNumber() }} of {{ $plan->getDaysCount() }}
                                                     </span>
                                                     <span class="font-medium text-primary-600 dark:text-primary-400">
-                                                        {{ $subscription->getProgress() }}% complete
+                                                        {{ $subscription->getCompletedDaysCount() }} of {{ $subscription->getTrackedDaysCount() }} tracked days complete
                                                     </span>
                                                 </div>
                                                 <div class="mt-2 w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
@@ -111,7 +111,7 @@
                                                     <div
                                                         class="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
                                                         <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
-                                                            {{ $plan->name }}
+                                                            {{ $plan->getShortName() }}
                                                         </h3>
                                                         <span
                                                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
@@ -121,15 +121,22 @@
                                                     <p class="mt-2 text-gray-600 dark:text-gray-400">
                                                         {{ $plan->description }}
                                                     </p>
+                                                    <a href="{{ route('plans.start', $plan) }}"
+                                                        hx-get="{{ route('plans.start', $plan) }}" hx-target="#page-container"
+                                                        hx-swap="innerHTML" hx-push-url="true"
+                                                        class="mt-3 inline-flex text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
+                                                        Start from a different passage
+                                                    </a>
                                                 </div>
                                                 <form hx-post="{{ route('plans.subscribe', $plan) }}"
                                                     hx-target="#page-container" hx-swap="innerHTML"
                                                     @if ($has_active_plan) hx-confirm="Starting this plan will pause your current active plan. Continue?" @endif
                                                     class="order-last sm:order-none w-full sm:w-auto flex-shrink-0">
                                                     @csrf
+                                                    <input type="hidden" name="start_day" value="{{ $plan->getFirstDayNumber() }}">
                                                     <button type="submit"
                                                         class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm">
-                                                        Start Plan
+                                                        Start from Day {{ $plan->getFirstDayNumber() }}
                                                     </button>
                                                 </form>
                                             </div>
