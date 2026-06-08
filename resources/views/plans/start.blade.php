@@ -13,24 +13,23 @@
 
             <div class="space-y-6">
                 <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                    <form method="GET" action="{{ route('plans.start', $plan) }}" class="space-y-3">
+                    <form method="GET" action="{{ route('plans.start', $plan) }}" hx-get="{{ route('plans.start', $plan) }}"
+                        hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true" class="space-y-3">
                         <label for="day" class="block text-sm font-medium text-gray-900 dark:text-white">
                             Starting passage
                         </label>
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
-                            <select id="day" name="day"
-                                class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                                @foreach ($days as $day)
-                                    <option value="{{ $day['day'] }}" @selected($day['day'] === $selected_day)>
-                                        {{ $day['label'] }} - Day {{ $day['day'] }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <button type="submit"
-                                class="inline-flex shrink-0 items-center justify-center rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
-                                Preview passage
-                            </button>
-                        </div>
+                        <select id="day" name="day" aria-describedby="starting-passage-help"
+                            onchange="this.form.requestSubmit()"
+                            class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            @foreach ($days as $day)
+                                <option value="{{ $day['day'] }}" @selected($day['day'] === $selected_day)>
+                                    {{ $day['label'] }} - Day {{ $day['day'] }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <p id="starting-passage-help" class="text-sm text-gray-500 dark:text-gray-400">
+                            Preview updates automatically when you choose a passage.
+                        </p>
                     </form>
                 </div>
 

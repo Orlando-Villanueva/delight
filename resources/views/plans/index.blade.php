@@ -5,13 +5,34 @@
 
 @section('content')
     @fragment('content')
+        @php
+            $startingPassagePlans = collect($plans)
+                ->filter(fn (array $planData): bool => ! $planData['is_subscribed'])
+                ->mapWithKeys(function (array $planData): array {
+                    $plan = $planData['plan'];
+
+                    return [
+                        $plan->slug => [
+                            'name' => $plan->getShortName(),
+                            'subscribeUrl' => route('plans.subscribe', $plan),
+                            'firstDay' => $plan->getFirstDayNumber(),
+                            'days' => collect($plan->days ?? [])->map(fn (array $day): array => [
+                                'day' => (int) $day['day'],
+                                'optionLabel' => $day['label'].' - Day '.$day['day'],
+                            ])->values()->all(),
+                        ],
+                    ];
+                })
+                ->all();
+        @endphp
+
         <x-ui.page-shell width="medium" id="main-content">
             <x-ui.page-header
                 title="Reading Plans"
                 subtitle="Structured guides to help you read the Bible consistently"
             />
 
-                    <div class="space-y-6">
+                    <div class="space-y-6" x-data>
                         @forelse ($plans as $planData)
                             @php
                                 $plan = $planData['plan'];
@@ -121,12 +142,15 @@
                                                     <p class="mt-2 text-gray-600 dark:text-gray-400">
                                                         {{ $plan->description }}
                                                     </p>
-                                                    <a href="{{ route('plans.start', $plan) }}"
-                                                        hx-get="{{ route('plans.start', $plan) }}" hx-target="#page-container"
-                                                        hx-swap="innerHTML" hx-push-url="true"
+                                                    <button type="button"
+                                                        data-modal-target="reading-plan-start-modal"
+                                                        data-modal-toggle="reading-plan-start-modal"
+                                                        data-reading-plan-start-trigger
+                                                        data-plan-slug="{{ $plan->slug }}"
+                                                        x-on:click="$dispatch('open-reading-plan-start', { slug: @js($plan->slug) })"
                                                         class="mt-3 inline-flex text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
                                                         Start from a different passage
-                                                    </a>
+                                                    </button>
                                                 </div>
                                                 <form hx-post="{{ route('plans.subscribe', $plan) }}"
                                                     hx-target="#page-container" hx-swap="innerHTML"
@@ -158,6 +182,10 @@
                             </div>
                         @endforelse
                     </div>
+
+                    @if ($startingPassagePlans !== [])
+                        <x-modals.reading-plan-start :plans="$startingPassagePlans" :has-active-plan="$has_active_plan" />
+                    @endif
         </x-ui.page-shell>
     @endfragment
 @endsection

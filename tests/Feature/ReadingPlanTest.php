@@ -73,6 +73,29 @@ describe('Reading Plans Index', function () {
         $response->assertSee('Start from a different passage');
     });
 
+    it('renders one reusable starting passage modal for available plans', function () {
+        $secondPlan = createTestPlan([
+            'slug' => 'second-test-plan',
+            'name' => 'Second Test Reading Plan',
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('plans.index'));
+
+        $response->assertOk();
+        $response->assertSee('id="reading-plan-start-modal"', false);
+        $response->assertSee('x-data="readingPlanStartModal()"', false);
+        $response->assertSee('data-reading-plan-start-data', false);
+        $response->assertSee('data-plan-slug="test-plan"', false);
+        $response->assertSee('data-plan-slug="second-test-plan"', false);
+        $response->assertSee(route('plans.subscribe', $this->plan), false);
+        $response->assertSee(route('plans.subscribe', $secondPlan), false);
+        $response->assertDontSee(route('plans.start', $this->plan), false);
+        $response->assertDontSee(route('plans.start', $secondPlan), false);
+
+        expect(substr_count($response->getContent(), 'id="reading-plan-start-modal"'))->toBe(1);
+    });
+
     it('redirects guests to login', function () {
         $response = $this->get(route('plans.index'));
 
@@ -112,6 +135,9 @@ describe('Reading Plan Subscription', function () {
 
         $response->assertOk();
         $response->assertSee('Choose your starting passage');
+        $response->assertSee('Preview updates automatically when you choose a passage.');
+        $response->assertSee('onchange="this.form.requestSubmit()"', false);
+        $response->assertDontSee('Preview passage');
         $response->assertSee('Genesis 4-6');
         $response->assertSee('Genesis 4');
         $response->assertSee('Genesis 5');
