@@ -65,7 +65,7 @@
                                                 @if ($subscription->is_active)
                                                     <button hx-get="{{ route('plans.today', $plan) }}"
                                                         hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
-                                                        class="order-last sm:order-none w-full sm:w-auto flex-shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm cursor-pointer">
+                                                        class="order-last sm:order-none w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm cursor-pointer">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor"
                                                             viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -77,7 +77,7 @@
                                                 @else
                                                     <button hx-get="{{ route('plans.today', $plan) }}"
                                                         hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
-                                                        class="order-last sm:order-none w-full sm:w-auto flex-shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors cursor-pointer">
+                                                        class="order-last sm:order-none w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors cursor-pointer">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor"
                                                             viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -162,10 +162,11 @@
                                                     @endif
                                                 </div>
                                                 @if ($canStartPlan)
-                                                    <form hx-post="{{ route('plans.subscribe', $plan) }}"
+                                                    <form method="POST" action="{{ route('plans.subscribe', $plan) }}"
+                                                        hx-post="{{ route('plans.subscribe', $plan) }}"
                                                         hx-target="#page-container" hx-swap="innerHTML"
                                                         @if ($has_active_plan) hx-confirm="Starting this plan will pause your current active plan. Continue?" @endif
-                                                        class="order-last sm:order-none w-full sm:w-auto flex-shrink-0">
+                                                        class="order-last sm:order-none w-full sm:w-auto shrink-0">
                                                         @csrf
                                                         <input type="hidden" name="start_day" value="{{ $firstDayNumber }}">
                                                         <button type="submit"
@@ -174,7 +175,7 @@
                                                         </button>
                                                     </form>
                                                 @else
-                                                    <div class="order-last sm:order-none w-full sm:w-auto flex-shrink-0">
+                                                    <div class="order-last sm:order-none w-full sm:w-auto shrink-0">
                                                         <button type="button" disabled
                                                             class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 bg-gray-100 dark:bg-gray-700 dark:text-gray-400 rounded-lg cursor-not-allowed">
                                                             Coming soon

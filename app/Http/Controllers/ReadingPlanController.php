@@ -14,7 +14,9 @@ use App\Services\OnboardingService;
 use App\Services\ReadingPlanService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 
 class ReadingPlanController extends Controller
@@ -67,50 +69,9 @@ class ReadingPlanController extends Controller
     }
 
     /**
-     * Display the starting-position chooser for a reading plan.
-     */
-    public function start(Request $request, ReadingPlan $plan)
-    {
-        $user = $request->user();
-        $subscription = $this->planService->getSubscription($user, $plan);
-
-        if ($subscription) {
-            return redirect()->route('plans.today', $plan);
-        }
-
-        $totalDays = $plan->getDaysCount();
-
-        if ($totalDays === 0) {
-            return redirect()->route('plans.index')
-                ->with('error', 'This reading plan does not have any readings yet.');
-        }
-
-        $requestedDay = $request->query('day') !== null
-            ? $request->integer('day')
-            : null;
-        $selectedDay = $plan->getValidDayNumber($requestedDay, $plan->getFirstDayNumber());
-        $viewData = [
-            'plan' => $plan,
-            'days' => $plan->days,
-            'selected_day' => $selectedDay,
-            'selected_reading' => $plan->getDayReading($selectedDay),
-            'total_days' => $plan->getLastDayNumber(),
-            'previous_day' => $plan->getPreviousDayNumber($selectedDay),
-            'next_day' => $plan->getNextDayNumber($selectedDay),
-            'has_active_plan' => $user->readingPlanSubscriptions()->active()->exists(),
-        ];
-
-        if ($request->header('HX-Request')) {
-            return response()->htmx('plans.start', 'content', $viewData);
-        }
-
-        return view('plans.start', $viewData);
-    }
-
-    /**
      * Subscribe to a reading plan.
      */
-    public function subscribe(SubscribeReadingPlanRequest $request, ReadingPlan $plan)
+    public function subscribe(SubscribeReadingPlanRequest $request, ReadingPlan $plan): Response|RedirectResponse
     {
         $user = $request->user();
         $subscription = $this->planService->subscribe(

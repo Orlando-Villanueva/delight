@@ -147,7 +147,6 @@ Route::middleware('auth')->group(function () {
         ->name('push.preferences.update');
     // Reading Plans
     Route::get('/plans', [ReadingPlanController::class, 'index'])->name('plans.index');
-    Route::get('/plans/{plan:slug}/start', [ReadingPlanController::class, 'start'])->name('plans.start');
     Route::post('/plans/{plan:slug}/subscribe', [ReadingPlanController::class, 'subscribe'])->name('plans.subscribe');
     Route::delete('/plans/{plan:slug}/unsubscribe', [ReadingPlanController::class, 'unsubscribe'])->name('plans.unsubscribe');
 

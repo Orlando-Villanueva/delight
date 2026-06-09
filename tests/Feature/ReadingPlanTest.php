@@ -92,8 +92,8 @@ describe('Reading Plans Index', function () {
         $response->assertSee('data-plan-slug="second-test-plan"', false);
         $response->assertSee(route('plans.subscribe', $this->plan), false);
         $response->assertSee(route('plans.subscribe', $secondPlan), false);
-        $response->assertDontSee(route('plans.start', $this->plan), false);
-        $response->assertDontSee(route('plans.start', $secondPlan), false);
+        $response->assertSee('method="POST" action="'.route('plans.subscribe', $this->plan).'"', false);
+        $response->assertSee('x-on:click', false);
 
         expect(substr_count($response->getContent(), 'id="reading-plan-start-modal"'))->toBe(1);
     });
@@ -209,39 +209,6 @@ describe('Reading Plan Subscription', function () {
         Carbon::setTestNow();
     });
 
-    it('shows a passage-aware starting position chooser', function () {
-        $response = $this->actingAs($this->user)
-            ->get(route('plans.start', ['plan' => $this->plan, 'day' => 2]));
-
-        $response->assertOk();
-        $response->assertSee('Choose your starting passage');
-        $response->assertSee('Preview updates automatically when you choose a passage.');
-        $response->assertSee('onchange="this.form.requestSubmit()"', false);
-        $response->assertDontSee('Preview passage');
-        $response->assertSee('Genesis 4-6');
-        $response->assertSee('Genesis 4');
-        $response->assertSee('Genesis 5');
-        $response->assertSee('Genesis 6');
-        $response->assertSee('Start tracking from Day 2');
-    });
-
-    it('previews an actual non-contiguous starting plan day', function () {
-        $plan = createTestPlan([
-            'slug' => 'sparse-start-plan',
-            'second_day_number' => 3,
-        ]);
-
-        $response = $this->actingAs($this->user)
-            ->get(route('plans.start', ['plan' => $plan, 'day' => 3]));
-
-        $response->assertOk();
-        $response->assertSee('Day 3 of 3');
-        $response->assertSee('Genesis 4-6');
-        $response->assertSee('Start tracking from Day 3');
-        $response->assertSee('day=1', false);
-        $response->assertDontSee('day=2', false);
-    });
-
     it('starts tracking from a selected plan day without backfilling readings', function () {
         $response = $this->actingAs($this->user)
             ->post(route('plans.subscribe', $this->plan), [
@@ -288,13 +255,33 @@ describe('Reading Plan Subscription', function () {
         ]);
     });
 
+    it('normalizes direct service subscriptions to a valid plan day', function () {
+        $plan = createTestPlan([
+            'slug' => 'service-normalized-plan',
+            'days' => [
+                [
+                    'day' => 3,
+                    'label' => 'Genesis 4-6',
+                    'chapters' => [
+                        ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 4],
+                    ],
+                ],
+            ],
+        ]);
+
+        $subscription = $this->app->make(ReadingPlanService::class)
+            ->subscribe($this->user, $plan);
+
+        expect($subscription->start_day)->toBe(3);
+    });
+
     it('rejects an invalid selected starting plan day', function (int $startDay) {
         $this->actingAs($this->user)
-            ->from(route('plans.start', $this->plan))
+            ->from(route('plans.index'))
             ->post(route('plans.subscribe', $this->plan), [
                 'start_day' => $startDay,
             ])
-            ->assertRedirect(route('plans.start', $this->plan))
+            ->assertRedirect(route('plans.index'))
             ->assertSessionHasErrors('start_day');
 
         expect(ReadingPlanSubscription::count())->toBe(0);
