@@ -7,7 +7,7 @@
     @fragment('content')
         @php
             $startingPassagePlans = collect($plans)
-                ->filter(fn (array $planData): bool => ! $planData['is_subscribed'])
+                ->filter(fn (array $planData): bool => ! $planData['is_subscribed'] && $planData['plan']->getDaysCount() > 0)
                 ->mapWithKeys(function (array $planData): array {
                     $plan = $planData['plan'];
 
@@ -38,6 +38,9 @@
                                 $plan = $planData['plan'];
                                 $subscription = $planData['subscription'];
                                 $isSubscribed = $planData['is_subscribed'];
+                                $daysCount = $plan->getDaysCount();
+                                $canStartPlan = $daysCount > 0;
+                                $firstDayNumber = $plan->getFirstDayNumber();
                             @endphp
 
                             <div
@@ -136,33 +139,48 @@
                                                         </h3>
                                                         <span
                                                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                                                            {{ $plan->getDaysCount() }} days
+                                                            {{ $daysCount }} days
                                                         </span>
                                                     </div>
                                                     <p class="mt-2 text-gray-600 dark:text-gray-400">
                                                         {{ $plan->description }}
                                                     </p>
-                                                    <button type="button"
-                                                        data-modal-target="reading-plan-start-modal"
-                                                        data-modal-toggle="reading-plan-start-modal"
-                                                        data-reading-plan-start-trigger
-                                                        data-plan-slug="{{ $plan->slug }}"
-                                                        x-on:click="$dispatch('open-reading-plan-start', { slug: @js($plan->slug) })"
-                                                        class="mt-3 inline-flex text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
-                                                        Start from a different passage
-                                                    </button>
+                                                    @if ($canStartPlan)
+                                                        <button type="button"
+                                                            data-modal-target="reading-plan-start-modal"
+                                                            data-modal-toggle="reading-plan-start-modal"
+                                                            data-reading-plan-start-trigger
+                                                            data-plan-slug="{{ $plan->slug }}"
+                                                            x-on:click="$dispatch('open-reading-plan-start', { slug: @js($plan->slug) })"
+                                                            class="mt-3 inline-flex text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
+                                                            Start from a different passage
+                                                        </button>
+                                                    @else
+                                                        <p class="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">
+                                                            No readings available yet.
+                                                        </p>
+                                                    @endif
                                                 </div>
-                                                <form hx-post="{{ route('plans.subscribe', $plan) }}"
-                                                    hx-target="#page-container" hx-swap="innerHTML"
-                                                    @if ($has_active_plan) hx-confirm="Starting this plan will pause your current active plan. Continue?" @endif
-                                                    class="order-last sm:order-none w-full sm:w-auto flex-shrink-0">
-                                                    @csrf
-                                                    <input type="hidden" name="start_day" value="{{ $plan->getFirstDayNumber() }}">
-                                                    <button type="submit"
-                                                        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm">
-                                                        Start from Day {{ $plan->getFirstDayNumber() }}
-                                                    </button>
-                                                </form>
+                                                @if ($canStartPlan)
+                                                    <form hx-post="{{ route('plans.subscribe', $plan) }}"
+                                                        hx-target="#page-container" hx-swap="innerHTML"
+                                                        @if ($has_active_plan) hx-confirm="Starting this plan will pause your current active plan. Continue?" @endif
+                                                        class="order-last sm:order-none w-full sm:w-auto flex-shrink-0">
+                                                        @csrf
+                                                        <input type="hidden" name="start_day" value="{{ $firstDayNumber }}">
+                                                        <button type="submit"
+                                                            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm">
+                                                            Start from Day {{ $firstDayNumber }}
+                                                        </button>
+                                                    </form>
+                                                @else
+                                                    <div class="order-last sm:order-none w-full sm:w-auto flex-shrink-0">
+                                                        <button type="button" disabled
+                                                            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 bg-gray-100 dark:bg-gray-700 dark:text-gray-400 rounded-lg cursor-not-allowed">
+                                                            Coming soon
+                                                        </button>
+                                                    </div>
+                                                @endif
                                             </div>
                                         </div>
                                     @endif

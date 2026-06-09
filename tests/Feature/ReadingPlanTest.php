@@ -98,6 +98,30 @@ describe('Reading Plans Index', function () {
         expect(substr_count($response->getContent(), 'id="reading-plan-start-modal"'))->toBe(1);
     });
 
+    it('does not expose start controls for active plans without readings', function () {
+        $this->plan->delete();
+
+        $emptyPlan = createTestPlan([
+            'slug' => 'empty-test-plan',
+            'name' => 'Empty Test Reading Plan',
+            'days' => [],
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('plans.index'));
+
+        $response->assertOk();
+        $response->assertSee('Empty');
+        $response->assertSee('0 days');
+        $response->assertSee('No readings available yet.');
+        $response->assertSee('Coming soon');
+        $response->assertDontSee('Start from Day 0');
+        $response->assertDontSee('Start from a different passage');
+        $response->assertDontSee('data-plan-slug="empty-test-plan"', false);
+        $response->assertDontSee('id="reading-plan-start-modal"', false);
+        $response->assertDontSee(route('plans.subscribe', $emptyPlan), false);
+    });
+
     it('uses the last plan day identifier in subscribed plan progress labels', function () {
         $plan = createTestPlan([
             'slug' => 'sparse-index-plan',
