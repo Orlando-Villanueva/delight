@@ -30,6 +30,7 @@ class ReadingPlanSubscription extends Model
     {
         $this->completedDaysCount = null;
         $this->completedDayNumbers = null;
+        $this->unsetRelation('dayCompletions');
     }
 
     /**
@@ -222,9 +223,9 @@ class ReadingPlanSubscription extends Model
             return $this->completedDayNumbers = [];
         }
 
-        $logsByDay = $this->dayCompletions()
-            ->with('readingLog:id,book_id,chapter')
-            ->get()
+        $this->loadMissing('dayCompletions.readingLog:id,book_id,chapter');
+
+        $logsByDay = $this->dayCompletions
             ->filter(fn ($completion) => $completion->readingLog !== null)
             ->groupBy('reading_plan_day')
             ->map(fn ($dayCompletions) => $dayCompletions->map(fn ($completion) => $completion->readingLog));

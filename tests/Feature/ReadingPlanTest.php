@@ -8,8 +8,10 @@ use App\Models\ReadingPlanDayCompletion;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
 use App\Services\AchievementService;
+use App\Services\ReadingPlanService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Mockery\MockInterface;
 
 uses(RefreshDatabase::class);
@@ -116,6 +118,38 @@ describe('Reading Plans Index', function () {
         $response->assertOk();
         $response->assertSee('Day 3 of 3');
         $response->assertDontSee('Day 3 of 2');
+    });
+
+    it('eager loads day completions for subscribed plans on the index', function () {
+        $secondPlan = createTestPlan([
+            'slug' => 'second-subscribed-plan',
+            'name' => 'Second Subscribed Reading Plan',
+        ]);
+
+        foreach ([$this->plan, $secondPlan] as $plan) {
+            ReadingPlanSubscription::create([
+                'user_id' => $this->user->id,
+                'reading_plan_id' => $plan->id,
+                'started_at' => Carbon::today(),
+                'start_day' => 1,
+                'is_active' => true,
+            ]);
+        }
+
+        $dayCompletionQueries = 0;
+
+        DB::listen(function ($query) use (&$dayCompletionQueries): void {
+            if (str_starts_with(strtolower(ltrim($query->sql)), 'select')
+                && str_contains($query->sql, 'reading_plan_day_completions')) {
+                $dayCompletionQueries++;
+            }
+        });
+
+        $this->actingAs($this->user)
+            ->get(route('plans.index'))
+            ->assertOk();
+
+        expect($dayCompletionQueries)->toBe(1);
     });
 
     it('redirects guests to login', function () {
@@ -475,6 +509,29 @@ describe("Today's Reading", function () {
             ->and($subscription->getCompletedDaysCount())->toBe(1)
             ->and($subscription->getProgress())->toBe(50.0)
             ->and($subscription->isComplete())->toBeFalse();
+    });
+
+    it('refreshes loaded completion relationships when resetting progress caches', function () {
+        $subscription = ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $this->plan->id,
+            'started_at' => Carbon::today(),
+            'start_day' => 1,
+            'is_active' => true,
+        ]);
+
+        expect($subscription->getCompletedDaysCount())->toBe(0)
+            ->and($subscription->relationLoaded('dayCompletions'))->toBeTrue();
+
+        $this->app->make(ReadingPlanService::class)->logAllChapters(
+            $this->user,
+            $subscription,
+            1,
+            $this->plan->getDayReading(1)['chapters'],
+            Carbon::today()
+        );
+
+        expect($subscription->getCompletedDaysCount())->toBe(1);
     });
 
     it('tracks completion from an actual non-contiguous starting plan day', function () {

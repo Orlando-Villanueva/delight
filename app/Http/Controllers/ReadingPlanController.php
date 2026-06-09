@@ -40,7 +40,7 @@ class ReadingPlanController extends Controller
 
         // Get user's subscriptions for each plan
         $subscriptions = $user->readingPlanSubscriptions()
-            ->with('plan')
+            ->with(['plan', 'dayCompletions.readingLog:id,book_id,chapter'])
             ->get()
             ->keyBy('reading_plan_id');
 
@@ -530,7 +530,7 @@ class ReadingPlanController extends Controller
     {
         $plans = ReadingPlan::active()->get();
         $subscriptions = $user->readingPlanSubscriptions()
-            ->with('plan')
+            ->with(['plan', 'dayCompletions.readingLog:id,book_id,chapter'])
             ->get()
             ->keyBy('reading_plan_id');
 
