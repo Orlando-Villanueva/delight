@@ -129,6 +129,9 @@ class ReadingPlanController extends Controller
             $oobContent = $this->getNavOobFragment($user);
 
             return response($mainContent.$oobContent)
+                ->header('HX-Trigger', json_encode([
+                    'hideModal' => ['id' => 'reading-plan-start-modal'],
+                ]))
                 ->header('HX-Push-Url', route('plans.today', $plan));
         }
 
@@ -469,6 +472,8 @@ class ReadingPlanController extends Controller
             'day_number' => $dayNumber,
             'current_day' => $currentDay,
             'total_days' => $subscription->plan->getLastDayNumber(),
+            'previous_day' => $subscription->plan->getPreviousDayNumber($dayNumber),
+            'next_day' => $subscription->plan->getNextDayNumber($dayNumber),
             'progress' => $subscription->getProgress(),
             'is_complete' => $subscription->isComplete(),
             'is_active' => $subscription->is_active,

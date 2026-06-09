@@ -96,6 +96,28 @@ describe('Reading Plans Index', function () {
         expect(substr_count($response->getContent(), 'id="reading-plan-start-modal"'))->toBe(1);
     });
 
+    it('uses the last plan day identifier in subscribed plan progress labels', function () {
+        $plan = createTestPlan([
+            'slug' => 'sparse-index-plan',
+            'second_day_number' => 3,
+        ]);
+
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $plan->id,
+            'started_at' => Carbon::today(),
+            'start_day' => 3,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('plans.index'));
+
+        $response->assertOk();
+        $response->assertSee('Day 3 of 3');
+        $response->assertDontSee('Day 3 of 2');
+    });
+
     it('redirects guests to login', function () {
         $response = $this->get(route('plans.index'));
 
@@ -178,6 +200,22 @@ describe('Reading Plan Subscription', function () {
 
         expect(ReadingLog::count())->toBe(0)
             ->and(ReadingPlanDayCompletion::count())->toBe(0);
+    });
+
+    it('closes the starting passage modal before replacing the page via htmx', function () {
+        $response = $this->actingAs($this->user)
+            ->withHeaders(['HX-Request' => 'true'])
+            ->post(route('plans.subscribe', $this->plan), [
+                'start_day' => 2,
+            ]);
+
+        $response->assertSuccessful();
+
+        $trigger = json_decode($response->headers->get('HX-Trigger'), true);
+
+        expect($trigger)->toBeArray()
+            ->and($trigger)->toHaveKey('hideModal')
+            ->and($trigger['hideModal'])->toBe(['id' => 'reading-plan-start-modal']);
     });
 
     it('defaults the starting plan day to day one', function () {
@@ -360,6 +398,34 @@ describe("Today's Reading", function () {
         $response->assertOk();
         $response->assertSee('Genesis 4-6');
         $response->assertSee('Day 2');
+    });
+
+    it('navigates between actual non-contiguous plan days', function () {
+        $plan = createTestPlan([
+            'slug' => 'sparse-navigation-plan',
+            'second_day_number' => 3,
+        ]);
+
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $plan->id,
+            'started_at' => Carbon::today(),
+            'is_active' => true,
+        ]);
+
+        $dayOneResponse = $this->actingAs($this->user)
+            ->get(route('plans.today', ['plan' => $plan, 'day' => 1]));
+
+        $dayOneResponse->assertOk();
+        $dayOneResponse->assertSee(route('plans.today', ['plan' => $plan, 'day' => 3]), false);
+        $dayOneResponse->assertDontSee(route('plans.today', ['plan' => $plan, 'day' => 2]), false);
+
+        $dayThreeResponse = $this->actingAs($this->user)
+            ->get(route('plans.today', ['plan' => $plan, 'day' => 3]));
+
+        $dayThreeResponse->assertOk();
+        $dayThreeResponse->assertSee(route('plans.today', ['plan' => $plan, 'day' => 1]), false);
+        $dayThreeResponse->assertDontSee(route('plans.today', ['plan' => $plan, 'day' => 2]), false);
     });
 
     it('shows before tracking days without plan logging actions', function () {

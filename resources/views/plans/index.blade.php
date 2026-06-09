@@ -92,7 +92,7 @@
                                                     <div class="flex items-center justify-between text-sm">
                                                         <span class="text-gray-600 dark:text-gray-400">
                                                             Day {{ $subscription->getDayNumber() }} of
-                                                            {{ $plan->getDaysCount() }}
+                                                            {{ $plan->getLastDayNumber() }}
                                                         </span>
                                                         <span class="font-medium text-primary-600 dark:text-primary-400">
                                                             {{ $subscription->getCompletedDaysCount() }} of {{ $subscription->getTrackedDaysCount() }} tracked days complete
@@ -109,7 +109,7 @@
                                             <div class="hidden sm:block mt-4">
                                                 <div class="flex items-center justify-between text-sm">
                                                     <span class="text-gray-600 dark:text-gray-400">
-                                                        Day {{ $subscription->getDayNumber() }} of {{ $plan->getDaysCount() }}
+                                                        Day {{ $subscription->getDayNumber() }} of {{ $plan->getLastDayNumber() }}
                                                     </span>
                                                     <span class="font-medium text-primary-600 dark:text-primary-400">
                                                         {{ $subscription->getCompletedDaysCount() }} of {{ $subscription->getTrackedDaysCount() }} tracked days complete

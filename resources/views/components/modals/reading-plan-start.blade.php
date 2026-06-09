@@ -39,7 +39,6 @@
             <form method="POST" action="{{ $defaultSubscribeUrl }}" hx-post="{{ $defaultSubscribeUrl }}"
                 x-ref="form" x-bind:action="actionUrl" x-bind:hx-post="actionUrl" hx-target="#page-container" hx-swap="innerHTML"
                 hx-disabled-elt="#reading-plan-start-actions button"
-                hx-on::after-request="if (event.detail.successful) { document.body.dispatchEvent(new CustomEvent('hideModal', { detail: { id: 'reading-plan-start-modal' } })); }"
                 @if ($hasActivePlan) hx-confirm="Starting this plan will pause your current active plan. Continue?" @endif>
                 @csrf
 
