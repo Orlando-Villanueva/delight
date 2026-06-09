@@ -17,11 +17,20 @@ class ReadingPlanSubscription extends Model
     protected ?int $completedDaysCount = null;
 
     /**
+     * Cached completed plan day numbers for the current request.
+     *
+     * @var array<int, int>|null
+     */
+    protected ?array $completedDayNumbers = null;
+
+    /**
      * Reset the cached completed days count for the current request.
      */
     public function resetCompletedDaysCountCache(): void
     {
         $this->completedDaysCount = null;
+        $this->completedDayNumbers = null;
+        $this->unsetRelation('dayCompletions');
     }
 
     /**
@@ -33,6 +42,7 @@ class ReadingPlanSubscription extends Model
         'user_id',
         'reading_plan_id',
         'started_at',
+        'start_day',
         'is_active',
     ];
 
@@ -45,6 +55,7 @@ class ReadingPlanSubscription extends Model
     {
         return [
             'started_at' => 'date',
+            'start_day' => 'integer',
             'is_active' => 'boolean',
         ];
     }
@@ -90,20 +101,25 @@ class ReadingPlanSubscription extends Model
     }
 
     /**
-     * Get the current day number based on completed plan days.
-     * Day 1 is the first incomplete day.
+     * Get the first incomplete day from where tracking started.
      */
     public function getDayNumber(): int
     {
-        $maxDays = $this->plan->getDaysCount();
+        $trackedDayNumbers = $this->getTrackedDayNumbers();
 
-        if ($maxDays === 0) {
+        if ($trackedDayNumbers === []) {
             return 0;
         }
 
-        $completedDays = $this->getCompletedDaysCount();
+        $completedDayNumbers = $this->getCompletedDayNumbers();
 
-        return min($completedDays + 1, $maxDays);
+        foreach ($trackedDayNumbers as $dayNumber) {
+            if (! in_array($dayNumber, $completedDayNumbers, true)) {
+                return $dayNumber;
+            }
+        }
+
+        return $trackedDayNumbers[array_key_last($trackedDayNumbers)];
     }
 
     /**
@@ -117,7 +133,7 @@ class ReadingPlanSubscription extends Model
     }
 
     /**
-     * Get the number of completed days from the start of the plan.
+     * Get the number of completed days within the tracked range.
      */
     public function getCompletedDaysCount(): int
     {
@@ -125,56 +141,23 @@ class ReadingPlanSubscription extends Model
             return $this->completedDaysCount;
         }
 
-        $totalDays = $this->plan->getDaysCount();
+        return $this->completedDaysCount = count($this->getCompletedDayNumbers());
+    }
 
-        if ($totalDays === 0) {
-            return $this->completedDaysCount = 0;
-        }
+    /**
+     * Get the number of plan days included in this subscription's tracked range.
+     */
+    public function getTrackedDaysCount(): int
+    {
+        return count($this->getTrackedDayNumbers());
+    }
 
-        // Query completions from junction table with associated reading logs
-        $completions = $this->dayCompletions()
-            ->with('readingLog:id,book_id,chapter')
-            ->get();
-
-        $logsByDay = $completions
-            ->filter(fn ($completion) => $completion->readingLog !== null)
-            ->groupBy('reading_plan_day')
-            ->map(fn ($dayCompletions) => $dayCompletions->map(fn ($c) => $c->readingLog));
-
-        $completedDays = 0;
-
-        for ($day = 1; $day <= $totalDays; $day++) {
-            $reading = $this->plan->getDayReading($day);
-
-            if (! $reading) {
-                break;
-            }
-
-            $chapters = $reading['chapters'] ?? [];
-
-            if (count($chapters) === 0) {
-                $completedDays++;
-
-                continue;
-            }
-
-            $expectedKeys = array_map(function ($chapter) {
-                return $chapter['book_id'].'-'.$chapter['chapter'];
-            }, $chapters);
-
-            $loggedKeys = $logsByDay->get($day, collect())
-                ->map(fn ($log) => $log->book_id.'-'.$log->chapter)
-                ->unique()
-                ->toArray();
-
-            if (count(array_diff($expectedKeys, $loggedKeys)) === 0) {
-                $completedDays++;
-            } else {
-                break;
-            }
-        }
-
-        return $this->completedDaysCount = $completedDays;
+    /**
+     * Determine whether a plan day is before this subscription began tracking.
+     */
+    public function isBeforeTracking(int $dayNumber): bool
+    {
+        return $dayNumber < $this->getStartDay();
     }
 
     /**
@@ -183,15 +166,15 @@ class ReadingPlanSubscription extends Model
      */
     public function getProgress(): float
     {
-        $totalDays = $this->plan->getDaysCount();
+        $trackedDays = $this->getTrackedDaysCount();
 
-        if ($totalDays === 0) {
+        if ($trackedDays === 0) {
             return 0;
         }
 
         $completedDays = $this->getCompletedDaysCount();
 
-        return round(($completedDays / $totalDays) * 100, 1);
+        return round(($completedDays / $trackedDays) * 100, 1);
     }
 
     /**
@@ -199,6 +182,76 @@ class ReadingPlanSubscription extends Model
      */
     public function isComplete(): bool
     {
-        return $this->getCompletedDaysCount() >= $this->plan->getDaysCount();
+        return $this->getCompletedDaysCount() >= $this->getTrackedDaysCount();
+    }
+
+    private function getStartDay(): int
+    {
+        return $this->plan->getValidDayNumber($this->start_day ?? null, $this->plan->getFirstDayNumber());
+    }
+
+    /**
+     * Get tracked plan day numbers for this subscription.
+     *
+     * @return array<int, int>
+     */
+    private function getTrackedDayNumbers(): array
+    {
+        $startDay = $this->getStartDay();
+
+        if ($startDay === 0) {
+            return [];
+        }
+
+        return $this->plan->getDayNumbersFrom($startDay);
+    }
+
+    /**
+     * Get fully completed plan day numbers within the tracked range.
+     *
+     * @return array<int, int>
+     */
+    private function getCompletedDayNumbers(): array
+    {
+        if ($this->completedDayNumbers !== null) {
+            return $this->completedDayNumbers;
+        }
+
+        $trackedDayNumbers = $this->getTrackedDayNumbers();
+
+        if ($trackedDayNumbers === []) {
+            return $this->completedDayNumbers = [];
+        }
+
+        $this->loadMissing('dayCompletions.readingLog:id,book_id,chapter');
+
+        $logsByDay = $this->dayCompletions
+            ->filter(fn ($completion) => $completion->readingLog !== null)
+            ->groupBy('reading_plan_day')
+            ->map(fn ($dayCompletions) => $dayCompletions->map(fn ($completion) => $completion->readingLog));
+
+        $completedDayNumbers = [];
+
+        foreach ($trackedDayNumbers as $dayNumber) {
+            $reading = $this->plan->getDayReading($dayNumber);
+
+            if (! $reading) {
+                continue;
+            }
+
+            $expectedKeys = collect($reading['chapters'] ?? [])
+                ->map(fn ($chapter) => $chapter['book_id'].'-'.$chapter['chapter'])
+                ->all();
+            $loggedKeys = $logsByDay->get($dayNumber, collect())
+                ->map(fn ($log) => $log->book_id.'-'.$log->chapter)
+                ->unique()
+                ->all();
+
+            if (count(array_diff($expectedKeys, $loggedKeys)) === 0) {
+                $completedDayNumbers[] = $dayNumber;
+            }
+        }
+
+        return $this->completedDayNumbers = $completedDayNumbers;
     }
 }

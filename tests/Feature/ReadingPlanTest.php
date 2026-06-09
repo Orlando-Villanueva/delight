@@ -8,8 +8,10 @@ use App\Models\ReadingPlanDayCompletion;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
 use App\Services\AchievementService;
+use App\Services\ReadingPlanService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Mockery\MockInterface;
 
 uses(RefreshDatabase::class);
@@ -66,8 +68,112 @@ describe('Reading Plans Index', function () {
         $response->assertOk();
         $response->assertSee('Reading Plans');
         $response->assertSee('Structured guides to help you read the Bible consistently');
-        $response->assertSee('Test Reading Plan');
+        $response->assertSee('Test');
+        $response->assertDontSee('Test Reading Plan');
         $response->assertSee('A test plan');
+        $response->assertSee('Start from Day 1');
+        $response->assertSee('Start from a different passage');
+    });
+
+    it('renders one reusable starting passage modal for available plans', function () {
+        $secondPlan = createTestPlan([
+            'slug' => 'second-test-plan',
+            'name' => 'Second Test Reading Plan',
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('plans.index'));
+
+        $response->assertOk();
+        $response->assertSee('id="reading-plan-start-modal"', false);
+        $response->assertSee('x-data="readingPlanStartModal()"', false);
+        $response->assertSee('data-reading-plan-start-data', false);
+        $response->assertSee('data-plan-slug="test-plan"', false);
+        $response->assertSee('data-plan-slug="second-test-plan"', false);
+        $response->assertSee(route('plans.subscribe', $this->plan), false);
+        $response->assertSee(route('plans.subscribe', $secondPlan), false);
+        $response->assertSee('method="POST" action="'.route('plans.subscribe', $this->plan).'"', false);
+        $response->assertSee('x-on:click', false);
+
+        expect(substr_count($response->getContent(), 'id="reading-plan-start-modal"'))->toBe(1);
+    });
+
+    it('does not expose start controls for active plans without readings', function () {
+        $this->plan->delete();
+
+        $emptyPlan = createTestPlan([
+            'slug' => 'empty-test-plan',
+            'name' => 'Empty Test Reading Plan',
+            'days' => [],
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('plans.index'));
+
+        $response->assertOk();
+        $response->assertSee('Empty');
+        $response->assertSee('0 days');
+        $response->assertSee('No readings available yet.');
+        $response->assertSee('Coming soon');
+        $response->assertDontSee('Start from Day 0');
+        $response->assertDontSee('Start from a different passage');
+        $response->assertDontSee('data-plan-slug="empty-test-plan"', false);
+        $response->assertDontSee('id="reading-plan-start-modal"', false);
+        $response->assertDontSee(route('plans.subscribe', $emptyPlan), false);
+    });
+
+    it('uses the last plan day identifier in subscribed plan progress labels', function () {
+        $plan = createTestPlan([
+            'slug' => 'sparse-index-plan',
+            'second_day_number' => 3,
+        ]);
+
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $plan->id,
+            'started_at' => Carbon::today(),
+            'start_day' => 3,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('plans.index'));
+
+        $response->assertOk();
+        $response->assertSee('Day 3 of 3');
+        $response->assertDontSee('Day 3 of 2');
+    });
+
+    it('eager loads day completions for subscribed plans on the index', function () {
+        $secondPlan = createTestPlan([
+            'slug' => 'second-subscribed-plan',
+            'name' => 'Second Subscribed Reading Plan',
+        ]);
+
+        foreach ([$this->plan, $secondPlan] as $plan) {
+            ReadingPlanSubscription::create([
+                'user_id' => $this->user->id,
+                'reading_plan_id' => $plan->id,
+                'started_at' => Carbon::today(),
+                'start_day' => 1,
+                'is_active' => true,
+            ]);
+        }
+
+        $dayCompletionQueries = 0;
+
+        DB::listen(function ($query) use (&$dayCompletionQueries): void {
+            if (str_starts_with(strtolower(ltrim($query->sql)), 'select')
+                && str_contains($query->sql, 'reading_plan_day_completions')) {
+                $dayCompletionQueries++;
+            }
+        });
+
+        $this->actingAs($this->user)
+            ->get(route('plans.index'))
+            ->assertOk();
+
+        expect($dayCompletionQueries)->toBe(1);
     });
 
     it('redirects guests to login', function () {
@@ -101,6 +207,118 @@ describe('Reading Plan Subscription', function () {
         expect($subscription->started_at->toDateString())->toBe('2026-01-03');
 
         Carbon::setTestNow();
+    });
+
+    it('starts tracking from a selected plan day without backfilling readings', function () {
+        $response = $this->actingAs($this->user)
+            ->post(route('plans.subscribe', $this->plan), [
+                'start_day' => 2,
+            ]);
+
+        $response->assertRedirect(route('plans.today', $this->plan));
+
+        $this->assertDatabaseHas('reading_plan_subscriptions', [
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $this->plan->id,
+            'start_day' => 2,
+        ]);
+
+        expect(ReadingLog::count())->toBe(0)
+            ->and(ReadingPlanDayCompletion::count())->toBe(0);
+    });
+
+    it('closes the starting passage modal before replacing the page via htmx', function () {
+        $response = $this->actingAs($this->user)
+            ->withHeaders(['HX-Request' => 'true'])
+            ->post(route('plans.subscribe', $this->plan), [
+                'start_day' => 2,
+            ]);
+
+        $response->assertSuccessful();
+
+        $trigger = json_decode($response->headers->get('HX-Trigger'), true);
+
+        expect($trigger)->toBeArray()
+            ->and($trigger)->toHaveKey('hideModal')
+            ->and($trigger['hideModal'])->toBe(['id' => 'reading-plan-start-modal']);
+    });
+
+    it('defaults the starting plan day to day one', function () {
+        $this->actingAs($this->user)
+            ->post(route('plans.subscribe', $this->plan))
+            ->assertRedirect(route('plans.today', $this->plan));
+
+        $this->assertDatabaseHas('reading_plan_subscriptions', [
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $this->plan->id,
+            'start_day' => 1,
+        ]);
+    });
+
+    it('normalizes direct service subscriptions to a valid plan day', function () {
+        $plan = createTestPlan([
+            'slug' => 'service-normalized-plan',
+            'days' => [
+                [
+                    'day' => 3,
+                    'label' => 'Genesis 4-6',
+                    'chapters' => [
+                        ['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 4],
+                    ],
+                ],
+            ],
+        ]);
+
+        $subscription = $this->app->make(ReadingPlanService::class)
+            ->subscribe($this->user, $plan);
+
+        expect($subscription->start_day)->toBe(3);
+    });
+
+    it('rejects an invalid selected starting plan day', function (int $startDay) {
+        $this->actingAs($this->user)
+            ->from(route('plans.index'))
+            ->post(route('plans.subscribe', $this->plan), [
+                'start_day' => $startDay,
+            ])
+            ->assertRedirect(route('plans.index'))
+            ->assertSessionHasErrors('start_day');
+
+        expect(ReadingPlanSubscription::count())->toBe(0);
+    })->with([0, 3]);
+
+    it('does not change the starting day of an existing subscription', function () {
+        $this->actingAs($this->user)
+            ->post(route('plans.subscribe', $this->plan), ['start_day' => 2])
+            ->assertRedirect(route('plans.today', $this->plan));
+
+        $this->actingAs($this->user)
+            ->post(route('plans.subscribe', $this->plan), ['start_day' => 1])
+            ->assertRedirect(route('plans.today', $this->plan));
+
+        expect(ReadingPlanSubscription::first()->start_day)->toBe(2);
+    });
+
+    it('can complete tracking when starting on the final plan day', function () {
+        $this->actingAs($this->user)
+            ->post(route('plans.subscribe', $this->plan), ['start_day' => 2])
+            ->assertRedirect(route('plans.today', $this->plan));
+
+        $this->actingAs($this->user)
+            ->post(route('plans.logAll', $this->plan), ['day' => 2])
+            ->assertOk();
+
+        $subscription = ReadingPlanSubscription::first();
+
+        expect($subscription->getTrackedDaysCount())->toBe(1)
+            ->and($subscription->getCompletedDaysCount())->toBe(1)
+            ->and($subscription->getProgress())->toBe(100.0)
+            ->and($subscription->isComplete())->toBeTrue();
+
+        $this->actingAs($this->user)
+            ->get(route('plans.today', $this->plan))
+            ->assertOk()
+            ->assertSee('Tracking complete');
     });
 
     it('allows user to unsubscribe from a plan', function () {
@@ -226,6 +444,137 @@ describe("Today's Reading", function () {
         $response->assertSee('Genesis 4-6');
         $response->assertSee('Day 2');
     });
+
+    it('navigates between actual non-contiguous plan days', function () {
+        $plan = createTestPlan([
+            'slug' => 'sparse-navigation-plan',
+            'second_day_number' => 3,
+        ]);
+
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $plan->id,
+            'started_at' => Carbon::today(),
+            'is_active' => true,
+        ]);
+
+        $dayOneResponse = $this->actingAs($this->user)
+            ->get(route('plans.today', ['plan' => $plan, 'day' => 1]));
+
+        $dayOneResponse->assertOk();
+        $dayOneResponse->assertSee(route('plans.today', ['plan' => $plan, 'day' => 3]), false);
+        $dayOneResponse->assertDontSee(route('plans.today', ['plan' => $plan, 'day' => 2]), false);
+
+        $dayThreeResponse = $this->actingAs($this->user)
+            ->get(route('plans.today', ['plan' => $plan, 'day' => 3]));
+
+        $dayThreeResponse->assertOk();
+        $dayThreeResponse->assertSee(route('plans.today', ['plan' => $plan, 'day' => 1]), false);
+        $dayThreeResponse->assertDontSee(route('plans.today', ['plan' => $plan, 'day' => 2]), false);
+    });
+
+    it('shows before tracking days without plan logging actions', function () {
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $this->plan->id,
+            'started_at' => Carbon::today(),
+            'start_day' => 2,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('plans.today', ['plan' => $this->plan, 'day' => 1]));
+
+        $response->assertOk();
+        $response->assertSee('Before tracking');
+        $response->assertDontSee('Mark day complete');
+        $response->assertDontSee('Mark read');
+        $response->assertDontSee('Apply to this day');
+    });
+
+    it('tracks completion separately from the current plan position', function () {
+        $plan = createTestPlan([
+            'slug' => 'three-day-plan',
+            'days' => [
+                ['day' => 1, 'label' => 'Genesis 1', 'chapters' => [['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 1]]],
+                ['day' => 2, 'label' => 'Genesis 2', 'chapters' => [['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 2]]],
+                ['day' => 3, 'label' => 'Genesis 3', 'chapters' => [['book_id' => 1, 'book_name' => 'Genesis', 'chapter' => 3]]],
+            ],
+        ]);
+
+        $subscription = ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $plan->id,
+            'started_at' => Carbon::today(),
+            'start_day' => 2,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->user)
+            ->post(route('plans.logAll', $plan), ['day' => 3])
+            ->assertOk();
+
+        $subscription->refresh();
+
+        expect($subscription->getDayNumber())->toBe(2)
+            ->and($subscription->getCompletedDaysCount())->toBe(1)
+            ->and($subscription->getProgress())->toBe(50.0)
+            ->and($subscription->isComplete())->toBeFalse();
+    });
+
+    it('refreshes loaded completion relationships when resetting progress caches', function () {
+        $subscription = ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $this->plan->id,
+            'started_at' => Carbon::today(),
+            'start_day' => 1,
+            'is_active' => true,
+        ]);
+
+        expect($subscription->getCompletedDaysCount())->toBe(0)
+            ->and($subscription->relationLoaded('dayCompletions'))->toBeTrue();
+
+        $this->app->make(ReadingPlanService::class)->logAllChapters(
+            $this->user,
+            $subscription,
+            1,
+            $this->plan->getDayReading(1)['chapters'],
+            Carbon::today()
+        );
+
+        expect($subscription->getCompletedDaysCount())->toBe(1);
+    });
+
+    it('tracks completion from an actual non-contiguous starting plan day', function () {
+        $plan = createTestPlan([
+            'slug' => 'sparse-tracking-plan',
+            'second_day_number' => 3,
+        ]);
+
+        $this->actingAs($this->user)
+            ->post(route('plans.subscribe', $plan), ['start_day' => 3])
+            ->assertRedirect(route('plans.today', $plan));
+
+        $subscription = ReadingPlanSubscription::firstWhere('reading_plan_id', $plan->id);
+
+        expect($subscription->start_day)->toBe(3)
+            ->and($subscription->getDayNumber())->toBe(3)
+            ->and($subscription->getTrackedDaysCount())->toBe(1)
+            ->and($subscription->getProgress())->toBe(0.0)
+            ->and($subscription->isComplete())->toBeFalse();
+
+        $this->actingAs($this->user)
+            ->post(route('plans.logAll', $plan), ['day' => 3])
+            ->assertOk();
+
+        $subscription = $subscription->fresh();
+
+        expect($subscription->getDayNumber())->toBe(3)
+            ->and($subscription->getTrackedDaysCount())->toBe(1)
+            ->and($subscription->getCompletedDaysCount())->toBe(1)
+            ->and($subscription->getProgress())->toBe(100.0)
+            ->and($subscription->isComplete())->toBeTrue();
+    });
 });
 
 describe('Chapter Logging', function () {
@@ -279,6 +628,29 @@ describe('Chapter Logging', function () {
         expect(ReadingPlanDayCompletion::where('reading_plan_subscription_id', $this->subscription->id)
             ->where('reading_plan_day', 1)
             ->count())->toBe(3);
+    });
+
+    it('rejects plan logging before the subscription starting day', function () {
+        $this->subscription->update(['start_day' => 2]);
+
+        $this->actingAs($this->user)
+            ->post(route('plans.logChapter', $this->plan), [
+                'book_id' => 1,
+                'chapter' => 1,
+                'day' => 1,
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($this->user)
+            ->post(route('plans.logAll', $this->plan), ['day' => 1])
+            ->assertForbidden();
+
+        $this->actingAs($this->user)
+            ->post(route('plans.applyTodaysReadings', $this->plan), ['day' => 1])
+            ->assertForbidden();
+
+        expect(ReadingLog::count())->toBe(0)
+            ->and(ReadingPlanDayCompletion::count())->toBe(0);
     });
 
     it('evaluates achievements once when logging all chapters at once', function () {

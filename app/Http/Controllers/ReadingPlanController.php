@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\OnboardingStep;
+use App\Http\Requests\SubscribeReadingPlanRequest;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
@@ -13,7 +14,9 @@ use App\Services\OnboardingService;
 use App\Services\ReadingPlanService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 
 class ReadingPlanController extends Controller
@@ -39,7 +42,7 @@ class ReadingPlanController extends Controller
 
         // Get user's subscriptions for each plan
         $subscriptions = $user->readingPlanSubscriptions()
-            ->with('plan')
+            ->with(['plan', 'dayCompletions.readingLog:id,book_id,chapter'])
             ->get()
             ->keyBy('reading_plan_id');
 
@@ -68,10 +71,14 @@ class ReadingPlanController extends Controller
     /**
      * Subscribe to a reading plan.
      */
-    public function subscribe(Request $request, ReadingPlan $plan)
+    public function subscribe(SubscribeReadingPlanRequest $request, ReadingPlan $plan): Response|RedirectResponse
     {
         $user = $request->user();
-        $subscription = $this->planService->subscribe($user, $plan);
+        $subscription = $this->planService->subscribe(
+            $user,
+            $plan,
+            startDay: $request->integer('start_day')
+        );
 
         if ($this->onboardingService->shouldTrackPreFirstReading($user)) {
             $this->onboardingService->recordStep($user, OnboardingStep::PlanSelected);
@@ -83,6 +90,9 @@ class ReadingPlanController extends Controller
             $oobContent = $this->getNavOobFragment($user);
 
             return response($mainContent.$oobContent)
+                ->header('HX-Trigger', json_encode([
+                    'hideModal' => ['id' => 'reading-plan-start-modal'],
+                ]))
                 ->header('HX-Push-Url', route('plans.today', $plan));
         }
 
@@ -166,12 +176,11 @@ class ReadingPlanController extends Controller
                 ->with('info', 'Subscribe to this plan to see your daily reading.');
         }
 
-        $totalDays = $subscription->plan->getDaysCount();
         $currentDay = $subscription->getDayNumber();
-        $requestedDay = (int) $request->query('day', $currentDay);
-        $viewDay = $totalDays > 0
-            ? min(max($requestedDay, 1), $totalDays)
-            : 0;
+        $requestedDay = $request->query('day') !== null
+            ? $request->integer('day')
+            : $currentDay;
+        $viewDay = $subscription->plan->getValidDayNumber($requestedDay, $currentDay);
 
         $viewData = $this->getTodayViewData($subscription, $viewDay, $currentDay);
 
@@ -200,7 +209,8 @@ class ReadingPlanController extends Controller
             return response()->json(['error' => 'Cannot log to inactive subscription'], 403);
         }
 
-        $maxDay = $plan->getDaysCount();
+        $minDay = $plan->getFirstDayNumber();
+        $maxDay = $plan->getLastDayNumber();
         $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
         $validated = $request->validate([
             'book_id' => [
@@ -209,10 +219,14 @@ class ReadingPlanController extends Controller
                 Rule::in(collect($this->bibleReferenceService->listBibleBooks(includeDeuterocanonical: $includeDeuterocanonical))->pluck('id')->all()),
             ],
             'chapter' => 'required|integer|min:1',
-            'day' => 'required|integer|min:1|max:'.$maxDay,
+            'day' => 'required|integer|min:'.$minDay.'|max:'.$maxDay,
         ]);
 
-        $dayNumber = min(max($validated['day'], 1), $maxDay);
+        $dayNumber = $validated['day'];
+
+        if ($subscription->isBeforeTracking($dayNumber)) {
+            return response()->json(['error' => 'Cannot log a plan day from before tracking began'], 403);
+        }
 
         $chapter = [
             'book_id' => $validated['book_id'],
@@ -367,11 +381,17 @@ class ReadingPlanController extends Controller
             return response()->json(['error' => 'Cannot log to inactive subscription'], 403);
         }
 
-        $maxDay = $plan->getDaysCount();
+        $minDay = $plan->getFirstDayNumber();
+        $maxDay = $plan->getLastDayNumber();
         $validated = $request->validate([
-            'day' => 'required|integer|min:1|max:'.$maxDay,
+            'day' => 'required|integer|min:'.$minDay.'|max:'.$maxDay,
         ]);
-        $dayNumber = min(max($validated['day'], 1), $maxDay);
+        $dayNumber = $validated['day'];
+
+        if ($subscription->isBeforeTracking($dayNumber)) {
+            return response()->json(['error' => 'Cannot log a plan day from before tracking began'], 403);
+        }
+
         $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
 
         if (! $reading) {
@@ -386,17 +406,15 @@ class ReadingPlanController extends Controller
      */
     private function getTodayViewData($subscription, ?int $dayNumber = null, ?int $currentDay = null): array
     {
-        $totalDays = $subscription->plan->getDaysCount();
         $currentDay = $currentDay ?? $subscription->getDayNumber();
         $dayNumber = $dayNumber ?? $currentDay;
-        $dayNumber = $totalDays > 0
-            ? min(max($dayNumber, 1), $totalDays)
-            : 0;
+        $dayNumber = $subscription->plan->getValidDayNumber($dayNumber, $currentDay);
         $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
+        $isBeforeTracking = $subscription->isBeforeTracking($dayNumber);
         $unlinkedTodayChapterKeys = [];
         $unlinkedTodayTotal = 0;
 
-        if ($reading) {
+        if ($reading && ! $isBeforeTracking) {
             $chapters = $reading['chapters'] ?? [];
             $unlinkedTodayTotal = count($chapters);
             $unlinkedTodayChapterKeys = $this->getUnlinkedTodayChapterKeys($subscription->user_id, $subscription->id, $chapters);
@@ -414,11 +432,16 @@ class ReadingPlanController extends Controller
             'reading' => $reading,
             'day_number' => $dayNumber,
             'current_day' => $currentDay,
-            'total_days' => $totalDays,
+            'total_days' => $subscription->plan->getLastDayNumber(),
+            'previous_day' => $subscription->plan->getPreviousDayNumber($dayNumber),
+            'next_day' => $subscription->plan->getNextDayNumber($dayNumber),
             'progress' => $subscription->getProgress(),
             'is_complete' => $subscription->isComplete(),
             'is_active' => $subscription->is_active,
+            'is_before_tracking' => $isBeforeTracking,
             'has_other_active_plan' => $hasOtherActivePlan,
+            'tracked_days_count' => $subscription->getTrackedDaysCount(),
+            'completed_days_count' => $subscription->getCompletedDaysCount(),
             'unlinked_today_chapters_count' => count($unlinkedTodayChapterKeys),
             'unlinked_today_chapters_total' => $unlinkedTodayTotal,
         ];
@@ -468,7 +491,7 @@ class ReadingPlanController extends Controller
     {
         $plans = ReadingPlan::active()->get();
         $subscriptions = $user->readingPlanSubscriptions()
-            ->with('plan')
+            ->with(['plan', 'dayCompletions.readingLog:id,book_id,chapter'])
             ->get()
             ->keyBy('reading_plan_id');
 

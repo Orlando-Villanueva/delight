@@ -5,18 +5,42 @@
 
 @section('content')
     @fragment('content')
+        @php
+            $startingPassagePlans = collect($plans)
+                ->filter(fn (array $planData): bool => ! $planData['is_subscribed'] && $planData['plan']->getDaysCount() > 0)
+                ->mapWithKeys(function (array $planData): array {
+                    $plan = $planData['plan'];
+
+                    return [
+                        $plan->slug => [
+                            'name' => $plan->getShortName(),
+                            'subscribeUrl' => route('plans.subscribe', $plan),
+                            'firstDay' => $plan->getFirstDayNumber(),
+                            'days' => collect($plan->days ?? [])->map(fn (array $day): array => [
+                                'day' => (int) $day['day'],
+                                'optionLabel' => $day['label'].' - Day '.$day['day'],
+                            ])->values()->all(),
+                        ],
+                    ];
+                })
+                ->all();
+        @endphp
+
         <x-ui.page-shell width="medium" id="main-content">
             <x-ui.page-header
                 title="Reading Plans"
                 subtitle="Structured guides to help you read the Bible consistently"
             />
 
-                    <div class="space-y-6">
+                    <div class="space-y-6" x-data>
                         @forelse ($plans as $planData)
                             @php
                                 $plan = $planData['plan'];
                                 $subscription = $planData['subscription'];
                                 $isSubscribed = $planData['is_subscribed'];
+                                $daysCount = $plan->getDaysCount();
+                                $canStartPlan = $daysCount > 0;
+                                $firstDayNumber = $plan->getFirstDayNumber();
                             @endphp
 
                             <div
@@ -29,7 +53,7 @@
                                             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                                                 <div class="flex items-center justify-between sm:justify-start gap-2">
                                                     <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
-                                                        {{ $plan->name }}
+                                                        {{ $plan->getShortName() }}
                                                     </h3>
                                                     @if (!$subscription->is_active)
                                                         <span
@@ -41,7 +65,7 @@
                                                 @if ($subscription->is_active)
                                                     <button hx-get="{{ route('plans.today', $plan) }}"
                                                         hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
-                                                        class="order-last sm:order-none w-full sm:w-auto flex-shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm cursor-pointer">
+                                                        class="order-last sm:order-none w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm cursor-pointer">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor"
                                                             viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -53,7 +77,7 @@
                                                 @else
                                                     <button hx-get="{{ route('plans.today', $plan) }}"
                                                         hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
-                                                        class="order-last sm:order-none w-full sm:w-auto flex-shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors cursor-pointer">
+                                                        class="order-last sm:order-none w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors cursor-pointer">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor"
                                                             viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -71,10 +95,10 @@
                                                     <div class="flex items-center justify-between text-sm">
                                                         <span class="text-gray-600 dark:text-gray-400">
                                                             Day {{ $subscription->getDayNumber() }} of
-                                                            {{ $plan->getDaysCount() }}
+                                                            {{ $plan->getLastDayNumber() }}
                                                         </span>
                                                         <span class="font-medium text-primary-600 dark:text-primary-400">
-                                                            {{ $subscription->getProgress() }}% complete
+                                                            {{ $subscription->getCompletedDaysCount() }} of {{ $subscription->getTrackedDaysCount() }} tracked days complete
                                                         </span>
                                                     </div>
                                                     <div class="mt-2 w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
@@ -88,10 +112,10 @@
                                             <div class="hidden sm:block mt-4">
                                                 <div class="flex items-center justify-between text-sm">
                                                     <span class="text-gray-600 dark:text-gray-400">
-                                                        Day {{ $subscription->getDayNumber() }} of {{ $plan->getDaysCount() }}
+                                                        Day {{ $subscription->getDayNumber() }} of {{ $plan->getLastDayNumber() }}
                                                     </span>
                                                     <span class="font-medium text-primary-600 dark:text-primary-400">
-                                                        {{ $subscription->getProgress() }}% complete
+                                                        {{ $subscription->getCompletedDaysCount() }} of {{ $subscription->getTrackedDaysCount() }} tracked days complete
                                                     </span>
                                                 </div>
                                                 <div class="mt-2 w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
@@ -111,27 +135,53 @@
                                                     <div
                                                         class="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
                                                         <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
-                                                            {{ $plan->name }}
+                                                            {{ $plan->getShortName() }}
                                                         </h3>
                                                         <span
                                                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                                                            {{ $plan->getDaysCount() }} days
+                                                            {{ $daysCount }} days
                                                         </span>
                                                     </div>
                                                     <p class="mt-2 text-gray-600 dark:text-gray-400">
                                                         {{ $plan->description }}
                                                     </p>
+                                                    @if ($canStartPlan)
+                                                        <button type="button"
+                                                            data-modal-target="reading-plan-start-modal"
+                                                            data-modal-toggle="reading-plan-start-modal"
+                                                            data-reading-plan-start-trigger
+                                                            data-plan-slug="{{ $plan->slug }}"
+                                                            x-on:click="$dispatch('open-reading-plan-start', { slug: @js($plan->slug) })"
+                                                            class="mt-3 inline-flex text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
+                                                            Start from a different passage
+                                                        </button>
+                                                    @else
+                                                        <p class="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">
+                                                            No readings available yet.
+                                                        </p>
+                                                    @endif
                                                 </div>
-                                                <form hx-post="{{ route('plans.subscribe', $plan) }}"
-                                                    hx-target="#page-container" hx-swap="innerHTML"
-                                                    @if ($has_active_plan) hx-confirm="Starting this plan will pause your current active plan. Continue?" @endif
-                                                    class="order-last sm:order-none w-full sm:w-auto flex-shrink-0">
-                                                    @csrf
-                                                    <button type="submit"
-                                                        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm">
-                                                        Start Plan
-                                                    </button>
-                                                </form>
+                                                @if ($canStartPlan)
+                                                    <form method="POST" action="{{ route('plans.subscribe', $plan) }}"
+                                                        hx-post="{{ route('plans.subscribe', $plan) }}"
+                                                        hx-target="#page-container" hx-swap="innerHTML"
+                                                        @if ($has_active_plan) hx-confirm="Starting this plan will pause your current active plan. Continue?" @endif
+                                                        class="order-last sm:order-none w-full sm:w-auto shrink-0">
+                                                        @csrf
+                                                        <input type="hidden" name="start_day" value="{{ $firstDayNumber }}">
+                                                        <button type="submit"
+                                                            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm">
+                                                            Start from Day {{ $firstDayNumber }}
+                                                        </button>
+                                                    </form>
+                                                @else
+                                                    <div class="order-last sm:order-none w-full sm:w-auto shrink-0">
+                                                        <button type="button" disabled
+                                                            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 bg-gray-100 dark:bg-gray-700 dark:text-gray-400 rounded-lg cursor-not-allowed">
+                                                            Coming soon
+                                                        </button>
+                                                    </div>
+                                                @endif
                                             </div>
                                         </div>
                                     @endif
@@ -151,6 +201,10 @@
                             </div>
                         @endforelse
                     </div>
+
+                    @if ($startingPassagePlans !== [])
+                        <x-modals.reading-plan-start :plans="$startingPassagePlans" :has-active-plan="$has_active_plan" />
+                    @endif
         </x-ui.page-shell>
     @endfragment
 @endsection

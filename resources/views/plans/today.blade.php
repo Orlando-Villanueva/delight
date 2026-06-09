@@ -22,6 +22,11 @@
                                         <p class="text-sm text-gray-500 dark:text-gray-400">
                                             Day {{ $day_number }} of {{ $total_days }}
                                         </p>
+                                        @if ($subscription->start_day > 1)
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                Started tracking from Day {{ $subscription->start_day }}
+                                            </p>
+                                        @endif
                                         @if ($current_day !== $day_number)
                                             <p class="text-xs text-gray-500 dark:text-gray-400">
                                                 Current day: {{ $current_day }}
@@ -32,9 +37,11 @@
                                         <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">
                                             {{ $progress }}%
                                         </p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">complete</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                            {{ $completed_days_count }} of {{ $tracked_days_count }} tracked days complete
+                                        </p>
                                         @if ($is_complete)
-                                            <p class="text-xs font-medium text-green-600 dark:text-green-400">Plan complete</p>
+                                            <p class="text-xs font-medium text-green-600 dark:text-green-400">Tracking complete</p>
                                         @endif
                                     </div>
                                 </div>
@@ -44,9 +51,9 @@
                                 </div>
                                 <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
                                     <div class="flex items-center gap-2">
-                                        @if ($day_number > 1)
-                                            <a href="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number - 1]) }}"
-                                                hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number - 1]) }}"
+                                        @if ($previous_day !== null)
+                                            <a href="{{ route('plans.today', ['plan' => $plan, 'day' => $previous_day]) }}"
+                                                hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $previous_day]) }}"
                                                 hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                                 class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors">
                                                 Previous Day
@@ -57,9 +64,9 @@
                                                 Previous Day
                                             </span>
                                         @endif
-                                        @if ($day_number < $total_days)
-                                            <a href="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number + 1]) }}"
-                                                hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $day_number + 1]) }}"
+                                        @if ($next_day !== null)
+                                            <a href="{{ route('plans.today', ['plan' => $plan, 'day' => $next_day]) }}"
+                                                hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $next_day]) }}"
                                                 hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                                 class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors">
                                                 Next Day
@@ -91,7 +98,7 @@
                                             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                                                 Day {{ $day_number }} Reading
                                             </h3>
-                                            @if ($is_active && !$reading['all_completed'])
+                                            @if ($is_active && !$is_before_tracking && !$reading['all_completed'])
                                                 <form hx-post="{{ route('plans.logAll', $plan) }}"
                                                     hx-target="#reading-list-container" hx-swap="outerHTML">
                                                     @csrf
@@ -123,7 +130,14 @@
                                             {{ $reading['label'] }}
                                         </p>
 
-                                        @if ($is_active && $unlinked_today_chapters_count > 0)
+                                        @if ($is_before_tracking)
+                                            <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-700/40">
+                                                <p class="text-sm font-semibold text-gray-900 dark:text-white">Before tracking</p>
+                                                <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">This day is before where you started tracking this plan.</p>
+                                            </div>
+                                        @endif
+
+                                        @if ($is_active && !$is_before_tracking && $unlinked_today_chapters_count > 0)
                                             <div
                                                 class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200/60 bg-blue-50/50 px-3 py-2 text-blue-900 dark:border-blue-900/30 dark:bg-blue-900/10 dark:text-blue-100">
                                                 <p class="text-xs leading-none text-blue-800 dark:text-blue-200">
@@ -194,7 +208,7 @@
                                                         </span>
                                                     </div>
 
-                                                    @if ($is_active && !$chapter['completed'])
+                                                    @if ($is_active && !$is_before_tracking && !$chapter['completed'])
                                                         <form hx-post="{{ route('plans.logChapter', $plan) }}"
                                                             hx-target="#reading-list-container" hx-swap="outerHTML">
                                                             @csrf
@@ -236,7 +250,7 @@
                                     </div>
                                     <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Congratulations!</h3>
                                     <p class="mt-2 text-gray-600 dark:text-gray-400">
-                                        You've completed this reading plan. What an accomplishment!
+                                        You've completed every day since you started tracking this plan.
                                     </p>
                                 </div>
                             @endif
