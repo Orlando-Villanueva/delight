@@ -15,6 +15,53 @@ class ReleaseAnnouncementsSeeder extends Seeder
     {
         $this->createDeuterocanonicalBooksAnnouncement();
         $this->createPermanentAchievementsAnnouncement();
+        $this->createStartReadingPlansFromWhereYouAreAnnouncement();
+    }
+
+    /**
+     * Create the start reading plans from where you are release announcement.
+     */
+    private function createStartReadingPlansFromWhereYouAreAnnouncement(): void
+    {
+        $title = 'New: Start Reading Plans From Where You Are';
+
+        $content = <<<'MD'
+## What changed
+
+Reading Plans no longer have to start from Day 1.
+
+If you are already partway through a Bible reading plan, Delight can now help you continue tracking from the passage where you are. Choose your current passage before starting, and Delight will begin your plan from that point.
+
+## Why it helps
+
+Many people start Bible reading plans with a printed plan, a church schedule, a friend, or another app.
+
+Until now, starting a reading plan in Delight meant beginning from Day 1, even if you were already weeks or months ahead. Now you can pick up where you are without restarting or backfilling earlier days.
+
+## How it works
+
+When you start a reading plan, you can choose:
+
+- Start from Day 1
+- Start from a different passage
+
+Delight will begin tracking from the day you choose, without treating earlier days as missed.
+
+[Open Reading Plans](/plans)
+MD;
+
+        Announcement::updateOrCreate(
+            ['slug' => 'start-reading-plans-from-where-you-are'],
+            [
+                'title' => $title,
+                'content' => $content,
+                'type' => 'info',
+                'hero_image_path' => 'images/updates/start-reading-plans-from-where-you-are.png',
+                'social_image_path' => 'images/updates/start-reading-plans-from-where-you-are.png',
+                'starts_at' => Carbon::create(2026, 6, 9, 18, 43, 3, config('app.timezone')),
+                'ends_at' => null,
+            ]
+        );
     }
 
     /**
