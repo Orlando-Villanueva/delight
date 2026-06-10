@@ -379,8 +379,40 @@ describe("Today's Reading", function () {
             ->get(route('plans.today', $this->plan));
 
         $response->assertOk();
-        $response->assertSee('Genesis 1-3');
+        $response->assertSee('Genesis 1');
+        $response->assertSee('Genesis 3');
         $response->assertSee('Day 1');
+    });
+
+    it('renders a compact reading plan detail view', function () {
+        $plan = createTestPlan([
+            'slug' => 'compact-plan',
+            'name' => 'Compact Reading Plan',
+        ]);
+
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $plan->id,
+            'started_at' => Carbon::today(),
+            'start_day' => 2,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('plans.today', $plan));
+
+        $response->assertOk();
+        $response->assertSee('Compact');
+        $response->assertDontSee('Compact Reading Plan');
+        $response->assertSeeText('Day 2 of 2 · tracking from Day 2');
+        $response->assertDontSee('Genesis 4-6');
+        $response->assertSee('Genesis 4');
+        $response->assertSee('Genesis 5');
+        $response->assertSee('Genesis 6');
+        $response->assertSee('<span class="sm:hidden">Previous</span>', false);
+        $response->assertSee('<span class="sm:hidden">Next</span>', false);
+        $response->assertSee('<span class="sm:hidden">Complete day</span>', false);
+        $response->assertSee('class="flex items-start justify-between mb-3 sm:mb-4"', false);
     });
 
     it('keeps day 1 reading until day 1 is complete', function () {
@@ -394,7 +426,8 @@ describe("Today's Reading", function () {
             ->get(route('plans.today', $this->plan));
 
         $response->assertOk();
-        $response->assertSee('Genesis 1-3');
+        $response->assertSee('Genesis 1');
+        $response->assertSee('Genesis 3');
         $response->assertSee('Day 1');
     });
 
@@ -426,7 +459,8 @@ describe("Today's Reading", function () {
             ->get(route('plans.today', $this->plan));
 
         $response->assertOk();
-        $response->assertSee('Genesis 4-6');
+        $response->assertSee('Genesis 4');
+        $response->assertSee('Genesis 6');
         $response->assertSee('Day 2');
     });
 
@@ -441,7 +475,8 @@ describe("Today's Reading", function () {
             ->get(route('plans.today', ['plan' => $this->plan, 'day' => 2]));
 
         $response->assertOk();
-        $response->assertSee('Genesis 4-6');
+        $response->assertSee('Genesis 4');
+        $response->assertSee('Genesis 6');
         $response->assertSee('Day 2');
     });
 
