@@ -14,31 +14,29 @@
                             {{-- Progress Header --}}
                             <div
                                 class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-                                <div class="flex items-start justify-between mb-3 sm:mb-4">
-                                    <div>
-                                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                                            {{ $plan->getShortName() }}
-                                        </h2>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">
-                                            Day {{ $day_number }} of {{ $total_days }}@if ($subscription->start_day > 1) · tracking from Day {{ $subscription->start_day }}@endif
-                                        </p>
-                                        @if ($current_day !== $day_number)
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                Current day: {{ $current_day }}
-                                            </p>
-                                        @endif
-                                    </div>
+                                <div class="flex items-start justify-between gap-4">
+                                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                        {{ $plan->getShortName() }}
+                                    </h2>
                                     <div class="text-right">
                                         <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">
                                             {{ $progress }}%
-                                        </p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                                            {{ $completed_days_count }} of {{ $tracked_days_count }} tracked days complete
                                         </p>
                                         @if ($is_complete)
                                             <p class="text-xs font-medium text-green-600 dark:text-green-400">Tracking complete</p>
                                         @endif
                                     </div>
+                                </div>
+                                <div class="mb-3 sm:mb-4">
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        <span class="sm:hidden">Day {{ $day_number }}/{{ $total_days }}@if ($subscription->start_day > 1) · tracking from {{ $subscription->start_day }}@endif · {{ $completed_days_count }}/{{ $tracked_days_count }} complete</span>
+                                        <span class="hidden sm:inline">Day {{ $day_number }} of {{ $total_days }}@if ($subscription->start_day > 1) · tracking from Day {{ $subscription->start_day }}@endif · {{ $completed_days_count }} of {{ $tracked_days_count }} tracked days complete</span>
+                                    </p>
+                                    @if ($current_day !== $day_number)
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                            Current day: {{ $current_day }}
+                                        </p>
+                                    @endif
                                 </div>
                                 <div class="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
                                     <div class="bg-primary-600 h-2 rounded-full transition-all duration-500"

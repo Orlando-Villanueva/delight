@@ -404,7 +404,8 @@ describe("Today's Reading", function () {
         $response->assertOk();
         $response->assertSee('Compact');
         $response->assertDontSee('Compact Reading Plan');
-        $response->assertSeeText('Day 2 of 2 · tracking from Day 2');
+        $response->assertSee('<span class="sm:hidden">Day 2/2 · tracking from 2 · 0/1 complete</span>', false);
+        $response->assertSee('<span class="hidden sm:inline">Day 2 of 2 · tracking from Day 2 · 0 of 1 tracked days complete</span>', false);
         $response->assertDontSee('Genesis 4-6');
         $response->assertSee('Genesis 4');
         $response->assertSee('Genesis 5');
@@ -412,7 +413,7 @@ describe("Today's Reading", function () {
         $response->assertSee('<span class="sm:hidden">Previous</span>', false);
         $response->assertSee('<span class="sm:hidden">Next</span>', false);
         $response->assertSee('<span class="sm:hidden">Complete day</span>', false);
-        $response->assertSee('class="flex items-start justify-between mb-3 sm:mb-4"', false);
+        $response->assertSee('class="flex items-start justify-between gap-4"', false);
     });
 
     it('keeps day 1 reading until day 1 is complete', function () {
