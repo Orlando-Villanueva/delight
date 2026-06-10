@@ -63,10 +63,36 @@ it('seeds the permanent achievements release announcement', function () {
     expect(getimagesize(public_path('images/updates/permanent-achievements-next-milestone.png'))[0])->toBeGreaterThan(700);
 });
 
+it('seeds the start reading plans from where you are announcement', function () {
+    $this->seed(ReleaseAnnouncementsSeeder::class);
+
+    $announcement = Announcement::where('slug', 'start-reading-plans-from-where-you-are')->first();
+
+    expect($announcement)->not->toBeNull()
+        ->and($announcement->title)->toBe('New: Start Reading Plans From Where You Are')
+        ->and($announcement->type)->toBe('info')
+        ->and($announcement->hero_image_path)->toBe('images/updates/start-reading-plans-from-where-you-are.png')
+        ->and($announcement->social_image_path)->toBe('images/updates/start-reading-plans-from-where-you-are.png')
+        ->and($announcement->starts_at->toDateTimeString())->toBe('2026-06-09 18:43:03')
+        ->and($announcement->ends_at)->toBeNull()
+        ->and($announcement->content)->toContain('## What changed')
+        ->and($announcement->content)->toContain('Reading Plans no longer have to start from Day 1.')
+        ->and($announcement->content)->toContain('## Why it helps')
+        ->and($announcement->content)->toContain('without restarting or backfilling earlier days')
+        ->and($announcement->content)->toContain('## How it works')
+        ->and($announcement->content)->toContain('- Start from a different passage')
+        ->and($announcement->content)->toContain('without treating earlier days as missed')
+        ->and($announcement->content)->toContain('[Open Reading Plans](/plans)');
+
+    expect(file_exists(public_path($announcement->hero_image_path)))->toBeTrue();
+    expect(file_exists(public_path($announcement->social_image_path)))->toBeTrue();
+});
+
 it('keeps release announcement seeds idempotent', function () {
     $this->seed(ReleaseAnnouncementsSeeder::class);
     $this->seed(ReleaseAnnouncementsSeeder::class);
 
     expect(Announcement::where('slug', 'deuterocanonical-books-release')->count())->toBe(1);
     expect(Announcement::where('slug', 'permanent-achievements-release')->count())->toBe(1);
+    expect(Announcement::where('slug', 'start-reading-plans-from-where-you-are')->count())->toBe(1);
 });
