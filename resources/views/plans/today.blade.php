@@ -10,40 +10,33 @@
                 <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
                     @fragment('reading-list')
                         <div id="reading-list-container">
-                                <div class="space-y-6">
+                                <div class="space-y-4 sm:space-y-6">
                             {{-- Progress Header --}}
                             <div
-                                class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                                <div class="flex items-center justify-between mb-4">
-                                    <div>
-                                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                                            {{ $plan->name }}
-                                        </h2>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">
-                                            Day {{ $day_number }} of {{ $total_days }}
-                                        </p>
-                                        @if ($subscription->start_day > 1)
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                Started tracking from Day {{ $subscription->start_day }}
-                                            </p>
-                                        @endif
-                                        @if ($current_day !== $day_number)
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                Current day: {{ $current_day }}
-                                            </p>
-                                        @endif
-                                    </div>
+                                class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+                                <div class="flex items-start justify-between gap-4">
+                                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                        {{ $plan->getShortName() }}
+                                    </h2>
                                     <div class="text-right">
                                         <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">
                                             {{ $progress }}%
-                                        </p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                                            {{ $completed_days_count }} of {{ $tracked_days_count }} tracked days complete
                                         </p>
                                         @if ($is_complete)
                                             <p class="text-xs font-medium text-green-600 dark:text-green-400">Tracking complete</p>
                                         @endif
                                     </div>
+                                </div>
+                                <div class="mb-3 sm:mb-4">
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        <span class="sm:hidden">Day {{ $day_number }}/{{ $total_days }}@if ($subscription->start_day > 1) · tracking from {{ $subscription->start_day }}@endif · {{ $completed_days_count }}/{{ $tracked_days_count }} complete</span>
+                                        <span class="hidden sm:inline">Day {{ $day_number }} of {{ $total_days }}@if ($subscription->start_day > 1) · tracking from Day {{ $subscription->start_day }}@endif · {{ $completed_days_count }} of {{ $tracked_days_count }} tracked days complete</span>
+                                    </p>
+                                    @if ($current_day !== $day_number)
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                            Current day: {{ $current_day }}
+                                        </p>
+                                    @endif
                                 </div>
                                 <div class="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
                                     <div class="bg-primary-600 h-2 rounded-full transition-all duration-500"
@@ -56,12 +49,14 @@
                                                 hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $previous_day]) }}"
                                                 hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                                 class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors">
-                                                Previous Day
+                                                <span class="sm:hidden">Previous</span>
+                                                <span class="hidden sm:inline">Previous Day</span>
                                             </a>
                                         @else
                                             <span
                                                 class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-400 bg-gray-100 dark:text-gray-500 dark:bg-gray-700 rounded-lg cursor-not-allowed">
-                                                Previous Day
+                                                <span class="sm:hidden">Previous</span>
+                                                <span class="hidden sm:inline">Previous Day</span>
                                             </span>
                                         @endif
                                         @if ($next_day !== null)
@@ -69,12 +64,14 @@
                                                 hx-get="{{ route('plans.today', ['plan' => $plan, 'day' => $next_day]) }}"
                                                 hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
                                                 class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors">
-                                                Next Day
+                                                <span class="sm:hidden">Next</span>
+                                                <span class="hidden sm:inline">Next Day</span>
                                             </a>
                                         @else
                                             <span
                                                 class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-400 bg-gray-100 dark:text-gray-500 dark:bg-gray-700 rounded-lg cursor-not-allowed">
-                                                Next Day
+                                                <span class="sm:hidden">Next</span>
+                                                <span class="hidden sm:inline">Next Day</span>
                                             </span>
                                         @endif
                                     </div>
@@ -93,10 +90,10 @@
                                 {{-- Today's Reading Card --}}
                                 <div
                                     class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                                    <div class="p-6">
-                                        <div class="flex items-center justify-between mb-4">
+                                    <div class="p-4 sm:p-6">
+                                        <div class="flex items-center justify-between gap-3 mb-3 sm:mb-4">
                                             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                                                Day {{ $day_number }} Reading
+                                                Day {{ $day_number }}<span class="hidden sm:inline"> Reading</span>
                                             </h3>
                                             @if ($is_active && !$is_before_tracking && !$reading['all_completed'])
                                                 <form hx-post="{{ route('plans.logAll', $plan) }}"
@@ -110,7 +107,8 @@
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                         </svg>
-                                                        Mark day complete
+                                                        <span class="sm:hidden">Complete day</span>
+                                                        <span class="hidden sm:inline">Mark day complete</span>
                                                     </button>
                                                 </form>
                                             @elseif ($reading['all_completed'])
@@ -125,10 +123,6 @@
                                                 </span>
                                             @endif
                                         </div>
-
-                                        <p class="text-gray-600 dark:text-gray-400 mb-4">
-                                            {{ $reading['label'] }}
-                                        </p>
 
                                         @if ($is_before_tracking)
                                             <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-700/40">
