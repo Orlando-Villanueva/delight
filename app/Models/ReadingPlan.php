@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -50,6 +51,26 @@ class ReadingPlan extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope to plans available for the user's selected canon.
+     */
+    public function scopeAvailableTo(Builder $query, User $user): Builder
+    {
+        if ($user->includesDeuterocanonicalBooks()) {
+            return $query;
+        }
+
+        return $query->where('slug', '!=', 'catholic-canonical');
+    }
+
+    /**
+     * Determine whether the plan is available for the user's selected canon.
+     */
+    public function isAvailableTo(User $user): bool
+    {
+        return $this->slug !== 'catholic-canonical' || $user->includesDeuterocanonicalBooks();
     }
 
     /**

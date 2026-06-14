@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\AchievementService;
 use App\Services\ReadingPlanService;
 use Carbon\Carbon;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Mockery\MockInterface;
@@ -73,6 +74,52 @@ describe('Reading Plans Index', function () {
         $response->assertSee('A test plan');
         $response->assertSee('Start from Day 1');
         $response->assertSee('Start from a different passage');
+    });
+
+    it('only shows the Catholic canonical plan when the Catholic canon is enabled', function () {
+        $standardPlan = createTestPlan([
+            'slug' => 'standard-canonical',
+            'name' => 'Canonical Reading Plan',
+        ]);
+        $catholicPlan = createTestPlan([
+            'slug' => 'catholic-canonical',
+            'name' => 'Catholic Canonical Reading Plan',
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('plans.index'))
+            ->assertSuccessful()
+            ->assertSee($standardPlan->getShortName())
+            ->assertDontSee($catholicPlan->getShortName())
+            ->assertDontSee(route('plans.subscribe', $catholicPlan), false);
+
+        $this->user->forceFill(['deuterocanonical_books_enabled_at' => now()])->save();
+
+        $this->actingAs($this->user->fresh())
+            ->get(route('plans.index'))
+            ->assertSuccessful()
+            ->assertSee($standardPlan->getShortName())
+            ->assertSee($catholicPlan->getShortName())
+            ->assertSee(route('plans.subscribe', $catholicPlan), false);
+    });
+
+    it('ignores hidden Catholic canonical subscriptions when calculating visible plan status', function () {
+        $catholicPlan = createTestPlan([
+            'slug' => 'catholic-canonical',
+            'name' => 'Catholic Canonical Reading Plan',
+        ]);
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $catholicPlan->id,
+            'started_at' => Carbon::today(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('plans.index'))
+            ->assertSuccessful()
+            ->assertDontSee($catholicPlan->getShortName())
+            ->assertDontSee('Starting this plan will pause your current active plan. Continue?');
     });
 
     it('renders one reusable starting passage modal for available plans', function () {
@@ -194,6 +241,82 @@ describe('Reading Plan Subscription', function () {
             'user_id' => $this->user->id,
             'reading_plan_id' => $this->plan->id,
         ]);
+    });
+
+    it('requires the Catholic canon setting to subscribe to the Catholic canonical plan', function () {
+        $catholicPlan = createTestPlan([
+            'slug' => 'catholic-canonical',
+            'name' => 'Catholic Canonical Reading Plan',
+        ]);
+
+        $this->actingAs($this->user)
+            ->post(route('plans.subscribe', $catholicPlan))
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('reading_plan_subscriptions', [
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $catholicPlan->id,
+        ]);
+
+        $this->user->forceFill(['deuterocanonical_books_enabled_at' => now()])->save();
+
+        $this->actingAs($this->user->fresh())
+            ->post(route('plans.subscribe', $catholicPlan))
+            ->assertRedirect(route('plans.today', $catholicPlan));
+    });
+
+    it('enforces Catholic canon eligibility in the reading plan service', function () {
+        $catholicPlan = createTestPlan([
+            'slug' => 'catholic-canonical',
+            'name' => 'Catholic Canonical Reading Plan',
+        ]);
+        $service = app(ReadingPlanService::class);
+
+        expect(fn () => $service->subscribe($this->user, $catholicPlan))
+            ->toThrow(AuthorizationException::class);
+
+        $this->user->forceFill(['deuterocanonical_books_enabled_at' => now()])->save();
+        $subscription = $service->subscribe($this->user->fresh(), $catholicPlan);
+        $this->user->forceFill(['deuterocanonical_books_enabled_at' => null])->save();
+
+        expect(fn () => $service->activate($subscription->fresh()))
+            ->toThrow(AuthorizationException::class);
+    });
+
+    it('prevents using an existing Catholic canonical subscription after disabling the Catholic canon', function () {
+        $catholicPlan = createTestPlan([
+            'slug' => 'catholic-canonical',
+            'name' => 'Catholic Canonical Reading Plan',
+        ]);
+        $subscription = ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $catholicPlan->id,
+            'started_at' => Carbon::today(),
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('plans.today', $catholicPlan))
+            ->assertRedirect(route('plans.index'));
+
+        $this->actingAs($this->user)
+            ->post(route('plans.activate', $catholicPlan))
+            ->assertRedirect(route('plans.index'));
+
+        $this->actingAs($this->user)
+            ->post(route('plans.logChapter', $catholicPlan), [
+                'book_id' => 1,
+                'chapter' => 1,
+                'day' => 1,
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($this->user)
+            ->post(route('plans.logAll', $catholicPlan), ['day' => 1])
+            ->assertForbidden();
+
+        expect($subscription->fresh()->is_active)->toBeFalse()
+            ->and(ReadingLog::count())->toBe(0);
     });
 
     it('sets started_at to today when subscribing', function () {
@@ -1037,6 +1160,33 @@ describe('Active Subscription Management', function () {
 
         // The paused subscription should now be active
         expect($pausedSubscription->fresh()->is_active)->toBeTrue();
+    });
+
+    it('does not auto-activate a lone Catholic canonical subscription when the Catholic canon is disabled', function () {
+        $activePlan = createTestPlan(['slug' => 'plan-active', 'name' => 'Active Plan']);
+        $catholicPlan = createTestPlan([
+            'slug' => 'catholic-canonical',
+            'name' => 'Catholic Canonical Reading Plan',
+        ]);
+
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $activePlan->id,
+            'started_at' => Carbon::today(),
+            'is_active' => true,
+        ]);
+
+        $pausedCatholicSubscription = ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $catholicPlan->id,
+            'started_at' => Carbon::today(),
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($this->user)
+            ->delete(route('plans.unsubscribe', $activePlan));
+
+        expect($pausedCatholicSubscription->fresh()->is_active)->toBeFalse();
     });
 
     it('does not auto-activate when multiple subscriptions remain', function () {

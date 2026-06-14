@@ -88,6 +88,39 @@ it('seeds the start reading plans from where you are announcement', function () 
     expect(file_exists(public_path($announcement->social_image_path)))->toBeTrue();
 });
 
+it('seeds the MCheyne and Catholic canonical reading plans announcement', function () {
+    $this->seed(ReleaseAnnouncementsSeeder::class);
+
+    $announcement = Announcement::where('slug', 'mcheyne-and-catholic-canonical-reading-plans')->first();
+
+    expect($announcement)->not->toBeNull()
+        ->and($announcement->title)->toBe('New: M’Cheyne and Catholic Canonical Reading Plans')
+        ->and($announcement->type)->toBe('info')
+        ->and($announcement->hero_image_path)->toBe('images/updates/mcheyne-and-catholic-canonical-reading-plans.png')
+        ->and($announcement->social_image_path)->toBe('images/updates/mcheyne-and-catholic-canonical-reading-plans.png')
+        ->and($announcement->starts_at->toDateTimeString())->toBe('2026-06-14 12:00:00')
+        ->and($announcement->ends_at)->toBeNull()
+        ->and($announcement->content)->toContain('## What changed')
+        ->and($announcement->content)->toContain('two more one-year reading plans')
+        ->and($announcement->content)->toContain('## M’Cheyne Reading Plan')
+        ->and($announcement->content)->toContain('Old Testament once and the New Testament and Psalms twice')
+        ->and($announcement->content)->toContain('## Catholic Canonical Reading Plan')
+        ->and($announcement->content)->toContain('complete 73-book Catholic Bible')
+        ->and($announcement->content)->toContain('you’ll see this plan after enabling the Catholic 73-book canon in Settings')
+        ->and($announcement->content)->toContain('## How to start')
+        ->and($announcement->content)->toContain('start from Day 1 or choose a later passage')
+        ->and($announcement->content)->toContain('[Open Reading Plans](/plans)');
+
+    expect(file_exists(public_path($announcement->hero_image_path)))->toBeTrue();
+    expect(file_exists(public_path($announcement->social_image_path)))->toBeTrue();
+
+    $heroImageSize = getimagesize(public_path($announcement->hero_image_path));
+
+    expect($heroImageSize[0])->toBe(1672)
+        ->and($heroImageSize[1])->toBe(941)
+        ->and($heroImageSize['mime'])->toBe('image/png');
+});
+
 it('keeps release announcement seeds idempotent', function () {
     $this->seed(ReleaseAnnouncementsSeeder::class);
     $this->seed(ReleaseAnnouncementsSeeder::class);
@@ -95,4 +128,5 @@ it('keeps release announcement seeds idempotent', function () {
     expect(Announcement::where('slug', 'deuterocanonical-books-release')->count())->toBe(1);
     expect(Announcement::where('slug', 'permanent-achievements-release')->count())->toBe(1);
     expect(Announcement::where('slug', 'start-reading-plans-from-where-you-are')->count())->toBe(1);
+    expect(Announcement::where('slug', 'mcheyne-and-catholic-canonical-reading-plans')->count())->toBe(1);
 });

@@ -16,6 +16,52 @@ class ReleaseAnnouncementsSeeder extends Seeder
         $this->createDeuterocanonicalBooksAnnouncement();
         $this->createPermanentAchievementsAnnouncement();
         $this->createStartReadingPlansFromWhereYouAreAnnouncement();
+        $this->createMcheyneAndCatholicCanonicalReadingPlansAnnouncement();
+    }
+
+    /**
+     * Create the M'Cheyne and Catholic Canonical reading plans release announcement.
+     */
+    private function createMcheyneAndCatholicCanonicalReadingPlansAnnouncement(): void
+    {
+        $title = 'New: M’Cheyne and Catholic Canonical Reading Plans';
+
+        $content = <<<'MD'
+## What changed
+
+Delight now includes two more one-year reading plans: the classic M’Cheyne Reading Plan and a Catholic Canonical Reading Plan.
+
+## M’Cheyne Reading Plan
+
+The M’Cheyne plan is a higher-commitment classic with four readings each day.
+
+Over the course of the year, it takes you through the Old Testament once and the New Testament and Psalms twice. It is a strong fit if you want a fuller daily rhythm and do not mind reading from multiple parts of Scripture each day.
+
+## Catholic Canonical Reading Plan
+
+The Catholic Canonical plan reads through the complete 73-book Catholic Bible in traditional canonical order over one year.
+
+Because this plan includes the Deuterocanonical books and the Catholic additions to Esther and Daniel, you’ll see this plan after enabling the Catholic 73-book canon in Settings.
+
+## How to start
+
+Open Reading Plans and choose the plan that fits your season. You can start from Day 1 or choose a later passage if you are already reading alongside a church, group, printed schedule, or another app.
+
+[Open Reading Plans](/plans)
+MD;
+
+        Announcement::updateOrCreate(
+            ['slug' => 'mcheyne-and-catholic-canonical-reading-plans'],
+            [
+                'title' => $title,
+                'content' => $content,
+                'type' => 'info',
+                'hero_image_path' => 'images/updates/mcheyne-and-catholic-canonical-reading-plans.png',
+                'social_image_path' => 'images/updates/mcheyne-and-catholic-canonical-reading-plans.png',
+                'starts_at' => Carbon::create(2026, 6, 14, 12, 0, 0, config('app.timezone')),
+                'ends_at' => null,
+            ]
+        );
     }
 
     /**

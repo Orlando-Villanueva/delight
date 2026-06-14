@@ -33,8 +33,8 @@ class ReadingPlanController extends Controller
      */
     public function index(Request $request)
     {
-        $plans = ReadingPlan::active()->get();
         $user = $request->user();
+        $plans = ReadingPlan::active()->availableTo($user)->get();
 
         if ($this->onboardingService->shouldTrackPreFirstReading($user)) {
             $this->onboardingService->recordStep($user, OnboardingStep::PlanBrowserReached);
@@ -42,6 +42,7 @@ class ReadingPlanController extends Controller
 
         // Get user's subscriptions for each plan
         $subscriptions = $user->readingPlanSubscriptions()
+            ->whereIn('reading_plan_id', $plans->pluck('id'))
             ->with(['plan', 'dayCompletions.readingLog:id,book_id,chapter'])
             ->get()
             ->keyBy('reading_plan_id');
@@ -87,7 +88,7 @@ class ReadingPlanController extends Controller
         if ($request->header('HX-Request')) {
             // Redirect to today's reading after subscribing
             $mainContent = view('plans.today', $this->getTodayViewData($subscription))->fragment('content');
-            $oobContent = $this->getNavOobFragment($user);
+            $oobContent = $this->planService->getPlansNavigationFragment($user);
 
             return response($mainContent.$oobContent)
                 ->header('HX-Trigger', json_encode([
@@ -110,7 +111,7 @@ class ReadingPlanController extends Controller
 
         if ($request->header('HX-Request')) {
             $mainContent = view('plans.index', $this->getPlansWithStatus($user))->fragment('content');
-            $oobContent = $this->getNavOobFragment($user);
+            $oobContent = $this->planService->getPlansNavigationFragment($user);
 
             return response($mainContent.$oobContent)
                 ->header('HX-Push-Url', route('plans.index'));
@@ -126,6 +127,11 @@ class ReadingPlanController extends Controller
     public function activate(Request $request, ReadingPlan $plan)
     {
         $user = $request->user();
+
+        if (! $plan->isAvailableTo($user)) {
+            return $this->unavailablePlanResponse($request);
+        }
+
         $subscription = $user->readingPlanSubscriptions()
             ->where('reading_plan_id', $plan->id)
             ->first();
@@ -145,7 +151,7 @@ class ReadingPlanController extends Controller
 
         if ($request->header('HX-Request')) {
             $mainContent = view('plans.today', $this->getTodayViewData($subscription->fresh()))->fragment('reading-list');
-            $oobContent = $this->getNavOobFragment($user);
+            $oobContent = $this->planService->getPlansNavigationFragment($user);
 
             return response($mainContent.$oobContent)
                 ->header('HX-Push-Url', route('plans.today', $plan));
@@ -161,6 +167,11 @@ class ReadingPlanController extends Controller
     public function today(Request $request, ReadingPlan $plan)
     {
         $user = $request->user();
+
+        if (! $plan->isAvailableTo($user)) {
+            return $this->unavailablePlanResponse($request);
+        }
+
         $subscription = $user->readingPlanSubscriptions()
             ->where('reading_plan_id', $plan->id)
             ->first();
@@ -197,6 +208,11 @@ class ReadingPlanController extends Controller
     public function logChapter(Request $request, ReadingPlan $plan)
     {
         $user = $request->user();
+
+        if (! $plan->isAvailableTo($user)) {
+            return response()->json(['error' => 'This plan is not available for your selected canon'], 403);
+        }
+
         $subscription = $user->readingPlanSubscriptions()
             ->where('reading_plan_id', $plan->id)
             ->first();
@@ -369,6 +385,11 @@ class ReadingPlanController extends Controller
     private function getValidatedDayReading(Request $request, ReadingPlan $plan): array|JsonResponse
     {
         $user = $request->user();
+
+        if (! $plan->isAvailableTo($user)) {
+            return response()->json(['error' => 'This plan is not available for your selected canon'], 403);
+        }
+
         $subscription = $user->readingPlanSubscriptions()
             ->where('reading_plan_id', $plan->id)
             ->first();
@@ -489,8 +510,9 @@ class ReadingPlanController extends Controller
      */
     private function getPlansWithStatus($user): array
     {
-        $plans = ReadingPlan::active()->get();
+        $plans = ReadingPlan::active()->availableTo($user)->get();
         $subscriptions = $user->readingPlanSubscriptions()
+            ->whereIn('reading_plan_id', $plans->pluck('id'))
             ->with(['plan', 'dayCompletions.readingLog:id,book_id,chapter'])
             ->get()
             ->keyBy('reading_plan_id');
@@ -509,25 +531,15 @@ class ReadingPlanController extends Controller
         ];
     }
 
-    /**
-     * Get the OOB fragment for updating navigation links.
-     *
-     * Computes the correct URL for the Reading Plans navigation link based on
-     * the user's active subscription state, then renders the OOB partial.
-     */
-    private function getNavOobFragment($user): string
+    private function unavailablePlanResponse(Request $request): Response|RedirectResponse
     {
-        $smartPlansUrl = route('plans.index');
-
-        $activeSubscription = $user->readingPlanSubscriptions()
-            ->where('is_active', true)
-            ->with('plan')
-            ->first();
-
-        if ($activeSubscription && $activeSubscription->plan) {
-            $smartPlansUrl = route('plans.today', $activeSubscription->plan);
+        if ($request->header('HX-Request')) {
+            return response()
+                ->htmx('plans.index', 'content', $this->getPlansWithStatus($request->user()))
+                ->header('HX-Push-Url', route('plans.index'));
         }
 
-        return view('partials.plans-nav-oob', ['smartPlansUrl' => $smartPlansUrl])->render();
+        return redirect()->route('plans.index')
+            ->with('info', 'Enable deuterocanonical books in Settings to use this plan.');
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateSettingsRequest;
 use App\Services\AnnualRecapService;
+use App\Services\ReadingPlanService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -12,6 +13,10 @@ use Illuminate\Support\Facades\Cache;
 
 class SettingsController extends Controller
 {
+    public function __construct(
+        private ReadingPlanService $readingPlanService
+    ) {}
+
     /**
      * Show account settings.
      */
@@ -53,18 +58,35 @@ class SettingsController extends Controller
         Cache::forget("user_dashboard_stats_{$user->id}");
 
         $freshUser = $user->fresh();
+        $pausedCatholicCanonicalPlan = false;
 
         if ($wasIncludingDeuterocanonical !== $freshUser->includesDeuterocanonicalBooks()) {
             Cache::forget(AnnualRecapService::cacheKeyFor($user, now()->year));
         }
 
+        if ($wasIncludingDeuterocanonical && ! $freshUser->includesDeuterocanonicalBooks()) {
+            $pausedCatholicCanonicalPlan = $this->readingPlanService->pauseActiveCatholicCanonicalPlan($user);
+            $freshUser = $user->fresh();
+        }
+
         if ($request->expectsJson()) {
-            return response()->json([
+            $response = [
                 'include_deuterocanonical' => $freshUser->includesDeuterocanonicalBooks(),
                 'daily_reading_reminder_enabled' => $freshUser->hasDailyReadingReminderEnabled(),
                 'streak_warning_enabled' => $freshUser->hasStreakWarningEnabled(),
                 'push_notification_timezone' => $freshUser->pushNotificationTimezone(),
-            ], Response::HTTP_OK);
+            ];
+
+            if ($pausedCatholicCanonicalPlan) {
+                $response['plans_navigation_html'] = $this->readingPlanService->getPlansNavigationFragment($freshUser);
+            }
+
+            return response()->json($response, Response::HTTP_OK);
+        }
+
+        if ($pausedCatholicCanonicalPlan) {
+            return redirect()->route('settings.edit')
+                ->with('status', 'Settings saved. Your Catholic Canonical reading plan has been paused.');
         }
 
         return redirect()->route('settings.edit')->with('status', 'Settings saved.');

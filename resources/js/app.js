@@ -351,6 +351,31 @@ if (typeof document !== 'undefined') {
                     }
                 };
 
+                const refreshPlansNavigation = (plansNavigationHtml) => {
+                    if (typeof plansNavigationHtml !== 'string' || plansNavigationHtml.length === 0) {
+                        return;
+                    }
+
+                    const template = document.createElement('template');
+                    template.innerHTML = plansNavigationHtml.trim();
+
+                    ['desktop-plans-link', 'mobile-plans-link'].forEach((id) => {
+                        const current = document.getElementById(id);
+                        const replacement = template.content.querySelector('#' + id);
+
+                        if (!current || !replacement) {
+                            return;
+                        }
+
+                        replacement.removeAttribute('hx-swap-oob');
+                        current.replaceWith(replacement);
+
+                        if (window.htmx && typeof window.htmx.process === 'function') {
+                            window.htmx.process(replacement);
+                        }
+                    });
+                };
+
                 toggle.addEventListener('change', async () => {
                     const previousChecked = toggle.dataset.savedChecked === 'true';
 
@@ -371,6 +396,7 @@ if (typeof document !== 'undefined') {
 
                         toggle.checked = Boolean(data.include_deuterocanonical);
                         toggle.dataset.savedChecked = toggle.checked ? 'true' : 'false';
+                        refreshPlansNavigation(data.plans_navigation_html);
                         setLabel();
                         showInlineStatus(status, 'Saved', 'success', 2200);
                     } catch (error) {
