@@ -8,6 +8,7 @@ use App\Models\ReadingPlanDayCompletion;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -23,6 +24,10 @@ class ReadingPlanService
      */
     public function subscribe(User $user, ReadingPlan $plan, ?Carbon $startDate = null, ?int $startDay = null): ReadingPlanSubscription
     {
+        if (! $plan->isAvailableTo($user)) {
+            throw new AuthorizationException('This plan is not available for your selected canon.');
+        }
+
         return DB::transaction(function () use ($user, $plan, $startDate, $startDay) {
             $resolvedStartDay = $plan->getValidDayNumber($startDay, $plan->getFirstDayNumber());
 
@@ -106,6 +111,10 @@ class ReadingPlanService
      */
     public function activate(ReadingPlanSubscription $subscription): ReadingPlanSubscription
     {
+        if (! $subscription->plan->isAvailableTo($subscription->user)) {
+            throw new AuthorizationException('This plan is not available for your selected canon.');
+        }
+
         return DB::transaction(function () use ($subscription) {
             // Deactivate all subscriptions for this user
             ReadingPlanSubscription::where('user_id', $subscription->user_id)

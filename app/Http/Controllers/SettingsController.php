@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateSettingsRequest;
+use App\Models\ReadingPlanSubscription;
+use App\Models\User;
 use App\Services\AnnualRecapService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -53,20 +55,51 @@ class SettingsController extends Controller
         Cache::forget("user_dashboard_stats_{$user->id}");
 
         $freshUser = $user->fresh();
+        $pausedCatholicCanonicalPlan = false;
 
         if ($wasIncludingDeuterocanonical !== $freshUser->includesDeuterocanonicalBooks()) {
             Cache::forget(AnnualRecapService::cacheKeyFor($user, now()->year));
         }
 
+        if ($wasIncludingDeuterocanonical && ! $freshUser->includesDeuterocanonicalBooks()) {
+            $pausedCatholicCanonicalPlan = ReadingPlanSubscription::query()
+                ->where('user_id', $user->id)
+                ->where('is_active', true)
+                ->whereHas('plan', fn ($query) => $query->where('slug', 'catholic-canonical'))
+                ->update(['is_active' => false]) > 0;
+        }
+
         if ($request->expectsJson()) {
-            return response()->json([
+            $response = [
                 'include_deuterocanonical' => $freshUser->includesDeuterocanonicalBooks(),
                 'daily_reading_reminder_enabled' => $freshUser->hasDailyReadingReminderEnabled(),
                 'streak_warning_enabled' => $freshUser->hasStreakWarningEnabled(),
                 'push_notification_timezone' => $freshUser->pushNotificationTimezone(),
-            ], Response::HTTP_OK);
+            ];
+
+            if ($pausedCatholicCanonicalPlan) {
+                $response['plans_navigation_html'] = $this->getPlansNavigationFragment($freshUser);
+            }
+
+            return response()->json($response, Response::HTTP_OK);
         }
 
         return redirect()->route('settings.edit')->with('status', 'Settings saved.');
+    }
+
+    private function getPlansNavigationFragment(User $user): string
+    {
+        $smartPlansUrl = route('plans.index');
+
+        $activeSubscription = $user->readingPlanSubscriptions()
+            ->where('is_active', true)
+            ->with('plan')
+            ->first();
+
+        if ($activeSubscription && $activeSubscription->plan) {
+            $smartPlansUrl = route('plans.today', $activeSubscription->plan);
+        }
+
+        return view('partials.plans-nav-oob', ['smartPlansUrl' => $smartPlansUrl])->render();
     }
 }

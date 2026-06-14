@@ -118,6 +118,20 @@ class ReadingPlanSeeder extends Seeder
             'Follow the Bible\'s story as events unfold, from creation to the early church.',
             'chronological.csv'
         );
+
+        $this->seedPlan(
+            'mcheyne',
+            'M’Cheyne Reading Plan',
+            'A higher-commitment classic with four readings each day: the Old Testament once and the New Testament and Psalms twice in one year.',
+            'mcheyne.csv'
+        );
+
+        $this->seedPlan(
+            'catholic-canonical',
+            'Catholic Canonical Reading Plan',
+            'Read the complete 73-book Catholic Bible in traditional canonical order over one year.',
+            'catholic-canonical.csv'
+        );
     }
 
     /**

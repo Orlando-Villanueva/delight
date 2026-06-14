@@ -85,6 +85,13 @@ Create a new CSV file in `database/data/reading-plans/`:
 | 1 Th | 1 Thessalonians | Rev  | Revelation |
 | 2 Th | 2 Thessalonians |      |            |
 
+| Abbr  | Book          | Abbr  | Book        |
+| ----- | ------------- | ----- | ----------- |
+| Tob   | Tobit         | Wis   | Wisdom      |
+| Jdt   | Judith        | Sir   | Sirach      |
+| Bar   | Baruch        | 1 Mac | 1 Maccabees |
+| 2 Mac | 2 Maccabees   |       |             |
+
 **Passage format examples:**
 
 ```csv
@@ -261,10 +268,17 @@ For plans with different pacing (90-day, 180-day, 365-day versions of the same c
 
 ## Existing Plans
 
-| Slug                 | Name                       | Days | Description                                               |
-| -------------------- | -------------------------- | ---- | --------------------------------------------------------- |
-| `standard-canonical` | Canonical Reading Plan     | 365  | Traditional order, Genesis to Revelation                  |
-| `chronological`      | Chronological Reading Plan | 366  | Events in historical order, from Creation to Early Church |
+| Slug                   | Name                            | Days | Description                                                        |
+| ---------------------- | ------------------------------- | ---- | ------------------------------------------------------------------ |
+| `standard-canonical`   | Canonical Reading Plan          | 365  | Traditional order, Genesis to Revelation                           |
+| `chronological`        | Chronological Reading Plan      | 366  | Events in historical order, from Creation to Early Church          |
+| `mcheyne`              | M’Cheyne Reading Plan           | 365  | Four daily readings; OT once and NT/Psalms twice                   |
+| `catholic-canonical`   | Catholic Canonical Reading Plan | 365  | Complete 73-book Catholic canon in traditional canonical order     |
+
+### Schedule Sources
+
+- **M’Cheyne Reading Plan:** follows Robert Murray M’Cheyne’s traditional 365-day calendar, also published by YouVersion and provided there by Crossway. Consecutive verse-split portions are normalized to one complete-chapter reading because Delight tracks chapters rather than verse ranges. Sources: <https://www.mcheyne.info/calendar.pdf> and <https://www.bible.com/reading-plans/24-mcheyne-one-year-reading-plan>
+- **Catholic Canonical Reading Plan:** follows the canonical book order published by the United States Conference of Catholic Bishops, including the Catholic additions to Esther and Daniel represented by Delight’s supported chapter model. The complete chapter sequence is distributed evenly across 365 days. Source: <https://bible.usccb.org/bible>
 
 ---
 
