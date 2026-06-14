@@ -8,6 +8,7 @@ use App\Models\ReadingPlanDayCompletion;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -23,6 +24,10 @@ class ReadingPlanService
      */
     public function subscribe(User $user, ReadingPlan $plan, ?Carbon $startDate = null, ?int $startDay = null): ReadingPlanSubscription
     {
+        if (! $plan->isAvailableTo($user)) {
+            throw new AuthorizationException('This plan is not available for your selected canon.');
+        }
+
         return DB::transaction(function () use ($user, $plan, $startDate, $startDay) {
             $resolvedStartDay = $plan->getValidDayNumber($startDay, $plan->getFirstDayNumber());
 
@@ -78,17 +83,60 @@ class ReadingPlanService
      */
     public function autoActivateLoneSubscription(User $user): ?ReadingPlanSubscription
     {
-        $subscriptions = ReadingPlanSubscription::where('user_id', $user->id)->get();
+        $subscriptions = ReadingPlanSubscription::where('user_id', $user->id)
+            ->with('plan')
+            ->get();
 
         // Only auto-activate if there's exactly one subscription and it's inactive
         if ($subscriptions->count() === 1 && ! $subscriptions->first()->is_active) {
             $subscription = $subscriptions->first();
+
+            if (! $subscription->plan || ! $subscription->plan->isAvailableTo($user)) {
+                return null;
+            }
+
             $subscription->update(['is_active' => true]);
 
             return $subscription->fresh();
         }
 
         return null;
+    }
+
+    /**
+     * Pause the user's active Catholic canonical subscription when their selected canon no longer supports it.
+     */
+    public function pauseActiveCatholicCanonicalPlan(User $user): bool
+    {
+        return ReadingPlanSubscription::query()
+            ->where('user_id', $user->id)
+            ->where('is_active', true)
+            ->whereHas('plan', fn ($query) => $query->where('slug', 'catholic-canonical'))
+            ->update(['is_active' => false]) > 0;
+    }
+
+    /**
+     * Resolve the destination for Reading Plans navigation.
+     */
+    public function getSmartPlansUrl(User $user): string
+    {
+        $activeSubscription = $user->activeReadingPlan();
+
+        if ($activeSubscription?->plan?->isAvailableTo($user)) {
+            return route('plans.today', $activeSubscription->plan);
+        }
+
+        return route('plans.index');
+    }
+
+    /**
+     * Render the OOB fragment for updating Reading Plans navigation links.
+     */
+    public function getPlansNavigationFragment(User $user): string
+    {
+        return view('partials.plans-nav-oob', [
+            'smartPlansUrl' => $this->getSmartPlansUrl($user),
+        ])->render();
     }
 
     /**
@@ -106,6 +154,10 @@ class ReadingPlanService
      */
     public function activate(ReadingPlanSubscription $subscription): ReadingPlanSubscription
     {
+        if (! $subscription->plan->isAvailableTo($subscription->user)) {
+            throw new AuthorizationException('This plan is not available for your selected canon.');
+        }
+
         return DB::transaction(function () use ($subscription) {
             // Deactivate all subscriptions for this user
             ReadingPlanSubscription::where('user_id', $subscription->user_id)

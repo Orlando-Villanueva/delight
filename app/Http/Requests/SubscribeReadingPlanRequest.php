@@ -14,7 +14,12 @@ class SubscribeReadingPlanRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        $user = $this->user();
+        $plan = $this->route('plan');
+
+        return $user !== null
+            && $plan instanceof ReadingPlan
+            && $plan->isAvailableTo($user);
     }
 
     /**
