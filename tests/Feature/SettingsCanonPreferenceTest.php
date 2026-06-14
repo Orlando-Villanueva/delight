@@ -126,7 +126,8 @@ it('pauses the Catholic canonical plan when the Catholic canon setting is disabl
         ->patch(route('settings.update'), [
             'include_deuterocanonical' => '0',
         ])
-        ->assertRedirect(route('settings.edit'));
+        ->assertRedirect(route('settings.edit'))
+        ->assertSessionHas('status', 'Settings saved. Your Catholic Canonical reading plan has been paused.');
 
     expect($subscription->fresh()->is_active)->toBeFalse();
 });

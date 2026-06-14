@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\BibleReferenceService;
+use App\Services\ReadingPlanService;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -45,14 +46,7 @@ class AppServiceProvider extends ServiceProvider
             $smartPlansUrl = route('plans.index');
 
             if ($user) {
-                $activeSubscription = $user->readingPlanSubscriptions()
-                    ->where('is_active', true)
-                    ->with('plan')
-                    ->first();
-
-                if ($activeSubscription && $activeSubscription->plan) {
-                    $smartPlansUrl = route('plans.today', $activeSubscription->plan);
-                }
+                $smartPlansUrl = app(ReadingPlanService::class)->getSmartPlansUrl($user);
             }
 
             $view->with('smartPlansUrl', $smartPlansUrl);

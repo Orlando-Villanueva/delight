@@ -88,7 +88,7 @@ class ReadingPlanController extends Controller
         if ($request->header('HX-Request')) {
             // Redirect to today's reading after subscribing
             $mainContent = view('plans.today', $this->getTodayViewData($subscription))->fragment('content');
-            $oobContent = $this->getNavOobFragment($user);
+            $oobContent = $this->planService->getPlansNavigationFragment($user);
 
             return response($mainContent.$oobContent)
                 ->header('HX-Trigger', json_encode([
@@ -111,7 +111,7 @@ class ReadingPlanController extends Controller
 
         if ($request->header('HX-Request')) {
             $mainContent = view('plans.index', $this->getPlansWithStatus($user))->fragment('content');
-            $oobContent = $this->getNavOobFragment($user);
+            $oobContent = $this->planService->getPlansNavigationFragment($user);
 
             return response($mainContent.$oobContent)
                 ->header('HX-Push-Url', route('plans.index'));
@@ -151,7 +151,7 @@ class ReadingPlanController extends Controller
 
         if ($request->header('HX-Request')) {
             $mainContent = view('plans.today', $this->getTodayViewData($subscription->fresh()))->fragment('reading-list');
-            $oobContent = $this->getNavOobFragment($user);
+            $oobContent = $this->planService->getPlansNavigationFragment($user);
 
             return response($mainContent.$oobContent)
                 ->header('HX-Push-Url', route('plans.today', $plan));
@@ -541,27 +541,5 @@ class ReadingPlanController extends Controller
 
         return redirect()->route('plans.index')
             ->with('info', 'Enable deuterocanonical books in Settings to use this plan.');
-    }
-
-    /**
-     * Get the OOB fragment for updating navigation links.
-     *
-     * Computes the correct URL for the Reading Plans navigation link based on
-     * the user's active subscription state, then renders the OOB partial.
-     */
-    private function getNavOobFragment($user): string
-    {
-        $smartPlansUrl = route('plans.index');
-
-        $activeSubscription = $user->readingPlanSubscriptions()
-            ->where('is_active', true)
-            ->with('plan')
-            ->first();
-
-        if ($activeSubscription && $activeSubscription->plan) {
-            $smartPlansUrl = route('plans.today', $activeSubscription->plan);
-        }
-
-        return view('partials.plans-nav-oob', ['smartPlansUrl' => $smartPlansUrl])->render();
     }
 }

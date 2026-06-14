@@ -83,17 +83,60 @@ class ReadingPlanService
      */
     public function autoActivateLoneSubscription(User $user): ?ReadingPlanSubscription
     {
-        $subscriptions = ReadingPlanSubscription::where('user_id', $user->id)->get();
+        $subscriptions = ReadingPlanSubscription::where('user_id', $user->id)
+            ->with('plan')
+            ->get();
 
         // Only auto-activate if there's exactly one subscription and it's inactive
         if ($subscriptions->count() === 1 && ! $subscriptions->first()->is_active) {
             $subscription = $subscriptions->first();
+
+            if (! $subscription->plan || ! $subscription->plan->isAvailableTo($user)) {
+                return null;
+            }
+
             $subscription->update(['is_active' => true]);
 
             return $subscription->fresh();
         }
 
         return null;
+    }
+
+    /**
+     * Pause the user's active Catholic canonical subscription when their selected canon no longer supports it.
+     */
+    public function pauseActiveCatholicCanonicalPlan(User $user): bool
+    {
+        return ReadingPlanSubscription::query()
+            ->where('user_id', $user->id)
+            ->where('is_active', true)
+            ->whereHas('plan', fn ($query) => $query->where('slug', 'catholic-canonical'))
+            ->update(['is_active' => false]) > 0;
+    }
+
+    /**
+     * Resolve the destination for Reading Plans navigation.
+     */
+    public function getSmartPlansUrl(User $user): string
+    {
+        $activeSubscription = $user->activeReadingPlan();
+
+        if ($activeSubscription?->plan?->isAvailableTo($user)) {
+            return route('plans.today', $activeSubscription->plan);
+        }
+
+        return route('plans.index');
+    }
+
+    /**
+     * Render the OOB fragment for updating Reading Plans navigation links.
+     */
+    public function getPlansNavigationFragment(User $user): string
+    {
+        return view('partials.plans-nav-oob', [
+            'smartPlansUrl' => $this->getSmartPlansUrl($user),
+        ])->render();
     }
 
     /**

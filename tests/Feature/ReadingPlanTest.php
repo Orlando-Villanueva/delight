@@ -1162,6 +1162,33 @@ describe('Active Subscription Management', function () {
         expect($pausedSubscription->fresh()->is_active)->toBeTrue();
     });
 
+    it('does not auto-activate a lone Catholic canonical subscription when the Catholic canon is disabled', function () {
+        $activePlan = createTestPlan(['slug' => 'plan-active', 'name' => 'Active Plan']);
+        $catholicPlan = createTestPlan([
+            'slug' => 'catholic-canonical',
+            'name' => 'Catholic Canonical Reading Plan',
+        ]);
+
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $activePlan->id,
+            'started_at' => Carbon::today(),
+            'is_active' => true,
+        ]);
+
+        $pausedCatholicSubscription = ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $catholicPlan->id,
+            'started_at' => Carbon::today(),
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($this->user)
+            ->delete(route('plans.unsubscribe', $activePlan));
+
+        expect($pausedCatholicSubscription->fresh()->is_active)->toBeFalse();
+    });
+
     it('does not auto-activate when multiple subscriptions remain', function () {
         $plan1 = createTestPlan(['slug' => 'plan-active', 'name' => 'Active Plan']);
         $plan2 = createTestPlan(['slug' => 'plan-paused-1', 'name' => 'Paused Plan 1']);

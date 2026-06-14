@@ -3,9 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateSettingsRequest;
-use App\Models\ReadingPlanSubscription;
-use App\Models\User;
 use App\Services\AnnualRecapService;
+use App\Services\ReadingPlanService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -14,6 +13,10 @@ use Illuminate\Support\Facades\Cache;
 
 class SettingsController extends Controller
 {
+    public function __construct(
+        private ReadingPlanService $readingPlanService
+    ) {}
+
     /**
      * Show account settings.
      */
@@ -62,11 +65,8 @@ class SettingsController extends Controller
         }
 
         if ($wasIncludingDeuterocanonical && ! $freshUser->includesDeuterocanonicalBooks()) {
-            $pausedCatholicCanonicalPlan = ReadingPlanSubscription::query()
-                ->where('user_id', $user->id)
-                ->where('is_active', true)
-                ->whereHas('plan', fn ($query) => $query->where('slug', 'catholic-canonical'))
-                ->update(['is_active' => false]) > 0;
+            $pausedCatholicCanonicalPlan = $this->readingPlanService->pauseActiveCatholicCanonicalPlan($user);
+            $freshUser = $user->fresh();
         }
 
         if ($request->expectsJson()) {
@@ -78,28 +78,17 @@ class SettingsController extends Controller
             ];
 
             if ($pausedCatholicCanonicalPlan) {
-                $response['plans_navigation_html'] = $this->getPlansNavigationFragment($freshUser);
+                $response['plans_navigation_html'] = $this->readingPlanService->getPlansNavigationFragment($freshUser);
             }
 
             return response()->json($response, Response::HTTP_OK);
         }
 
-        return redirect()->route('settings.edit')->with('status', 'Settings saved.');
-    }
-
-    private function getPlansNavigationFragment(User $user): string
-    {
-        $smartPlansUrl = route('plans.index');
-
-        $activeSubscription = $user->readingPlanSubscriptions()
-            ->where('is_active', true)
-            ->with('plan')
-            ->first();
-
-        if ($activeSubscription && $activeSubscription->plan) {
-            $smartPlansUrl = route('plans.today', $activeSubscription->plan);
+        if ($pausedCatholicCanonicalPlan) {
+            return redirect()->route('settings.edit')
+                ->with('status', 'Settings saved. Your Catholic Canonical reading plan has been paused.');
         }
 
-        return view('partials.plans-nav-oob', ['smartPlansUrl' => $smartPlansUrl])->render();
+        return redirect()->route('settings.edit')->with('status', 'Settings saved.');
     }
 }
