@@ -122,14 +122,14 @@ class ReadingPlanSeeder extends Seeder
         $this->seedPlan(
             'mcheyne',
             'M’Cheyne Reading Plan',
-            'A higher-commitment classic with four readings each day: the Old Testament once and the New Testament and Psalms twice in one year.',
+            'A classic plan with four readings daily: the Old Testament once and the New Testament and Psalms twice.',
             'mcheyne.csv'
         );
 
         $this->seedPlan(
             'catholic-canonical',
             'Catholic Canonical Reading Plan',
-            'Read the complete 73-book Catholic Bible in traditional canonical order over one year.',
+            'Read the complete 73-book Catholic Bible in traditional canonical order.',
             'catholic-canonical.csv'
         );
     }
