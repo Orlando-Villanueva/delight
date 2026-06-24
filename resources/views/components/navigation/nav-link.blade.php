@@ -7,22 +7,35 @@
     'icon',
     'label',
     'variant' => 'sidebar', // 'sidebar' or 'mobile'
+    'activePath' => null,
+    'activePrefix' => false,
 ])
 
 @php
     $finalUrl = $url ?? ($route ? route($route) : '#');
+    $resolvedActivePath = $activePath ?? parse_url($finalUrl, PHP_URL_PATH) ?: '/';
 @endphp
 
 @if ($variant === 'sidebar')
     {{-- Desktop Sidebar Style --}}
     <button type="button" hx-get="{{ $finalUrl }}" hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
-        {{ $attributes->merge(['class' => 'w-full flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-primary-50 dark:hover:bg-gray-700 group transition-colors']) }}>
-        <svg class="w-6 h-6 text-gray-600 transition duration-75 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200"
-            aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
-            viewBox="0 0 24 24">
-            {!! $icon !!}
-        </svg>
-        <span class="ms-3">{{ $label }}</span>
+        data-sidebar-nav-link title="{{ $label }}" aria-label="{{ $label }}"
+        x-bind:aria-current="isSidebarPathActive('{{ $resolvedActivePath }}', {{ $activePrefix ? 'true' : 'false' }}) ? 'page' : null"
+        x-bind:class="{
+            'bg-primary-50 text-primary-700 dark:bg-gray-700 dark:text-white': isSidebarPathActive('{{ $resolvedActivePath }}', {{ $activePrefix ? 'true' : 'false' }}),
+        }"
+        {{ $attributes->merge(['class' => 'group flex w-full items-center rounded-lg p-2 text-gray-900 transition-colors hover:bg-primary-50 dark:text-white dark:hover:bg-gray-700']) }}>
+        <span data-sidebar-icon-slot class="inline-flex h-6 w-10 shrink-0 items-center justify-center">
+            <svg class="w-6 h-6 text-gray-600 transition duration-75 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200"
+                x-bind:class="{ '!text-primary-600 dark:!text-primary-400': isSidebarPathActive('{{ $resolvedActivePath }}', {{ $activePrefix ? 'true' : 'false' }}) }"
+                aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none"
+                viewBox="0 0 24 24">
+                {!! $icon !!}
+            </svg>
+        </span>
+        <span class="overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-200 ease-in-out motion-reduce:transition-none"
+            x-bind:class="sidebarCollapsed ? 'max-w-0 opacity-0 ms-0' : 'max-w-40 opacity-100 ms-1'"
+            x-bind:aria-hidden="sidebarCollapsed.toString()">{{ $label }}</span>
     </button>
 @elseif($variant === 'mobile')
     {{-- Mobile Bottom Bar Style --}}

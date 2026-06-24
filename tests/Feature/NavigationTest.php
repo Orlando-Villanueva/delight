@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\ReadingLog;
+use App\Models\ReadingPlan;
+use App\Models\ReadingPlanSubscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -110,6 +112,35 @@ describe('Navigation Component Rendering', function () {
         $response->assertSuccessful();
         $response->assertSee('Log Reading');
         $response->assertSee(route('logs.create'));
+    });
+
+    it('renders collapsible desktop sidebar controls without persisted browser storage', function () {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertSuccessful();
+
+        expect($response->getContent())
+            ->toContain('x-data="authenticatedShell()"')
+            ->toContain('x-on:click="toggleSidebar()"')
+            ->toContain('aria-controls="desktop-sidebar-navigation"')
+            ->toContain('Expand sidebar')
+            ->toContain('Collapse sidebar')
+            ->not->toContain('currentSidebarPath: window.location.pathname')
+            ->not->toContain('compactSidebarQuery: null')
+            ->not->toContain('localStorage')
+            ->not->toContain('sessionStorage');
+
+        $authenticatedShell = file_get_contents(resource_path('js/components/authenticated-shell.js'));
+
+        expect($authenticatedShell)
+            ->toContain('export const authenticatedShell')
+            ->toContain('sidebarCollapsed: false')
+            ->toContain('sidebarUserToggled: false')
+            ->toContain("matchMedia('(min-width: 1024px) and (max-width: 1279.98px)')")
+            ->not->toContain('localStorage')
+            ->not->toContain('sessionStorage');
     });
 });
 
@@ -407,6 +438,90 @@ describe('Responsive Design', function () {
         $response->assertSuccessful();
         $response->assertSee('hidden lg:inline-flex', false);
     });
+
+    it('defaults the desktop sidebar to a compact rail below xl and expanded at xl', function () {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertSuccessful();
+
+        expect($response->getContent())
+            ->toContain('w-20 xl:w-64')
+            ->toContain("sidebarCollapsed ? '!w-20' : '!w-64'")
+            ->toContain('data-sidebar-icon-slot')
+            ->toContain("sidebarCollapsed ? 'max-w-0 opacity-0 ms-0' : 'max-w-40 opacity-100 ms-1'")
+            ->not->toContain("'justify-center': sidebarIconRail()")
+            ->not->toContain("sidebarCollapsed ? 'sr-only' : ''");
+    });
+
+    it('keeps the desktop sidebar icon column fixed while labels animate', function () {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertSuccessful();
+
+        $content = $response->getContent();
+        $authenticatedShell = file_get_contents(resource_path('js/components/authenticated-shell.js'));
+
+        expect($authenticatedShell)
+            ->toContain('setSidebarCollapsed(shouldCollapse)')
+            ->not->toContain('sidebarIconRail()')
+            ->not->toContain('sidebarIconRailActive');
+
+        expect($content)
+            ->toContain('data-sidebar-icon-slot')
+            ->toContain('inline-flex h-6 w-10 shrink-0 items-center justify-center')
+            ->not->toContain("'justify-center': sidebarIconRail()")
+            ->toContain('transition-[max-width,opacity,margin]')
+            ->toContain('motion-reduce:transition-none')
+            ->toContain("sidebarCollapsed ? 'max-w-0 opacity-0 ms-0' : 'max-w-40 opacity-100 ms-1'")
+            ->toContain('x-bind:aria-hidden="sidebarCollapsed.toString()"');
+    });
+
+    it('keeps the desktop active navigation state synchronized with HTMX history', function () {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertSuccessful();
+
+        expect($response->getContent())
+            ->toContain('x-data="authenticatedShell()"')
+            ->toContain("isSidebarPathActive('/dashboard', false)")
+            ->toContain("isSidebarPathActive('/plans', true)");
+
+        $authenticatedShell = file_get_contents(resource_path('js/components/authenticated-shell.js'));
+
+        expect($authenticatedShell)
+            ->toContain('currentSidebarPath: window.location.pathname')
+            ->toContain("document.body.addEventListener('htmx:pushedIntoHistory', syncSidebarPath)")
+            ->toContain("document.body.addEventListener('htmx:historyRestore', syncSidebarPath)")
+            ->toContain("window.addEventListener('popstate', syncSidebarPath)")
+            ->toContain('isSidebarPathActive(targetPath, matchPrefix)');
+    });
+
+    it('matches the plans section when the smart destination targets an active plan', function () {
+        $user = User::factory()->create();
+        $plan = ReadingPlan::factory()->create();
+
+        ReadingPlanSubscription::factory()
+            ->for($user)
+            ->for($plan)
+            ->create();
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertSuccessful();
+
+        $content = $response->getContent();
+        $plansLink = substr($content, strpos($content, 'id="desktop-plans-link"'));
+
+        expect($plansLink)
+            ->toContain('hx-get="'.route('plans.today', $plan).'"')
+            ->toContain("isSidebarPathActive('/plans', true)");
+    });
 });
 
 describe('Accessibility Features', function () {
@@ -426,6 +541,52 @@ describe('Accessibility Features', function () {
 
         $response->assertSuccessful();
         $response->assertSee('aria-hidden="true"', false);
+    });
+
+    it('marks the active desktop navigation link accessibly and visually', function () {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertSuccessful();
+
+        expect($response->getContent())
+            ->toContain("x-bind:aria-current=\"isSidebarPathActive('/dashboard', false) ? 'page' : null\"")
+            ->toContain("'bg-primary-50 text-primary-700 dark:bg-gray-700 dark:text-white': isSidebarPathActive('/dashboard', false)")
+            ->toContain('data-sidebar-nav-link')
+            ->not->toContain("'!border-primary-600': isSidebarPathActive('/dashboard', false)");
+    });
+
+    it('renders the sidebar toggle in a quiet utility row with consistent spacing', function () {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertSuccessful();
+
+        $content = $response->getContent();
+        $control = substr(
+            $content,
+            strpos($content, 'data-sidebar-control'),
+            strpos($content, 'id="desktop-sidebar-navigation"') - strpos($content, 'data-sidebar-control'),
+        );
+
+        expect($content)
+            ->toContain('data-sidebar-control')
+            ->toContain('mb-2 flex h-10')
+            ->toContain("sidebarCollapsed ? 'justify-center' : 'justify-end'")
+            ->toContain('bg-transparent')
+            ->not->toContain('absolute top-2 z-10')
+            ->not->toContain('shadow-xs')
+            ->not->toContain('border-b border-gray-200 bg-gray-50/80');
+
+        expect($control)
+            ->toContain('focus-visible:ring-2')
+            ->toContain('focus-visible:ring-primary-500')
+            ->not->toContain('focus:ring-2')
+            ->not->toContain('focus:ring-primary-500');
+
+        expect($control)->not->toContain('border border-gray-200');
     });
 
     it('includes aria-expanded attribute on dropdown button', function () {
@@ -458,6 +619,26 @@ describe('Navigation URL Management', function () {
         $response->assertSee(route('dashboard'));
         $response->assertSee(route('logs.create'));
         $response->assertSee(route('logs.index'));
+    });
+
+    it('preserves HTMX wiring on collapsible desktop sidebar links', function () {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertSuccessful();
+
+        $content = $response->getContent();
+        $sidebar = substr($content, strpos($content, 'id="desktop-sidebar-navigation"'));
+
+        expect($sidebar)
+            ->toContain('hx-get="'.route('dashboard').'"')
+            ->toContain('hx-get="'.route('logs.create').'"')
+            ->toContain('hx-target="#page-container"')
+            ->toContain('hx-swap="innerHTML"')
+            ->toContain('hx-push-url="true"')
+            ->toContain('title="Dashboard"')
+            ->toContain('title="Log Reading"');
     });
 
     it('includes hx-push-url attribute for browser history', function () {

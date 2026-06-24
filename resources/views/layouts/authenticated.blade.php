@@ -36,14 +36,14 @@
     <!-- HTMX CDN -->
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.5/dist/htmx.min.js"></script>
 
+    <!-- Styles / Scripts -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
     <!-- Alpine.js CDN -->
     <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
 
     <!-- Flowbite CDN -->
     <script defer src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
-
-    <!-- Styles / Scripts -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <!-- Alpine.js Cloak -->
     <style>
@@ -60,7 +60,7 @@
         Page loading
     </progress>
 
-    <div class="flex h-screen">
+    <div class="flex h-screen" x-data="authenticatedShell()">
         <!-- Desktop: Sidebar and Navbar -->
         <div class="hidden lg:flex">
             <x-navigation.desktop-sidebar />
