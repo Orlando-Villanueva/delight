@@ -416,7 +416,7 @@ describe('Responsive Design', function () {
             ->toContain('w-20 xl:w-64')
             ->toContain("sidebarCollapsed ? '!w-20' : '!w-64'")
             ->toContain('data-sidebar-icon-slot')
-            ->toContain("sidebarCollapsed ? 'max-w-0 opacity-0 ms-0' : 'max-w-40 opacity-100 ms-1'")
+            ->toContain("sidebarCollapsed ? '!max-w-0 !opacity-0 !ms-0' : '!max-w-40 !opacity-100 !ms-1'")
             ->not->toContain("'justify-center': sidebarIconRail()")
             ->not->toContain("sidebarCollapsed ? 'sr-only' : ''");
     });
@@ -438,9 +438,11 @@ describe('Responsive Design', function () {
             ->toContain('data-sidebar-icon-slot')
             ->toContain('inline-flex h-6 w-10 shrink-0 items-center justify-center')
             ->not->toContain("'justify-center': sidebarIconRail()")
+            ->toContain('max-w-0 overflow-hidden whitespace-nowrap opacity-0')
+            ->toContain('xl:ms-1 xl:max-w-40 xl:opacity-100')
             ->toContain('transition-[max-width,opacity,margin]')
             ->toContain('motion-reduce:transition-none')
-            ->toContain("sidebarCollapsed ? 'max-w-0 opacity-0 ms-0' : 'max-w-40 opacity-100 ms-1'")
+            ->toContain("sidebarCollapsed ? '!max-w-0 !opacity-0 !ms-0' : '!max-w-40 !opacity-100 !ms-1'")
             ->not->toContain('x-bind:aria-hidden="sidebarCollapsed.toString()"');
     });
 
@@ -461,7 +463,8 @@ describe('Responsive Design', function () {
             ->toContain("document.body.addEventListener('htmx:pushedIntoHistory', syncSidebarPath)")
             ->toContain("document.body.addEventListener('htmx:historyRestore', syncSidebarPath)")
             ->toContain("globalThis.addEventListener('popstate', syncSidebarPath)")
-            ->toContain('isSidebarPathActive(targetPath, matchPrefix)');
+            ->toContain('isSidebarPathActive(targetPath, matchPrefix)')
+            ->toContain("if (!matchPrefix || normalizedTargetPath === '/')");
     });
 
     it('matches the plans section when the smart destination targets an active plan', function () {

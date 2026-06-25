@@ -33,8 +33,9 @@
                 {!! $icon !!}
             </svg>
         </span>
-        <span class="overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-200 ease-in-out motion-reduce:transition-none"
-            x-bind:class="sidebarCollapsed ? 'max-w-0 opacity-0 ms-0' : 'max-w-40 opacity-100 ms-1'">{{ $label }}</span>
+        <span
+            class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-200 ease-in-out motion-reduce:transition-none xl:ms-1 xl:max-w-40 xl:opacity-100"
+            x-bind:class="sidebarCollapsed ? '!max-w-0 !opacity-0 !ms-0' : '!max-w-40 !opacity-100 !ms-1'">{{ $label }}</span>
     </button>
 @elseif($variant === 'mobile')
     {{-- Mobile Bottom Bar Style --}}

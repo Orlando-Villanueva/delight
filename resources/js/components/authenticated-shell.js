@@ -53,7 +53,7 @@ export const authenticatedShell = () => ({
         const currentPath = normalizePath(this.currentSidebarPath);
         const normalizedTargetPath = normalizePath(targetPath);
 
-        if (!matchPrefix) {
+        if (!matchPrefix || normalizedTargetPath === '/') {
             return currentPath === normalizedTargetPath;
         }
 
