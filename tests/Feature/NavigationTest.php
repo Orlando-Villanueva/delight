@@ -463,7 +463,9 @@ describe('Accessibility Features', function () {
 
         expect($response->getContent())
             ->toContain("x-bind:aria-current=\"isSidebarPathActive('/dashboard', false) ? 'page' : null\"")
-            ->toContain("'bg-primary-50 text-primary-700 dark:bg-gray-700 dark:text-white': isSidebarPathActive('/dashboard', false)")
+            ->toContain("'bg-primary-50 text-primary-700 dark:bg-gray-700': isSidebarPathActive('/dashboard', false)")
+            ->toContain('text-gray-900 transition-colors hover:bg-primary-50 dark:text-white dark:hover:bg-gray-700')
+            ->not->toContain("'bg-primary-50 text-primary-700 dark:bg-gray-700 dark:text-white':")
             ->toContain('data-sidebar-nav-link')
             ->not->toContain("'!border-primary-600': isSidebarPathActive('/dashboard', false)");
     });

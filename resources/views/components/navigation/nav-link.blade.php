@@ -22,7 +22,7 @@
         data-sidebar-nav-link title="{{ $label }}"
         x-bind:aria-current="isSidebarPathActive('{{ $resolvedActivePath }}', {{ $activePrefix ? 'true' : 'false' }}) ? 'page' : null"
         x-bind:class="{
-            'bg-primary-50 text-primary-700 dark:bg-gray-700 dark:text-white': isSidebarPathActive('{{ $resolvedActivePath }}', {{ $activePrefix ? 'true' : 'false' }}),
+            'bg-primary-50 text-primary-700 dark:bg-gray-700': isSidebarPathActive('{{ $resolvedActivePath }}', {{ $activePrefix ? 'true' : 'false' }}),
         }"
         {{ $attributes->merge(['class' => 'group flex w-full items-center rounded-lg p-2 text-gray-900 transition-colors hover:bg-primary-50 dark:text-white dark:hover:bg-gray-700']) }}>
         <span data-sidebar-icon-slot class="inline-flex h-6 w-10 shrink-0 items-center justify-center">
