@@ -2,9 +2,9 @@ export const authenticatedShell = () => ({
     sidebarCollapsed: false,
     sidebarUserToggled: false,
     compactSidebarQuery: null,
-    currentSidebarPath: window.location.pathname,
+    currentSidebarPath: globalThis.location.pathname,
     init() {
-        this.compactSidebarQuery = window.matchMedia('(min-width: 1024px) and (max-width: 1279.98px)');
+        this.compactSidebarQuery = globalThis.matchMedia('(min-width: 1024px) and (max-width: 1279.98px)');
 
         const syncSidebarToViewport = () => {
             if (!this.sidebarUserToggled) {
@@ -21,12 +21,12 @@ export const authenticatedShell = () => ({
         }
 
         const syncSidebarPath = () => {
-            this.currentSidebarPath = window.location.pathname;
+            this.currentSidebarPath = globalThis.location.pathname;
         };
 
         document.body.addEventListener('htmx:pushedIntoHistory', syncSidebarPath);
         document.body.addEventListener('htmx:historyRestore', syncSidebarPath);
-        window.addEventListener('popstate', syncSidebarPath);
+        globalThis.addEventListener('popstate', syncSidebarPath);
     },
     toggleSidebar() {
         this.sidebarUserToggled = true;
@@ -36,7 +36,20 @@ export const authenticatedShell = () => ({
         this.sidebarCollapsed = shouldCollapse;
     },
     isSidebarPathActive(targetPath, matchPrefix) {
-        const normalizePath = (path) => path === '/' ? path : path.replace(/\/+$/, '');
+        const normalizePath = (path) => {
+            if (path === '/') {
+                return path;
+            }
+
+            let normalizedPath = path;
+
+            while (normalizedPath.endsWith('/')) {
+                normalizedPath = normalizedPath.slice(0, -1);
+            }
+
+            return normalizedPath;
+        };
+
         const currentPath = normalizePath(this.currentSidebarPath);
         const normalizedTargetPath = normalizePath(targetPath);
 

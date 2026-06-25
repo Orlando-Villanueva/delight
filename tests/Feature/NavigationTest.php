@@ -10,11 +10,18 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+const AUTHENTICATED_SHELL_SCRIPT = 'js/components/authenticated-shell.js';
+
+beforeEach(function () {
+    $this->getDashboard = fn (?User $user = null) => $this->actingAs($user ?? User::factory()->create())->get('/dashboard');
+    $this->getHtmx = fn (string $path, ?User $user = null) => $this->actingAs($user ?? User::factory()->create())->get($path, [
+        'HX-Request' => 'true',
+    ]);
+});
+
 describe('Navigation Component Rendering', function () {
     it('renders desktop sidebar navigation for authenticated users', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('Dashboard');
@@ -28,7 +35,7 @@ describe('Navigation Component Rendering', function () {
             'email' => 'john@example.com',
         ]);
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)($user);
 
         $response->assertSuccessful();
         $response->assertSee(config('app.name'));
@@ -38,9 +45,7 @@ describe('Navigation Component Rendering', function () {
     });
 
     it('renders mobile bottom navigation bar', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         // Check for sr-only labels in mobile navigation
@@ -66,9 +71,7 @@ describe('Navigation Component Rendering', function () {
     });
 
     it('centers the log reading action in the mobile bottom navigation order', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $content = substr($response->getContent(), strpos($response->getContent(), 'id="mobile-bottom-navigation"'));
 
@@ -85,7 +88,7 @@ describe('Navigation Component Rendering', function () {
             'name' => 'Alice Smith',
         ]);
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)($user);
 
         $response->assertSuccessful();
         // Should display first letter of name
@@ -97,7 +100,7 @@ describe('Navigation Component Rendering', function () {
             'avatar_url' => 'https://example.com/avatar.jpg',
         ]);
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)($user);
 
         $response->assertSuccessful();
         $response->assertSee('https://example.com/avatar.jpg', false);
@@ -105,9 +108,7 @@ describe('Navigation Component Rendering', function () {
     });
 
     it('renders Log Reading button in desktop navbar', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('Log Reading');
@@ -115,9 +116,7 @@ describe('Navigation Component Rendering', function () {
     });
 
     it('renders collapsible desktop sidebar controls without persisted browser storage', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
 
@@ -128,11 +127,12 @@ describe('Navigation Component Rendering', function () {
             ->toContain('Expand sidebar')
             ->toContain('Collapse sidebar')
             ->not->toContain('currentSidebarPath: window.location.pathname')
+            ->not->toContain('aria-label="{{ $label }}"')
             ->not->toContain('compactSidebarQuery: null')
             ->not->toContain('localStorage')
             ->not->toContain('sessionStorage');
 
-        $authenticatedShell = file_get_contents(resource_path('js/components/authenticated-shell.js'));
+        $authenticatedShell = file_get_contents(resource_path(AUTHENTICATED_SHELL_SCRIPT));
 
         expect($authenticatedShell)
             ->toContain('export const authenticatedShell')
@@ -146,11 +146,7 @@ describe('Navigation Component Rendering', function () {
 
 describe('HTMX Navigation Requests', function () {
     it('returns partial content for HTMX dashboard request', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard', [
-            'HX-Request' => 'true',
-        ]);
+        $response = ($this->getHtmx)('/dashboard');
 
         $response->assertSuccessful();
         // HTMX requests should return partial content without full layout
@@ -159,11 +155,7 @@ describe('HTMX Navigation Requests', function () {
     });
 
     it('returns partial content for HTMX log reading form request', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/logs/create', [
-            'HX-Request' => 'true',
-        ]);
+        $response = ($this->getHtmx)('/logs/create');
 
         $response->assertSuccessful();
         $response->assertDontSee('<html>', false);
@@ -171,11 +163,7 @@ describe('HTMX Navigation Requests', function () {
     });
 
     it('returns partial content for HTMX history request', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/logs', [
-            'HX-Request' => 'true',
-        ]);
+        $response = ($this->getHtmx)('/logs');
 
         $response->assertSuccessful();
         $response->assertDontSee('<html>', false);
@@ -183,9 +171,7 @@ describe('HTMX Navigation Requests', function () {
     });
 
     it('returns full layout for standard dashboard request', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         // Standard requests should include full HTML layout
@@ -194,9 +180,7 @@ describe('HTMX Navigation Requests', function () {
     });
 
     it('includes HTMX attributes in navigation links', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('hx-get', false);
@@ -206,9 +190,7 @@ describe('HTMX Navigation Requests', function () {
     });
 
     it('targets correct page container element', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('hx-target="#page-container"', false);
@@ -218,7 +200,7 @@ describe('HTMX Navigation Requests', function () {
     it('renders global page navigation loading feedback without replacing form save indicators', function () {
         $user = User::factory()->create();
 
-        $dashboardResponse = $this->actingAs($user)->get('/dashboard');
+        $dashboardResponse = ($this->getDashboard)($user);
 
         $dashboardResponse->assertSuccessful();
         $dashboardResponse->assertSee('<progress', false);
@@ -362,9 +344,7 @@ describe('Navigation Logout Functionality', function () {
     });
 
     it('includes CSRF token in logout form', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('name="_token"', false);
@@ -380,9 +360,7 @@ describe('Navigation Logout Functionality', function () {
 
 describe('Dark Mode Support', function () {
     it('includes dark mode classes in desktop sidebar', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('dark:bg-gray-800', false);
@@ -391,9 +369,7 @@ describe('Dark Mode Support', function () {
     });
 
     it('includes dark mode classes in desktop navbar', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('dark:bg-gray-800', false);
@@ -401,9 +377,7 @@ describe('Dark Mode Support', function () {
     });
 
     it('includes dark mode classes in mobile bottom bar', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('dark:bg-gray-700', false);
@@ -413,36 +387,28 @@ describe('Dark Mode Support', function () {
 
 describe('Responsive Design', function () {
     it('hides desktop sidebar on mobile with lg breakpoint', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('hidden lg:flex', false);
     });
 
     it('hides mobile bottom bar on desktop with lg breakpoint', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('lg:hidden', false);
     });
 
     it('shows Log Reading button only on desktop', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('hidden lg:inline-flex', false);
     });
 
     it('defaults the desktop sidebar to a compact rail below xl and expanded at xl', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
 
@@ -456,14 +422,12 @@ describe('Responsive Design', function () {
     });
 
     it('keeps the desktop sidebar icon column fixed while labels animate', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
 
         $content = $response->getContent();
-        $authenticatedShell = file_get_contents(resource_path('js/components/authenticated-shell.js'));
+        $authenticatedShell = file_get_contents(resource_path(AUTHENTICATED_SHELL_SCRIPT));
 
         expect($authenticatedShell)
             ->toContain('setSidebarCollapsed(shouldCollapse)')
@@ -477,13 +441,11 @@ describe('Responsive Design', function () {
             ->toContain('transition-[max-width,opacity,margin]')
             ->toContain('motion-reduce:transition-none')
             ->toContain("sidebarCollapsed ? 'max-w-0 opacity-0 ms-0' : 'max-w-40 opacity-100 ms-1'")
-            ->toContain('x-bind:aria-hidden="sidebarCollapsed.toString()"');
+            ->not->toContain('x-bind:aria-hidden="sidebarCollapsed.toString()"');
     });
 
     it('keeps the desktop active navigation state synchronized with HTMX history', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
 
@@ -492,13 +454,13 @@ describe('Responsive Design', function () {
             ->toContain("isSidebarPathActive('/dashboard', false)")
             ->toContain("isSidebarPathActive('/plans', true)");
 
-        $authenticatedShell = file_get_contents(resource_path('js/components/authenticated-shell.js'));
+        $authenticatedShell = file_get_contents(resource_path(AUTHENTICATED_SHELL_SCRIPT));
 
         expect($authenticatedShell)
-            ->toContain('currentSidebarPath: window.location.pathname')
+            ->toContain('currentSidebarPath: globalThis.location.pathname')
             ->toContain("document.body.addEventListener('htmx:pushedIntoHistory', syncSidebarPath)")
             ->toContain("document.body.addEventListener('htmx:historyRestore', syncSidebarPath)")
-            ->toContain("window.addEventListener('popstate', syncSidebarPath)")
+            ->toContain("globalThis.addEventListener('popstate', syncSidebarPath)")
             ->toContain('isSidebarPathActive(targetPath, matchPrefix)');
     });
 
@@ -511,7 +473,7 @@ describe('Responsive Design', function () {
             ->for($plan)
             ->create();
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)($user);
 
         $response->assertSuccessful();
 
@@ -526,27 +488,21 @@ describe('Responsive Design', function () {
 
 describe('Accessibility Features', function () {
     it('includes sr-only labels for mobile navigation icons', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('sr-only', false);
     });
 
     it('includes aria-hidden on decorative SVG icons', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('aria-hidden="true"', false);
     });
 
     it('marks the active desktop navigation link accessibly and visually', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
 
@@ -558,9 +514,7 @@ describe('Accessibility Features', function () {
     });
 
     it('renders the sidebar toggle in a quiet utility row with consistent spacing', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
 
@@ -590,18 +544,14 @@ describe('Accessibility Features', function () {
     });
 
     it('includes aria-expanded attribute on dropdown button', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('aria-expanded', false);
     });
 
     it('includes accessible label for dropdown button', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('sr-only', false);
@@ -611,9 +561,7 @@ describe('Accessibility Features', function () {
 
 describe('Navigation URL Management', function () {
     it('uses named routes for navigation links', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee(route('dashboard'));
@@ -622,9 +570,7 @@ describe('Navigation URL Management', function () {
     });
 
     it('preserves HTMX wiring on collapsible desktop sidebar links', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
 
@@ -642,9 +588,7 @@ describe('Navigation URL Management', function () {
     });
 
     it('includes hx-push-url attribute for browser history', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('hx-push-url="true"', false);
@@ -653,18 +597,14 @@ describe('Navigation URL Management', function () {
 
 describe('Navigation Component Integration', function () {
     it('includes page container div for HTMX content swapping', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('id="page-container"', false);
     });
 
     it('loads all navigation components on authenticated pages', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         // Check that key navigation elements from all components are present
@@ -674,9 +614,7 @@ describe('Navigation Component Integration', function () {
     });
 
     it('includes browser navigation support script', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         // HTMX handles history automatically, check for history event listener
@@ -687,9 +625,7 @@ describe('Navigation Component Integration', function () {
 
 describe('Brand Styling', function () {
     it('uses primary color for profile avatar', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('bg-primary-500', false);
@@ -697,9 +633,7 @@ describe('Brand Styling', function () {
     });
 
     it('uses accent color for Log Reading button', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('bg-accent-500', false);
@@ -707,9 +641,7 @@ describe('Brand Styling', function () {
     });
 
     it('uses primary color for hover states in sidebar', function () {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = ($this->getDashboard)();
 
         $response->assertSuccessful();
         $response->assertSee('hover:bg-primary-50', false);

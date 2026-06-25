@@ -19,7 +19,7 @@
 @if ($variant === 'sidebar')
     {{-- Desktop Sidebar Style --}}
     <button type="button" hx-get="{{ $finalUrl }}" hx-target="#page-container" hx-swap="innerHTML" hx-push-url="true"
-        data-sidebar-nav-link title="{{ $label }}" aria-label="{{ $label }}"
+        data-sidebar-nav-link title="{{ $label }}"
         x-bind:aria-current="isSidebarPathActive('{{ $resolvedActivePath }}', {{ $activePrefix ? 'true' : 'false' }}) ? 'page' : null"
         x-bind:class="{
             'bg-primary-50 text-primary-700 dark:bg-gray-700 dark:text-white': isSidebarPathActive('{{ $resolvedActivePath }}', {{ $activePrefix ? 'true' : 'false' }}),
@@ -34,8 +34,7 @@
             </svg>
         </span>
         <span class="overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-200 ease-in-out motion-reduce:transition-none"
-            x-bind:class="sidebarCollapsed ? 'max-w-0 opacity-0 ms-0' : 'max-w-40 opacity-100 ms-1'"
-            x-bind:aria-hidden="sidebarCollapsed.toString()">{{ $label }}</span>
+            x-bind:class="sidebarCollapsed ? 'max-w-0 opacity-0 ms-0' : 'max-w-40 opacity-100 ms-1'">{{ $label }}</span>
     </button>
 @elseif($variant === 'mobile')
     {{-- Mobile Bottom Bar Style --}}
