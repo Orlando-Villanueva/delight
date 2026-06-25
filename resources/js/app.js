@@ -1,7 +1,9 @@
 import './bootstrap';
 import confetti from 'canvas-confetti';
+import { authenticatedShell } from './components/authenticated-shell.js';
 
-window.confetti = confetti;
+globalThis.confetti = confetti;
+globalThis.authenticatedShell = authenticatedShell;
 
 const applyFlowbiteBackdropPatch = () => {
     if (typeof window === 'undefined' || !window.Modal || window.Modal.__backdropPatched) {

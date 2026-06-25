@@ -36,14 +36,14 @@
     <!-- HTMX CDN -->
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.5/dist/htmx.min.js"></script>
 
+    <!-- Styles / Scripts -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
     <!-- Alpine.js CDN -->
     <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
 
     <!-- Flowbite CDN -->
     <script defer src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
-
-    <!-- Styles / Scripts -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <!-- Alpine.js Cloak -->
     <style>
@@ -60,7 +60,7 @@
         Page loading
     </progress>
 
-    <div class="flex h-screen">
+    <div class="flex h-screen" x-data="authenticatedShell()">
         <!-- Desktop: Sidebar and Navbar -->
         <div class="hidden lg:flex">
             <x-navigation.desktop-sidebar />
@@ -77,7 +77,7 @@
                      - Standard horizontal and top padding
                      - Vertical clearance for mobile bottom navigation and iOS safe areas
                 --}}
-                <div id="page-container"
+                <div id="page-container" hx-history-elt
                     class="container mx-auto px-mobile-safe pt-4 pb-mobile-nav-safe lg:pb-4 lg:min-h-full lg:flex lg:flex-col">
                     @yield('content')
                 </div>

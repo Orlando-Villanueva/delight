@@ -1,10 +1,35 @@
 {{-- Desktop Sidebar Navigation Component --}}
-{{-- Flowbite-based sidebar with HTMX navigation and hover states only --}}
+{{-- Flowbite-based sidebar with HTMX navigation and collapsible desktop states --}}
 
-<aside class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 lg:pt-16 flex flex-col">
-    <div class="flex-1 px-3 py-4 overflow-y-auto">
+<aside id="desktop-sidebar"
+    class="w-20 xl:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 lg:pt-16 flex flex-col transition-[width] duration-200 ease-in-out"
+    x-bind:class="sidebarCollapsed ? '!w-20' : '!w-64'">
+    <div class="flex-1 overflow-y-auto px-3 py-4">
+        <div data-sidebar-control class="mb-2 flex h-10"
+            x-bind:class="sidebarCollapsed ? 'justify-center' : 'justify-end'">
+            <button type="button"
+                class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-transparent text-gray-600 transition-colors hover:bg-primary-50 hover:text-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white dark:focus-visible:ring-offset-gray-800"
+                x-on:click="toggleSidebar()" aria-controls="desktop-sidebar-navigation"
+                x-bind:aria-expanded="(! sidebarCollapsed).toString()"
+                x-bind:aria-label="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                x-bind:title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+                <span class="sr-only" x-text="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">Collapse
+                    sidebar</span>
+                <svg x-show="! sidebarCollapsed" class="h-5 w-5" aria-hidden="true"
+                    xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="m15 6-6 6 6 6" />
+                </svg>
+                <svg x-cloak x-show="sidebarCollapsed" class="h-5 w-5" aria-hidden="true"
+                    xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="m9 6 6 6-6 6" />
+                </svg>
+            </button>
+        </div>
+
         <!-- Navigation Menu -->
-        <ul class="space-y-2 font-medium">
+        <ul id="desktop-sidebar-navigation" class="space-y-2 font-medium">
             <li>
                 <x-navigation.nav-link route="dashboard" label="Dashboard" variant="sidebar">
                     <x-slot:icon>
@@ -15,7 +40,8 @@
             </li>
             @if (auth()->user()?->isAdmin())
                 <li>
-                    <x-navigation.nav-link route="admin.analytics.index" label="Analytics" variant="sidebar">
+                    <x-navigation.nav-link route="admin.analytics.index" label="Analytics" variant="sidebar"
+                        active-prefix>
                         <x-slot:icon>
                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M4 19h16M6 17V9m4 8V5m4 12v-4m4 4V7" />
@@ -32,7 +58,8 @@
                 </x-navigation.nav-link>
             </li>
             <li id="desktop-plans-link">
-                <x-navigation.nav-link :url="$smartPlansUrl" label="Reading Plans" variant="sidebar">
+                <x-navigation.nav-link :url="$smartPlansUrl" label="Reading Plans" variant="sidebar" active-path="/plans"
+                    active-prefix>
                     <x-slot:icon>
                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" />
