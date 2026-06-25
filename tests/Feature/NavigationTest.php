@@ -145,30 +145,16 @@ describe('Navigation Component Rendering', function () {
 });
 
 describe('HTMX Navigation Requests', function () {
-    it('returns partial content for HTMX dashboard request', function () {
-        $response = ($this->getHtmx)('/dashboard');
-
-        $response->assertSuccessful();
-        // HTMX requests should return partial content without full layout
-        $response->assertDontSee('<html>', false);
-        $response->assertDontSee('<!DOCTYPE', false);
-    });
-
-    it('returns partial content for HTMX log reading form request', function () {
-        $response = ($this->getHtmx)('/logs/create');
-
+    it('returns partial content for :dataset requests', function (string $path) {
+        $response = ($this->getHtmx)($path);
         $response->assertSuccessful();
         $response->assertDontSee('<html>', false);
         $response->assertDontSee('<!DOCTYPE', false);
-    });
-
-    it('returns partial content for HTMX history request', function () {
-        $response = ($this->getHtmx)('/logs');
-
-        $response->assertSuccessful();
-        $response->assertDontSee('<html>', false);
-        $response->assertDontSee('<!DOCTYPE', false);
-    });
+    })->with([
+        'dashboard' => '/dashboard',
+        'log reading form' => '/logs/create',
+        'history' => '/logs',
+    ]);
 
     it('returns full layout for standard dashboard request', function () {
         $response = ($this->getDashboard)();
@@ -179,23 +165,17 @@ describe('HTMX Navigation Requests', function () {
         $response->assertSee('<!DOCTYPE', false);
     });
 
-    it('includes HTMX attributes in navigation links', function () {
+    it('renders :dataset in the standard dashboard layout', function (array $expectedMarkup) {
         $response = ($this->getDashboard)();
-
         $response->assertSuccessful();
-        $response->assertSee('hx-get', false);
-        $response->assertSee('hx-target', false);
-        $response->assertSee('hx-swap', false);
-        $response->assertSee('hx-push-url', false);
-    });
 
-    it('targets correct page container element', function () {
-        $response = ($this->getDashboard)();
-
-        $response->assertSuccessful();
-        $response->assertSee('hx-target="#page-container"', false);
-        $response->assertSee('id="page-container"', false);
-    });
+        foreach ($expectedMarkup as $markup) {
+            $response->assertSee($markup, false);
+        }
+    })->with([
+        'HTMX navigation attributes' => [['hx-get', 'hx-target', 'hx-swap', 'hx-push-url']],
+        'page container target' => [['hx-target="#page-container"', 'id="page-container"']],
+    ]);
 
     it('renders global page navigation loading feedback without replacing form save indicators', function () {
         $user = User::factory()->create();
@@ -359,53 +339,30 @@ describe('Navigation Logout Functionality', function () {
 });
 
 describe('Dark Mode Support', function () {
-    it('includes dark mode classes in desktop sidebar', function () {
+    it('includes dark mode classes for the :dataset', function (array $expectedClasses) {
         $response = ($this->getDashboard)();
-
         $response->assertSuccessful();
-        $response->assertSee('dark:bg-gray-800', false);
-        $response->assertSee('dark:text-white', false);
-        $response->assertSee('dark:hover:bg-gray-700', false);
-    });
 
-    it('includes dark mode classes in desktop navbar', function () {
-        $response = ($this->getDashboard)();
-
-        $response->assertSuccessful();
-        $response->assertSee('dark:bg-gray-800', false);
-        $response->assertSee('dark:border-gray-700', false);
-    });
-
-    it('includes dark mode classes in mobile bottom bar', function () {
-        $response = ($this->getDashboard)();
-
-        $response->assertSuccessful();
-        $response->assertSee('dark:bg-gray-700', false);
-        $response->assertSee('dark:border-gray-600', false);
-    });
+        foreach ($expectedClasses as $class) {
+            $response->assertSee($class, false);
+        }
+    })->with([
+        'desktop sidebar' => [['dark:bg-gray-800', 'dark:text-white', 'dark:hover:bg-gray-700']],
+        'desktop navbar' => [['dark:bg-gray-800', 'dark:border-gray-700']],
+        'mobile bottom bar' => [['dark:bg-gray-700', 'dark:border-gray-600']],
+    ]);
 });
 
 describe('Responsive Design', function () {
-    it('hides desktop sidebar on mobile with lg breakpoint', function () {
+    it('renders the :dataset responsive class', function (string $responsiveClass) {
         $response = ($this->getDashboard)();
-
         $response->assertSuccessful();
-        $response->assertSee('hidden lg:flex', false);
-    });
-
-    it('hides mobile bottom bar on desktop with lg breakpoint', function () {
-        $response = ($this->getDashboard)();
-
-        $response->assertSuccessful();
-        $response->assertSee('lg:hidden', false);
-    });
-
-    it('shows Log Reading button only on desktop', function () {
-        $response = ($this->getDashboard)();
-
-        $response->assertSuccessful();
-        $response->assertSee('hidden lg:inline-flex', false);
-    });
+        $response->assertSee($responsiveClass, false);
+    })->with([
+        'desktop sidebar visibility' => 'hidden lg:flex',
+        'mobile bottom bar visibility' => 'lg:hidden',
+        'desktop Log Reading button visibility' => 'hidden lg:inline-flex',
+    ]);
 
     it('defaults the desktop sidebar to a compact rail below xl and expanded at xl', function () {
         $response = ($this->getDashboard)();
@@ -490,19 +447,14 @@ describe('Responsive Design', function () {
 });
 
 describe('Accessibility Features', function () {
-    it('includes sr-only labels for mobile navigation icons', function () {
+    it('includes :dataset accessibility markup', function (string $markup) {
         $response = ($this->getDashboard)();
-
         $response->assertSuccessful();
-        $response->assertSee('sr-only', false);
-    });
-
-    it('includes aria-hidden on decorative SVG icons', function () {
-        $response = ($this->getDashboard)();
-
-        $response->assertSuccessful();
-        $response->assertSee('aria-hidden="true"', false);
-    });
+        $response->assertSee($markup, false);
+    })->with([
+        'screen-reader-only labels' => 'sr-only',
+        'aria-hidden decorative icons' => 'aria-hidden="true"',
+    ]);
 
     it('marks the active desktop navigation link accessibly and visually', function () {
         $response = ($this->getDashboard)();
@@ -599,54 +551,31 @@ describe('Navigation URL Management', function () {
 });
 
 describe('Navigation Component Integration', function () {
-    it('includes page container div for HTMX content swapping', function () {
+    it('renders :dataset integration markup', function (array $expectedMarkup) {
         $response = ($this->getDashboard)();
-
         $response->assertSuccessful();
-        $response->assertSee('id="page-container"', false);
-    });
 
-    it('loads all navigation components on authenticated pages', function () {
-        $response = ($this->getDashboard)();
-
-        $response->assertSuccessful();
-        // Check that key navigation elements from all components are present
-        $response->assertSee('<nav', false); // Desktop navbar
-        $response->assertSee('<aside', false); // Desktop sidebar
-        $response->assertSee('rounded-full bottom-mobile-nav-safe', false); // Mobile bottom bar
-    });
-
-    it('includes browser navigation support script', function () {
-        $response = ($this->getDashboard)();
-
-        $response->assertSuccessful();
-        // HTMX handles history automatically, check for history event listener
-        $response->assertSee('htmx:historyRestore', false);
-        $response->assertSee('HTMX History Configuration', false);
-    });
+        foreach ($expectedMarkup as $markup) {
+            $response->assertSee($markup, false);
+        }
+    })->with([
+        'page container' => [['id="page-container"']],
+        'authenticated navigation components' => [['<nav', '<aside', 'rounded-full bottom-mobile-nav-safe']],
+        'browser navigation support' => [['htmx:historyRestore', 'HTMX History Configuration']],
+    ]);
 });
 
 describe('Brand Styling', function () {
-    it('uses primary color for profile avatar', function () {
+    it('uses brand styling for the :dataset', function (array $expectedClasses) {
         $response = ($this->getDashboard)();
-
         $response->assertSuccessful();
-        $response->assertSee('bg-primary-500', false);
-        $response->assertSee('focus:ring-primary-300', false);
-    });
 
-    it('uses accent color for Log Reading button', function () {
-        $response = ($this->getDashboard)();
-
-        $response->assertSuccessful();
-        $response->assertSee('bg-accent-500', false);
-        $response->assertSee('hover:bg-accent-600', false);
-    });
-
-    it('uses primary color for hover states in sidebar', function () {
-        $response = ($this->getDashboard)();
-
-        $response->assertSuccessful();
-        $response->assertSee('hover:bg-primary-50', false);
-    });
+        foreach ($expectedClasses as $class) {
+            $response->assertSee($class, false);
+        }
+    })->with([
+        'profile avatar' => [['bg-primary-500', 'focus:ring-primary-300']],
+        'Log Reading button' => [['bg-accent-500', 'hover:bg-accent-600']],
+        'sidebar hover states' => [['hover:bg-primary-50']],
+    ]);
 });
