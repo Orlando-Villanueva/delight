@@ -77,7 +77,7 @@
                      - Standard horizontal and top padding
                      - Vertical clearance for mobile bottom navigation and iOS safe areas
                 --}}
-                <div id="page-container"
+                <div id="page-container" hx-history-elt
                     class="container mx-auto px-mobile-safe pt-4 pb-mobile-nav-safe lg:pb-4 lg:min-h-full lg:flex lg:flex-col">
                     @yield('content')
                 </div>

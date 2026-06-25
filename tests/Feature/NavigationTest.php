@@ -553,6 +553,14 @@ describe('Navigation URL Management', function () {
 });
 
 describe('Navigation Component Integration', function () {
+    it('scopes HTMX history restoration to the page container', function () {
+        $response = ($this->getDashboard)();
+
+        $response->assertSuccessful();
+        $response->assertSee('id="page-container"', false);
+        $response->assertSee('hx-history-elt', false);
+    });
+
     it('renders :dataset integration markup', function (array $expectedMarkup) {
         $response = ($this->getDashboard)();
         $response->assertSuccessful();
