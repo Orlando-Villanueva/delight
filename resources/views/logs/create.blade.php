@@ -192,7 +192,7 @@
                                     @scroll="isScrollingRecentBooks = true; clearTimeout(recentBooksScrollTimeout); recentBooksScrollTimeout = setTimeout(() => isScrollingRecentBooks = false, 700)"
                                     x-bind:class="{ 'is-scrolling': isScrollingRecentBooks }"
                                     data-recent-books
-                                    class="recent-books-rail flex max-w-full items-center gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]"
+                                    class="recent-books-rail -mt-1 flex max-w-full items-center gap-2 overflow-x-auto py-1 [-webkit-overflow-scrolling:touch]"
                                 >
                                     <p id="recent-books-label" class="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">
                                         Recent

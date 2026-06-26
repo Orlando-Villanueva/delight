@@ -67,7 +67,7 @@ it('renders up to three distinct recent books ordered by latest reading recency'
         ->assertDontSee('RECENTLY READ')
         ->assertDontSee('Tap a book to fill the selector.')
         ->assertDontSee('Choose another book')
-        ->assertSee('recent-books-rail flex max-w-full items-center gap-2 overflow-x-auto', false)
+        ->assertSee('recent-books-rail -mt-1 flex max-w-full items-center gap-2 overflow-x-auto py-1', false)
         ->assertSee('isScrollingRecentBooks', false)
         ->assertSee("'is-scrolling': isScrollingRecentBooks", false)
         ->assertSee('role="group" aria-labelledby="recent-books-label"', false)
