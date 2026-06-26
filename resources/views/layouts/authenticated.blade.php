@@ -68,7 +68,7 @@
         </div>
 
         <!-- Main Content -->
-        <div class="flex-1 flex flex-col lg:overflow-hidden lg:pt-16">
+        <div class="min-w-0 flex-1 flex flex-col lg:overflow-hidden lg:pt-16">
             <!-- Mobile: Navbar (scrolls with content) -->
             <x-navigation.mobile-navbar class="lg:hidden" />
 

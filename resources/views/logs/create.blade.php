@@ -17,19 +17,23 @@
                         $oldTestament = collect($books)->where('testament', 'old')->values();
                         $newTestament = collect($books)->where('testament', 'new')->values();
                         $deuterocanonicalBooks = collect($books)->where('testament', 'deuterocanonical')->values();
+                        $recentBooks = collect($recentBooks ?? [])->values();
 
                         $initialTestament = 'old';
-                        $oldBookId = old('book_id');
+                        $selectedBookId = (string) ($selectedBookId ?? old('book_id', ''));
+                        $selectedStartChapter = (string) ($selectedStartChapter ?? old('start_chapter', ''));
+                        $selectedEndChapter = (string) ($selectedEndChapter ?? old('end_chapter', ''));
+                        $selectedNotesText = (string) ($selectedNotesText ?? old('notes_text', ''));
 
-                        if ($oldBookId) {
-                            if ($newTestament->firstWhere('id', $oldBookId)) {
+                        if ($selectedBookId !== '') {
+                            if ($newTestament->firstWhere('id', (int) $selectedBookId)) {
                                 $initialTestament = 'new';
-                            } elseif ($deuterocanonicalBooks->firstWhere('id', $oldBookId)) {
+                            } elseif ($deuterocanonicalBooks->firstWhere('id', (int) $selectedBookId)) {
                                 $initialTestament = 'deuterocanonical';
                             }
                         }
 
-                        $notesExpanded = filled(old('notes_text')) || (bool) $errors->first('notes_text');
+                        $notesExpanded = filled($selectedNotesText) || (bool) $errors->first('notes_text');
                     @endphp
 
                     <form
@@ -38,19 +42,22 @@
                         hx-swap="outerHTML"
                         class="space-y-6"
                         x-data="readingLogForm({
-                            initialTestament: '{{ $initialTestament }}',
-                            initialBookId: '{{ old('book_id') }}',
+                            initialTestament: @js($initialTestament),
+                            initialBookId: @js($selectedBookId),
                             initialNotesOpen: @js($notesExpanded),
+                            recentBooks: @js($recentBooks),
                             books: {
-                                old: {{ $oldTestament->toJson() }},
-                                new: {{ $newTestament->toJson() }},
-                                deuterocanonical: {{ $deuterocanonicalBooks->toJson() }}
+                                old: @js($oldTestament),
+                                new: @js($newTestament),
+                                deuterocanonical: @js($deuterocanonicalBooks)
                             }
                         })"
                         x-init="init()"
                     >
                         @csrf
-                        @php($selectedDateRead = $selectedDateRead ?? today()->toDateString())
+                        @php
+                            $selectedDateRead = $selectedDateRead ?? today()->toDateString();
+                        @endphp
 
                         <fieldset class="space-y-2">
                             <legend class="text-sm font-medium text-gray-700 dark:text-gray-300">When did you read?</legend>
@@ -97,9 +104,9 @@
                             <p class="text-xs text-gray-500 dark:text-gray-400">Forgot to log? Choose yesterday.</p>
                         </fieldset>
 
-                        <div class="space-y-2">
+                        <div class="space-y-3">
                             <label for="book_id" class="form-label">
-                                📚 Bible Book
+                                Bible book
                             </label>
 
                             <div class="relative flex">
@@ -179,6 +186,40 @@
                                 </div>
                             </div>
 
+                            @if ($recentBooks->isNotEmpty())
+                                <div data-recent-books class="flex max-w-full items-center gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] ![scrollbar-width:none] [&::-webkit-scrollbar]:!hidden">
+                                    <p id="recent-books-label" class="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                        Recent
+                                    </p>
+
+                                    <div class="flex min-w-0 flex-nowrap gap-2" role="group" aria-labelledby="recent-books-label">
+                                        @foreach ($recentBooks as $recentBook)
+                                            @php
+                                                $spineClass = match ($recentBook['testament']) {
+                                                    'new' => 'bg-primary-500 dark:bg-primary-400',
+                                                    'deuterocanonical' => 'bg-purple-500 dark:bg-purple-400',
+                                                    default => 'bg-accent-500 dark:bg-accent-400',
+                                                };
+                                            @endphp
+
+                                            <button
+                                                type="button"
+                                                data-recent-book-suggestion="{{ $recentBook['id'] }}"
+                                                @click="selectRecentBook(@js($recentBook))"
+                                                x-bind:aria-pressed="selectedBook == '{{ $recentBook['id'] }}'"
+                                                x-bind:class="selectedBook == '{{ $recentBook['id'] }}'
+                                                    ? 'border-primary-500 bg-primary-50 text-primary-800 ring-2 ring-primary-500/25 dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-100'
+                                                    : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-100'"
+                                                class="inline-flex min-h-9 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-left text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-gray-900"
+                                            >
+                                                <span aria-hidden="true" class="h-1.5 w-1.5 shrink-0 rounded-full {{ $spineClass }}"></span>
+                                                <span class="truncate">{{ $recentBook['name'] }}</span>
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
                             @if ($errors->first('book_id'))
                                 <p class="form-error" role="alert">
                                     {{ $errors->first('book_id') }}
@@ -189,10 +230,10 @@
                         <div>
                             <div class="grid grid-cols-2 gap-4">
                                 <x-ui.input name="start_chapter" label="Start Chapter" inputmode="numeric" pattern="[0-9]*"
-                                    x-bind:placeholder="startChapterPlaceholder" :value="old('start_chapter')" required />
+                                    x-bind:placeholder="startChapterPlaceholder" :value="$selectedStartChapter" required />
 
                                 <x-ui.input name="end_chapter" label="End Chapter (Optional)" inputmode="numeric"
-                                    pattern="[0-9]*" x-bind:placeholder="endChapterPlaceholder" :value="old('end_chapter')"
+                                    pattern="[0-9]*" x-bind:placeholder="endChapterPlaceholder" :value="$selectedEndChapter"
                                     :error="$errors->first('end_chapter')" />
                             </div>
 
@@ -216,7 +257,7 @@
 
                             <div x-show="notesOpen" x-cloak>
                                 <x-ui.textarea name="notes_text" label="Note or reflection"
-                                    placeholder="Share any thoughts, insights, or questions from your reading..." :value="old('notes_text')"
+                                    placeholder="Share any thoughts, insights, or questions from your reading..." :value="$selectedNotesText"
                                     rows="3" maxlength="1000" :showCounter="true" :error="$errors->first('notes_text')" />
                             </div>
                         </div>
@@ -267,6 +308,7 @@
                                 testament: config.initialTestament,
                                 testamentLabel: testamentLabelFor(config.initialTestament),
                                 books: config.books,
+                                recentBooks: config.recentBooks,
                                 selectedBook: config.initialBookId,
                                 graceHelpOpen: false,
                                 notesOpen: config.initialNotesOpen,
@@ -298,6 +340,13 @@
                                         this.endChapterPlaceholder = 'e.g. 5';
                                         this.chapterNote = '';
                                     }
+                                },
+
+                                selectRecentBook(book) {
+                                    this.testament = book.testament;
+                                    this.testamentLabel = testamentLabelFor(book.testament);
+                                    this.selectedBook = String(book.id);
+                                    this.updateChapterPlaceholder(book.id);
                                 },
 
                                 updateTestament(newTestament) {

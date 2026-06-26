@@ -4,7 +4,9 @@ namespace Tests\Unit;
 
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\BibleReferenceService;
 use App\Services\ReadingFormService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -21,7 +23,7 @@ class ReadingFormServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new ReadingFormService;
+        $this->service = new ReadingFormService(new BibleReferenceService);
         $this->user = User::factory()->create();
     }
 
@@ -160,6 +162,7 @@ class ReadingFormServiceTest extends TestCase
         $contextData = $this->service->getFormContextData($this->user);
 
         $this->assertTrue($contextData['allowYesterday']);
+        $this->assertSame([], $contextData['recentBooks']);
     }
 
     public function test_get_form_context_data_allows_yesterday_for_a_new_user(): void
@@ -207,7 +210,59 @@ class ReadingFormServiceTest extends TestCase
         $this->assertTrue($contextData['allowYesterday']);
     }
 
-    public function test_get_form_context_data_does_not_query_unused_reading_state(): void
+    public function test_get_form_context_data_includes_three_distinct_recent_books_in_recency_order(): void
+    {
+        $this->createReadingLogForBook(19, '2026-06-20', '2026-06-20 08:00:00');
+        $this->createReadingLogForBook(43, '2026-06-23', '2026-06-23 09:00:00');
+        $this->createReadingLogForBook(40, '2026-06-23', '2026-06-23 10:00:00');
+        $this->createReadingLogForBook(1, '2026-06-22', '2026-06-22 08:00:00');
+        $this->createReadingLogForBook(1, '2026-06-24', '2026-06-24 08:00:00', 2);
+
+        $contextData = $this->service->getFormContextData($this->user);
+
+        $this->assertSame([1, 40, 43], array_column($contextData['recentBooks'], 'id'));
+        $this->assertSame(['Genesis', 'Matthew', 'John'], array_column($contextData['recentBooks'], 'name'));
+        $this->assertSame(['old', 'new', 'new'], array_column($contextData['recentBooks'], 'testament'));
+    }
+
+    public function test_get_form_context_data_filters_recent_books_by_current_canon_preference_before_limiting(): void
+    {
+        $this->createReadingLogForBook(67, '2026-06-24', '2026-06-24 12:00:00');
+        $this->createReadingLogForBook(1, '2026-06-23', '2026-06-23 12:00:00');
+        $this->createReadingLogForBook(40, '2026-06-22', '2026-06-22 12:00:00');
+        $this->createReadingLogForBook(43, '2026-06-21', '2026-06-21 12:00:00');
+
+        $contextData = $this->service->getFormContextData($this->user);
+
+        $this->assertSame([1, 40, 43], array_column($contextData['recentBooks'], 'id'));
+
+        $this->user->forceFill(['deuterocanonical_books_enabled_at' => now()])->save();
+
+        $contextData = $this->service->getFormContextData($this->user->fresh());
+
+        $this->assertSame([67, 1, 40], array_column($contextData['recentBooks'], 'id'));
+    }
+
+    public function test_get_form_context_data_finds_distinct_books_beyond_a_fixed_latest_row_window(): void
+    {
+        for ($daysAgo = 0; $daysAgo < 60; $daysAgo++) {
+            $date = Carbon::parse('2026-06-24')->subDays($daysAgo);
+
+            $this->createReadingLogForBook(
+                1,
+                $date->toDateString(),
+                $date->copy()->setTime(8, 0)->toDateTimeString()
+            );
+        }
+
+        $this->createReadingLogForBook(40, '2026-04-20', '2026-04-20 08:00:00');
+
+        $contextData = $this->service->getFormContextData($this->user);
+
+        $this->assertSame([1, 40], array_column($contextData['recentBooks'], 'id'));
+    }
+
+    public function test_get_form_context_data_uses_one_query_for_recent_books(): void
     {
         ReadingLog::factory()->create([
             'user_id' => $this->user->id,
@@ -221,6 +276,20 @@ class ReadingFormServiceTest extends TestCase
         $contextData = $this->service->getFormContextData($this->user);
 
         $this->assertTrue($contextData['allowYesterday']);
-        $this->assertEmpty(DB::getQueryLog());
+        $this->assertCount(1, DB::getQueryLog());
+        $this->assertSame([1], array_column($contextData['recentBooks'], 'id'));
+    }
+
+    private function createReadingLogForBook(int $bookId, string $dateRead, string $createdAt, int $chapter = 1): ReadingLog
+    {
+        return ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => $bookId,
+            'chapter' => $chapter,
+            'passage_text' => "Book {$bookId} {$chapter}",
+            'date_read' => $dateRead,
+            'created_at' => Carbon::parse($createdAt),
+            'updated_at' => Carbon::parse($createdAt),
+        ]);
     }
 }
