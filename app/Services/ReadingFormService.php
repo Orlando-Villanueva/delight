@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ReadingLog;
 use App\Models\User;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 class ReadingFormService
 {
@@ -50,15 +51,12 @@ class ReadingFormService
             return [];
         }
 
-        $rankedReadings = ReadingLog::query()
-            ->select(['book_id', 'date_read', 'created_at', 'id'])
-            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY book_id ORDER BY date_read DESC, created_at DESC, id DESC) AS book_rank')
-            ->where('user_id', $user->id)
-            ->whereIn('book_id', $books->keys()->all());
-
         $recentBookIds = ReadingLog::query()
-            ->fromSub($rankedReadings, 'ranked_reading_logs')
-            ->where('book_rank', 1)
+            ->where('user_id', $user->id)
+            ->whereIn('book_id', $books->keys()->all())
+            ->whereNotExists(function (QueryBuilder $query): void {
+                $this->constrainNewerReadingForSameBookSubquery($query);
+            })
             ->orderByDesc('date_read')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
@@ -71,5 +69,25 @@ class ReadingFormService
             ->filter()
             ->values()
             ->all();
+    }
+
+    private function constrainNewerReadingForSameBookSubquery(QueryBuilder $query): void
+    {
+        $query->select('newer_reading_logs.id')
+            ->from('reading_logs as newer_reading_logs')
+            ->whereColumn('newer_reading_logs.user_id', 'reading_logs.user_id')
+            ->whereColumn('newer_reading_logs.book_id', 'reading_logs.book_id')
+            ->where(function (QueryBuilder $query): void {
+                $query->whereColumn('newer_reading_logs.date_read', '>', 'reading_logs.date_read')
+                    ->orWhere(function (QueryBuilder $query): void {
+                        $query->whereColumn('newer_reading_logs.date_read', 'reading_logs.date_read')
+                            ->whereColumn('newer_reading_logs.created_at', '>', 'reading_logs.created_at');
+                    })
+                    ->orWhere(function (QueryBuilder $query): void {
+                        $query->whereColumn('newer_reading_logs.date_read', 'reading_logs.date_read')
+                            ->whereColumn('newer_reading_logs.created_at', 'reading_logs.created_at')
+                            ->whereColumn('newer_reading_logs.id', '>', 'reading_logs.id');
+                    });
+            });
     }
 }
