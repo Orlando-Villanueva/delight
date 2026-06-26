@@ -68,6 +68,8 @@ it('renders up to three distinct recent books ordered by latest reading recency'
         ->assertDontSee('Tap a book to fill the selector.')
         ->assertDontSee('Choose another book')
         ->assertSee('flex max-w-full items-center gap-2 overflow-x-auto', false)
+        ->assertSee('![scrollbar-width:none]', false)
+        ->assertSee('[&::-webkit-scrollbar]:!hidden', false)
         ->assertSee('role="group" aria-labelledby="recent-books-label"', false)
         ->assertSee('x-bind:aria-pressed', false)
         ->assertSee('inline-flex min-h-9 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-full', false)
