@@ -129,6 +129,23 @@ html {
     background-color: var(--scrollbar-thumb-hover);
 }
 
+.recent-books-rail {
+    scrollbar-width: none;
+}
+
+.recent-books-rail::-webkit-scrollbar {
+    display: none;
+}
+
+.recent-books-rail.is-scrolling {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.recent-books-rail.is-scrolling::-webkit-scrollbar {
+    display: block;
+}
+
 /* Accessibility improvements */
 .sr-only {
     position: absolute;

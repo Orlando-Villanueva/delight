@@ -187,7 +187,13 @@
                             </div>
 
                             @if ($recentBooks->isNotEmpty())
-                                <div data-recent-books class="flex max-w-full items-center gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] ![scrollbar-width:none] [&::-webkit-scrollbar]:!hidden">
+                                <div
+                                    x-data="{ isScrollingRecentBooks: false, recentBooksScrollTimeout: null }"
+                                    @scroll="isScrollingRecentBooks = true; clearTimeout(recentBooksScrollTimeout); recentBooksScrollTimeout = setTimeout(() => isScrollingRecentBooks = false, 700)"
+                                    x-bind:class="{ 'is-scrolling': isScrollingRecentBooks }"
+                                    data-recent-books
+                                    class="recent-books-rail flex max-w-full items-center gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]"
+                                >
                                     <p id="recent-books-label" class="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">
                                         Recent
                                     </p>
