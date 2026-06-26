@@ -242,11 +242,18 @@ class ReadingLogController extends Controller
     private function submittedValuesForForm(Request $request): array
     {
         return [
-            'selectedBookId' => (string) $request->input('book_id', ''),
-            'selectedStartChapter' => (string) $request->input('start_chapter', ''),
-            'selectedEndChapter' => (string) $request->input('end_chapter', ''),
-            'selectedNotesText' => (string) $request->input('notes_text', ''),
+            'selectedBookId' => $this->scalarInputForForm($request, 'book_id'),
+            'selectedStartChapter' => $this->scalarInputForForm($request, 'start_chapter'),
+            'selectedEndChapter' => $this->scalarInputForForm($request, 'end_chapter'),
+            'selectedNotesText' => $this->scalarInputForForm($request, 'notes_text'),
         ];
+    }
+
+    private function scalarInputForForm(Request $request, string $key): string
+    {
+        $value = $request->input($key, '');
+
+        return is_scalar($value) ? (string) $value : '';
     }
 
     /**

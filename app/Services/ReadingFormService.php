@@ -10,10 +10,8 @@ class ReadingFormService
     private const RECENT_BOOK_LIMIT = 3;
 
     public function __construct(
-        private ?BibleReferenceService $bibleReferenceService = null
-    ) {
-        $this->bibleReferenceService ??= new BibleReferenceService;
-    }
+        private BibleReferenceService $bibleReferenceService
+    ) {}
 
     /**
      * Check if the user has read today.

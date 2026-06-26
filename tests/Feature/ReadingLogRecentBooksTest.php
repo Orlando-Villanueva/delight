@@ -4,17 +4,41 @@ use App\Models\ReadingLog;
 use App\Models\User;
 use Carbon\Carbon;
 
-function createRecentBookLog(User $user, int $bookId, string $dateRead, string $createdAt, int $chapter = 1): ReadingLog
-{
-    return ReadingLog::factory()->for($user)->create([
-        'book_id' => $bookId,
-        'chapter' => $chapter,
-        'passage_text' => "Book {$bookId} {$chapter}",
-        'date_read' => $dateRead,
-        'created_at' => Carbon::parse($createdAt),
-        'updated_at' => Carbon::parse($createdAt),
-    ]);
+if (! function_exists('createRecentBookLog')) {
+    function createRecentBookLog(User $user, int $bookId, string $dateRead, string $createdAt, int $chapter = 1): ReadingLog
+    {
+        return ReadingLog::factory()->for($user)->create([
+            'book_id' => $bookId,
+            'chapter' => $chapter,
+            'passage_text' => "Book {$bookId} {$chapter}",
+            'date_read' => $dateRead,
+            'created_at' => Carbon::parse($createdAt),
+            'updated_at' => Carbon::parse($createdAt),
+        ]);
+    }
 }
+
+it('drops malformed array inputs when preserving values after htmx validation replacement', function () {
+    $user = User::factory()->create();
+
+    createRecentBookLog($user, 43, '2026-06-24', '2026-06-24 08:00:00');
+
+    $response = $this->actingAs($user)->post(route('logs.store'), [
+        'book_id' => [43],
+        'start_chapter' => ['10'],
+        'end_chapter' => ['5'],
+        'date_read' => today()->toDateString(),
+        'notes_text' => ['Keep this reflection visible.'],
+    ], ['HX-Request' => 'true']);
+
+    $response->assertSuccessful()
+        ->assertSee('data-recent-book-suggestion="43"', false)
+        ->assertSee("initialBookId: ''", false)
+        ->assertDontSee('Array');
+
+    expect($response->getContent())->toMatch('/<input[^>]+name="start_chapter"[^>]+value=""/s')
+        ->and($response->getContent())->toMatch('/<input[^>]+name="end_chapter"[^>]+value=""/s');
+});
 
 it('does not render recent book suggestions when the user has no reading history', function () {
     $user = User::factory()->create();
