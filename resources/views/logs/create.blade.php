@@ -212,11 +212,7 @@
                                                 type="button"
                                                 data-recent-book-suggestion="{{ $recentBook['id'] }}"
                                                 @click="selectRecentBook(@js($recentBook))"
-                                                x-bind:aria-pressed="selectedBook == '{{ $recentBook['id'] }}'"
-                                                x-bind:class="selectedBook == '{{ $recentBook['id'] }}'
-                                                    ? 'border-primary-500 bg-primary-50 text-primary-800 ring-2 ring-primary-500/25 dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-100'
-                                                    : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-100'"
-                                                class="inline-flex min-h-9 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-left text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-gray-900"
+                                                class="inline-flex min-h-9 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-left text-xs font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-100 dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-gray-900"
                                             >
                                                 <span aria-hidden="true" class="h-1.5 w-1.5 shrink-0 rounded-full {{ $spineClass }}"></span>
                                                 <span class="truncate">{{ $recentBook['name'] }}</span>
