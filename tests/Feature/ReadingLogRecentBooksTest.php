@@ -69,6 +69,8 @@ it('renders up to three distinct recent books ordered by latest reading recency'
         ->assertDontSee('Choose another book')
         ->assertSee('recent-books-rail -mt-1 flex max-w-full items-center gap-2 overflow-x-auto py-1', false)
         ->assertSee('isScrollingRecentBooks', false)
+        ->assertSee('@scroll.passive', false)
+        ->assertSee('if (! isScrollingRecentBooks) isScrollingRecentBooks = true', false)
         ->assertSee("'is-scrolling': isScrollingRecentBooks", false)
         ->assertSee('role="group" aria-labelledby="recent-books-label"', false)
         ->assertDontSee('x-bind:aria-pressed', false)

@@ -134,7 +134,8 @@ html {
 }
 
 .recent-books-rail::-webkit-scrollbar {
-    display: none;
+    width: 0;
+    height: 0;
 }
 
 .recent-books-rail.is-scrolling {
@@ -143,7 +144,8 @@ html {
 }
 
 .recent-books-rail.is-scrolling::-webkit-scrollbar {
-    display: block;
+    width: 12px;
+    height: 12px;
 }
 
 /* Accessibility improvements */
