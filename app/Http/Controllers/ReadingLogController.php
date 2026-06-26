@@ -158,10 +158,12 @@ class ReadingLogController extends Controller
             // Get form context data
             $formContext = $this->readingFormService->getFormContextData($request->user());
             $selectedDateRead = $this->selectedDateReadForForm($request);
+            $submittedFormValues = $this->submittedValuesForForm($request);
 
             // Return appropriate fragment or view based on request type
             return response()->htmx('logs.create', 'reading-form', array_merge(
                 compact('books', 'errors', 'selectedDateRead'),
+                $submittedFormValues,
                 $formContext
             ));
         } catch (InvalidArgumentException $e) {
@@ -175,10 +177,12 @@ class ReadingLogController extends Controller
             // Get form context data
             $formContext = $this->readingFormService->getFormContextData($request->user());
             $selectedDateRead = $this->selectedDateReadForForm($request);
+            $submittedFormValues = $this->submittedValuesForForm($request);
 
             // Return appropriate fragment or view based on request type
             return response()->htmx('logs.create', 'reading-form', array_merge(
                 compact('books', 'errors', 'selectedDateRead'),
+                $submittedFormValues,
                 $formContext
             ));
         } catch (QueryException $e) {
@@ -195,10 +199,12 @@ class ReadingLogController extends Controller
                 // Get form context data
                 $formContext = $this->readingFormService->getFormContextData($request->user());
                 $selectedDateRead = $this->selectedDateReadForForm($request);
+                $submittedFormValues = $this->submittedValuesForForm($request);
 
                 // Return appropriate fragment or view based on request type
                 return response()->htmx('logs.create', 'reading-form', array_merge(
                     compact('books', 'errors', 'selectedDateRead'),
+                    $submittedFormValues,
                     $formContext
                 ));
             }
@@ -228,6 +234,19 @@ class ReadingLogController extends Controller
         return $request->input('date_read') === $yesterday
             ? $yesterday
             : today()->toDateString();
+    }
+
+    /**
+     * @return array{selectedBookId:string,selectedStartChapter:string,selectedEndChapter:string,selectedNotesText:string}
+     */
+    private function submittedValuesForForm(Request $request): array
+    {
+        return [
+            'selectedBookId' => (string) $request->input('book_id', ''),
+            'selectedStartChapter' => (string) $request->input('start_chapter', ''),
+            'selectedEndChapter' => (string) $request->input('end_chapter', ''),
+            'selectedNotesText' => (string) $request->input('notes_text', ''),
+        ];
     }
 
     /**
