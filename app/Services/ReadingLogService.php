@@ -384,22 +384,27 @@ class ReadingLogService
 
         $endDate = today();
         $startDate = $endDate->copy()->subDays($days - 1);
+        $exclusiveEndDate = $endDate->copy()->addDay();
 
         $dailyCounts = $user->readingLogs()
-            ->whereDate('date_read', '>=', $startDate->toDateString())
-            ->whereDate('date_read', '<=', $endDate->toDateString())
+            ->where('date_read', '>=', $startDate->toDateString())
+            ->where('date_read', '<', $exclusiveEndDate->toDateString())
             ->selectRaw('date_read, count(*) as count')
             ->groupBy('date_read')
             ->pluck('count', 'date_read')
             ->mapWithKeys(fn ($count, $date): array => [
-                Carbon::parse($date)->startOfDay()->toDateString() => (int) $count,
+                Carbon::parse($date)->toDateString() => (int) $count,
             ]);
 
         return collect()
-            ->times($days, fn (int $offset): array => [
-                'date' => $startDate->copy()->addDays($offset - 1)->toDateString(),
-                'count' => $dailyCounts->get($startDate->copy()->addDays($offset - 1)->toDateString(), 0),
-            ])
+            ->times($days, function (int $offset) use ($startDate, $dailyCounts): array {
+                $date = $startDate->copy()->addDays($offset - 1)->toDateString();
+
+                return [
+                    'date' => $date,
+                    'count' => $dailyCounts->get($date, 0),
+                ];
+            })
             ->all();
     }
 

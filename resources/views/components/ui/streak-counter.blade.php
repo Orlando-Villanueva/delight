@@ -237,7 +237,7 @@
                         <span>{{ $hasRecentActivity ? 'At least one reading was logged in this window.' : 'No readings were logged in this window.' }}</span>
                         <ul>
                             @foreach ($series as $entry)
-                                <li>{{ \Carbon\Carbon::parse($entry['date'])->toFormattedDateString() }}: {{ $entry['count'] }} {{ Str::plural('reading', $entry['count']) }}</li>
+                                <li>{{ date_create($entry['date'])->format('M j, Y') }}: {{ $entry['count'] }} {{ Str::plural('reading', $entry['count']) }}</li>
                             @endforeach
                         </ul>
                     </figcaption>
