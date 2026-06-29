@@ -70,7 +70,7 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1.15fr)_minmax(17.5rem,0.85fr)] gap-4 lg:gap-4">
                                 <!-- Daily Streak - current run -->
                                 <div class="order-1 sm:col-span-1 lg:col-span-1 xl:col-span-1">
-                                    <x-ui.streak-counter :currentStreak="$stats['streaks']['current_streak']" :longestStreak="$stats['streaks']['longest_streak']" :streakSeries="$stats['streaks']['current_streak_series'] ?? []"
+                                    <x-ui.streak-counter :currentStreak="$stats['streaks']['current_streak']" :longestStreak="$stats['streaks']['longest_streak']" :activitySeries="$stats['streaks']['recent_reading_activity_series'] ?? []" :streakSeries="$stats['streaks']['current_streak_series'] ?? []"
                                         :stateClasses="$streakStateClasses" :message="$streakMessage" :messageTone="$streakMessageTone" :recordStatus="data_get($stats, 'streaks.record_status', 'none')"
                                         :recordJustBroken="data_get($stats, 'streaks.record_just_broken', false)" :statusLabel="$streakStatusLabel" :showCta="$streakShowCta"
                                         class="h-full" />

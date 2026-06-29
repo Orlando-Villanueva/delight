@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Cache;
 
 class UserStatisticsService
 {
+    private const RECENT_READING_ACTIVITY_DAYS = 14;
+
     public function __construct(
         private ReadingLogService $readingLogService,
         private ?BibleReferenceService $bibleReferenceService = null
@@ -56,6 +58,12 @@ class UserStatisticsService
             fn () => $this->readingLogService->getCurrentStreakSeries($user)
         );
 
+        $recentReadingActivitySeries = Cache::remember(
+            "user_recent_reading_activity_series_{$user->id}",
+            $ttl, // Cache until end of day (invalidated on log changes)
+            fn () => $this->readingLogService->getRecentReadingActivitySeries($user, self::RECENT_READING_ACTIVITY_DAYS)
+        );
+
         $currentStreakStartDate = null;
         if (! empty($currentStreakSeries)) {
             $firstEntry = $currentStreakSeries[0];
@@ -88,6 +96,7 @@ class UserStatisticsService
             'current_streak' => $currentStreak,
             'longest_streak' => $longestStreak,
             'current_streak_series' => $currentStreakSeries,
+            'recent_reading_activity_series' => $recentReadingActivitySeries,
             'record_previous_best' => $previousLongest,
             'record_status' => $recordStatus,
             'record_just_broken' => $recordJustBroken,
@@ -498,6 +507,8 @@ class UserStatisticsService
         Cache::forget("user_dashboard_stats_{$user->id}");
         Cache::forget("user_current_streak_{$user->id}");
         Cache::forget("user_longest_streak_{$user->id}");
+        Cache::forget("user_current_streak_series_{$user->id}");
+        Cache::forget("user_recent_reading_activity_series_{$user->id}");
         Cache::forget("user_calendar_{$user->id}_{$currentYear}");
         Cache::forget("user_calendar_{$user->id}_{$previousYear}");
         Cache::forget("user_monthly_calendar_{$user->id}_{$currentMonth}");

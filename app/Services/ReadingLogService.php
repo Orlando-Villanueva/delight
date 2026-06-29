@@ -372,6 +372,43 @@ class ReadingLogService
     }
 
     /**
+     * Build a zero-filled recent reading activity timeline.
+     *
+     * @return array<int, array{date: string, count: int}>
+     */
+    public function getRecentReadingActivitySeries(User $user, int $days = 14): array
+    {
+        if ($days < 1) {
+            throw new InvalidArgumentException('Recent reading activity window must be at least one day.');
+        }
+
+        $endDate = today();
+        $startDate = $endDate->copy()->subDays($days - 1);
+        $exclusiveEndDate = $endDate->copy()->addDay();
+
+        $dailyCounts = $user->readingLogs()
+            ->where('date_read', '>=', $startDate->toDateString())
+            ->where('date_read', '<', $exclusiveEndDate->toDateString())
+            ->selectRaw('date_read, count(*) as count')
+            ->groupBy('date_read')
+            ->pluck('count', 'date_read')
+            ->mapWithKeys(fn ($count, $date): array => [
+                Carbon::parse($date)->toDateString() => (int) $count,
+            ]);
+
+        return collect()
+            ->times($days, function (int $offset) use ($startDate, $dailyCounts): array {
+                $date = $startDate->copy()->addDays($offset - 1)->toDateString();
+
+                return [
+                    'date' => $date,
+                    'count' => $dailyCounts->get($date, 0),
+                ];
+            })
+            ->all();
+    }
+
+    /**
      * Calculate the longest streak ever for a user.
      */
     public function calculateLongestStreak(User $user): int
@@ -605,6 +642,7 @@ class ReadingLogService
         Cache::forget("user_total_reading_days_{$user->id}");
         Cache::forget("user_avg_chapters_per_day_{$user->id}");
         Cache::forget("user_current_streak_series_{$user->id}");
+        Cache::forget("user_recent_reading_activity_series_{$user->id}");
         Cache::forget(AnnualRecapService::cacheKeyFor($user, $currentYear));
 
         // Smart invalidation - only invalidate on first reading of the day

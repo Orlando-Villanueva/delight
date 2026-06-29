@@ -4,6 +4,7 @@
     'stateClasses' => [],
     'message' => '',
     'size' => 'default',
+    'activitySeries' => [],
     'streakSeries' => [],
     'messageTone' => 'default',
     'recordStatus' => 'none',
@@ -37,7 +38,10 @@
         'large' => 'w-8 h-8',
     ];
 
-    $series = collect($streakSeries ?? [])
+    $isShowingRecentActivity = !empty($activitySeries);
+    $activityEntries = $isShowingRecentActivity ? $activitySeries : ($streakSeries ?? []);
+
+    $series = collect($activityEntries)
         ->map(function ($entry) {
             return [
                 'date' => $entry['date'] ?? null,
@@ -48,16 +52,6 @@
         ->values();
 
     $plotSeries = $series->values();
-
-    $minSeriesLength = 15;
-    if ($plotSeries->count() > 0 && $plotSeries->count() < $minSeriesLength) {
-        $placeholderCount = $minSeriesLength - $plotSeries->count();
-        $placeholders = collect()->times($placeholderCount, fn () => [
-            'date' => null,
-            'count' => 0,
-        ]);
-        $plotSeries = $placeholders->merge($plotSeries)->values();
-    }
 
     $seriesPointCount = $plotSeries->count();
     $seriesRawMax = $plotSeries->max('count') ?? 0;
@@ -104,6 +98,23 @@
     $seriesHasTrend = $seriesPointCount >= 2 && !empty($sparklinePoints);
     $seriesStart = $series->first()['date'] ?? null;
     $seriesEnd = $series->last()['date'] ?? null;
+    $hasRecentActivity = $series->contains(fn ($entry) => $entry['count'] > 0);
+    $activityCaptionId = 'recentReadingActivityCaption_' . uniqid();
+    $activityChartLabel = $isShowingRecentActivity
+        ? 'Recent 14-day reading activity'
+        : 'Current streak reading activity';
+    $activityCaptionLabel = $isShowingRecentActivity
+        ? 'Recent 14-day reading activity counts.'
+        : 'Current streak reading activity counts.';
+    $activityPresentSummary = $isShowingRecentActivity
+        ? 'At least one reading was logged in this window.'
+        : 'At least one reading was logged during this streak.';
+    $activityEmptySummary = $isShowingRecentActivity
+        ? 'No readings were logged in this window.'
+        : 'No readings were logged during this streak.';
+    $activityEmptyMessage = $isShowingRecentActivity
+        ? 'No readings logged in the last 14 days yet.'
+        : 'No readings logged during this streak yet.';
 
     $axisTicks = collect([
         ['label' => 0, 'value' => 0],
@@ -205,7 +216,8 @@
             @if ($seriesHasTrend)
                 <figure class="mt-2">
                     <svg viewBox="0 0 {{ $viewBoxWidth }} {{ $sparklineHeight }}" role="img"
-                        aria-label="Daily readings since streak began. Starts {{ $seriesStart }}, most recent {{ $seriesEnd }}."
+                        aria-label="{{ $activityChartLabel }}. Starts {{ $seriesStart }}, most recent {{ $seriesEnd }}."
+                        aria-describedby="{{ $activityCaptionId }}"
                         class="w-full h-12" style="overflow: visible;">
                         <defs>
                             <linearGradient id="{{ $sparklineGradientId }}" x1="0%" y1="0%"
@@ -236,9 +248,20 @@
                             stroke="{{ $sparklineStrokeColor }}" stroke-width="2" stroke-linecap="round"
                             stroke-linejoin="round" class="{{ $sparklineStrokeDarkClass }}" />
                     </svg>
-                    <figcaption class="sr-only">
-                        Reading counts per day along the current streak
+                    <figcaption id="{{ $activityCaptionId }}" class="sr-only">
+                        {{ $activityCaptionLabel }}
+                        <span>{{ $hasRecentActivity ? $activityPresentSummary : $activityEmptySummary }}</span>
+                        <ul>
+                            @foreach ($series as $entry)
+                                <li>{{ date_create($entry['date'])->format('M j, Y') }}: {{ $entry['count'] }} {{ Str::plural('reading', $entry['count']) }}</li>
+                            @endforeach
+                        </ul>
                     </figcaption>
+                    @unless ($hasRecentActivity)
+                        <p class="mt-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                            {{ $activityEmptyMessage }}
+                        </p>
+                    @endunless
                 </figure>
             @endif
 
