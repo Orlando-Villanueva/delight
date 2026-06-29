@@ -199,6 +199,24 @@ it('renders an intentional zero activity state near the chart', function (): voi
         ->not->toContain('since streak began');
 });
 
+it('labels fallback streak series as current streak activity', function (): void {
+    $streakSeries = [
+        ['date' => '2024-01-13', 'count' => 1],
+        ['date' => '2024-01-14', 'count' => 1],
+    ];
+
+    $html = renderStreakCounterWithActivity([], $streakSeries);
+
+    expect($html)
+        ->toContain('Current streak reading activity')
+        ->toContain('Current streak reading activity counts.')
+        ->toContain('At least one reading was logged during this streak.')
+        ->toContain('Jan 13, 2024: 1 reading')
+        ->toContain('Jan 14, 2024: 1 reading')
+        ->not->toContain('Recent 14-day reading activity')
+        ->not->toContain('No readings logged in the last 14 days yet.');
+});
+
 function createReadingActivityLog(User $user, string $dateRead, int $chapter = 1): ReadingLog
 {
     return ReadingLog::factory()->for($user)->create([
@@ -209,7 +227,7 @@ function createReadingActivityLog(User $user, string $dateRead, int $chapter = 1
     ]);
 }
 
-function renderStreakCounterWithActivity(array $activitySeries): string
+function renderStreakCounterWithActivity(array $activitySeries, array $streakSeries = []): string
 {
     return Blade::render(
         <<<'BLADE'
@@ -217,11 +235,13 @@ function renderStreakCounterWithActivity(array $activitySeries): string
             :current-streak="0"
             :longest-streak="0"
             :activity-series="$activitySeries"
+            :streak-series="$streakSeries"
             :state-classes="$stateClasses"
         />
         BLADE,
         [
             'activitySeries' => $activitySeries,
+            'streakSeries' => $streakSeries,
             'stateClasses' => ['showIcon' => false],
         ],
     );

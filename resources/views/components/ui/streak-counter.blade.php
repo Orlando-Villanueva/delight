@@ -38,7 +38,8 @@
         'large' => 'w-8 h-8',
     ];
 
-    $activityEntries = !empty($activitySeries) ? $activitySeries : ($streakSeries ?? []);
+    $isShowingRecentActivity = !empty($activitySeries);
+    $activityEntries = $isShowingRecentActivity ? $activitySeries : ($streakSeries ?? []);
 
     $series = collect($activityEntries)
         ->map(function ($entry) {
@@ -99,6 +100,21 @@
     $seriesEnd = $series->last()['date'] ?? null;
     $hasRecentActivity = $series->contains(fn ($entry) => $entry['count'] > 0);
     $activityCaptionId = 'recentReadingActivityCaption_' . uniqid();
+    $activityChartLabel = $isShowingRecentActivity
+        ? 'Recent 14-day reading activity'
+        : 'Current streak reading activity';
+    $activityCaptionLabel = $isShowingRecentActivity
+        ? 'Recent 14-day reading activity counts.'
+        : 'Current streak reading activity counts.';
+    $activityPresentSummary = $isShowingRecentActivity
+        ? 'At least one reading was logged in this window.'
+        : 'At least one reading was logged during this streak.';
+    $activityEmptySummary = $isShowingRecentActivity
+        ? 'No readings were logged in this window.'
+        : 'No readings were logged during this streak.';
+    $activityEmptyMessage = $isShowingRecentActivity
+        ? 'No readings logged in the last 14 days yet.'
+        : 'No readings logged during this streak yet.';
 
     $axisTicks = collect([
         ['label' => 0, 'value' => 0],
@@ -200,7 +216,7 @@
             @if ($seriesHasTrend)
                 <figure class="mt-2">
                     <svg viewBox="0 0 {{ $viewBoxWidth }} {{ $sparklineHeight }}" role="img"
-                        aria-label="Recent 14-day reading activity. Starts {{ $seriesStart }}, most recent {{ $seriesEnd }}."
+                        aria-label="{{ $activityChartLabel }}. Starts {{ $seriesStart }}, most recent {{ $seriesEnd }}."
                         aria-describedby="{{ $activityCaptionId }}"
                         class="w-full h-12" style="overflow: visible;">
                         <defs>
@@ -233,8 +249,8 @@
                             stroke-linejoin="round" class="{{ $sparklineStrokeDarkClass }}" />
                     </svg>
                     <figcaption id="{{ $activityCaptionId }}" class="sr-only">
-                        Recent 14-day reading activity counts.
-                        <span>{{ $hasRecentActivity ? 'At least one reading was logged in this window.' : 'No readings were logged in this window.' }}</span>
+                        {{ $activityCaptionLabel }}
+                        <span>{{ $hasRecentActivity ? $activityPresentSummary : $activityEmptySummary }}</span>
                         <ul>
                             @foreach ($series as $entry)
                                 <li>{{ date_create($entry['date'])->format('M j, Y') }}: {{ $entry['count'] }} {{ Str::plural('reading', $entry['count']) }}</li>
@@ -243,7 +259,7 @@
                     </figcaption>
                     @unless ($hasRecentActivity)
                         <p class="mt-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-                            No readings logged in the last 14 days yet.
+                            {{ $activityEmptyMessage }}
                         </p>
                     @endunless
                 </figure>
