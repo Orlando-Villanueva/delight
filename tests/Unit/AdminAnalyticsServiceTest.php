@@ -30,25 +30,23 @@ afterEach(function () {
 /**
  * Helper to create churn recovery test scenario.
  *
- * @param  int  $total  Total number of churn emails to create
+ * @param  int  $total  Total number of re-engagement campaigns to create
  * @param  int  $recovered  Number of users who recovered (first N users)
  */
 function createChurnScenario(int $total, int $recovered): void
 {
     for ($i = 0; $i < $total; $i++) {
         $user = User::factory()->create();
-        ChurnRecoveryEmail::create([
+        ChurnRecoveryCampaign::factory()->create([
             'user_id' => $user->id,
-            'email_number' => 1,
-            'sent_at' => now()->subDays(5),
+            'campaign_key' => 'reading_log_reengagement_v1',
+            'cohort' => 'previous_reading_loggers',
+            'variant' => 'days_7_14_30',
+            'started_at' => now()->subDays(5),
+            'observed_until' => now()->addDays(2),
+            'last_touch_sent_at' => now()->subDays(5),
+            'reactivated_at' => $i < $recovered ? now()->subDays(3) : null,
         ]);
-
-        if ($i < $recovered) {
-            ReadingLog::factory()->for($user)->create([
-                'date_read' => now()->subDays(3)->toDateString(),
-                'created_at' => now()->subDays(3),
-            ]);
-        }
     }
 }
 
@@ -455,28 +453,29 @@ describe('Churn Recovery Metrics', function () {
     it('can calculate churn recovery rate correctly', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
-        // User A: received email 5 days ago, logged reading 3 days ago (within 7 days) = SUCCESS
+        // User A: reactivated during the campaign window = SUCCESS
         $userA = User::factory()->create();
-        ChurnRecoveryEmail::create([
+        ChurnRecoveryCampaign::factory()->create([
             'user_id' => $userA->id,
-            'email_number' => 1,
-            'sent_at' => now()->subDays(5),
-        ]);
-        ReadingLog::factory()->for($userA)->create([
-            'date_read' => now()->subDays(3)->toDateString(),
-            'created_at' => now()->subDays(3),
+            'campaign_key' => 'reading_log_reengagement_v1',
+            'cohort' => 'previous_reading_loggers',
+            'variant' => 'days_7_14_30',
+            'started_at' => now()->subDays(5),
+            'observed_until' => now()->addDays(2),
+            'last_touch_sent_at' => now()->subDays(5),
+            'reactivated_at' => now()->subDays(3),
         ]);
 
-        // User B: received email 10 days ago, logged reading 2 days ago (outside 7-day window) = FAIL
+        // User B: did not reactivate = FAIL
         $userB = User::factory()->create();
-        ChurnRecoveryEmail::create([
+        ChurnRecoveryCampaign::factory()->create([
             'user_id' => $userB->id,
-            'email_number' => 1,
-            'sent_at' => now()->subDays(10),
-        ]);
-        ReadingLog::factory()->for($userB)->create([
-            'date_read' => now()->subDays(2)->toDateString(),
-            'created_at' => now()->subDays(2),
+            'campaign_key' => 'reading_log_reengagement_v1',
+            'cohort' => 'previous_reading_loggers',
+            'variant' => 'days_7_14_30',
+            'started_at' => now()->subDays(5),
+            'observed_until' => now()->addDays(2),
+            'last_touch_sent_at' => now()->subDays(5),
         ]);
 
         $metrics = $this->service->getDashboardMetrics();
@@ -517,16 +516,18 @@ describe('Churn Recovery Metrics', function () {
         $this->assertSame('neutral', $metrics['churn_recovery']['status']);
     });
 
-    it('can ignore soft deleted emails for churn recovery', function () {
+    it('can ignore soft deleted campaigns for churn recovery', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         $user = User::factory()->create();
-        $email = ChurnRecoveryEmail::create([
+        $campaign = ChurnRecoveryCampaign::factory()->create([
             'user_id' => $user->id,
-            'email_number' => 1,
-            'sent_at' => now()->subDays(5),
+            'campaign_key' => 'reading_log_reengagement_v1',
+            'cohort' => 'previous_reading_loggers',
+            'variant' => 'days_7_14_30',
+            'last_touch_sent_at' => now()->subDays(5),
         ]);
-        $email->delete(); // Proper soft delete
+        $campaign->delete();
 
         $metrics = $this->service->getDashboardMetrics();
 
@@ -542,6 +543,8 @@ describe('Churn Recovery Metrics', function () {
 
         $comparison = $metrics['churn_recovery']['comparisons']['inactive_30_60'];
 
+        $this->assertTrue($comparison['archived']);
+        $this->assertSame('Archived 30–60 experiment', $comparison['label']);
         $this->assertSame(2, $comparison['control']['total']);
         $this->assertSame(1, $comparison['control']['successes']);
         $this->assertSame(50.0, $comparison['control']['rate']);
@@ -555,7 +558,7 @@ describe('Churn Recovery Metrics', function () {
         $this->assertArrayHasKey('status', $metrics['churn_recovery']);
     });
 
-    it('keeps top-level churn recovery metrics limited to legacy emails when campaign emails exist', function () {
+    it('keeps top-level churn recovery metrics limited to the current unified campaign', function () {
         Carbon::setTestNow('2026-02-10 12:00:00');
 
         $legacyUser = User::factory()->create();
@@ -569,23 +572,16 @@ describe('Churn Recovery Metrics', function () {
             'created_at' => now()->subDays(3),
         ]);
 
-        $followupUser = User::factory()->create();
-        $campaign = ChurnRecoveryCampaign::factory()->create([
-            'user_id' => $followupUser->id,
-            'variant' => 'two_touch_followup',
+        $currentUser = User::factory()->create();
+        ChurnRecoveryCampaign::factory()->create([
+            'user_id' => $currentUser->id,
+            'campaign_key' => 'reading_log_reengagement_v1',
+            'cohort' => 'previous_reading_loggers',
+            'variant' => 'days_7_14_30',
             'started_at' => now()->subDays(6),
             'observed_until' => now()->addDay(),
             'last_touch_sent_at' => now()->subDays(3),
-        ]);
-        ChurnRecoveryEmail::create([
-            'user_id' => $followupUser->id,
-            'churn_recovery_campaign_id' => $campaign->id,
-            'email_number' => 1,
-            'sent_at' => now()->subDays(6),
-        ]);
-        ReadingLog::factory()->for($followupUser)->create([
-            'date_read' => now()->subDay()->toDateString(),
-            'created_at' => now()->subDay(),
+            'reactivated_at' => now()->subDay(),
         ]);
 
         $metrics = $this->service->getDashboardMetrics();
@@ -593,8 +589,7 @@ describe('Churn Recovery Metrics', function () {
         $this->assertSame(1, $metrics['churn_recovery']['total']);
         $this->assertSame(1, $metrics['churn_recovery']['successes']);
         $this->assertSame(100.0, $metrics['churn_recovery']['rate']);
-        $this->assertSame(1, $metrics['churn_recovery']['comparisons']['inactive_30_60']['followup']['total']);
-        $this->assertSame(1, $metrics['churn_recovery']['comparisons']['inactive_30_60']['followup']['successes']);
+        $this->assertSame(0, $metrics['churn_recovery']['comparisons']['inactive_30_60']['followup']['total']);
     });
 
     it('preserves completed 30-60 campaign rows after churn reset so comparison analytics stay stable', function () {

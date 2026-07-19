@@ -63,6 +63,8 @@ it('can return analytics snapshot for bearer token-authenticated guests', functi
         ->assertJsonPath('snapshot_id', $auditWeek.'@'.$metricsGeneratedAt)
         ->assertJsonPath('metrics.churn_recovery.comparisons.inactive_30_60.control.variant', 'current_flow_control')
         ->assertJsonPath('metrics.churn_recovery.comparisons.inactive_30_60.followup.variant', 'two_touch_followup')
+        ->assertJsonPath('metrics.churn_recovery.comparisons.inactive_30_60.archived', true)
+        ->assertJsonPath('metrics.churn_recovery.comparisons.inactive_30_60.label', 'Archived 30–60 experiment')
         ->assertJsonPath('metrics.onboarding_funnel.eligible_users', 0)
         ->assertHeader('X-Analytics-Snapshot-Id', $snapshotId)
         ->assertJsonStructure([
@@ -101,6 +103,8 @@ it('can return analytics snapshot for bearer token-authenticated guests', functi
                 'churn_recovery' => [
                     'comparisons' => [
                         'inactive_30_60' => [
+                            'archived',
+                            'label',
                             'control',
                             'followup',
                             'lift',

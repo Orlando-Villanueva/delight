@@ -160,6 +160,21 @@
                                 <div class="h-2 rounded-full {{ $churnStatus['bar'] }}"
                                     style="width: {{ min(100, $churnProgress) }}%"></div>
                             </div>
+                            <div class="mt-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+                                <div class="flex items-center gap-2">
+                                    <p class="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                        {{ $churn['comparisons']['inactive_30_60']['label'] }}
+                                    </p>
+                                    <span
+                                        class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                        Archived
+                                    </span>
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    Control {{ number_format($churn['comparisons']['inactive_30_60']['control']['rate'], 1) }}%
+                                    · Follow-up {{ number_format($churn['comparisons']['inactive_30_60']['followup']['rate'], 1) }}%
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

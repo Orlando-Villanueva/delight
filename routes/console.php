@@ -16,7 +16,10 @@ Schedule::command(SendOnboardingReminders::class)
     ->onOneServer()
     ->withoutOverlapping();
 
-Schedule::command('churn:send-recovery')->dailyAt('14:00');
+Schedule::command('churn:send-recovery')
+    ->dailyAt('14:00')
+    ->onOneServer()
+    ->withoutOverlapping();
 
 Schedule::command(DispatchReadingReminderPushes::class)
     ->everyFifteenMinutes()

@@ -7,357 +7,89 @@ use App\Models\ChurnRecoveryCampaign;
 use App\Models\ChurnRecoveryEmail;
 use App\Models\User;
 use App\Services\EmailService;
-use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 
 class SendChurnRecoveryEmails extends Command
 {
-    private const THIRTY_TO_SIXTY_CAMPAIGN_KEY = 'inactive_30_60_followup';
+    public const CAMPAIGN_KEY = 'reading_log_reengagement_v1';
 
-    private const THIRTY_TO_SIXTY_COHORT = 'inactive_30_60_days';
+    private const ARCHIVED_CAMPAIGN_KEY = 'inactive_30_60_followup';
 
-    private const THIRTY_TO_SIXTY_VARIANT_CONTROL = 'current_flow_control';
+    private const COHORT = 'previous_reading_loggers';
 
-    private const THIRTY_TO_SIXTY_VARIANT_FOLLOWUP = 'two_touch_followup';
+    private const VARIANT = 'days_7_14_30';
+
+    private const REPEAT_COOLDOWN_DAYS = 90;
 
     protected $signature = 'churn:send-recovery
         {--dry-run : Show what would be sent without actually sending}';
 
-    protected $description = 'Send churn recovery emails to inactive users';
+    protected $description = 'Send reading-log re-engagement emails to inactive users';
 
     public function handle(EmailService $emailService): int
     {
-        $dryRun = $this->option('dry-run');
-        $legacyEligibleCount = 0;
-        $legacySentCount = 0;
-        $followUpEligibleCount = 0;
-        $followUpSentCount = 0;
-        $controlAssignments = 0;
+        $dryRun = (bool) $this->option('dry-run');
+        $sentCount = 0;
+        $eligibleCount = 0;
 
         if (! $dryRun) {
-            $this->completeObservedThirtyToSixtyCampaigns();
+            $this->archiveIncompleteLegacyExperiments();
+            $this->completeExpiredCampaigns();
         }
-        $this->startThirtyToSixtyCampaigns($emailService, $dryRun, $followUpEligibleCount, $followUpSentCount, $controlAssignments);
-        $this->sendThirtyToSixtySecondTouches($emailService, $dryRun, $followUpSentCount);
-        $this->sendLegacyRecoveryEmails($emailService, $dryRun, $legacyEligibleCount, $legacySentCount);
+
+        $this->processActiveCampaigns($emailService, $dryRun, $sentCount);
+        $this->startEligibleCampaigns($emailService, $dryRun, $eligibleCount, $sentCount);
 
         if ($dryRun) {
-            $this->info("{$legacyEligibleCount} users eligible for legacy churn recovery emails.");
-            $this->info("{$followUpEligibleCount} users eligible for 30-60 day follow-up campaigns.");
+            $this->info("{$eligibleCount} users eligible to start reading-log re-engagement campaigns.");
         } else {
-            $this->info("Sent {$legacySentCount} legacy churn recovery emails.");
-            $this->info("Sent {$followUpSentCount} 30-60 day follow-up emails.");
-            $this->info("Assigned {$controlAssignments} users to the 30-60 day control path.");
+            $this->info("Sent {$sentCount} reading-log re-engagement emails.");
         }
 
         return self::SUCCESS;
     }
 
-    protected function determineEmailNumber(User $user, EloquentCollection $history): ?int
-    {
-        $lastEmail = $history->last();
-        $emailNumber = 1;
-
-        if ($lastEmail) {
-            $sentAt = $lastEmail->sent_at;
-            $latestLog = $user->latestReadingLog;
-            $hasReactivated = $latestLog && $latestLog->date_read >= $sentAt->format('Y-m-d');
-            $daysSinceLast = $sentAt->diffInDays(now());
-
-            if ($hasReactivated || $daysSinceLast < 7) {
-                $emailNumber = null;
-            } else {
-                $emailNumber = match ($lastEmail->email_number) {
-                    1 => 2,
-                    2 => 3,
-                    default => null,
-                };
-            }
-        }
-
-        return $emailNumber;
-    }
-
-    protected function recordEmailSent(int $userId, int $emailNumber, ?int $campaignId = null): void
-    {
-        ChurnRecoveryEmail::create([
-            'user_id' => $userId,
-            'churn_recovery_campaign_id' => $campaignId,
-            'email_number' => $emailNumber,
-            'sent_at' => now(),
-        ]);
-    }
-
-    protected function sendLegacyRecoveryEmails(
-        EmailService $emailService,
-        bool $dryRun,
-        int &$eligibleCount,
-        int &$sentCount
-    ): void {
-        User::with('latestReadingLog')
-            ->whereNull('marketing_emails_opted_out_at')
-            ->where(function ($query) {
-                $sevenDaysAgo = now()->subDays(7)->toDateString();
-                $query->whereDoesntHave('readingLogs', function ($q) use ($sevenDaysAgo) {
-                    $q->where('date_read', '>=', $sevenDaysAgo);
-                });
-            })
-            ->where(function ($query) {
-                $sevenDaysAgo = now()->subDays(7)->toDateString();
-                $query->whereHas('readingLogs')
-                    ->orWhere(function ($q) use ($sevenDaysAgo) {
-                        $q->whereDoesntHave('readingLogs')
-                            ->where('created_at', '<', $sevenDaysAgo);
-                    });
-            })
-            ->whereDoesntHave('churnRecoveryCampaigns', function ($query) {
-                $query->where('campaign_key', self::THIRTY_TO_SIXTY_CAMPAIGN_KEY)
-                    ->whereNull('completed_at');
-            })
-            ->whereDoesntHave('churnRecoveryEmails', function ($q) {
-                $q->where('sent_at', '>=', now()->subDays(6));
-            })
-            ->chunkById(100, function ($users) use ($emailService, $dryRun, &$sentCount, &$eligibleCount) {
-                $userIds = $users->pluck('id');
-                $emailHistories = ChurnRecoveryEmail::whereIn('user_id', $userIds)
-                    ->whereNull('churn_recovery_campaign_id')
-                    ->orderBy('sent_at')
-                    ->get()
-                    ->groupBy('user_id');
-
-                foreach ($users as $user) {
-                    $this->processLegacyRecoveryUser($user, $emailHistories, $emailService, $dryRun, $eligibleCount, $sentCount);
-                }
-            });
-    }
-
-    protected function processLegacyRecoveryUser(
-        User $user,
-        Collection $emailHistories,
-        EmailService $emailService,
-        bool $dryRun,
-        int &$eligibleCount,
-        int &$sentCount
-    ): void {
-        $history = $emailHistories->get($user->id, new EloquentCollection);
-        $emailNumber = $this->determineEmailNumber($user, $history);
-
-        if ($emailNumber === null) {
-            return;
-        }
-
-        $eligibleCount++;
-
-        if ($dryRun) {
-            $this->info("Would send legacy email {$emailNumber} to {$user->email}");
-
-            return;
-        }
-
-        $this->sendLegacyRecoveryEmail($user, $emailNumber, $emailService, $sentCount);
-    }
-
-    protected function sendLegacyRecoveryEmail(
-        User $user,
-        int $emailNumber,
-        EmailService $emailService,
-        int &$sentCount
-    ): void {
-        $lock = Cache::lock('churn-email-'.$user->id, 30);
-
-        if (! $lock->get()) {
-            return;
-        }
-
-        try {
-            $alreadySent = ChurnRecoveryEmail::where('user_id', $user->id)
-                ->whereNull('churn_recovery_campaign_id')
-                ->where('email_number', $emailNumber)
-                ->exists();
-
-            if ($alreadySent) {
-                return;
-            }
-
-            $success = $emailService->sendWithErrorHandling(function () use ($user, $emailNumber) {
-                Mail::to($user->email)->send(
-                    new ChurnRecoveryEmailMailable($user, $emailNumber, $user->latestReadingLog?->passage_text)
-                );
-            }, "churn-recovery-{$emailNumber}");
-
-            if ($success) {
-                $this->recordEmailSent($user->id, $emailNumber);
-                $sentCount++;
-            }
-        } finally {
-            $lock->release();
-        }
-    }
-
-    protected function startThirtyToSixtyCampaigns(
-        EmailService $emailService,
-        bool $dryRun,
-        int &$eligibleCount,
-        int &$sentCount,
-        int &$controlAssignments
-    ): void {
-        $startDate = now()->subDays(60)->toDateString();
-        $endDate = now()->subDays(30)->toDateString();
-
-        User::with('latestReadingLog')
-            ->whereNull('marketing_emails_opted_out_at')
-            ->whereHas('latestReadingLog', function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('date_read', [$startDate, $endDate]);
-            })
-            ->whereDoesntHave('churnRecoveryEmails', function ($query) {
-                $query->where('sent_at', '>=', now()->subDays(6));
-            })
-            ->whereDoesntHave('churnRecoveryCampaigns', function ($query) {
-                $query->where('campaign_key', self::THIRTY_TO_SIXTY_CAMPAIGN_KEY);
-            })
-            ->chunkById(100, function ($users) use ($emailService, $dryRun, &$eligibleCount, &$sentCount, &$controlAssignments) {
-                foreach ($users as $user) {
-                    $this->processThirtyToSixtyCampaignUser(
-                        $user,
-                        $emailService,
-                        $dryRun,
-                        $eligibleCount,
-                        $sentCount,
-                        $controlAssignments
-                    );
-                }
-            });
-    }
-
-    protected function processThirtyToSixtyCampaignUser(
-        User $user,
-        EmailService $emailService,
-        bool $dryRun,
-        int &$eligibleCount,
-        int &$sentCount,
-        int &$controlAssignments
-    ): void {
-        if (! $this->isThirtyToSixtyInactive($user)) {
-            return;
-        }
-
-        $eligibleCount++;
-        $variant = $this->determineThirtyToSixtyVariant($user);
-
-        if ($dryRun) {
-            $this->info("Would start {$variant} 30-60 day campaign for {$user->email}");
-
-            return;
-        }
-
-        $this->startThirtyToSixtyCampaignForUser($user, $variant, $emailService, $sentCount, $controlAssignments);
-    }
-
-    protected function startThirtyToSixtyCampaignForUser(
-        User $user,
-        string $variant,
-        EmailService $emailService,
-        int &$sentCount,
-        int &$controlAssignments
-    ): void {
-        $lock = Cache::lock('churn-30-60-campaign-'.$user->id, 30);
-
-        if (! $lock->get()) {
-            return;
-        }
-
-        try {
-            $alreadyAssigned = ChurnRecoveryCampaign::query()
-                ->where('user_id', $user->id)
-                ->where('campaign_key', self::THIRTY_TO_SIXTY_CAMPAIGN_KEY)
-                ->exists();
-
-            if (! $alreadyAssigned) {
-                $campaign = ChurnRecoveryCampaign::create([
-                    'user_id' => $user->id,
-                    'campaign_key' => self::THIRTY_TO_SIXTY_CAMPAIGN_KEY,
-                    'cohort' => self::THIRTY_TO_SIXTY_COHORT,
-                    'variant' => $variant,
-                    'started_at' => now(),
-                    'observed_until' => now()->addDays(7),
-                ]);
-
-                $isControlVariant = $variant === self::THIRTY_TO_SIXTY_VARIANT_CONTROL;
-
-                if ($isControlVariant) {
-                    $controlAssignments++;
-                } else {
-                    $success = $emailService->sendWithErrorHandling(function () use ($user) {
-                        Mail::to($user->email)->send(
-                            new ChurnRecoveryEmailMailable(
-                                $user,
-                                1,
-                                $user->latestReadingLog?->passage_text,
-                                ChurnRecoveryEmailMailable::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP
-                            )
-                        );
-                    }, 'churn-recovery-30-60-touch-1');
-
-                    if (! $success) {
-                        $campaign->delete();
-                    } else {
-                        $campaign->forceFill([
-                            'last_touch_sent_at' => now(),
-                        ])->save();
-
-                        $this->recordEmailSent($user->id, 1, $campaign->id);
-                        $sentCount++;
-                    }
-                }
-            }
-        } finally {
-            $lock->release();
-        }
-    }
-
-    protected function sendThirtyToSixtySecondTouches(
-        EmailService $emailService,
-        bool $dryRun,
-        int &$sentCount
-    ): void {
-        if (! $dryRun) {
-            $this->completeExpiredThirtyToSixtyFollowUpCampaigns();
-        }
-
-        ChurnRecoveryCampaign::query()
-            ->with(['user.latestReadingLog', 'emails'])
-            ->where('campaign_key', self::THIRTY_TO_SIXTY_CAMPAIGN_KEY)
-            ->where('variant', self::THIRTY_TO_SIXTY_VARIANT_FOLLOWUP)
-            ->whereNull('completed_at')
-            ->whereNull('reactivated_at')
-            ->whereNotNull('last_touch_sent_at')
-            ->where('observed_until', '>=', now())
-            ->where('last_touch_sent_at', '<=', now()->subDays(3))
-            ->chunkById(100, function ($campaigns) use ($emailService, $dryRun, &$sentCount) {
-                foreach ($campaigns as $campaign) {
-                    $this->processThirtyToSixtySecondTouchCampaign($campaign, $emailService, $dryRun, $sentCount);
-                }
-            });
-    }
-
-    protected function completeExpiredThirtyToSixtyFollowUpCampaigns(): void
+    private function archiveIncompleteLegacyExperiments(): void
     {
         ChurnRecoveryCampaign::query()
-            ->where('campaign_key', self::THIRTY_TO_SIXTY_CAMPAIGN_KEY)
-            ->where('variant', self::THIRTY_TO_SIXTY_VARIANT_FOLLOWUP)
+            ->where('campaign_key', self::ARCHIVED_CAMPAIGN_KEY)
             ->whereNull('completed_at')
-            ->whereNull('reactivated_at')
+            ->update([
+                'completed_at' => now(),
+            ]);
+    }
+
+    private function completeExpiredCampaigns(): void
+    {
+        ChurnRecoveryCampaign::query()
+            ->where('campaign_key', self::CAMPAIGN_KEY)
+            ->whereNull('completed_at')
             ->where('observed_until', '<', now())
             ->update([
                 'completed_at' => now(),
             ]);
     }
 
-    protected function processThirtyToSixtySecondTouchCampaign(
+    private function processActiveCampaigns(
+        EmailService $emailService,
+        bool $dryRun,
+        int &$sentCount
+    ): void {
+        ChurnRecoveryCampaign::query()
+            ->with(['user.latestReadingLog', 'emails'])
+            ->where('campaign_key', self::CAMPAIGN_KEY)
+            ->whereNull('completed_at')
+            ->chunkById(100, function (EloquentCollection $campaigns) use ($emailService, $dryRun, &$sentCount): void {
+                foreach ($campaigns as $campaign) {
+                    $this->processActiveCampaign($campaign, $emailService, $dryRun, $sentCount);
+                }
+            });
+    }
+
+    private function processActiveCampaign(
         ChurnRecoveryCampaign $campaign,
         EmailService $emailService,
         bool $dryRun,
@@ -365,161 +97,231 @@ class SendChurnRecoveryEmails extends Command
     ): void {
         $user = $campaign->user;
 
-        if (! $user instanceof User || $this->campaignHasSecondTouch($campaign)) {
+        if (! $user instanceof User) {
             return;
         }
 
-        if ($dryRun) {
-            if (! $this->shouldCompleteThirtyToSixtyCampaignWithoutSecondTouch($campaign, $user)) {
-                $this->info("Would send 30-60 follow-up touch 2 to {$user->email}");
+        if ($this->hasReactivatedSince($user, $campaign)) {
+            if (! $dryRun) {
+                $this->completeReactivatedCampaign($campaign);
             }
 
             return;
         }
 
-        if ($this->shouldCompleteThirtyToSixtyCampaignWithoutSecondTouch($campaign, $user)) {
-            $this->completeThirtyToSixtyCampaignWithoutSecondTouch($campaign, $user);
+        if ($user->marketing_emails_opted_out_at !== null) {
+            if (! $dryRun) {
+                $campaign->forceFill(['completed_at' => now()])->save();
+            }
 
             return;
         }
 
-        $this->sendThirtyToSixtySecondTouch($campaign, $user, $emailService, $sentCount);
+        $emailNumber = $this->nextDueEmailNumber($campaign, $user);
+
+        if ($emailNumber === null) {
+            return;
+        }
+
+        if ($dryRun) {
+            $this->info("Would send reading-log re-engagement email {$emailNumber} to {$user->email}");
+
+            return;
+        }
+
+        $this->sendCampaignEmail($campaign, $user, $emailNumber, $emailService, $sentCount);
     }
 
-    protected function campaignHasSecondTouch(ChurnRecoveryCampaign $campaign): bool
+    private function nextDueEmailNumber(ChurnRecoveryCampaign $campaign, User $user): ?int
     {
-        return $campaign->emails->contains(fn (ChurnRecoveryEmail $email) => $email->email_number === 2);
+        $lastEmail = $campaign->emails->sortBy('email_number')->last();
+
+        if (! $lastEmail instanceof ChurnRecoveryEmail) {
+            return 1;
+        }
+
+        $inactiveDays = $this->inactiveDays($user);
+
+        return match ($lastEmail->email_number) {
+            1 => $inactiveDays >= 14 && $lastEmail->sent_at->lte(now()->subDays(7)) ? 2 : null,
+            2 => $inactiveDays >= 30 && $lastEmail->sent_at->lte(now()->subDays(16)) ? 3 : null,
+            default => null,
+        };
     }
 
-    protected function shouldCompleteThirtyToSixtyCampaignWithoutSecondTouch(
-        ChurnRecoveryCampaign $campaign,
-        User $user
-    ): bool {
-        return $user->marketing_emails_opted_out_at !== null
-            || $campaign->observed_until->lt(now())
-            || $this->hasReactivatedSince($user, $campaign->started_at);
-    }
-
-    protected function completeThirtyToSixtyCampaignWithoutSecondTouch(
-        ChurnRecoveryCampaign $campaign,
-        User $user
-    ): void {
-        $reactivated = $this->hasReactivatedSince($user, $campaign->started_at);
-
-        $campaign->forceFill([
-            'reactivated_at' => $reactivated ? now() : $campaign->reactivated_at,
-            'completed_at' => now(),
-        ])->save();
-    }
-
-    protected function sendThirtyToSixtySecondTouch(
-        ChurnRecoveryCampaign $campaign,
-        User $user,
+    private function startEligibleCampaigns(
         EmailService $emailService,
+        bool $dryRun,
+        int &$eligibleCount,
         int &$sentCount
     ): void {
-        $lock = Cache::lock('churn-30-60-touch-2-'.$user->id, 30);
+        User::query()
+            ->with('latestReadingLog')
+            ->whereNull('marketing_emails_opted_out_at')
+            ->whereHas('readingLogs')
+            ->whereDoesntHave('readingLogs', function ($query): void {
+                $query->whereDate('date_read', '>=', now()->subDays(6)->toDateString());
+            })
+            ->whereDoesntHave('churnRecoveryCampaigns', function ($query): void {
+                $query->where('campaign_key', self::CAMPAIGN_KEY)
+                    ->whereNull('completed_at');
+            })
+            ->chunkById(100, function (EloquentCollection $users) use ($emailService, $dryRun, &$eligibleCount, &$sentCount): void {
+                foreach ($users as $user) {
+                    if (! $this->canStartCampaign($user)) {
+                        continue;
+                    }
+
+                    $eligibleCount++;
+
+                    if ($dryRun) {
+                        $this->info("Would start reading-log re-engagement campaign for {$user->email}");
+
+                        continue;
+                    }
+
+                    $this->startCampaign($user, $emailService, $sentCount);
+                }
+            });
+    }
+
+    private function canStartCampaign(User $user): bool
+    {
+        $lastCampaign = ChurnRecoveryCampaign::query()
+            ->where('user_id', $user->id)
+            ->where('campaign_key', self::CAMPAIGN_KEY)
+            ->latest('started_at')
+            ->first();
+
+        $lastRecoveryEmail = ChurnRecoveryEmail::query()
+            ->where('user_id', $user->id)
+            ->latest('sent_at')
+            ->first();
+
+        if (! $lastRecoveryEmail instanceof ChurnRecoveryEmail) {
+            return true;
+        }
+
+        if ($lastRecoveryEmail->sent_at->gt(now()->subDays(self::REPEAT_COOLDOWN_DAYS))) {
+            return false;
+        }
+
+        $activityThreshold = $lastCampaign?->started_at ?? $lastRecoveryEmail->sent_at;
+
+        return $user->readingLogs()
+            ->where('created_at', '>', $activityThreshold)
+            ->distinct('date_read')
+            ->count('date_read') >= 3;
+    }
+
+    private function startCampaign(User $user, EmailService $emailService, int &$sentCount): void
+    {
+        $lock = Cache::lock('reading-log-reengagement-start-'.$user->id, 30);
 
         if (! $lock->get()) {
             return;
         }
 
         try {
-            $campaign = ChurnRecoveryCampaign::query()
-                ->with(['user.latestReadingLog', 'emails'])
-                ->find($campaign->id);
+            $hasActiveCampaign = ChurnRecoveryCampaign::query()
+                ->where('user_id', $user->id)
+                ->where('campaign_key', self::CAMPAIGN_KEY)
+                ->whereNull('completed_at')
+                ->exists();
 
-            if (! $campaign instanceof ChurnRecoveryCampaign) {
+            if ($hasActiveCampaign || ! $this->canStartCampaign($user)) {
                 return;
             }
 
-            $user = $campaign->user;
+            $campaign = ChurnRecoveryCampaign::query()->create([
+                'user_id' => $user->id,
+                'campaign_key' => self::CAMPAIGN_KEY,
+                'cohort' => self::COHORT,
+                'variant' => self::VARIANT,
+                'started_at' => now(),
+                'observed_until' => now()->addDays(30),
+            ]);
 
-            if (! $user instanceof User
-                || $campaign->completed_at !== null
-                || $campaign->reactivated_at !== null
-                || $this->campaignHasSecondTouch($campaign)) {
-                return;
-            }
-
-            if ($this->shouldCompleteThirtyToSixtyCampaignWithoutSecondTouch($campaign, $user)) {
-                $this->completeThirtyToSixtyCampaignWithoutSecondTouch($campaign, $user);
-
-                return;
-            }
-
-            $success = $emailService->sendWithErrorHandling(function () use ($user) {
-                Mail::to($user->email)->send(
-                    new ChurnRecoveryEmailMailable(
-                        $user,
-                        2,
-                        $user->latestReadingLog?->passage_text,
-                        ChurnRecoveryEmailMailable::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP
-                    )
-                );
-            }, 'churn-recovery-30-60-touch-2');
-
-            if ($success) {
-                $campaign->forceFill([
-                    'last_touch_sent_at' => now(),
-                    'completed_at' => now(),
-                ])->save();
-
-                $this->recordEmailSent($user->id, 2, $campaign->id);
-                $sentCount++;
+            if (! $this->sendCampaignEmail($campaign, $user, 1, $emailService, $sentCount)) {
+                $campaign->delete();
             }
         } finally {
             $lock->release();
         }
     }
 
-    protected function completeObservedThirtyToSixtyCampaigns(): void
-    {
-        ChurnRecoveryCampaign::query()
-            ->where('campaign_key', self::THIRTY_TO_SIXTY_CAMPAIGN_KEY)
-            ->where('variant', self::THIRTY_TO_SIXTY_VARIANT_CONTROL)
-            ->whereNull('completed_at')
-            ->where('observed_until', '<=', now())
-            ->update([
-                'completed_at' => now(),
+    private function sendCampaignEmail(
+        ChurnRecoveryCampaign $campaign,
+        User $user,
+        int $emailNumber,
+        EmailService $emailService,
+        int &$sentCount
+    ): bool {
+        $lock = Cache::lock("reading-log-reengagement-{$campaign->id}-{$emailNumber}", 30);
+
+        if (! $lock->get()) {
+            return false;
+        }
+
+        try {
+            $alreadySent = ChurnRecoveryEmail::query()
+                ->where('churn_recovery_campaign_id', $campaign->id)
+                ->where('email_number', $emailNumber)
+                ->exists();
+
+            if ($alreadySent) {
+                return true;
+            }
+
+            $success = $emailService->sendWithErrorHandling(function () use ($user, $emailNumber): void {
+                Mail::to($user->email)->send(
+                    new ChurnRecoveryEmailMailable($user, $emailNumber, $user->latestReadingLog?->passage_text)
+                );
+            }, "reading-log-reengagement-{$emailNumber}");
+
+            if (! $success) {
+                return false;
+            }
+
+            ChurnRecoveryEmail::query()->create([
+                'user_id' => $user->id,
+                'churn_recovery_campaign_id' => $campaign->id,
+                'email_number' => $emailNumber,
+                'sent_at' => now(),
             ]);
-    }
 
-    protected function determineThirtyToSixtyVariant(User $user): string
-    {
-        $bucket = hexdec(substr(
-            hash_hmac('sha256', (string) $user->id, (string) config('app.key', 'delight')),
-            0,
-            8
-        ));
+            $campaign->forceFill([
+                'last_touch_sent_at' => now(),
+                'observed_until' => $emailNumber === 3 ? now()->addDays(7) : $campaign->observed_until,
+            ])->save();
 
-        return $bucket % 2 === 0
-            ? self::THIRTY_TO_SIXTY_VARIANT_CONTROL
-            : self::THIRTY_TO_SIXTY_VARIANT_FOLLOWUP;
-    }
+            $sentCount++;
 
-    protected function isThirtyToSixtyInactive(User $user): bool
-    {
-        $latestLog = $user->latestReadingLog;
-
-        if ($latestLog === null) {
-            return false;
+            return true;
+        } finally {
+            $lock->release();
         }
-
-        $lastReadDate = $latestLog->date_read;
-
-        return $lastReadDate >= now()->subDays(60)->toDateString()
-            && $lastReadDate <= now()->subDays(30)->toDateString();
     }
 
-    protected function hasReactivatedSince(User $user, CarbonInterface $threshold): bool
+    private function inactiveDays(User $user): int
     {
-        $latestLog = $user->latestReadingLog;
+        return $user->latestReadingLog?->date_read
+            ? now()->startOfDay()->diffInDays($user->latestReadingLog->date_read, true)
+            : 0;
+    }
 
-        if ($latestLog === null) {
-            return false;
-        }
+    private function hasReactivatedSince(User $user, ChurnRecoveryCampaign $campaign): bool
+    {
+        return $user->readingLogs()
+            ->where('created_at', '>=', $campaign->started_at)
+            ->exists();
+    }
 
-        return $latestLog->date_read >= $threshold->toDateString();
+    private function completeReactivatedCampaign(ChurnRecoveryCampaign $campaign): void
+    {
+        $campaign->forceFill([
+            'reactivated_at' => now(),
+            'completed_at' => now(),
+        ])->save();
     }
 }

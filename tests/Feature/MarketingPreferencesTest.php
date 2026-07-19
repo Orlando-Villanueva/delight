@@ -2,7 +2,6 @@
 
 use App\Mail\ChurnRecoveryEmail;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 
 it('shows unsubscribe confirmation page with valid signed url', function () {
@@ -149,14 +148,15 @@ it('churn recovery email mailable generates signed unsubscribe url', function ()
     expect($content->with['unsubscribeUrl'])->toContain('signature=');
 });
 
-it('churn recovery email includes list-unsubscribe header', function () {
+it('churn recovery email includes RFC 8058 one-click unsubscribe headers', function () {
     $user = User::factory()->create();
 
     $mailable = new ChurnRecoveryEmail($user, 1);
     $headers = $mailable->headers();
 
     expect($headers->text)->toHaveKey('List-Unsubscribe');
-    expect($headers->text['List-Unsubscribe'])->toContain('signature=');
+    expect($headers->text['List-Unsubscribe'])->toContain($mailable->oneClickUnsubscribeUrl)
+        ->and($headers->text['List-Unsubscribe-Post'])->toBe('List-Unsubscribe=One-Click');
 });
 
 it('unsubscribe works without authentication', function () {
@@ -193,32 +193,32 @@ it('signed url expires after one year by default', function () {
     expect($expiresAt->diffInDays($expectedExpiry))->toBeLessThan(2);
 });
 
-it('30-60 follow-up email uses the direct log-reading CTA', function () {
+it('churn recovery email uses the direct log-reading CTA', function () {
     $user = User::factory()->create();
 
-    $mailable = new ChurnRecoveryEmail(
-        $user,
-        1,
-        null,
-        ChurnRecoveryEmail::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP
-    );
+    $mailable = new ChurnRecoveryEmail($user, 1);
     $content = $mailable->content();
 
     expect($content->with['ctaUrl'])->toBe(route('logs.create'));
 });
 
-it('30-60 follow-up email keeps unsubscribe headers intact', function () {
+it('one-click unsubscribe is signed, idempotent, and does not require a CSRF token', function () {
+    $user = User::factory()->create([
+        'marketing_emails_opted_out_at' => null,
+    ]);
+    $oneClickUrl = URL::signedRoute('marketing.unsubscribe.one-click', ['user' => $user]);
+
+    $this->post($oneClickUrl)->assertNoContent();
+    $optedOutAt = $user->fresh()?->marketing_emails_opted_out_at;
+
+    $this->post($oneClickUrl)->assertNoContent();
+
+    expect($optedOutAt)->not->toBeNull()
+        ->and($user->fresh()?->marketing_emails_opted_out_at?->equalTo($optedOutAt))->toBeTrue();
+});
+
+it('rejects an unsigned one-click unsubscribe request', function () {
     $user = User::factory()->create();
 
-    $mailable = new ChurnRecoveryEmail(
-        $user,
-        2,
-        null,
-        ChurnRecoveryEmail::SEQUENCE_THIRTY_TO_SIXTY_FOLLOWUP
-    );
-    $headers = $mailable->headers();
-
-    expect($headers->text)->toHaveKey('List-Unsubscribe');
-    expect($headers->text['List-Unsubscribe'])->toContain('signature=');
-    expect(URL::hasValidSignature(Request::create($mailable->unsubscribeUrl, 'GET')))->toBeTrue();
+    $this->post(route('marketing.unsubscribe.one-click', $user))->assertForbidden();
 });
