@@ -1,32 +1,33 @@
 @extends('emails.layouts.base')
 
-@section('title', 'Your Bible reading journey is waiting')
+@section('title', 'Keep your reading history up to date')
 
 @section('content')
 <h2 class="greeting">Hi {{ $user->name ?? 'there' }},</h2>
 
 <p class="message">
-    We noticed it's been a while since you opened Delight. Life gets busy—we understand.
+    It has been a week since your last reading log in Delight.
 </p>
 
 @if($lastReadingPassage)
 <p class="message">
-    Your last reading was <strong>{{ $lastReadingPassage }}</strong>. Pick up where you left off—your journey is waiting.
+    Your most recent entry is <strong>{{ $lastReadingPassage }}</strong>.
 </p>
 @else
 <p class="message">
-    Your reading journey is still here, waiting for you. No pressure, no guilt. Just an open invitation to pick up where you left off.
+    Your reading history is ready for your next entry.
 </p>
 @endif
 
+<p class="message">
+    If you have continued reading, add your latest entry so your progress stays current.
+</p>
+
 <div class="button-container">
-    <a href="{{ route('dashboard') }}" class="button">Pick Up Where You Left Off</a>
+    <a href="{{ $ctaUrl }}" class="button">Log a Reading</a>
 </div>
 
-<p class="message">
-    Grace and peace,<br>
-    The Delight Team
-</p>
+<p class="message">— Delight</p>
 @endsection
 
 @section('footer-extra')

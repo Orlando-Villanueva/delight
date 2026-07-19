@@ -17,6 +17,8 @@ class OnboardingReminderEmail extends Mailable
 
     public string $unsubscribeUrl;
 
+    public string $oneClickUnsubscribeUrl;
+
     /**
      * Create a new message instance.
      */
@@ -24,6 +26,12 @@ class OnboardingReminderEmail extends Mailable
     {
         $this->unsubscribeUrl = URL::signedRoute(
             'marketing.unsubscribe',
+            ['user' => $user],
+            now()->addDays(365)
+        );
+
+        $this->oneClickUnsubscribeUrl = URL::signedRoute(
+            'marketing.unsubscribe.one-click',
             ['user' => $user],
             now()->addDays(365)
         );
@@ -59,7 +67,8 @@ class OnboardingReminderEmail extends Mailable
     {
         return new Headers(
             text: [
-                'List-Unsubscribe' => "<mailto:unsubscribe@delight.io?subject=Unsubscribe>, <{$this->unsubscribeUrl}>",
+                'List-Unsubscribe' => "<{$this->oneClickUnsubscribeUrl}>",
+                'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
             ],
         );
     }

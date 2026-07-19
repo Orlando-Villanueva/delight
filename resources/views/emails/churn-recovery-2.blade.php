@@ -1,30 +1,29 @@
 @extends('emails.layouts.base')
 
-@section('title', 'No guilt, just grace - start fresh today')
+@section('title', 'A quick check-in from Delight')
 
 @section('content')
 <h2 class="greeting">Hi {{ $user->name ?? 'there' }},</h2>
 
 <p class="message">
-    Building habits is hard. Missing days happens to everyone.
+    Your reading history is more useful when it stays current.
 </p>
 
+@if($lastReadingPassage)
 <p class="message">
-    The beautiful thing about Scripture is it's always there when you're ready. Today could be day one of a new chapter in your journey.
+    Your most recent entry is still <strong>{{ $lastReadingPassage }}</strong>.
+</p>
+@endif
+
+<p class="message">
+    Logging your latest reading keeps your progress, notes, and milestones together without having to reconstruct them later.
 </p>
 
 <div class="button-container">
-    <a href="{{ route('dashboard') }}" class="button">Start Fresh Today</a>
+    <a href="{{ $ctaUrl }}" class="button">Update My Reading Log</a>
 </div>
 
-<p class="message" style="font-style: italic; text-align: center; color: #6b7280;">
-    "His mercies are new every morning" - Lamentations 3:23
-</p>
-
-<p class="message">
-    Grace and peace,<br>
-    The Delight Team
-</p>
+<p class="message">— Delight</p>
 @endsection
 
 @section('footer-extra')

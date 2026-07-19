@@ -74,6 +74,10 @@ Route::post('/marketing/unsubscribe/{user}', [MarketingPreferencesController::cl
     ->middleware('signed')
     ->name('marketing.unsubscribe.store');
 
+Route::post('/marketing/unsubscribe/{user}/one-click', [MarketingPreferencesController::class, 'oneClick'])
+    ->middleware('signed')
+    ->name('marketing.unsubscribe.one-click');
+
 // Authentication Routes (GET routes for views - POST routes handled by Fortify)
 Route::middleware('guest')->group(function () {
     Route::get('/login', function () {

@@ -13,6 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->validateCsrfTokens(except: [
+            'marketing/unsubscribe/*/one-click',
+        ]);
+
         $middleware->web(append: [
             SecurityHeadersMiddleware::class,
             QueryLogger::class,

@@ -39,12 +39,13 @@ it('includes a signed unsubscribe URL in template content', function () {
     expect($mail->render())->toContain($escapedUnsubscribeUrl);
 });
 
-it('sets the list-unsubscribe header', function () {
+it('sets RFC 8058 one-click unsubscribe headers', function () {
     $user = User::factory()->create();
     $mail = new OnboardingReminderEmail($user);
 
     $headers = $mail->headers();
 
     expect($headers->text)->toHaveKey('List-Unsubscribe');
-    expect($headers->text['List-Unsubscribe'])->toContain($mail->unsubscribeUrl);
+    expect($headers->text['List-Unsubscribe'])->toContain($mail->oneClickUnsubscribeUrl)
+        ->and($headers->text['List-Unsubscribe-Post'])->toBe('List-Unsubscribe=One-Click');
 });

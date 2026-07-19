@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Enums\OnboardingStep;
 use App\Models\ChurnRecoveryCampaign;
-use App\Models\ChurnRecoveryEmail;
 use App\Models\ReadingLog;
 use App\Models\User;
 use Carbon\Carbon;
@@ -123,52 +122,14 @@ class ReadingLogService
         return new ReadingLogResult($readingLog, $achievementResult['awarded_achievements'], ! $hasReadToday);
     }
 
-    /**
-     * Check if user has re-engaged enough to reset their churn recovery status.
-     *
-     * Reset occurs if:
-     * 1. User has read on 3+ distinct days in the last 7 days
-     * 2. It has been at least 90 days since the last churn recovery email
-     */
-    public function maybeResetChurnRecovery(User $user): void
-    {
-        // Check 1: Sustained activity (3+ distinct days in last 7 days)
-        $activeDays = $user->readingLogs()
-            ->where('date_read', '>=', now()->subDays(7))
-            ->distinct('date_read')
-            ->count('date_read');
-
-        if ($activeDays < 3) {
-            return; // Not sufficiently re-engaged
-        }
-
-        // Check 2: Cooldown period (90 days since last email)
-        $lastEmail = ChurnRecoveryEmail::where('user_id', $user->id)
-            ->latest('sent_at')
-            ->first();
-
-        // If no active email sequence, nothing to reset
-        if (! $lastEmail) {
-            return;
-        }
-
-        if ($lastEmail->sent_at > now()->subDays(90)) {
-            return; // Too soon for reset
-        }
-
-        // Perform soft reset
-        ChurnRecoveryEmail::where('user_id', $user->id)
-            ->delete();
-    }
-
-    private function markChurnRecoveryCampaignsReactivated(User $user, string $loggedDate): void
+    private function markChurnRecoveryCampaignsReactivated(User $user): void
     {
         ChurnRecoveryCampaign::query()
             ->where('user_id', $user->id)
             ->whereNull('completed_at')
-            ->where('campaign_key', 'inactive_30_60_followup')
-            ->whereDate('started_at', '<=', $loggedDate)
-            ->whereDate('observed_until', '>=', $loggedDate)
+            ->whereIn('campaign_key', ['inactive_30_60_followup', 'reading_log_reengagement_v1'])
+            ->where('started_at', '<=', now())
+            ->where('observed_until', '>=', now())
             ->update([
                 'reactivated_at' => now(),
                 'completed_at' => now(),
@@ -190,8 +151,7 @@ class ReadingLogService
     {
         // Server-side state updated - HTMX will handle UI updates
         $this->invalidateUserStatisticsCache($user, $isFirstReadingOfDay);
-        $this->markChurnRecoveryCampaignsReactivated($user, $loggedDate);
-        $this->maybeResetChurnRecovery($user);
+        $this->markChurnRecoveryCampaignsReactivated($user);
 
         if (! $evaluateAchievements) {
             return [

@@ -37,6 +37,8 @@ class AdminAnalyticsService
 
     private const THIRTY_TO_SIXTY_VARIANT_FOLLOWUP = 'two_touch_followup';
 
+    private const REENGAGEMENT_CAMPAIGN_KEY = 'reading_log_reengagement_v1';
+
     public function getDashboardMetrics(bool $fresh = false): array
     {
         if ($fresh) {
@@ -316,15 +318,12 @@ class AdminAnalyticsService
 
     private function getChurnRecoveryMetrics(): array
     {
-        $latestEmails = DB::table('churn_recovery_emails')
-            ->selectRaw('user_id, max(sent_at) as last_sent_at')
-            ->whereNull('churn_recovery_campaign_id')
+        $campaigns = DB::table('churn_recovery_campaigns')
+            ->where('campaign_key', self::REENGAGEMENT_CAMPAIGN_KEY)
             ->whereNull('deleted_at')
-            ->groupBy('user_id');
+            ->whereNotNull('last_touch_sent_at');
 
-        $total = DB::query()
-            ->fromSub($latestEmails, 'latest')
-            ->count();
+        $total = (clone $campaigns)->count();
 
         if ($total === 0) {
             return [
@@ -334,15 +333,10 @@ class AdminAnalyticsService
             ];
         }
 
-        $dateAddExpr = $this->dateAddExpression('latest.last_sent_at', 7);
-
-        $successes = DB::query()
-            ->fromSub($latestEmails, 'latest')
-            ->join('reading_logs as rl', 'rl.user_id', '=', 'latest.user_id')
-            ->whereColumn('rl.created_at', '>=', 'latest.last_sent_at')
-            ->whereRaw("rl.created_at <= {$dateAddExpr}")
-            ->distinct()
-            ->count('latest.user_id');
+        $successes = (clone $campaigns)
+            ->whereNotNull('reactivated_at')
+            ->whereColumn('reactivated_at', '<=', 'observed_until')
+            ->count();
 
         $rate = round(($successes / $total) * 100, 1);
 
@@ -363,6 +357,8 @@ class AdminAnalyticsService
         $followup = $this->getThirtyToSixtyVariantMetrics(clone $campaigns, self::THIRTY_TO_SIXTY_VARIANT_FOLLOWUP);
 
         return [
+            'archived' => true,
+            'label' => 'Archived 30–60 experiment',
             'control' => $control,
             'followup' => $followup,
             'lift' => round($followup['rate'] - $control['rate'], 1),
@@ -494,7 +490,7 @@ class AdminAnalyticsService
                 'tone' => 'warning',
                 'title' => 'Weekly activity is low',
                 'detail' => sprintf(
-                    'Only %s%% of users were active in the last 7 days. Consider reminders or habit cues.',
+                    'Only %s%% of users were active in the last 7 days. Consider reading-log reminders or clearer return paths.',
                     number_format($weeklyActiveRate, 1)
                 ),
             ];
@@ -509,18 +505,6 @@ class AdminAnalyticsService
         }
 
         return array_slice($insights, 0, 4);
-    }
-
-    private function dateAddExpression(string $column, int $days): string
-    {
-        $driver = DB::getDriverName();
-
-        return match ($driver) {
-            'mysql', 'mariadb' => "DATE_ADD($column, INTERVAL $days DAY)",
-            'pgsql' => "$column + interval '{$days} days'",
-            'sqlite' => "datetime($column, '+$days days')",
-            default => "$column + interval '{$days} days'",
-        };
     }
 
     private function secondsDiffExpression(string $startColumn, string $endColumn): string
