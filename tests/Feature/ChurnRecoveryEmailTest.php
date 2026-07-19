@@ -305,6 +305,7 @@ it('requires both meaningful activity and the ninety day cooldown for another ca
 
 it('archives incomplete thirty-to-sixty campaigns without sending another email', function () {
     Mail::fake();
+    Carbon::setTestNow('2026-07-18 12:00:00');
     $user = reengagementUser(40);
     $campaign = ChurnRecoveryCampaign::factory()->for($user)->create([
         'campaign_key' => 'inactive_30_60_followup',
@@ -312,6 +313,15 @@ it('archives incomplete thirty-to-sixty campaigns without sending another email'
         'started_at' => now()->subDays(3),
         'observed_until' => now()->addDays(4),
         'last_touch_sent_at' => now()->subDays(3),
+    ]);
+    $expiredAt = now()->subDay();
+    $expiredUser = reengagementUser(40);
+    $expiredUser->update(['marketing_emails_opted_out_at' => now()]);
+    $expiredCampaign = ChurnRecoveryCampaign::factory()->for($expiredUser)->create([
+        'campaign_key' => 'inactive_30_60_followup',
+        'variant' => 'current_flow_control',
+        'started_at' => now()->subDays(10),
+        'observed_until' => $expiredAt,
     ]);
     ChurnRecoveryEmailRecord::query()->create([
         'user_id' => $user->id,
@@ -323,7 +333,12 @@ it('archives incomplete thirty-to-sixty campaigns without sending another email'
     $this->artisan('churn:send-recovery')->assertSuccessful();
 
     Mail::assertNothingSent();
-    expect($campaign->fresh()?->completed_at)->not->toBeNull();
+    $campaign->refresh();
+    $expiredCampaign->refresh();
+    expect($campaign->completed_at?->equalTo(now()))->toBeTrue()
+        ->and($campaign->observed_until?->equalTo(now()))->toBeTrue()
+        ->and($expiredCampaign->completed_at?->equalTo(now()))->toBeTrue()
+        ->and($expiredCampaign->observed_until?->equalTo($expiredAt))->toBeTrue();
 });
 
 it('does not mutate or send during a dry run', function () {
