@@ -54,11 +54,22 @@ class SendChurnRecoveryEmails extends Command
 
     private function archiveIncompleteLegacyExperiments(): void
     {
+        $archivedAt = now();
+
+        ChurnRecoveryCampaign::query()
+            ->where('campaign_key', self::ARCHIVED_CAMPAIGN_KEY)
+            ->whereNull('completed_at')
+            ->where('observed_until', '>', $archivedAt)
+            ->update([
+                'observed_until' => $archivedAt,
+                'completed_at' => $archivedAt,
+            ]);
+
         ChurnRecoveryCampaign::query()
             ->where('campaign_key', self::ARCHIVED_CAMPAIGN_KEY)
             ->whereNull('completed_at')
             ->update([
-                'completed_at' => now(),
+                'completed_at' => $archivedAt,
             ]);
     }
 
