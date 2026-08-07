@@ -4,7 +4,7 @@ Android-first Expo application for Delight. This directory is a standalone npm p
 
 ## Requirements
 
-- Node.js 20 (matches CI)
+- Node.js 22.13 or newer (matches CI)
 - npm
 - Expo Go on an Android physical device, or an Android emulator with Expo Go installed
 - Access to the same network from the development computer and physical device
@@ -42,7 +42,7 @@ npm test
 npm run config:validate
 ```
 
-CI runs the same install, lint, typecheck, and Jest checks with Node 20 when `/mobile/**` or the mobile workflow changes.
+CI runs the same install, lint, typecheck, and Jest checks with Node 22.13 when `/mobile/**` or the mobile workflow changes.
 
 ## Environment and build configuration
 
