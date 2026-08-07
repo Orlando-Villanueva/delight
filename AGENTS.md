@@ -1,5 +1,9 @@
 # Repository Guidelines
 
+## Mobile Workspace
+- Before modifying anything under `/mobile`, read and follow `mobile/AGENTS.md` in addition to this file.
+- The mobile package is standalone; do not convert the Laravel root into an npm workspace.
+
 Local sections in this file are project-specific. For Laravel/framework/tooling standards, treat the `<laravel-boost-guidelines>` block below as authoritative.
 
 ## Project Structure & Module Organization
