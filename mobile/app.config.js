@@ -4,7 +4,6 @@ const PRODUCTION_API_URL = 'https://mydelight.app';
 const variants = {
   development: {
     name: 'Delight',
-    packageIdentifier: 'com.orlandovillanueva.delight',
     apiUrl: STAGING_API_URL,
   },
   preview: {
@@ -36,11 +35,13 @@ module.exports = ({ config }) => {
     icon: './assets/images/icon.png',
     scheme: 'delight',
     userInterfaceStyle: 'automatic',
-    ios: {
-      bundleIdentifier: variant.packageIdentifier,
-    },
+    ios: variant.packageIdentifier
+      ? {
+          bundleIdentifier: variant.packageIdentifier,
+        }
+      : undefined,
     android: {
-      package: variant.packageIdentifier,
+      ...(variant.packageIdentifier ? { package: variant.packageIdentifier } : {}),
       versionCode: 1,
       adaptiveIcon: {
         backgroundColor: '#0f172a',

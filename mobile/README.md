@@ -42,6 +42,12 @@ npm test
 npm run config:validate
 ```
 
+From the repository root, also run:
+
+```bash
+git diff --check
+```
+
 CI runs the same install, lint, typecheck, and Jest checks with Node 22.13 when `/mobile/**` or the mobile workflow changes.
 
 ## Environment and build configuration
