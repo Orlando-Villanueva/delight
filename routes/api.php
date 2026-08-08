@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\MobileTokenController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -18,4 +19,12 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-// Future API routes for mobile apps will be added here in post-MVP phases
+Route::prefix('v1')->name('api.v1.')->group(function (): void {
+    Route::post('/auth/token', [MobileTokenController::class, 'store'])
+        ->middleware('throttle:mobile-login')
+        ->name('auth.token.store');
+
+    Route::delete('/auth/token', [MobileTokenController::class, 'destroy'])
+        ->middleware(['auth:sanctum', 'abilities:mobile'])
+        ->name('auth.token.destroy');
+});
