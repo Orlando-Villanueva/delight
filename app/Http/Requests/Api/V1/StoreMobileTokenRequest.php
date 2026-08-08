@@ -30,6 +30,26 @@ class StoreMobileTokenRequest extends FormRequest
         ];
     }
 
+    /**
+     * Get the validation error messages for the request.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'email.required' => 'An email address is required.',
+            'email.string' => 'The email address must be a string.',
+            'email.email' => 'Enter a valid email address.',
+            'email.max' => 'The email address may not be greater than 255 characters.',
+            'password.required' => 'A password is required.',
+            'password.string' => 'The password must be a string.',
+            'device_name.required' => 'A device name is required.',
+            'device_name.string' => 'The device name must be a string.',
+            'device_name.max' => 'The device name may not be greater than 255 characters.',
+        ];
+    }
+
     protected function prepareForValidation(): void
     {
         $email = $this->input('email');

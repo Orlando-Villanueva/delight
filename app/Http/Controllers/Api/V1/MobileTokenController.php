@@ -8,7 +8,7 @@ use App\Http\Requests\Api\V1\StoreMobileTokenRequest;
 use App\Http\Resources\Api\V1\MobileTokenResource;
 use App\Models\User;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 class MobileTokenController extends Controller
@@ -16,14 +16,18 @@ class MobileTokenController extends Controller
     public function store(StoreMobileTokenRequest $request): MobileTokenResource
     {
         $credentials = $request->validated();
-        $user = User::query()->where('email', $credentials['email'])->first();
 
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+        if (! Auth::guard('web')->once([
+            'email' => $credentials['email'],
+            'password' => $credentials['password'],
+        ])) {
             throw ValidationException::withMessages([
                 'email' => [__('auth.failed')],
             ]);
         }
 
+        /** @var User $user */
+        $user = Auth::guard('web')->user();
         $token = $user->createToken($credentials['device_name'], ['mobile']);
 
         return new MobileTokenResource([

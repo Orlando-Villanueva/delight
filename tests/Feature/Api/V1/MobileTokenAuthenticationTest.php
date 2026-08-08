@@ -65,6 +65,42 @@ it('returns the same generic validation response for invalid credentials', funct
     ]],
 ]);
 
+it('timeboxes credential verification for an unknown account', function () {
+    $startedAt = hrtime(true);
+
+    $this->postJson('/api/v1/auth/token', [
+        'email' => 'unknown@example.com',
+        'password' => 'wrong-password',
+        'device_name' => 'Pixel',
+    ])->assertUnprocessable();
+
+    $elapsedMilliseconds = (hrtime(true) - $startedAt) / 1_000_000;
+
+    expect($elapsedMilliseconds)->toBeGreaterThanOrEqual(150);
+});
+
+it('rehashes stale passwords after successful mobile login', function () {
+    $password = 'ValidPass123!';
+    $configuredCost = password_get_info(Hash::make($password))['options']['cost'];
+    $user = User::factory()->create([
+        'email' => 'reader@example.com',
+    ]);
+    $staleHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => $configuredCost + 1]);
+
+    User::query()->whereKey($user)->toBase()->update(['password' => $staleHash]);
+    $user->refresh();
+
+    expect(Hash::needsRehash($user->password))->toBeTrue();
+
+    $this->postJson('/api/v1/auth/token', [
+        'email' => $user->email,
+        'password' => $password,
+        'device_name' => 'Pixel',
+    ])->assertSuccessful();
+
+    expect(Hash::needsRehash($user->fresh()->password))->toBeFalse();
+});
+
 it('limits production attempts by normalized email and IP', function () {
     $this->app->detectEnvironment(fn (): string => 'production');
 
@@ -94,6 +130,43 @@ it('validates malformed email values after applying the login limiter', function
         ->assertUnprocessable()
         ->assertJsonValidationErrors('email');
 });
+
+it('returns clear mobile credential validation messages', function (array $payload, string $field, string $message) {
+    $response = $this->postJson('/api/v1/auth/token', $payload)->assertUnprocessable();
+
+    expect($response->json("errors.{$field}"))->toContain($message);
+})->with([
+    'email required' => [
+        ['password' => 'ValidPass123!', 'device_name' => 'Pixel'],
+        'email',
+        'An email address is required.',
+    ],
+    'email invalid' => [
+        ['email' => 'not-an-email', 'password' => 'ValidPass123!', 'device_name' => 'Pixel'],
+        'email',
+        'Enter a valid email address.',
+    ],
+    'email maximum length' => [
+        ['email' => str_repeat('a', 250).'@example.com', 'password' => 'ValidPass123!', 'device_name' => 'Pixel'],
+        'email',
+        'The email address may not be greater than 255 characters.',
+    ],
+    'password required' => [
+        ['email' => 'reader@example.com', 'device_name' => 'Pixel'],
+        'password',
+        'A password is required.',
+    ],
+    'device name required' => [
+        ['email' => 'reader@example.com', 'password' => 'ValidPass123!'],
+        'device_name',
+        'A device name is required.',
+    ],
+    'device name maximum length' => [
+        ['email' => 'reader@example.com', 'password' => 'ValidPass123!', 'device_name' => str_repeat('a', 256)],
+        'device_name',
+        'The device name may not be greater than 255 characters.',
+    ],
+]);
 
 it('rejects logout without a token', function () {
     $this->deleteJson('/api/v1/auth/token')->assertUnauthorized();
