@@ -66,7 +66,15 @@ export default function LoginScreen() {
   }
 
   const disabled = isLoggingIn || cooldownSeconds > 0;
-  const openWebRoute = (path: string) => Linking.openURL(`${webUrl}${path}`);
+  const openWebRoute = async (path: string) => {
+    try {
+      await Linking.openURL(`${webUrl}${path}`);
+    } catch {
+      const message = 'The web page could not be opened. Try again.';
+      setFormMessage(message);
+      AccessibilityInfo.announceForAccessibility(message);
+    }
+  };
 
   return (
     <KeyboardAvoidingView behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: colors.background }}>

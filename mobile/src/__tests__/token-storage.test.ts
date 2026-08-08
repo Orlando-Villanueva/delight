@@ -13,6 +13,7 @@ describe('secure token storage', () => {
     jest.mocked(SecureStore.getItemAsync).mockResolvedValue('stored-token');
 
     await expect(tokenStorage.get()).resolves.toBe('stored-token');
+    expect(SecureStore.getItemAsync).toHaveBeenCalledWith('delight.auth-token');
     await tokenStorage.set('new-token');
     await tokenStorage.clear();
 

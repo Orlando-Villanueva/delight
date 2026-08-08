@@ -1,5 +1,6 @@
 import * as Linking from 'expo-linking';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { AccessibilityInfo } from 'react-native';
 
 import { ApiError } from '@/api/api-error';
 import LoginScreen from '@/app/(auth)/login';
@@ -16,6 +17,8 @@ const login = jest.fn();
 describe('native Login screen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    login.mockReset();
+    jest.mocked(Linking.openURL).mockResolvedValue(true);
     jest.mocked(useAuth).mockReturnValue({ login, isLoggingIn: false } as unknown as ReturnType<typeof useAuth>);
   });
 
@@ -50,6 +53,16 @@ describe('native Login screen', () => {
     await waitFor(() => expect(login).toHaveBeenCalledTimes(2));
   });
 
+  it('starts a retry cooldown after a rate-limit response', async () => {
+    login.mockRejectedValue(new ApiError('Too many attempts.', 'http', 429, {}, 30));
+    await render(<LoginScreen />);
+
+    await fillAndSubmit();
+
+    await waitFor(() => expect(screen.getByText('Try again in 30s')).toBeOnTheScreen());
+    expect(screen.getByLabelText('Sign in')).toBeDisabled();
+  });
+
   it('opens staging registration and recovery routes and explains Google accounts', async () => {
     await render(<LoginScreen />);
     await fireEvent.press(screen.getByLabelText('Create an account on the web'));
@@ -57,5 +70,16 @@ describe('native Login screen', () => {
     expect(Linking.openURL).toHaveBeenNthCalledWith(1, 'https://delight-staging.laravel.cloud/register');
     expect(Linking.openURL).toHaveBeenNthCalledWith(2, 'https://delight-staging.laravel.cloud/forgot-password');
     expect(screen.getByText(/Used Google to create your account/)).toBeOnTheScreen();
+  });
+
+  it('shows and announces a recoverable error when a web route cannot open', async () => {
+    jest.mocked(Linking.openURL).mockRejectedValueOnce(new Error('No browser available'));
+    await render(<LoginScreen />);
+
+    await fireEvent.press(screen.getByLabelText('Create an account on the web'));
+
+    const message = 'The web page could not be opened. Try again.';
+    expect(await screen.findByText(message)).toBeOnTheScreen();
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(message);
   });
 });

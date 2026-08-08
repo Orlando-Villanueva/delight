@@ -36,6 +36,12 @@ describe('typed API client', () => {
     );
   });
 
+  it('returns no data for a successful empty response', async () => {
+    mockedFetch.mockResolvedValue(response(204));
+
+    await expect(apiRequest<void>('/api/v1/auth/token', { method: 'DELETE', token: 'secret' })).resolves.toBeUndefined();
+  });
+
   it('maps validation errors and rate-limit cooldowns', async () => {
     mockedFetch
       .mockResolvedValueOnce(response(422, { message: 'Invalid credentials.', errors: { email: ['Invalid credentials.'] } }))

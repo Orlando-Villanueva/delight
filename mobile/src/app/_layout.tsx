@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router/stack';
 import { StatusBar } from 'expo-status-bar';
 
-import { AuthGate } from '@/auth/auth-gate';
 import { AuthProvider } from '@/auth/auth-context';
 import { shouldRetryQuery } from '@/api/retry-policy';
 
@@ -17,14 +16,12 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AuthGate>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-          <StatusBar style="auto" />
-        </AuthGate>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+        <StatusBar style="auto" />
       </AuthProvider>
     </QueryClientProvider>
   );
