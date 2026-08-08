@@ -181,6 +181,12 @@ Run the test suite with:
 php artisan test
 ```
 
+## Project Identity
+
+Delight is an independent product created and maintained by Orlando Villanueva. Contributions are welcome, and the source code remains available under GPLv3.
+
+The Delight name, logo, visual identity, and official service at [mydelight.app](https://mydelight.app) remain associated with the original project. Forks and modified versions should use distinct branding and must not imply that they are official Delight releases or services.
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
