@@ -55,6 +55,7 @@ module.exports = ({ config }) => {
     },
     plugins: [
       'expo-router',
+      'expo-secure-store',
       [
         'expo-splash-screen',
         {
@@ -68,7 +69,10 @@ module.exports = ({ config }) => {
       typedRoutes: true,
     },
     extra: {
-      apiUrl: process.env.EXPO_PUBLIC_API_URL ?? variant.apiUrl,
+      apiUrl:
+        appVariant === 'development'
+          ? (process.env.EXPO_PUBLIC_API_URL ?? variant.apiUrl)
+          : variant.apiUrl,
       appVariant,
     },
   };
