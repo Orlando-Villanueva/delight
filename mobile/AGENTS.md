@@ -22,6 +22,12 @@ These instructions apply to every file under `/mobile` and supplement the reposi
 - Route files live only in `src/app`. Put components, hooks, configuration, state, types, and utilities outside the router tree.
 - Use kebab-case file names and the `@/` path alias instead of deep relative imports.
 - Prefer small reusable components and centralized tokens over duplicated inline values.
+- Keep source lines at or below 120 characters where practical. Expand dense JSX props and inline React Native
+  style objects across multiple lines instead of compressing a component onto one line.
+- Keep dynamic styles close to the component that owns them, but extract named helpers when conditional
+  presentation logic would otherwise require nested ternaries.
+- Hoist navigation option renderers such as `headerRight` outside the parent component when they do not require
+  current props or state, so their references remain stable across renders.
 
 ## Routing
 
