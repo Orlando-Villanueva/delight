@@ -1,4 +1,4 @@
-# Contributing to Bible Habit Builder
+# Contributing to Delight
 
 Thank you for considering contributing to this project!
 
@@ -32,4 +32,4 @@ Thank you for considering contributing to this project!
 
 - Be respectful and constructive in all communications.
 
-Thank you for helping make Bible Habit Builder better!
+Thank you for helping make Delight better!
