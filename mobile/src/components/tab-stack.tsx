@@ -1,10 +1,15 @@
 import { Stack } from 'expo-router/stack';
 
+import { LogoutButton } from '@/components/logout-button';
 import { useTheme } from '@/theme/use-theme';
 
 type TabStackProps = {
   title: string;
 };
+
+function renderLogoutButton() {
+  return <LogoutButton />;
+}
 
 export function TabStack({ title }: TabStackProps) {
   const { colors } = useTheme();
@@ -18,7 +23,7 @@ export function TabStack({ title }: TabStackProps) {
         headerShadowVisible: false,
       }}
     >
-      <Stack.Screen name="index" options={{ title }} />
+      <Stack.Screen name="index" options={{ title, headerRight: renderLogoutButton }} />
     </Stack>
   );
 }

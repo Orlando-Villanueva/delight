@@ -5,6 +5,9 @@ export const themeTokens = {
     text: '#0f172a',
     mutedText: '#475569',
     primary: '#2563eb',
+    primaryContrast: '#ffffff',
+    danger: '#b91c1c',
+    input: '#ffffff',
     border: '#cbd5e1',
   },
   dark: {
@@ -13,6 +16,9 @@ export const themeTokens = {
     text: '#f8fafc',
     mutedText: '#cbd5e1',
     primary: '#60a5fa',
+    primaryContrast: '#0f172a',
+    danger: '#fca5a5',
+    input: '#0f172a',
     border: '#475569',
   },
   spacing: {
