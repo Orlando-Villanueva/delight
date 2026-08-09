@@ -24,7 +24,7 @@ class ReadingLogGroupResource extends JsonResource
         $endChapter = (int) $logs->max('chapter');
         $bookName = app(BibleReferenceService::class)->getLocalizedBookName(
             $firstLog->book_id,
-            includeDeuterocanonical: $request->user()->includesDeuterocanonicalBooks()
+            includeDeuterocanonical: true
         );
 
         return [

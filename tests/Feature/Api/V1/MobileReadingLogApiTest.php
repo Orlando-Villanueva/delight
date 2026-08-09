@@ -117,6 +117,27 @@ it('allows a deuterocanonical book only when enabled for the user', function () 
     ])->assertCreated();
 });
 
+it('keeps existing deuterocanonical history visible after the user disables it', function () {
+    $user = User::factory()->create([
+        'deuterocanonical_books_enabled_at' => now(),
+    ]);
+
+    ReadingLog::factory()->for($user)->create([
+        'book_id' => 67,
+        'chapter' => 1,
+        'passage_text' => 'Tobit 1',
+        'date_read' => today()->toDateString(),
+    ]);
+
+    $user->forceFill(['deuterocanonical_books_enabled_at' => null])->save();
+
+    $this->withToken(mobileReadingToken($user))->getJson(MOBILE_READING_LOGS_ENDPOINT)
+        ->assertSuccessful()
+        ->assertJsonPath('data.0.groups.0.book.id', 67)
+        ->assertJsonPath('data.0.groups.0.book.name', 'Tobit')
+        ->assertJsonPath('data.0.groups.0.passage', 'Tobit 1');
+});
+
 it('rolls back earlier logs and progress when a range fails partway through', function () {
     $user = User::factory()->create([
         'celebrated_first_reading_at' => now()->subDay(),
