@@ -6,6 +6,7 @@ use App\Enums\OnboardingStep;
 use App\Models\ChurnRecoveryCampaign;
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Models\UserAchievement;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -44,6 +45,13 @@ class ReadingLogService
      * Log a new Bible reading entry and return the log with any achievements unlocked by it.
      */
     public function logReadingWithResult(User $user, array $data, bool $evaluateAchievements = true): ReadingLogResult
+    {
+        return DB::transaction(
+            fn (): ReadingLogResult => $this->persistReadingWithResult($user, $data, $evaluateAchievements)
+        );
+    }
+
+    private function persistReadingWithResult(User $user, array $data, bool $evaluateAchievements): ReadingLogResult
     {
         // Validate and format the Bible reference
         $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
@@ -137,7 +145,7 @@ class ReadingLogService
     }
 
     /**
-     * @return array{awarded: int, skipped_duplicates: int, would_award: int, candidates: Collection<int, array<string, mixed>>, awarded_achievements: Collection<int, \App\Models\UserAchievement>}
+     * @return array{awarded: int, skipped_duplicates: int, would_award: int, candidates: Collection<int, array<string, mixed>>, awarded_achievements: Collection<int, UserAchievement>}
      */
     public function evaluateAchievements(User $user): array
     {
@@ -145,7 +153,7 @@ class ReadingLogService
     }
 
     /**
-     * @return array{awarded: int, skipped_duplicates: int, would_award: int, candidates: Collection<int, array<string, mixed>>, awarded_achievements: Collection<int, \App\Models\UserAchievement>}
+     * @return array{awarded: int, skipped_duplicates: int, would_award: int, candidates: Collection<int, array<string, mixed>>, awarded_achievements: Collection<int, UserAchievement>}
      */
     private function handlePostLogSideEffects(User $user, bool $isFirstReadingOfDay, string $loggedDate, bool $evaluateAchievements = true): array
     {
@@ -173,15 +181,19 @@ class ReadingLogService
     {
         $chapters = $data['chapters'];
         $firstLog = null;
+        $loggedAt = now();
 
         foreach ($chapters as $chapter) {
-            $readingLog = $user->readingLogs()->create([
+            $readingLog = new ReadingLog([
                 'book_id' => $data['book_id'],
                 'chapter' => $chapter,
                 'passage_text' => $data['passage_text'], // Range text like "John 1-3"
                 'date_read' => $dateRead,
                 'notes_text' => $data['notes_text'] ?? null,
             ]);
+            $readingLog->setCreatedAt($loggedAt);
+            $readingLog->setUpdatedAt($loggedAt);
+            $user->readingLogs()->save($readingLog);
 
             // Update book progress for each chapter
             $this->updateBookProgress($user, $data['book_id'], $chapter, $includeDeuterocanonical);
@@ -683,11 +695,15 @@ class ReadingLogService
         ])->render();
     }
 
-    public function getPaginatedDayGroupsFor(Request $request, UserStatisticsService $statisticsService, int $perPage = 8): LengthAwarePaginator
-    {
+    public function getPaginatedDayGroupsFor(
+        Request $request,
+        UserStatisticsService $statisticsService,
+        int $perPage = 8,
+        ?string $path = null
+    ): LengthAwarePaginator {
         $user = $request->user();
         $currentPage = max(1, (int) $request->get('page', 1));
-        $basePath = $request->routeIs('logs.index') ? $request->url() : route('logs.index');
+        $basePath = $path ?? ($request->routeIs('logs.index') ? $request->url() : route('logs.index'));
 
         // Step 1: Paginate the unique dates first
         // This is much more efficient than loading all logs into memory
