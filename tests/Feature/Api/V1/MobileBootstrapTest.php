@@ -5,9 +5,14 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 
+const MOBILE_BOOTSTRAP_ENDPOINT = '/api/v1/bootstrap';
+const MOBILE_BOOTSTRAP_TODAY = '2026-08-09';
+const MOBILE_BOOTSTRAP_YESTERDAY = '2026-08-08';
+const MOBILE_BOOTSTRAP_TWO_DAYS_AGO = '2026-08-07';
+
 beforeEach(function (): void {
     Cache::flush();
-    Carbon::setTestNow(Carbon::parse('2026-08-09 00:30:00', config('app.timezone')));
+    Carbon::setTestNow(Carbon::parse(MOBILE_BOOTSTRAP_TODAY.' 00:30:00', config('app.timezone')));
 });
 
 afterEach(function (): void {
@@ -16,13 +21,13 @@ afterEach(function (): void {
 });
 
 it('requires a Sanctum token with the mobile ability', function (): void {
-    $this->getJson('/api/v1/bootstrap')->assertUnauthorized();
+    $this->getJson(MOBILE_BOOTSTRAP_ENDPOINT)->assertUnauthorized();
 
     $user = User::factory()->create();
     $token = $user->createToken('Reporting integration', ['reporting'])->plainTextToken;
 
     $this->withToken($token)
-        ->getJson('/api/v1/bootstrap')
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
         ->assertForbidden();
 });
 
@@ -31,13 +36,13 @@ it('returns complete zero-filled bootstrap data in the application timezone', fu
     $token = $user->createToken('Pixel', ['mobile'])->plainTextToken;
 
     $response = $this->withToken($token)
-        ->getJson('/api/v1/bootstrap')
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
         ->assertSuccessful()
         ->assertJsonPath('data.user.id', $user->id)
         ->assertJsonPath('data.user.name', $user->name)
         ->assertJsonPath('data.user.email', $user->email)
-        ->assertJsonPath('data.today', '2026-08-09')
-        ->assertJsonPath('data.yesterday', '2026-08-08')
+        ->assertJsonPath('data.today', MOBILE_BOOTSTRAP_TODAY)
+        ->assertJsonPath('data.yesterday', MOBILE_BOOTSTRAP_YESTERDAY)
         ->assertJsonPath('data.recent_book_ids', [])
         ->assertJsonPath('data.has_read_today', false)
         ->assertJsonPath('data.current_streak', 0)
@@ -65,7 +70,7 @@ it('returns complete zero-filled bootstrap data in the application timezone', fu
     expect($response->json('data.activity'))
         ->toHaveCount(14)
         ->and($response->json('data.activity.0'))->toBe(['date' => '2026-07-27', 'count' => 0])
-        ->and($response->json('data.activity.13'))->toBe(['date' => '2026-08-09', 'count' => 0]);
+        ->and($response->json('data.activity.13'))->toBe(['date' => MOBILE_BOOTSTRAP_TODAY, 'count' => 0]);
 });
 
 it('returns exactly the dates accepted by web reading validation', function (): void {
@@ -73,7 +78,7 @@ it('returns exactly the dates accepted by web reading validation', function (): 
     $token = $user->createToken('Pixel', ['mobile'])->plainTextToken;
 
     $dates = $this->withToken($token)
-        ->getJson('/api/v1/bootstrap')
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
         ->assertSuccessful()
         ->json('data');
 
@@ -101,14 +106,14 @@ it('returns exactly the dates accepted by web reading validation', function (): 
 it('returns canon-aware books and filters recent books before limiting', function (): void {
     $user = User::factory()->create();
 
-    createBootstrapReading($user, 67, '2026-08-09', '2026-08-09 00:20:00');
-    createBootstrapReading($user, 1, '2026-08-08', '2026-08-08 12:00:00');
-    createBootstrapReading($user, 40, '2026-08-07', '2026-08-07 12:00:00');
+    createBootstrapReading($user, 67, MOBILE_BOOTSTRAP_TODAY, MOBILE_BOOTSTRAP_TODAY.' 00:20:00');
+    createBootstrapReading($user, 1, MOBILE_BOOTSTRAP_YESTERDAY, MOBILE_BOOTSTRAP_YESTERDAY.' 12:00:00');
+    createBootstrapReading($user, 40, MOBILE_BOOTSTRAP_TWO_DAYS_AGO, MOBILE_BOOTSTRAP_TWO_DAYS_AGO.' 12:00:00');
     createBootstrapReading($user, 43, '2026-08-06', '2026-08-06 12:00:00');
     createBootstrapReading($user, 19, '2026-08-05', '2026-08-05 12:00:00');
 
     $standardResponse = $this->withToken($user->createToken('Pixel', ['mobile'])->plainTextToken)
-        ->getJson('/api/v1/bootstrap')
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
         ->assertSuccessful()
         ->assertJsonCount(66, 'data.books')
         ->assertJsonPath('data.recent_book_ids', [1, 40, 43]);
@@ -121,7 +126,7 @@ it('returns canon-aware books and filters recent books before limiting', functio
     $this->app['auth']->forgetGuards();
 
     $deuterocanonicalResponse = $this->withToken($user->createToken('Catholic Pixel', ['mobile'])->plainTextToken)
-        ->getJson('/api/v1/bootstrap')
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
         ->assertSuccessful()
         ->assertJsonCount(73, 'data.books')
         ->assertJsonPath('data.recent_book_ids', [67, 1, 40]);
@@ -133,22 +138,22 @@ it('returns canon-aware books and filters recent books before limiting', functio
 it('returns the existing dashboard statistics and fourteen-day activity counts', function (): void {
     $user = User::factory()->create();
 
-    createBootstrapReading($user, 1, '2026-08-07', '2026-08-07 08:00:00');
-    createBootstrapReading($user, 1, '2026-08-08', '2026-08-08 08:00:00', 2);
-    createBootstrapReading($user, 1, '2026-08-09', '2026-08-09 00:10:00', 3);
-    createBootstrapReading($user, 40, '2026-08-09', '2026-08-09 00:20:00');
+    createBootstrapReading($user, 1, MOBILE_BOOTSTRAP_TWO_DAYS_AGO, MOBILE_BOOTSTRAP_TWO_DAYS_AGO.' 08:00:00');
+    createBootstrapReading($user, 1, MOBILE_BOOTSTRAP_YESTERDAY, MOBILE_BOOTSTRAP_YESTERDAY.' 08:00:00', 2);
+    createBootstrapReading($user, 1, MOBILE_BOOTSTRAP_TODAY, MOBILE_BOOTSTRAP_TODAY.' 00:10:00', 3);
+    createBootstrapReading($user, 40, MOBILE_BOOTSTRAP_TODAY, MOBILE_BOOTSTRAP_TODAY.' 00:20:00');
 
     $this->withToken($user->createToken('Pixel', ['mobile'])->plainTextToken)
-        ->getJson('/api/v1/bootstrap')
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
         ->assertSuccessful()
         ->assertJsonPath('data.has_read_today', true)
         ->assertJsonPath('data.current_streak', 3)
         ->assertJsonPath('data.longest_streak', 3)
         ->assertJsonPath('data.this_week_days', 1)
         ->assertJsonPath('data.this_month_days', 3)
-        ->assertJsonPath('data.activity.11', ['date' => '2026-08-07', 'count' => 1])
-        ->assertJsonPath('data.activity.12', ['date' => '2026-08-08', 'count' => 1])
-        ->assertJsonPath('data.activity.13', ['date' => '2026-08-09', 'count' => 2]);
+        ->assertJsonPath('data.activity.11', ['date' => MOBILE_BOOTSTRAP_TWO_DAYS_AGO, 'count' => 1])
+        ->assertJsonPath('data.activity.12', ['date' => MOBILE_BOOTSTRAP_YESTERDAY, 'count' => 1])
+        ->assertJsonPath('data.activity.13', ['date' => MOBILE_BOOTSTRAP_TODAY, 'count' => 2]);
 
     expect(Cache::has("user_dashboard_stats_{$user->id}"))->toBeTrue()
         ->and(Cache::has("user_recent_reading_activity_series_{$user->id}"))->toBeTrue();
