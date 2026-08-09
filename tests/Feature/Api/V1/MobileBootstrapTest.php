@@ -92,15 +92,17 @@ it('returns exactly the dates accepted by web reading validation', function (): 
             ->assertSuccessful();
     }
 
-    $this->actingAs($user)
+    $invalidDateResponse = $this->actingAs($user)
         ->post(route('logs.store'), [
             'book_id' => 1,
             'start_chapter' => 3,
             'date_read' => Carbon::parse($dates['yesterday'])->subDay()->toDateString(),
         ])
-        ->assertSuccessful();
+        ->assertSuccessful()
+        ->assertViewHas('errors');
 
-    expect($user->readingLogs()->count())->toBe(2);
+    expect($invalidDateResponse->viewData('errors')->has('date_read'))->toBeTrue()
+        ->and($user->readingLogs()->count())->toBe(2);
 });
 
 it('returns canon-aware books and filters recent books before limiting', function (): void {
@@ -135,7 +137,7 @@ it('returns canon-aware books and filters recent books before limiting', functio
         ->toContain(67, 73);
 });
 
-it('returns the existing dashboard statistics and fourteen-day activity counts', function (): void {
+it('returns the existing statistics and fourteen-day activity counts', function (): void {
     $user = User::factory()->create();
 
     createBootstrapReading($user, 1, MOBILE_BOOTSTRAP_TWO_DAYS_AGO, MOBILE_BOOTSTRAP_TWO_DAYS_AGO.' 08:00:00');
@@ -155,8 +157,35 @@ it('returns the existing dashboard statistics and fourteen-day activity counts',
         ->assertJsonPath('data.activity.12', ['date' => MOBILE_BOOTSTRAP_YESTERDAY, 'count' => 1])
         ->assertJsonPath('data.activity.13', ['date' => MOBILE_BOOTSTRAP_TODAY, 'count' => 2]);
 
-    expect(Cache::has("user_dashboard_stats_{$user->id}"))->toBeTrue()
-        ->and(Cache::has("user_recent_reading_activity_series_{$user->id}"))->toBeTrue();
+    expect(Cache::has("user_current_streak_{$user->id}"))->toBeTrue()
+        ->and(Cache::has("user_recent_reading_activity_series_{$user->id}"))->toBeTrue()
+        ->and(Cache::has("user_total_reading_days_{$user->id}"))->toBeTrue();
+});
+
+it('does not serve previous-day statistics after midnight', function (): void {
+    Carbon::setTestNow(Carbon::parse('2026-08-08 23:59:00', config('app.timezone')));
+
+    $user = User::factory()->create();
+    createBootstrapReading($user, 1, MOBILE_BOOTSTRAP_YESTERDAY, MOBILE_BOOTSTRAP_YESTERDAY.' 23:50:00');
+    $token = $user->createToken('Pixel', ['mobile'])->plainTextToken;
+
+    $this->withToken($token)
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
+        ->assertSuccessful()
+        ->assertJsonPath('data.today', MOBILE_BOOTSTRAP_YESTERDAY)
+        ->assertJsonPath('data.activity.13', ['date' => MOBILE_BOOTSTRAP_YESTERDAY, 'count' => 1]);
+
+    Carbon::setTestNow(Carbon::parse(MOBILE_BOOTSTRAP_TODAY.' 00:01:00', config('app.timezone')));
+    $this->app['auth']->forgetGuards();
+
+    $this->withToken($token)
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
+        ->assertSuccessful()
+        ->assertJsonPath('data.today', MOBILE_BOOTSTRAP_TODAY)
+        ->assertJsonPath('data.yesterday', MOBILE_BOOTSTRAP_YESTERDAY)
+        ->assertJsonPath('data.has_read_today', false)
+        ->assertJsonPath('data.this_week_days', 0)
+        ->assertJsonPath('data.activity.13', ['date' => MOBILE_BOOTSTRAP_TODAY, 'count' => 0]);
 });
 
 function createBootstrapReading(
@@ -166,7 +195,7 @@ function createBootstrapReading(
     string $createdAt,
     int $chapter = 1,
 ): ReadingLog {
-    return ReadingLog::factory()->for($user)->create([
+    return ReadingLog::factory()->for($user)->createOne([
         'book_id' => $bookId,
         'chapter' => $chapter,
         'passage_text' => "Book {$bookId} {$chapter}",

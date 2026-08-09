@@ -14,8 +14,8 @@ class MobileBootstrapResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $streaks = $this->resource['statistics']['streaks'];
-        $readingSummary = $this->resource['statistics']['reading_summary'];
+        $streaks = $this->resource['streaks'];
+        $readingSummary = $this->resource['reading_summary'];
 
         return [
             'user' => new MobileUserResource($this->resource['user']),

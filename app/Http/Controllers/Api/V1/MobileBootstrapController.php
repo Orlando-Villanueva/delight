@@ -33,7 +33,8 @@ class MobileBootstrapController extends Controller
             ),
             'recent_book_ids' => array_column($recentBooks, 'id'),
             'has_read_today' => $readingFormService->hasReadToday($user),
-            'statistics' => $userStatisticsService->getDashboardStatistics($user),
+            'streaks' => $userStatisticsService->getStreakStatistics($user),
+            'reading_summary' => $userStatisticsService->getReadingSummary($user),
         ]);
     }
 }
