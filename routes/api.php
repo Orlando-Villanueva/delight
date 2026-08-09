@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\MobileBootstrapController;
 use App\Http\Controllers\Api\V1\MobileTokenController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -27,4 +28,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::delete('/auth/token', [MobileTokenController::class, 'destroy'])
         ->middleware(['auth:sanctum', 'abilities:mobile'])
         ->name('auth.token.destroy');
+
+    Route::get('/bootstrap', MobileBootstrapController::class)
+        ->middleware(['auth:sanctum', 'abilities:mobile'])
+        ->name('bootstrap');
 });
