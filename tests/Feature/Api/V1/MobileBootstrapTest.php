@@ -195,7 +195,7 @@ function createBootstrapReading(
     string $createdAt,
     int $chapter = 1,
 ): ReadingLog {
-    return ReadingLog::factory()->for($user)->createOne([
+    $readingLog = ReadingLog::factory()->for($user)->createOne([
         'book_id' => $bookId,
         'chapter' => $chapter,
         'passage_text' => "Book {$bookId} {$chapter}",
@@ -203,4 +203,8 @@ function createBootstrapReading(
         'created_at' => $createdAt,
         'updated_at' => $createdAt,
     ]);
+
+    assert($readingLog instanceof ReadingLog);
+
+    return $readingLog;
 }
