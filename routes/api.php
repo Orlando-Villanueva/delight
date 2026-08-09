@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\MobileBootstrapController;
 use App\Http\Controllers\Api\V1\MobileTokenController;
+use App\Http\Controllers\Api\V1\ReadingLogController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -31,5 +32,11 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
 
         Route::get('/bootstrap', MobileBootstrapController::class)
             ->name('bootstrap');
+
+        Route::post('/reading-logs', [ReadingLogController::class, 'store'])
+            ->name('reading-logs.store');
+
+        Route::get('/reading-logs', [ReadingLogController::class, 'index'])
+            ->name('reading-logs.index');
     });
 });
