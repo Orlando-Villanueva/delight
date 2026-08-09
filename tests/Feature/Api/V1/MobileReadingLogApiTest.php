@@ -7,6 +7,8 @@ use App\Models\ReadingLog;
 use App\Models\User;
 use Carbon\Carbon;
 
+const MOBILE_READING_LOGS_ENDPOINT = '/api/v1/reading-logs';
+
 function mobileReadingToken(User $user, array $abilities = ['mobile']): string
 {
     return $user->createToken('Mobile API test', $abilities)->plainTextToken;
@@ -19,19 +21,19 @@ beforeEach(function () {
 it('requires a mobile token ability for creation and history', function () {
     $user = User::factory()->create();
 
-    $this->postJson('/api/v1/reading-logs', [])->assertUnauthorized();
-    $this->getJson('/api/v1/reading-logs')->assertUnauthorized();
+    $this->postJson(MOBILE_READING_LOGS_ENDPOINT, [])->assertUnauthorized();
+    $this->getJson(MOBILE_READING_LOGS_ENDPOINT)->assertUnauthorized();
 
     $token = mobileReadingToken($user, ['reporting']);
 
-    $this->withToken($token)->postJson('/api/v1/reading-logs', [])->assertForbidden();
-    $this->withToken($token)->getJson('/api/v1/reading-logs')->assertForbidden();
+    $this->withToken($token)->postJson(MOBILE_READING_LOGS_ENDPOINT, [])->assertForbidden();
+    $this->withToken($token)->getJson(MOBILE_READING_LOGS_ENDPOINT)->assertForbidden();
 });
 
 it('creates a single chapter and returns its canonical group', function () {
     $user = User::factory()->create();
 
-    $response = $this->withToken(mobileReadingToken($user))->postJson('/api/v1/reading-logs', [
+    $response = $this->withToken(mobileReadingToken($user))->postJson(MOBILE_READING_LOGS_ENDPOINT, [
         'book_id' => 43,
         'start_chapter' => 3,
         'end_chapter' => null,
@@ -61,7 +63,7 @@ it('creates a single chapter and returns its canonical group', function () {
 it('creates a chapter range atomically with book progress', function () {
     $user = User::factory()->create();
 
-    $this->withToken(mobileReadingToken($user))->postJson('/api/v1/reading-logs', [
+    $this->withToken(mobileReadingToken($user))->postJson(MOBILE_READING_LOGS_ENDPOINT, [
         'book_id' => 43,
         'start_chapter' => 1,
         'end_chapter' => 3,
@@ -89,7 +91,7 @@ it('returns field-specific validation errors', function (array $overrides, strin
     ];
 
     $this->withToken(mobileReadingToken($user))
-        ->postJson('/api/v1/reading-logs', array_replace($payload, $overrides))
+        ->postJson(MOBILE_READING_LOGS_ENDPOINT, array_replace($payload, $overrides))
         ->assertUnprocessable()
         ->assertJsonValidationErrors($field);
 })->with([
@@ -108,7 +110,7 @@ it('allows a deuterocanonical book only when enabled for the user', function () 
         'deuterocanonical_books_enabled_at' => now(),
     ]);
 
-    $this->withToken(mobileReadingToken($user))->postJson('/api/v1/reading-logs', [
+    $this->withToken(mobileReadingToken($user))->postJson(MOBILE_READING_LOGS_ENDPOINT, [
         'book_id' => 67,
         'start_chapter' => 1,
         'date_read' => today()->toDateString(),
@@ -125,7 +127,7 @@ it('rolls back earlier logs and progress when a range fails partway through', fu
         'date_read' => today()->toDateString(),
     ]);
 
-    $this->withToken(mobileReadingToken($user))->postJson('/api/v1/reading-logs', [
+    $this->withToken(mobileReadingToken($user))->postJson(MOBILE_READING_LOGS_ENDPOINT, [
         'book_id' => 43,
         'start_chapter' => 1,
         'end_chapter' => 2,
@@ -176,7 +178,7 @@ it('returns only the users history newest first grouped by date session and cont
         'date_read' => today()->toDateString(),
     ]);
 
-    $pageOne = $this->withToken(mobileReadingToken($user))->getJson('/api/v1/reading-logs?page=1');
+    $pageOne = $this->withToken(mobileReadingToken($user))->getJson(MOBILE_READING_LOGS_ENDPOINT.'?page=1');
 
     $pageOne
         ->assertSuccessful()
@@ -194,7 +196,7 @@ it('returns only the users history newest first grouped by date session and cont
     expect(collect($pageOne->json('data'))->pluck('groups')->flatten(1)->pluck('log_ids')->flatten())
         ->not->toContain($otherLog->id);
 
-    $this->withToken(mobileReadingToken($user))->getJson('/api/v1/reading-logs?page=2')
+    $this->withToken(mobileReadingToken($user))->getJson(MOBILE_READING_LOGS_ENDPOINT.'?page=2')
         ->assertSuccessful()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.date_read', today()->subDays(8)->toDateString());
@@ -216,7 +218,7 @@ it('keeps web and api domain side effects in parity', function () {
         'notes_text' => 'Shared domain path.',
     ];
 
-    $this->withToken(mobileReadingToken($apiUser))->postJson('/api/v1/reading-logs', $payload)->assertCreated();
+    $this->withToken(mobileReadingToken($apiUser))->postJson(MOBILE_READING_LOGS_ENDPOINT, $payload)->assertCreated();
     $this->actingAs($webUser)->post(route('logs.store'), $payload)->assertSuccessful();
 
     $domainState = function (User $user, ChurnRecoveryCampaign $campaign): array {
