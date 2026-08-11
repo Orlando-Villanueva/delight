@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import type { BottomTabBarButtonProps } from 'expo-router/build/react-navigation/bottom-tabs';
+import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AuthGate } from '@/auth/auth-gate';
@@ -28,12 +29,27 @@ export default function TabsLayout() {
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.mutedText,
           tabBarStyle: {
-            height: 64 + insets.bottom,
+            height: 84 + insets.bottom,
+            paddingTop: 20,
             paddingBottom: insets.bottom,
-            backgroundColor: colors.surface,
-            borderTopColor: colors.border,
-            overflow: 'visible',
+            backgroundColor: 'transparent',
+            borderTopWidth: 0,
           },
+          tabBarBackground: () => (
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: 20,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                borderTopWidth: 1,
+                borderTopColor: colors.border,
+                backgroundColor: colors.surface,
+              }}
+            />
+          ),
         }}
       >
         <Tabs.Screen

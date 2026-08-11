@@ -125,6 +125,22 @@ describe('native Home dashboard', () => {
     await waitFor(() => expect(screen.getByText('No recent reading activity')).toBeOnTheScreen());
   });
 
+  it('keeps the cached dashboard visible when a refresh fails', async () => {
+    mockRequest
+      .mockResolvedValueOnce(bootstrap({ current_streak: 4 }))
+      .mockRejectedValueOnce(new Error('Network error'));
+
+    await renderHome();
+
+    expect(await screen.findByText('4 days')).toBeOnTheScreen();
+    fireEvent(screen.getByTestId('home-refresh-control'), 'refresh');
+
+    expect(await screen.findByText('We couldn’t refresh your dashboard')).toBeOnTheScreen();
+    expect(screen.getByText('4 days')).toBeOnTheScreen();
+    expect(screen.queryByText('Your dashboard could not be loaded')).not.toBeOnTheScreen();
+    await waitFor(() => expect(screen.getByTestId('home-refresh-control')).toHaveProp('refreshing', false));
+  });
+
   it('refreshes on pull-to-refresh and app foregrounding', async () => {
     let resolvePullToRefresh: ((value: ReturnType<typeof bootstrap>) => void) | undefined;
     let resolveForegroundRefresh: ((value: ReturnType<typeof bootstrap>) => void) | undefined;

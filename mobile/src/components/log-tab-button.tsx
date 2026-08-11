@@ -23,14 +23,20 @@ export function LogTabButton({ accessibilityState, onLongPress, onPress, testID 
       onLongPress={onLongPress}
       onPress={onPress}
       testID={testID}
-      style={{ flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}
+      style={{
+        top: -20,
+        flex: 1,
+        minHeight: 64,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
     >
       {({ pressed }) => (
         <View
           pointerEvents="none"
           style={{
             position: 'absolute',
-            top: -20,
+            top: 0,
             width: 56,
             height: 56,
             alignItems: 'center',

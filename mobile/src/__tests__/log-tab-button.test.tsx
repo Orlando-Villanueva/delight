@@ -12,6 +12,7 @@ describe('central Log tab action', () => {
     fireEvent.press(button);
 
     expect(onPress).toHaveBeenCalledTimes(1);
+    expect(button).toHaveStyle({ top: -20, minHeight: 64 });
     expect(screen.getByText('+')).toBeOnTheScreen();
     expect(screen.queryByText('Log')).not.toBeOnTheScreen();
   });

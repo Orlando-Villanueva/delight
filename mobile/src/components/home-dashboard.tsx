@@ -79,7 +79,7 @@ function LoadingState() {
 export function HomeDashboard() {
   const { colors } = useTheme();
   const request = useAuthenticatedApi();
-  const { data, isError, isPending, isRefetching, refetch } = useQuery({
+  const { data, isPending, isRefetchError, isRefetching, refetch } = useQuery({
     queryKey: ['bootstrap'],
     queryFn: () => fetchBootstrap(request),
   });
@@ -102,7 +102,7 @@ export function HomeDashboard() {
     return <LoadingState />;
   }
 
-  if (isError || !data) {
+  if (!data) {
     return (
       <View
         accessibilityLiveRegion="polite"
@@ -170,6 +170,45 @@ export function HomeDashboard() {
           {dashboard.has_read_today ? 'Your reading is safely recorded.' : 'Log today’s reading to keep your journey moving.'}
         </Text>
       </View>
+
+      {isRefetchError ? (
+        <View
+          accessibilityLiveRegion="polite"
+          style={{
+            gap: 8,
+            padding: themeTokens.spacing.section,
+            borderWidth: 1,
+            borderColor: colors.danger,
+            borderRadius: themeTokens.radius.card,
+            backgroundColor: colors.surface,
+          }}
+        >
+          <Text selectable style={{ color: colors.danger, fontWeight: '700' }}>
+            We couldn’t refresh your dashboard
+          </Text>
+          <Text selectable style={{ color: colors.mutedText }}>
+            Showing your most recently loaded reading activity.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retry refreshing dashboard"
+            accessibilityHint="Requests your latest reading dashboard"
+            onPress={() => void refresh()}
+            style={{
+              alignSelf: 'flex-start',
+              minHeight: themeTokens.minimumTouchTarget,
+              justifyContent: 'center',
+              paddingHorizontal: themeTokens.spacing.section,
+              borderRadius: themeTokens.radius.control,
+              backgroundColor: colors.primary,
+            }}
+          >
+            <Text selectable style={{ color: colors.primaryContrast, fontWeight: '700' }}>
+              Try again
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {isEmpty ? (
         <View accessibilityLiveRegion="polite" style={{ gap: 8 }}>
