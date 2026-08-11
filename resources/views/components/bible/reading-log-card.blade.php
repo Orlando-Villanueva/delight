@@ -13,8 +13,15 @@ $editModalId = "edit-note-{$log->id}";
     <div class="flex items-center justify-between gap-3">
         {{-- Passage and Time Info --}}
         <div class="flex-1 min-w-0">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white leading-tight mb-1">
-                {{ $log->display_passage_text ?? $log->passage_text }}
+            <h3 class="mb-1 flex items-center gap-2 text-base font-semibold leading-tight text-gray-900 dark:text-white">
+                <span>{{ $log->display_passage_text ?? $log->passage_text }}</span>
+                @if ($isMultiChapter)
+                    <span
+                        class="rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-medium text-primary-800 dark:bg-primary-800 dark:text-primary-200"
+                        aria-label="{{ $allLogs->count() }} chapters">
+                        {{ $allLogs->count() }}
+                    </span>
+                @endif
             </h3>
             <div class="text-xs text-gray-500 dark:text-gray-400">
                 Logged at {{ $log->created_at->format('g:i A') }}
