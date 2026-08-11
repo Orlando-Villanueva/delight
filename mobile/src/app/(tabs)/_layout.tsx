@@ -1,11 +1,23 @@
 import { Tabs } from 'expo-router';
+import type { BottomTabBarButtonProps } from 'expo-router/build/react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AuthGate } from '@/auth/auth-gate';
-import { themeTokens } from '@/theme/tokens';
+import { LogTabButton } from '@/components/log-tab-button';
+import { StandardTabButton } from '@/components/standard-tab-button';
 import { useTheme } from '@/theme/use-theme';
+
+function renderLogTabButton(props: BottomTabBarButtonProps) {
+  return <LogTabButton {...props} />;
+}
+
+function renderStandardTabButton(props: BottomTabBarButtonProps) {
+  return <StandardTabButton {...props} />;
+}
 
 export default function TabsLayout() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <AuthGate>
@@ -16,23 +28,33 @@ export default function TabsLayout() {
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.mutedText,
           tabBarStyle: {
-            minHeight: themeTokens.minimumTouchTarget,
+            height: 64 + insets.bottom,
+            paddingBottom: insets.bottom,
             backgroundColor: colors.surface,
             borderTopColor: colors.border,
+            overflow: 'visible',
           },
         }}
       >
         <Tabs.Screen
           name="home"
-          options={{ title: 'Home', tabBarAccessibilityLabel: 'Home tab' }}
+          options={{ title: 'Home', tabBarAccessibilityLabel: 'Home tab', tabBarButton: renderStandardTabButton }}
         />
         <Tabs.Screen
           name="log"
-          options={{ title: 'Log', tabBarAccessibilityLabel: 'Log a reading tab' }}
+          options={{
+            title: 'Log',
+            tabBarAccessibilityLabel: 'Log a reading tab',
+            tabBarButton: renderLogTabButton,
+          }}
         />
         <Tabs.Screen
           name="history"
-          options={{ title: 'History', tabBarAccessibilityLabel: 'Reading history tab' }}
+          options={{
+            title: 'History',
+            tabBarAccessibilityLabel: 'Reading history tab',
+            tabBarButton: renderStandardTabButton,
+          }}
         />
       </Tabs>
     </AuthGate>
