@@ -1,7 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  AppState,
+  type AppStateStatus,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 
 import {
   fetchReadingHistoryPage,
@@ -20,11 +29,13 @@ function useReadingHistory() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<Error | null>(null);
   const isLoadingMoreRef = useRef(false);
+  const refreshGenerationRef = useRef(0);
 
   const initialPage = useQuery({
     queryKey: ['reading-history', 1],
     queryFn: () => fetchReadingHistoryPage(request, 1),
   });
+  const { refetch } = initialPage;
 
   const pages = useMemo(
     () => initialPage.data ? [initialPage.data, ...loadedPages] : [],
@@ -36,10 +47,24 @@ function useReadingHistory() {
   const hasNextPage = initialPage.data !== undefined && lastLoadedPage < lastPage;
 
   const refresh = useCallback(async () => {
-    setLoadedPages([]);
+    const refreshGeneration = ++refreshGenerationRef.current;
     setLoadMoreError(null);
-    await initialPage.refetch();
-  }, [initialPage]);
+    const result = await refetch();
+
+    if (refreshGeneration === refreshGenerationRef.current && result.isSuccess) {
+      setLoadedPages([]);
+    }
+  }, [refetch]);
+
+  useEffect(() => {
+    function refreshWhenForegrounded(nextAppState: AppStateStatus) {
+      if (nextAppState === 'active') {
+        void refresh();
+      }
+    }
+
+    return AppState.addEventListener('change', refreshWhenForegrounded).remove;
+  }, [refresh]);
 
   const loadMore = useCallback(async () => {
     if (!hasNextPage || isLoadingMoreRef.current) {
@@ -47,11 +72,17 @@ function useReadingHistory() {
     }
 
     isLoadingMoreRef.current = true;
+    const refreshGeneration = refreshGenerationRef.current;
     setIsLoadingMore(true);
     setLoadMoreError(null);
 
     try {
       const page = await fetchReadingHistoryPage(request, lastLoadedPage + 1);
+
+      if (refreshGeneration !== refreshGenerationRef.current) {
+        return;
+      }
+
       setLoadedPages((currentPages) => {
         if (currentPages.some((currentPage) => currentPage.currentPage === page.currentPage)) {
           return currentPages;
@@ -60,7 +91,9 @@ function useReadingHistory() {
         return [...currentPages, page];
       });
     } catch (error) {
-      setLoadMoreError(error instanceof Error ? error : new Error('The next page could not be loaded.'));
+      if (refreshGeneration === refreshGenerationRef.current) {
+        setLoadMoreError(error instanceof Error ? error : new Error('The next page could not be loaded.'));
+      }
     } finally {
       isLoadingMoreRef.current = false;
       setIsLoadingMore(false);
@@ -74,9 +107,11 @@ function useReadingHistory() {
     initialError: initialPage.error instanceof Error ? initialPage.error : null,
     isLoadingMore,
     loadMoreError,
+    refreshError:
+      initialPage.isRefetchError && initialPage.error instanceof Error ? initialPage.error : null,
     hasNextPage,
     refresh,
-    retryInitial: initialPage.refetch,
+    retryInitial: refetch,
     loadMore,
   };
 }
@@ -99,7 +134,17 @@ function chapterCount(group: ReadingHistoryGroup): string {
   return `${count} ${count === 1 ? 'chapter' : 'chapters'}`;
 }
 
-function ActionButton({ label, onPress, tone = 'primary' }: { label: string; onPress: () => void; tone?: 'primary' | 'accent' }) {
+function ActionButton({
+  label,
+  accessibilityHint,
+  onPress,
+  tone = 'primary',
+}: Readonly<{
+  label: string;
+  accessibilityHint: string;
+  onPress: () => void;
+  tone?: 'primary' | 'accent';
+}>) {
   const { colors } = useTheme();
   const isAccent = tone === 'accent';
 
@@ -107,6 +152,7 @@ function ActionButton({ label, onPress, tone = 'primary' }: { label: string; onP
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
       onPress={onPress}
       style={({ pressed }) => ({
         alignItems: 'center',
@@ -194,7 +240,11 @@ export function ReadingHistory() {
       <View accessibilityLiveRegion="polite" style={{ flex: 1, justifyContent: 'center', gap: 16, padding: themeTokens.spacing.screen }}>
         <Text selectable style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>History is unavailable</Text>
         <Text selectable style={{ color: colors.mutedText, fontSize: 16, lineHeight: 24 }}>{history.initialError.message}</Text>
-        <ActionButton label="Try again" onPress={() => void history.retryInitial()} />
+        <ActionButton
+          label="Try again"
+          accessibilityHint="Requests your reading history again."
+          onPress={() => void history.retryInitial()}
+        />
       </View>
     );
   }
@@ -212,13 +262,27 @@ export function ReadingHistory() {
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={{ gap: 24, padding: themeTokens.spacing.screen }}
     >
+      {history.refreshError ? (
+        <Text
+          accessibilityLiveRegion="polite"
+          selectable
+          style={{ color: colors.danger, fontSize: 16, lineHeight: 24 }}
+        >
+          History could not be refreshed. {history.refreshError.message}
+        </Text>
+      ) : null}
       {history.days.length === 0 ? (
         <View accessibilityLiveRegion="polite" style={{ gap: 16, paddingTop: 48 }}>
           <Text selectable style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>Your history is waiting</Text>
           <Text selectable style={{ color: colors.mutedText, fontSize: 16, lineHeight: 24 }}>
             Log a reading to begin building your record here.
           </Text>
-          <ActionButton label="Log a reading" onPress={() => router.push('/(tabs)/log')} tone="accent" />
+          <ActionButton
+            label="Log a reading"
+            accessibilityHint="Opens the Log tab to record a reading."
+            onPress={() => router.push('/(tabs)/log')}
+            tone="accent"
+          />
         </View>
       ) : (
         <>
@@ -231,7 +295,11 @@ export function ReadingHistory() {
               {history.isLoadingMore ? (
                 <ActivityIndicator accessibilityLabel="Loading more history" color={colors.primary} />
               ) : null}
-              <ActionButton label="Load more" onPress={() => void history.loadMore()} />
+              <ActionButton
+                label="Load more"
+                accessibilityHint="Loads older readings from your history."
+                onPress={() => void history.loadMore()}
+              />
             </View>
           ) : (
             <Text accessibilityLiveRegion="polite" selectable style={{ color: colors.mutedText, fontSize: 15, textAlign: 'center' }}>

@@ -81,14 +81,21 @@ export function mergeReadingHistoryPages(pages: ReadingHistoryPage[]): ReadingHi
       const day = days.get(incomingDay.dateRead) ?? { dateRead: incomingDay.dateRead, groups: [] };
 
       for (const group of incomingDay.groups) {
-        const hasNewLog = group.logIds.some((id) => !seenLogIds.has(id));
+        const logIds = group.logIds.filter((id) => {
+          if (seenLogIds.has(id)) {
+            return false;
+          }
 
-        if (!hasNewLog) {
+          seenLogIds.add(id);
+
+          return true;
+        });
+
+        if (logIds.length === 0) {
           continue;
         }
 
-        group.logIds.forEach((id) => seenLogIds.add(id));
-        day.groups.push(group);
+        day.groups.push({ ...group, logIds });
       }
 
       if (!days.has(incomingDay.dateRead)) {
