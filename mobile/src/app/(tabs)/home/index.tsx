@@ -1,5 +1,5 @@
-import { ScreenPlaceholder } from '@/components/screen-placeholder';
+import { HomeDashboard } from '@/components/home-dashboard';
 
 export default function HomeScreen() {
-  return <ScreenPlaceholder message="Your reading dashboard will live here." />;
+  return <HomeDashboard />;
 }
