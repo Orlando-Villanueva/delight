@@ -122,6 +122,30 @@ describe('reading history', () => {
     expect(screen.getByText('You have reached the beginning of your history.')).toBeOnTheScreen();
   });
 
+  it('refreshes instead of rendering a partial overlapping group', async () => {
+    request
+      .mockResolvedValueOnce(historyResponse(1, 2, '2026-08-10', [
+        readingGroup({ log_ids: [101], end_chapter: null, passage: 'John 1' }),
+      ]))
+      .mockResolvedValueOnce(historyResponse(2, 2, '2026-08-10', [
+        readingGroup({ log_ids: [101, 102], passage: 'John 1-2' }),
+      ]))
+      .mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [
+        readingGroup({ log_ids: [101, 102], passage: 'John 1-2' }),
+      ]));
+
+    const screen = await renderHistory();
+    await waitFor(() => expect(screen.getByText('John 1')).toBeOnTheScreen());
+    const user = userEvent.setup();
+    await user.press(screen.getByRole('button', { name: 'Load more' }));
+
+    await waitFor(() => expect(screen.getByText('John 1-2')).toBeOnTheScreen());
+
+    expect(request).toHaveBeenCalledTimes(3);
+    expect(request).toHaveBeenLastCalledWith('/api/v1/reading-logs?page=1');
+    expect(screen.queryByText('John 1')).not.toBeOnTheScreen();
+  });
+
   it('replaces appended pages from page one when refreshed', async () => {
     request
       .mockResolvedValueOnce(historyResponse(1, 2, '2026-08-10'))
@@ -278,7 +302,7 @@ describe('reading history', () => {
 });
 
 describe('mergeReadingHistoryPages', () => {
-  it('keeps the first API order while removing duplicated log IDs', () => {
+  it('keeps the first complete server group when pages overlap', () => {
     const page = (days: ReadingHistoryPage['days']): ReadingHistoryPage => ({ days, currentPage: 1, lastPage: 2 });
     const group = (logIds: number[], passage: string) => ({
       logIds,
@@ -296,6 +320,6 @@ describe('mergeReadingHistoryPages', () => {
       page([{ dateRead: '2026-08-10', groups: [group([1, 2], 'John 1-2')] }]),
     ]);
 
-    expect(result).toEqual([{ dateRead: '2026-08-10', groups: [group([1], 'John 1'), group([2], 'John 1-2')] }]);
+    expect(result).toEqual([{ dateRead: '2026-08-10', groups: [group([1], 'John 1')] }]);
   });
 });

@@ -14,6 +14,7 @@ import {
 
 import {
   fetchReadingHistoryPage,
+  hasPartialReadingHistoryOverlap,
   mergeReadingHistoryPages,
   type ReadingHistoryDay,
   type ReadingHistoryGroup,
@@ -83,6 +84,12 @@ function useReadingHistory() {
         return;
       }
 
+      if (hasPartialReadingHistoryOverlap(pages, page)) {
+        await refresh();
+
+        return;
+      }
+
       setLoadedPages((currentPages) => {
         if (currentPages.some((currentPage) => currentPage.currentPage === page.currentPage)) {
           return currentPages;
@@ -98,7 +105,7 @@ function useReadingHistory() {
       isLoadingMoreRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [hasNextPage, lastLoadedPage, request]);
+  }, [hasNextPage, lastLoadedPage, pages, refresh, request]);
 
   return {
     days,

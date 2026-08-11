@@ -81,21 +81,12 @@ export function mergeReadingHistoryPages(pages: ReadingHistoryPage[]): ReadingHi
       const day = days.get(incomingDay.dateRead) ?? { dateRead: incomingDay.dateRead, groups: [] };
 
       for (const group of incomingDay.groups) {
-        const logIds = group.logIds.filter((id) => {
-          if (seenLogIds.has(id)) {
-            return false;
-          }
-
-          seenLogIds.add(id);
-
-          return true;
-        });
-
-        if (logIds.length === 0) {
+        if (group.logIds.some((id) => seenLogIds.has(id))) {
           continue;
         }
 
-        day.groups.push({ ...group, logIds });
+        group.logIds.forEach((id) => seenLogIds.add(id));
+        day.groups.push(group);
       }
 
       if (!days.has(incomingDay.dateRead)) {
@@ -105,4 +96,34 @@ export function mergeReadingHistoryPages(pages: ReadingHistoryPage[]): ReadingHi
   }
 
   return [...days.values()];
+}
+
+export function hasPartialReadingHistoryOverlap(
+  existingPages: ReadingHistoryPage[],
+  incomingPage: ReadingHistoryPage,
+): boolean {
+  const seenLogIds = new Set<number>();
+
+  for (const page of existingPages) {
+    for (const day of page.days) {
+      for (const group of day.groups) {
+        group.logIds.forEach((id) => seenLogIds.add(id));
+      }
+    }
+  }
+
+  for (const day of incomingPage.days) {
+    for (const group of day.groups) {
+      const hasSeenLog = group.logIds.some((id) => seenLogIds.has(id));
+      const hasUnseenLog = group.logIds.some((id) => !seenLogIds.has(id));
+
+      if (hasSeenLog && hasUnseenLog) {
+        return true;
+      }
+
+      group.logIds.forEach((id) => seenLogIds.add(id));
+    }
+  }
+
+  return false;
 }
