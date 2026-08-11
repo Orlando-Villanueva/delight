@@ -1,5 +1,5 @@
-import { ScreenPlaceholder } from '@/components/screen-placeholder';
+import { ReadingHistory } from '@/components/reading-history';
 
 export default function HistoryScreen() {
-  return <ScreenPlaceholder message="Your reading history will live here." />;
+  return <ReadingHistory />;
 }
