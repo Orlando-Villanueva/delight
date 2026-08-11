@@ -61,7 +61,7 @@ export default function TabsLayout() {
           />
         </Tabs>
         <LogTabButton
-          bottom={insets.bottom + 36}
+          bottom={insets.bottom + 20}
           isSelected={isLogRoute}
           onPress={() => router.navigate('/(tabs)/log')}
         />
