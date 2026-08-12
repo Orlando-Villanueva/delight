@@ -36,7 +36,7 @@ class ReadingLogController extends Controller
         try {
             $result = $this->readingLogService->logReadingWithResult($request->user(), $data);
         } catch (QueryException $exception) {
-            if ($exception->getCode() !== '23000') {
+            if (! in_array((string) $exception->getCode(), ['23000', '23505'], true)) {
                 throw $exception;
             }
 

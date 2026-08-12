@@ -187,7 +187,7 @@ class ReadingLogController extends Controller
             ));
         } catch (QueryException $e) {
             // Handle unique constraint violation (duplicate reading log)
-            if ($e->getCode() === '23000') {
+            if (in_array((string) $e->getCode(), ['23000', '23505'], true)) {
                 // Get books data for form re-display
                 $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
                 $books = $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical);
