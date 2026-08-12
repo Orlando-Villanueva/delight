@@ -3,6 +3,13 @@ export type BootstrapActivity = {
   count: number;
 };
 
+export type BootstrapBook = {
+  id: number;
+  name: string;
+  chapters: number;
+  testament: string;
+};
+
 export type BootstrapData = {
   user: {
     id: number;
@@ -11,10 +18,7 @@ export type BootstrapData = {
   };
   today: string;
   yesterday: string;
-  books: {
-    id: number;
-    name: string;
-  }[];
+  books: BootstrapBook[];
   recent_book_ids: number[];
   has_read_today: boolean;
   current_streak: number;
@@ -39,9 +43,11 @@ export type HomeDashboardData = Pick<
   | 'activity'
 >;
 
-export function mapBootstrapToHomeDashboard(response: BootstrapResponse): HomeDashboardData {
-  const { data } = response;
+export function mapBootstrapResponse(response: BootstrapResponse): BootstrapData {
+  return response.data;
+}
 
+export function mapBootstrapToHomeDashboard(data: BootstrapData): HomeDashboardData {
   return {
     today: data.today,
     has_read_today: data.has_read_today,
@@ -55,6 +61,6 @@ export function mapBootstrapToHomeDashboard(response: BootstrapResponse): HomeDa
 
 export async function fetchBootstrap(
   request: <T>(path: string) => Promise<T>,
-): Promise<HomeDashboardData> {
-  return mapBootstrapToHomeDashboard(await request<BootstrapResponse>('/api/v1/bootstrap'));
+): Promise<BootstrapData> {
+  return mapBootstrapResponse(await request<BootstrapResponse>('/api/v1/bootstrap'));
 }
