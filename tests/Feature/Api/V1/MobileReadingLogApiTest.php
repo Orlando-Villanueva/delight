@@ -5,7 +5,10 @@ use App\Models\BookProgress;
 use App\Models\ChurnRecoveryCampaign;
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\ReadingLogResult;
+use App\Services\ReadingLogService;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 
 const MOBILE_READING_LOGS_ENDPOINT = '/api/v1/reading-logs';
 
@@ -166,6 +169,34 @@ it('rolls back earlier logs and progress when a range fails partway through', fu
         'user_id' => $user->id,
         'book_id' => 43,
     ]);
+});
+
+it('returns a validation error for a PostgreSQL duplicate chapter constraint', function () {
+    $user = User::factory()->create();
+
+    app()->instance(ReadingLogService::class, new class extends ReadingLogService
+    {
+        public function __construct() {}
+
+        public function logReadingWithResult(User $user, array $data, bool $evaluateAchievements = true): ReadingLogResult
+        {
+            throw new QueryException(
+                'pgsql',
+                'insert into "reading_logs" ...',
+                [],
+                new PDOException('duplicate key value violates unique constraint', 23505)
+            );
+        }
+    });
+
+    $this->withToken(mobileReadingToken($user))->postJson(MOBILE_READING_LOGS_ENDPOINT, [
+        'book_id' => 43,
+        'start_chapter' => 3,
+        'date_read' => today()->toDateString(),
+    ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('start_chapter')
+        ->assertJsonPath('errors.start_chapter.0', 'One or more of these chapters have already been logged for this date.');
 });
 
 it('returns only the users history newest first grouped by date session and contiguous chapters', function () {

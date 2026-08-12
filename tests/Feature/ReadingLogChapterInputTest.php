@@ -3,8 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\ReadingLogResult;
+use App\Services\ReadingLogService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use PDOException;
 use Tests\TestCase;
 
 class ReadingLogChapterInputTest extends TestCase
@@ -119,6 +123,34 @@ class ReadingLogChapterInputTest extends TestCase
         $this->assertMatchesRegularExpression('/<input[^>]+id="yesterday"[^>]+checked/s', $response->getContent());
         $this->assertDoesNotMatchRegularExpression('/<input[^>]+id="today"[^>]+checked/s', $response->getContent());
         $this->assertDatabaseCount('reading_logs', 1);
+    }
+
+    public function test_postgresql_duplicate_chapter_displays_the_correct_error(): void
+    {
+        $user = User::factory()->create();
+
+        $this->app->instance(ReadingLogService::class, new class extends ReadingLogService
+        {
+            public function __construct() {}
+
+            public function logReadingWithResult(User $user, array $data, bool $evaluateAchievements = true): ReadingLogResult
+            {
+                throw new QueryException(
+                    'pgsql',
+                    'insert into "reading_logs" ...',
+                    [],
+                    new PDOException('duplicate key value violates unique constraint', 23505)
+                );
+            }
+        });
+
+        $response = $this->actingAs($user)->post('/logs', [
+            'book_id' => 1,
+            'start_chapter' => '1',
+            'date_read' => today()->toDateString(),
+        ]);
+
+        $response->assertSee('You have already logged one or more of these chapters for today.');
     }
 
     public function test_yesterday_selection_is_preserved_when_validation_fails(): void
