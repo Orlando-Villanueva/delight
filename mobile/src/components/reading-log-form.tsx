@@ -1,10 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  AppState,
+  type AppStateStatus,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
@@ -145,7 +147,7 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
     reset,
     setError,
     setValue,
-    formState: { errors },
+    formState: { dirtyFields, errors },
   } = useForm<ReadingLogFormValues>({
     defaultValues: createReadingLogDefaults(bootstrap),
     resolver: (values, context, options) => {
@@ -162,6 +164,12 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
   const recentBooks = bootstrap.recent_book_ids
     .map((recentBookId) => findBook(bootstrap.books, recentBookId))
     .filter((book): book is BootstrapBook => book !== undefined);
+
+  useEffect(() => {
+    if (!dirtyFields.dateRead) {
+      setValue('dateRead', bootstrap.today, { shouldDirty: false });
+    }
+  }, [bootstrap.today, dirtyFields.dateRead, setValue]);
 
   useEffect(() => {
     if (previousBookId.current === bookId) {
@@ -570,7 +578,7 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
 
         <ActionButton
           label={submitLabel}
-          accessibilityLabel="Log reading"
+          accessibilityLabel={submitLabel}
           accessibilityHint="Saves this reading on the server"
           disabled={disabled}
           isLoading={mutation.isPending}
@@ -604,6 +612,20 @@ export function ReadingLogForm() {
     queryFn: () => fetchBootstrap(request),
   });
 
+  const refresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
+  useEffect(() => {
+    function refreshWhenForegrounded(nextAppState: AppStateStatus) {
+      if (nextAppState === 'active') {
+        void refresh();
+      }
+    }
+
+    return AppState.addEventListener('change', refreshWhenForegrounded).remove;
+  }, [refresh]);
+
   if (isPending) {
     return <LoadingState />;
   }
@@ -630,7 +652,7 @@ export function ReadingLogForm() {
           label="Try again"
           accessibilityHint="Requests the latest books and dates"
           disabled={false}
-          onPress={() => void refetch()}
+          onPress={() => void refresh()}
         />
       </View>
     );

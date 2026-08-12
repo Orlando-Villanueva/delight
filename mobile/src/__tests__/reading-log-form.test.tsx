@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { PropsWithChildren } from 'react';
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo, AppState } from 'react-native';
 
 import { ApiError } from '@/api/api-error';
 import LogScreen from '@/app/(tabs)/log';
@@ -13,6 +13,13 @@ jest.mock('@/auth/auth-context', () => ({ useAuthenticatedApi: jest.fn() }));
 const request = jest.fn();
 let queryClient: QueryClient;
 let createReading: jest.Mock;
+let appStateListener: ((state: 'active' | 'background') => void) | undefined;
+
+jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
+  appStateListener = listener as (state: 'active' | 'background') => void;
+
+  return { remove: jest.fn() };
+});
 
 function bootstrap(overrides: Record<string, unknown> = {}) {
   return {
@@ -101,6 +108,7 @@ function readingLogPosts() {
 beforeEach(() => {
   request.mockReset();
   createReading = jest.fn().mockResolvedValue(createdReading());
+  appStateListener = undefined;
   jest.mocked(useAuthenticatedApi).mockReturnValue(request);
 });
 
@@ -112,6 +120,45 @@ afterEach(async () => {
 });
 
 describe('native reading-log form', () => {
+  it('refreshes the untouched server date when the app returns to the foreground', async () => {
+    request
+      .mockResolvedValueOnce(bootstrap())
+      .mockResolvedValueOnce(bootstrap({ today: '2026-08-11', yesterday: '2026-08-10' }));
+
+    await renderLog();
+    await screen.findByText('John has 21 chapters.');
+
+    await act(async () => {
+      appStateListener?.('active');
+    });
+
+    await waitFor(() => {
+      expect(request).toHaveBeenCalledTimes(2);
+      expect(screen.getByLabelText('Today')).toHaveProp('accessibilityState', { selected: true });
+      expect(screen.getByLabelText('Yesterday')).toHaveProp('accessibilityHint', 'Uses the server date 2026-08-10');
+    });
+  });
+
+  it('preserves a deliberate date choice when the app returns to the foreground', async () => {
+    request
+      .mockResolvedValueOnce(bootstrap())
+      .mockResolvedValueOnce(bootstrap({ today: '2026-08-11', yesterday: '2026-08-10' }));
+
+    await renderLog();
+    await screen.findByText('John has 21 chapters.');
+    await fireEvent.press(screen.getByLabelText('Yesterday'));
+
+    await act(async () => {
+      appStateListener?.('active');
+    });
+
+    await waitFor(() => {
+      expect(request).toHaveBeenCalledTimes(2);
+      expect(screen.getByLabelText('Yesterday')).toHaveProp('accessibilityState', { selected: true });
+      expect(screen.getByLabelText('Today')).toHaveProp('accessibilityState', { selected: false });
+    });
+  });
+
   it('prefers a valid recent book and describes that book’s chapter count', async () => {
     mockApi();
 
@@ -251,7 +298,7 @@ describe('native reading-log form', () => {
     await fireEvent.press(screen.getByLabelText('Log reading'));
 
     await waitFor(() => expect(screen.getByText('Try again in 30s')).toBeOnTheScreen());
-    expect(screen.getByLabelText('Log reading')).toBeDisabled();
+    expect(screen.getByLabelText('Try again in 30s')).toBeDisabled();
     expect(screen.getByDisplayValue('Born of the Spirit.')).toBeOnTheScreen();
   });
 

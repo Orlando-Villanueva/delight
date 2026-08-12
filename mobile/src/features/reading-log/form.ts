@@ -236,7 +236,7 @@ export function booksByTestament(books: readonly BootstrapBook[]): [string, Boot
     groups.set(book.testament, group);
   }
 
-  const order = ['old', 'deuterocanonical', 'new'];
+  const order = ['old', 'new', 'deuterocanonical'];
 
   return [...groups.entries()].sort((left, right) => {
     const leftIndex = order.indexOf(left[0]);

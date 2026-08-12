@@ -114,12 +114,12 @@ describe('reading log form helpers', () => {
     }).success).toBe(true);
   });
 
-  it('groups books by testament in Old, Deuterocanonical, New order', () => {
+  it('groups books by testament in Old, New, Deuterocanonical order', () => {
     expect(testamentLabel('new')).toBe('New Testament');
     expect(booksByTestament([john, tobit, genesis]).map(([testament]) => testament)).toEqual([
       'old',
-      'deuterocanonical',
       'new',
+      'deuterocanonical',
     ]);
   });
 });

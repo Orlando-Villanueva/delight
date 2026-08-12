@@ -18,8 +18,6 @@ const overlayColor = 'rgba(15, 23, 42, 0.48)';
 const overlayEnterMs = 200;
 const sheetEnterMs = 280;
 
-const testamentOrder = ['old', 'new', 'deuterocanonical'];
-
 function selectedTestament(
   books: readonly BootstrapBook[],
   selectedBookId: number | null,
@@ -47,8 +45,7 @@ export function BookPickerModal({
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [sheetTranslateY] = useState(() => new Animated.Value(height));
   const [activeTestamentOverride, setActiveTestamentOverride] = useState<string | null>(null);
-  const availableTestaments = booksByTestament(books)
-    .sort(([left], [right]) => testamentOrder.indexOf(left) - testamentOrder.indexOf(right));
+  const availableTestaments = booksByTestament(books);
   const activeTestament = activeTestamentOverride ?? selectedTestament(books, selectedBookId);
   const activeBooks = availableTestaments.find(([testament]) => testament === activeTestament)?.[1] ?? [];
 
