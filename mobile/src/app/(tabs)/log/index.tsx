@@ -1,5 +1,5 @@
-import { ScreenPlaceholder } from '@/components/screen-placeholder';
+import { ReadingLogForm } from '@/components/reading-log-form';
 
 export default function LogScreen() {
-  return <ScreenPlaceholder message="The focused reading form will live here." />;
+  return <ReadingLogForm />;
 }
