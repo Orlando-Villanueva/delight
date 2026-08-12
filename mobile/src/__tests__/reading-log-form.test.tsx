@@ -135,11 +135,57 @@ describe('native reading-log form', () => {
     await fireEvent.changeText(screen.getByLabelText('Start chapter'), '21');
     await fireEvent.changeText(screen.getByLabelText('End chapter'), '21');
     await fireEvent.press(screen.getByLabelText('Bible book'));
+    await fireEvent.press(screen.getByLabelText('Show Old Testament books'));
     await fireEvent.press(screen.getByLabelText('Obadiah'));
 
     expect(await screen.findByText('Obadiah has 1 chapter.')).toBeOnTheScreen();
     expect(screen.getByLabelText('Start chapter')).toHaveDisplayValue('1');
     expect(screen.getByLabelText('End chapter')).toHaveDisplayValue('');
+  });
+
+  it('opens the picker on the selected book’s testament and lets readers switch testament lists', async () => {
+    mockApi();
+    await renderLog();
+    await screen.findByText('John has 21 chapters.');
+    await fireEvent.press(screen.getByLabelText('Bible book'));
+
+    expect(screen.getByLabelText('Show New Testament books')).toHaveProp('accessibilityState', {
+      selected: true,
+    });
+    expect(screen.getByLabelText('John')).toBeOnTheScreen();
+    expect(screen.queryByLabelText('Genesis')).not.toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByLabelText('Show Old Testament books'));
+
+    expect(screen.getByLabelText('Show Old Testament books')).toHaveProp('accessibilityState', {
+      selected: true,
+    });
+    expect(screen.getByLabelText('Genesis')).toBeOnTheScreen();
+    expect(screen.queryByLabelText('John')).not.toBeOnTheScreen();
+  });
+
+  it('opens the picker on Old Testament when no book is selected', async () => {
+    mockApi(undefined, bootstrap({ recent_book_ids: [] }));
+    await renderLog();
+    await screen.findByText('Select a book to see available chapters.');
+    await fireEvent.press(screen.getByLabelText('Bible book'));
+
+    expect(screen.getByLabelText('Show Old Testament books')).toHaveProp('accessibilityState', {
+      selected: true,
+    });
+    expect(screen.getByLabelText('Genesis')).toBeOnTheScreen();
+  });
+
+  it('closes the book picker when the dimmed backdrop is pressed', async () => {
+    mockApi();
+    await renderLog();
+    await screen.findByText('John has 21 chapters.');
+    await fireEvent.press(screen.getByLabelText('Bible book'));
+
+    expect(await screen.findByText('Choose a book')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByLabelText('Dismiss book list'));
+
+    expect(screen.queryByText('Choose a book')).not.toBeOnTheScreen();
   });
 
   it('submits only a server-provided date and the entered reading', async () => {
@@ -253,6 +299,39 @@ describe('native reading-log form', () => {
 
     await fireEvent.press(screen.getByLabelText('Dismiss success message'));
     expect(screen.queryByText('Reading logged')).not.toBeOnTheScreen();
+  });
+
+  it('selects the book that was just logged when refreshed recent books arrive', async () => {
+    const create = jest.fn().mockResolvedValue(createdReading({
+      book: { id: 1, name: 'Genesis' },
+      passage: 'Genesis 3',
+    }));
+    let bootstrapRequestCount = 0;
+    request.mockImplementation(async (path: string, options?: { method?: string }) => {
+      if (path === '/api/v1/bootstrap') {
+        bootstrapRequestCount += 1;
+
+        return bootstrap({ recent_book_ids: bootstrapRequestCount === 1 ? [43] : [1, 43] });
+      }
+
+      if (path === '/api/v1/reading-logs' && options?.method === 'POST') {
+        return create();
+      }
+
+      throw new Error(`Unexpected request ${options?.method ?? 'GET'} ${path}`);
+    });
+    await renderLog();
+    await screen.findByText('John has 21 chapters.');
+    await fireEvent.press(screen.getByLabelText('Bible book'));
+    await fireEvent.press(screen.getByLabelText('Show Old Testament books'));
+    await fireEvent.press(screen.getByLabelText('Genesis'));
+    await fireEvent.changeText(screen.getByLabelText('Start chapter'), '3');
+    await fireEvent.press(screen.getByLabelText('Log reading'));
+
+    expect(await screen.findByText(`Genesis 3 recorded for ${formatReadingDate('2026-08-10')}.`)).toBeOnTheScreen();
+    await waitFor(() => expect(screen.getByLabelText('Recent book Genesis')).toBeOnTheScreen());
+    expect(screen.getByLabelText('Recent book Genesis')).toHaveProp('accessibilityState', { selected: true });
+    expect(screen.getByLabelText('Recent book John')).toHaveProp('accessibilityState', { selected: false });
   });
 
   it('auto-dismisses the success banner after a short delay', async () => {

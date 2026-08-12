@@ -6,7 +6,6 @@ import {
   AccessibilityInfo,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Modal,
   Pressable,
   ScrollView,
   Text,
@@ -18,8 +17,8 @@ import { ApiError } from '@/api/api-error';
 import { fetchBootstrap, type BootstrapBook, type BootstrapData } from '@/api/bootstrap';
 import { createReadingLog, type CreateReadingInput, type CreatedReading } from '@/api/reading-log';
 import { useAuthenticatedApi } from '@/auth/auth-context';
+import { BookPickerModal } from '@/components/book-picker-modal';
 import {
-  booksByTestament,
   chapterCountLabel,
   chaptersAfterBookChange,
   clampChapterInput,
@@ -29,7 +28,6 @@ import {
   formatReadingDate,
   mapReadingLogValidationErrors,
   readingLogSuccessDismissMs,
-  testamentLabel,
   toCreateReadingInput,
   type ReadingLogFieldName,
   type ReadingLogFormValues,
@@ -124,111 +122,6 @@ function LoadingState() {
   );
 }
 
-function BookPickerModal({
-  books,
-  selectedBookId,
-  visible,
-  onClose,
-  onSelect,
-}: Readonly<{
-  books: readonly BootstrapBook[];
-  selectedBookId: number | null;
-  visible: boolean;
-  onClose: () => void;
-  onSelect: (book: BootstrapBook) => void;
-}>) {
-  const { colors } = useTheme();
-
-  return (
-    <Modal
-      animationType="slide"
-      transparent
-      visible={visible}
-      onRequestClose={onClose}
-      accessibilityViewIsModal
-    >
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'flex-end',
-          backgroundColor: 'rgba(15, 23, 42, 0.48)',
-        }}
-      >
-        <View
-          style={{
-            maxHeight: '80%',
-            padding: themeTokens.spacing.screen,
-            borderTopLeftRadius: themeTokens.radius.card,
-            borderTopRightRadius: themeTokens.radius.card,
-            borderCurve: 'continuous',
-            backgroundColor: colors.surface,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
-            }}
-          >
-            <Text selectable style={{ color: colors.text, fontSize: 20, fontWeight: '700', flex: 1 }}>
-              Choose a book
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close book list"
-              accessibilityHint="Closes the Bible book list"
-              onPress={onClose}
-              style={{
-                minHeight: themeTokens.minimumTouchTarget,
-                minWidth: themeTokens.minimumTouchTarget,
-                justifyContent: 'center',
-              }}
-            >
-              <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>Close</Text>
-            </Pressable>
-          </View>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            style={{ marginTop: themeTokens.spacing.section }}
-            contentContainerStyle={{ gap: themeTokens.spacing.section, paddingBottom: 24 }}
-          >
-            {booksByTestament(books).map(([testament, groupedBooks]) => (
-              <View key={testament} style={{ gap: 8 }}>
-                <Text selectable style={{ color: colors.mutedText, fontWeight: '600' }}>
-                  {testamentLabel(testament)}
-                </Text>
-                {groupedBooks.map((book) => (
-                  <Pressable
-                    key={book.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={book.name}
-                    accessibilityHint={`Selects ${book.name}. ${chapterCountLabel(book)}`}
-                    accessibilityState={{ selected: selectedBookId === book.id }}
-                    onPress={() => onSelect(book)}
-                    style={{
-                      minHeight: themeTokens.minimumTouchTarget,
-                      justifyContent: 'center',
-                      paddingHorizontal: 12,
-                      borderWidth: 1,
-                      borderColor: selectedBookId === book.id ? colors.primary : colors.border,
-                      borderRadius: themeTokens.radius.control,
-                      backgroundColor: selectedBookId === book.id ? colors.primarySubtle : colors.input,
-                    }}
-                  >
-                    <Text style={{ color: colors.text, fontSize: 16 }}>{book.name}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>) {
   const { colors } = useTheme();
   const request = useAuthenticatedApi();
@@ -317,7 +210,10 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
 
     try {
       const created = await mutation.mutateAsync(toCreateReadingInput(values));
-      const defaults = createReadingLogDefaults(bootstrapRef.current);
+      const defaults = {
+        ...createReadingLogDefaults(bootstrapRef.current),
+        bookId: created.book.id,
+      };
       previousBookId.current = defaults.bookId;
       reset(defaults);
       setAreNotesVisible(false);
