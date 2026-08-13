@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
+import { bottomNavigationIcons } from '@/components/bottom-navigation-icon';
 import { LogTabButton } from '@/components/log-tab-button';
 
 describe('central Log tab action', () => {
@@ -14,7 +15,8 @@ describe('central Log tab action', () => {
     expect(onPress).toHaveBeenCalledTimes(1);
     expect(button.props.accessibilityState).toEqual({ selected: true });
     expect(button).toHaveStyle({ position: 'absolute', bottom: 20, width: 56, height: 56 });
-    expect(screen.getByText('+')).toBeOnTheScreen();
+    expect(bottomNavigationIcons.log).toBe('plus');
+    expect(screen.getByTestId('log-tab-icon')).toBeOnTheScreen();
     expect(screen.queryByText('Log')).not.toBeOnTheScreen();
   });
 });

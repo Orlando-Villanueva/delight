@@ -1,6 +1,7 @@
 import type { GestureResponderEvent } from 'react-native';
-import { Pressable, Text } from 'react-native';
+import { Pressable } from 'react-native';
 
+import { BottomNavigationIcon, bottomNavigationIcons } from '@/components/bottom-navigation-icon';
 import { useTheme } from '@/theme/use-theme';
 
 type LogTabButtonProps = {
@@ -45,12 +46,12 @@ export function LogTabButton({
         zIndex: 1,
       })}
     >
-      <Text
-        selectable
-        style={{ color: colors.accentActionContrast, fontSize: 30, fontWeight: '700', lineHeight: 34 }}
-      >
-        +
-      </Text>
+      <BottomNavigationIcon
+        color={colors.accentActionContrast}
+        name={bottomNavigationIcons.log}
+        size={30}
+        testID="log-tab-icon"
+      />
     </Pressable>
   );
 }

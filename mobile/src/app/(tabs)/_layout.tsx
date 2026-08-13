@@ -1,9 +1,11 @@
 import { Tabs, usePathname, useRouter } from 'expo-router';
 import type { BottomTabBarButtonProps } from 'expo-router/build/react-navigation/bottom-tabs';
+import type { ColorValue } from 'react-native';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AuthGate } from '@/auth/auth-gate';
+import { BottomNavigationIcon, bottomNavigationIcons } from '@/components/bottom-navigation-icon';
 import { LogTabButton } from '@/components/log-tab-button';
 import { StandardTabButton } from '@/components/standard-tab-button';
 import { useTheme } from '@/theme/use-theme';
@@ -14,6 +16,14 @@ function renderLogTabSpacer({ style }: BottomTabBarButtonProps) {
 
 function renderStandardTabButton(props: BottomTabBarButtonProps) {
   return <StandardTabButton {...props} />;
+}
+
+function renderHomeTabIcon({ color, size }: { color: ColorValue; size: number }) {
+  return <BottomNavigationIcon color={color} name={bottomNavigationIcons.home} size={size} />;
+}
+
+function renderHistoryTabIcon({ color, size }: { color: ColorValue; size: number }) {
+  return <BottomNavigationIcon color={color} name={bottomNavigationIcons.history} size={size} />;
 }
 
 export default function TabsLayout() {
@@ -41,7 +51,12 @@ export default function TabsLayout() {
         >
           <Tabs.Screen
             name="home"
-            options={{ title: 'Home', tabBarAccessibilityLabel: 'Home tab', tabBarButton: renderStandardTabButton }}
+            options={{
+              title: 'Home',
+              tabBarAccessibilityLabel: 'Home tab',
+              tabBarButton: renderStandardTabButton,
+              tabBarIcon: renderHomeTabIcon,
+            }}
           />
           <Tabs.Screen
             name="log"
@@ -57,6 +72,7 @@ export default function TabsLayout() {
               title: 'History',
               tabBarAccessibilityLabel: 'Reading history tab',
               tabBarButton: renderStandardTabButton,
+              tabBarIcon: renderHistoryTabIcon,
             }}
           />
         </Tabs>
