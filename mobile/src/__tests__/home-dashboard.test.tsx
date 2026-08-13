@@ -6,10 +6,12 @@ import HomeScreen from '@/app/(tabs)/home';
 import { useAuthenticatedApi } from '@/auth/auth-context';
 
 const mockRequest = jest.fn();
+const mockNavigate = jest.fn();
 let mockAppStateListener: ((state: 'active' | 'background') => void) | undefined;
 let mockQueryClient: QueryClient | undefined;
 
 jest.mock('@/auth/auth-context', () => ({ useAuthenticatedApi: jest.fn() }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ navigate: mockNavigate }) }));
 jest.mock('react-native/Libraries/Components/RefreshControl/RefreshControl', () => {
   const { View } = jest.requireActual('react-native');
 
@@ -37,7 +39,10 @@ function bootstrap(overrides: Record<string, unknown> = {}) {
       longest_streak: 0,
       this_week_days: 0,
       this_month_days: 0,
-      activity: Array.from({ length: 14 }, (_, index) => ({ date: `2026-07-${String(index + 28).padStart(2, '0')}`, count: 0 })),
+      activity: [
+        ...Array.from({ length: 4 }, (_, index) => ({ date: `2026-07-${String(index + 28).padStart(2, '0')}`, count: 0 })),
+        ...Array.from({ length: 10 }, (_, index) => ({ date: `2026-08-${String(index + 1).padStart(2, '0')}`, count: 0 })),
+      ],
       ...overrides,
     },
   };
@@ -57,13 +62,18 @@ async function renderHome() {
 }
 
 describe('native Home dashboard', () => {
+  let dateTimeFormatSpy: jest.SpiedFunction<typeof Intl.DateTimeFormat>;
+
   beforeEach(() => {
     mockRequest.mockReset();
+    mockNavigate.mockReset();
     mockAppStateListener = undefined;
     jest.mocked(useAuthenticatedApi).mockReturnValue(mockRequest);
+    dateTimeFormatSpy = jest.spyOn(Intl, 'DateTimeFormat');
   });
 
   afterEach(async () => {
+    dateTimeFormatSpy.mockRestore();
     await mockQueryClient?.cancelQueries();
     mockQueryClient?.clear();
   });
@@ -90,7 +100,30 @@ describe('native Home dashboard', () => {
 
     expect(await screen.findByText('No recent reading activity')).toBeOnTheScreen();
     expect(screen.getAllByText('0 days')).toHaveLength(2);
+    expect(screen.getByText('Monday, August 10')).toBeOnTheScreen();
+    expect(dateTimeFormatSpy).toHaveBeenCalledWith('en-CA', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+    expect(screen.getByRole('button', { name: 'Log today’s reading' })).toHaveStyle({
+      backgroundColor: '#f97316',
+    });
+    expect(screen.getByText('Reading rhythm')).toBeOnTheScreen();
+    expect(screen.getByText('Last 14 days')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Legend: Read and No reading')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Tuesday, July 28: No reading')).toBeOnTheScreen();
     expect(mockRequest).toHaveBeenCalledWith('/api/v1/bootstrap');
+  });
+
+  it('opens the existing Log flow only when today has not been read', async () => {
+    mockRequest.mockResolvedValue(bootstrap());
+
+    await renderHome();
+
+    fireEvent.press(await screen.findByRole('button', { name: 'Log today’s reading' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/log');
   });
 
   it('renders all supplied dashboard values without recalculating them', async () => {
@@ -108,9 +141,15 @@ describe('native Home dashboard', () => {
     expect(await screen.findByText('Reading logged today')).toBeOnTheScreen();
     expect(screen.getByText('4 days')).toBeOnTheScreen();
     expect(screen.getByText('11 days')).toBeOnTheScreen();
-    expect(screen.getByText('3')).toBeOnTheScreen();
-    expect(screen.getByText('8')).toBeOnTheScreen();
-    expect(screen.getByLabelText('2026-08-14: 2 readings')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Days read this week: 3')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Days read this month: 8')).toBeOnTheScreen();
+    expect(screen.getByText('Best')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Current streak: 4 days. Best: 11 days.')).toHaveStyle({
+      borderWidth: undefined,
+    });
+    expect(screen.getByLabelText('Friday, August 14: Read')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Monday, August 10: No reading. Today')).toHaveStyle({ borderWidth: 2 });
+    expect(screen.queryByRole('button', { name: 'Log today’s reading' })).not.toBeOnTheScreen();
   });
 
   it('offers a recoverable error state', async () => {
