@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { PropsWithChildren } from 'react';
-import { AccessibilityInfo, AppState, Keyboard } from 'react-native';
+import { AccessibilityInfo, AppState, Keyboard, ScrollView } from 'react-native';
 
 import { ApiError } from '@/api/api-error';
 import LogScreen from '@/app/(tabs)/log';
@@ -131,14 +131,30 @@ afterEach(async () => {
 
 describe('native reading-log form', () => {
   it('prepares the focused note field to scroll above the Android keyboard', async () => {
-    mockApi();
-    await renderLog();
-    await screen.findByText('John has 21 chapters.');
-    await fireEvent.press(screen.getByLabelText('Add a note or reflection'));
+    const scrollToEnd = jest.spyOn(ScrollView.prototype, 'scrollToEnd');
+    const requestAnimationFrame = jest.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
 
-    fireEvent(screen.getByLabelText('Note or reflection'), 'focus');
+    try {
+      mockApi();
+      await renderLog();
+      await screen.findByText('John has 21 chapters.');
+      await fireEvent.press(screen.getByLabelText('Add a note or reflection'));
 
-    expect(keyboardDidShowListener).toEqual(expect.any(Function));
+      fireEvent(screen.getByLabelText('Note or reflection'), 'focus');
+
+      expect(keyboardDidShowListener).toEqual(expect.any(Function));
+      expect(scrollToEnd).toHaveBeenCalledWith({ animated: true });
+
+      keyboardDidShowListener?.({ endCoordinates: { height: 300, screenX: 0, screenY: 500, width: 360 } });
+
+      expect(scrollToEnd).toHaveBeenCalledTimes(2);
+    } finally {
+      requestAnimationFrame.mockRestore();
+      scrollToEnd.mockRestore();
+    }
   });
 
   it('refreshes the untouched server date when the app returns to the foreground', async () => {

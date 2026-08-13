@@ -76,12 +76,18 @@ The tracked staging smoke flow is [`maestro/staging-core-loop.yaml`](maestro/sta
 Use a dedicated staging account. Before every run, make sure it has no matching Today reading for the selected book and start chapter. Provide these values only in your shell; never place credentials or test-account data in the repository:
 
 ```bash
+printf 'Maestro password: ' >&2
+read -r -s MAESTRO_PASSWORD
+printf '\n' >&2
+export MAESTRO_PASSWORD
+
 MAESTRO_EMAIL='staging-reader@example.test' \
-MAESTRO_PASSWORD='...' \
 MAESTRO_BOOK='Jude' \
 MAESTRO_START_CHAPTER='1' \
 MAESTRO_RUN_ID="maestro-$(date +%s)" \
 maestro test maestro/staging-core-loop.yaml
+
+unset MAESTRO_PASSWORD
 ```
 
 `MAESTRO_BOOK` must be a New Testament book available to the account. The flow creates a Today reading with `MAESTRO_RUN_ID` as its note, then confirms the recorded state on Home and the same note in History. Maestro’s generated local artifacts are ignored through `.maestro/`.

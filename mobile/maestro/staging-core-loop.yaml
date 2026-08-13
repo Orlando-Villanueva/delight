@@ -50,6 +50,10 @@ tags:
     direction: DOWN
 - tapOn:
     id: reading-log-submit
+- scrollUntilVisible:
+    element:
+      id: reading-log-success
+    direction: UP
 - assertVisible:
     id: reading-log-success
 - tapOn:
