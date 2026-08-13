@@ -111,6 +111,7 @@ export function BookPickerModal({
           style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
         />
         <Animated.View
+          testID="book-picker-modal"
           style={{
             maxHeight: '80%',
             padding: themeTokens.spacing.screen,
@@ -204,6 +205,7 @@ export function BookPickerModal({
                 accessibilityHint={`Selects ${book.name}. ${chapterCountLabel(book)}`}
                 accessibilityState={{ selected: selectedBookId === book.id }}
                 onPress={() => selectBook(book)}
+                testID={`book-option-${book.id}`}
                 style={{
                   minHeight: themeTokens.minimumTouchTarget,
                   justifyContent: 'center',

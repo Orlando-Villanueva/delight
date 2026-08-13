@@ -74,6 +74,7 @@ afterEach(cleanup);
 
 describe('reading history', () => {
   it('renders API-ordered day groups and only renders notes when present', async () => {
+    const dateTimeFormatSpy = jest.spyOn(Intl, 'DateTimeFormat');
     request.mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [
       readingGroup(),
       readingGroup({ log_ids: [103], start_chapter: 4, end_chapter: null, passage: 'John 4', notes_text: null }),
@@ -85,9 +86,14 @@ describe('reading history', () => {
 
     expect(screen.getByText(/2 chapters/)).toBeOnTheScreen();
     expect(screen.getByText('A hopeful beginning.')).toBeOnTheScreen();
+    expect(screen.getByTestId('reading-history')).toBeOnTheScreen();
+    expect(screen.getByTestId('history-day-2026-08-10')).toBeOnTheScreen();
     expect(screen.getByText('John 4')).toBeOnTheScreen();
     expect(screen.queryAllByText('A hopeful beginning.')).toHaveLength(1);
     expect(screen.getByText('You have reached the beginning of your history.')).toBeOnTheScreen();
+    expect(dateTimeFormatSpy).toHaveBeenCalledWith('en-CA', { dateStyle: 'full' });
+    expect(dateTimeFormatSpy).toHaveBeenCalledWith('en-CA', { hour: 'numeric', minute: '2-digit' });
+    dateTimeFormatSpy.mockRestore();
   });
 
   it('appends a next page once and suppresses duplicate date groups and readings', async () => {

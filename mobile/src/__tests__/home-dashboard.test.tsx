@@ -101,6 +101,7 @@ describe('native Home dashboard', () => {
     expect(await screen.findByText('No recent reading activity')).toBeOnTheScreen();
     expect(screen.getAllByText('0 days')).toHaveLength(2);
     expect(screen.getByText('Monday, August 10')).toBeOnTheScreen();
+    expect(screen.getByTestId('home-unread-status')).toHaveTextContent('Ready when you are');
     expect(dateTimeFormatSpy).toHaveBeenCalledWith('en-CA', {
       weekday: 'long',
       month: 'long',
@@ -139,6 +140,7 @@ describe('native Home dashboard', () => {
     await renderHome();
 
     expect(await screen.findByText('Reading logged today')).toBeOnTheScreen();
+    expect(screen.getByTestId('home-recorded-status')).toHaveTextContent('Reading logged today');
     expect(screen.getByText('4 days')).toBeOnTheScreen();
     expect(screen.getByText('11 days')).toBeOnTheScreen();
     expect(screen.getByLabelText('Days read this week: 3')).toBeOnTheScreen();

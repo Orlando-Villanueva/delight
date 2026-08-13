@@ -124,7 +124,9 @@ function useReadingHistory() {
 }
 
 function formatDate(date: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'full' }).format(new Date(`${date}T12:00:00`));
+  const [year, month, day] = date.split('-').map(Number);
+
+  return new Intl.DateTimeFormat('en-CA', { dateStyle: 'full' }).format(new Date(year, month - 1, day, 12));
 }
 
 function formatTime(timestamp: string | null): string | null {
@@ -132,7 +134,7 @@ function formatTime(timestamp: string | null): string | null {
     return null;
   }
 
-  return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(timestamp));
+  return new Intl.DateTimeFormat('en-CA', { hour: 'numeric', minute: '2-digit' }).format(new Date(timestamp));
 }
 
 function chapterCount(group: ReadingHistoryGroup): string {
@@ -186,7 +188,7 @@ function HistoryDay({ day }: { day: ReadingHistoryDay }) {
   const { colors } = useTheme();
 
   return (
-    <View accessibilityRole="header" style={{ gap: 12 }}>
+    <View accessibilityRole="header" style={{ gap: 12 }} testID={`history-day-${day.dateRead}`}>
       <Text selectable style={{ color: colors.text, fontSize: 19, fontWeight: '700' }}>
         {formatDate(day.dateRead)}
       </Text>
@@ -267,6 +269,7 @@ export function ReadingHistory() {
         />
       )}
       style={{ backgroundColor: colors.background }}
+      testID="reading-history"
       contentContainerStyle={{ gap: 24, padding: themeTokens.spacing.screen }}
     >
       {history.refreshError ? (

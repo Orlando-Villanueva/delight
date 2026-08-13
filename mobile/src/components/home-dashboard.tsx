@@ -261,6 +261,7 @@ export function HomeDashboard() {
         </Text>
         <Text
           selectable
+          testID={dashboard.has_read_today ? 'home-recorded-status' : 'home-unread-status'}
           style={{ color: dashboard.has_read_today ? colors.success : colors.text, fontSize: 24, fontWeight: '700' }}
         >
           {dashboard.has_read_today ? 'Reading logged today' : 'Ready when you are'}

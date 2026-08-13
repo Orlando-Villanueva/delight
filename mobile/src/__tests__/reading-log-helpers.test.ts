@@ -5,6 +5,7 @@ import {
   clampChapterInput,
   createReadingLogDefaults,
   createReadingLogSchema,
+  formatReadingDate,
   mapReadingLogValidationErrors,
   preferredBookId,
   testamentLabel,
@@ -34,6 +35,15 @@ function bootstrap(overrides: Partial<BootstrapData> = {}): BootstrapData {
 }
 
 describe('reading log form helpers', () => {
+  it('formats the recorded date in the app locale', () => {
+    const dateTimeFormatSpy = jest.spyOn(Intl, 'DateTimeFormat');
+
+    formatReadingDate('2026-08-10');
+
+    expect(dateTimeFormatSpy).toHaveBeenCalledWith('en-CA', { dateStyle: 'medium' });
+    dateTimeFormatSpy.mockRestore();
+  });
+
   it('prefers the first recent book that is still in the allowed list', () => {
     expect(preferredBookId([genesis, john], [67, 43, 1])).toBe(43);
     expect(preferredBookId([genesis, john], [67])).toBeNull();

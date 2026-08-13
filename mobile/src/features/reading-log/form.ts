@@ -206,7 +206,9 @@ export function mapReadingLogValidationErrors(
 }
 
 export function formatReadingDate(date: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(`${date}T12:00:00`));
+  const [year, month, day] = date.split('-').map(Number);
+
+  return new Intl.DateTimeFormat('en-CA', { dateStyle: 'medium' }).format(new Date(year, month - 1, day, 12));
 }
 
 export function chapterCountLabel(book: BootstrapBook): string {

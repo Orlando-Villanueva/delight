@@ -31,6 +31,11 @@ describe('native Login screen', () => {
   it('submits credentials and preserves the native form on success', async () => {
     login.mockResolvedValue(undefined);
     await render(<LoginScreen />);
+
+    expect(screen.getByTestId('login-email-input')).toBeOnTheScreen();
+    expect(screen.getByTestId('login-password-input')).toBeOnTheScreen();
+    expect(screen.getByTestId('login-submit-button')).toBeOnTheScreen();
+
     await fillAndSubmit();
     await waitFor(() => expect(login).toHaveBeenCalledWith({ email: 'reader@example.com', password: 'password' }));
   });

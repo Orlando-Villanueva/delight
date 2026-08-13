@@ -7,7 +7,7 @@ describe('central Log tab action', () => {
   it('uses an accessible action label and opens the Log route when pressed', async () => {
     const onPress = jest.fn();
 
-    await render(<LogTabButton bottom={20} isSelected onPress={onPress} />);
+    await render(<LogTabButton bottom={20} isSelected onPress={onPress} testID="log-tab-button" />);
 
     const button = screen.getByRole('button', { name: 'Log a reading' });
     fireEvent.press(button);
@@ -17,6 +17,7 @@ describe('central Log tab action', () => {
     expect(button).toHaveStyle({ position: 'absolute', bottom: 20, width: 56, height: 56 });
     expect(bottomNavigationIcons.log).toBe('plus');
     expect(screen.getByTestId('log-tab-icon')).toBeOnTheScreen();
+    expect(screen.getByTestId('log-tab-button')).toBeOnTheScreen();
     expect(screen.queryByText('Log')).not.toBeOnTheScreen();
   });
 });

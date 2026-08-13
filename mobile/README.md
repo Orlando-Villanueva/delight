@@ -68,3 +68,20 @@ npx eas-cli build --platform android --profile dogfood
 ```
 
 The project uses Continuous Native Generation. Do not commit generated `android/` or `ios/` directories; both are ignored.
+
+## Maestro staging smoke
+
+The tracked staging smoke flow is [`maestro/staging-core-loop.yaml`](maestro/staging-core-loop.yaml). It is deliberately pinned to the Preview package ID and never runs in CI. It requires a Preview APK already installed on an Android device or emulator, Android USB debugging enabled, `adb` able to see the device, and Maestro installed outside this repository.
+
+Use a dedicated staging account. Before every run, make sure it has no matching Today reading for the selected book and start chapter. Provide these values only in your shell; never place credentials or test-account data in the repository:
+
+```bash
+MAESTRO_EMAIL='staging-reader@example.test' \
+MAESTRO_PASSWORD='...' \
+MAESTRO_BOOK='Jude' \
+MAESTRO_START_CHAPTER='1' \
+MAESTRO_RUN_ID="maestro-$(date +%s)" \
+maestro test maestro/staging-core-loop.yaml
+```
+
+`MAESTRO_BOOK` must be a New Testament book available to the account. The flow creates a Today reading with `MAESTRO_RUN_ID` as its note, then confirms the recorded state on Home and the same note in History. Maestro’s generated local artifacts are ignored through `.maestro/`.

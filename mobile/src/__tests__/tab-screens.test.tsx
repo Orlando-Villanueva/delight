@@ -57,5 +57,10 @@ describe('mobile tab screens', () => {
 
     expect(await screen.findByText('When did you read?')).toBeOnTheScreen();
     expect(screen.getByLabelText('Log reading')).toBeOnTheScreen();
+    expect(screen.getByTestId('reading-log-today')).toBeOnTheScreen();
+    expect(screen.getByTestId('reading-log-book-picker')).toBeOnTheScreen();
+    expect(screen.getByTestId('reading-log-start-chapter')).toBeOnTheScreen();
+    expect(screen.getByTestId('reading-log-add-note')).toBeOnTheScreen();
+    expect(screen.getByTestId('reading-log-submit')).toBeOnTheScreen();
   });
 });

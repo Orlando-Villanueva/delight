@@ -1,6 +1,8 @@
 const { describe, expect, it } = require('@jest/globals');
+const path = require('node:path');
 
 const createAppConfig = require('../../app.config');
+const easConfig = require(path.resolve(process.cwd(), 'eas.json'));
 
 function configFor(appVariant) {
   const previousAppVariant = process.env.APP_VARIANT;
@@ -63,5 +65,14 @@ describe('app configuration identities', () => {
     expect(configForWithApiOverride('development', 'https://local.example').extra.apiUrl).toBe('https://local.example');
     expect(configForWithApiOverride('preview', 'https://local.example').extra.apiUrl).toBe('https://delight-staging.laravel.cloud');
     expect(configForWithApiOverride('dogfood', 'https://local.example').extra.apiUrl).toBe('https://mydelight.app');
+  });
+
+  it.each(['preview', 'dogfood'])('uses EAS remote version increments for the %s APK', (profile) => {
+    expect(easConfig.cli.appVersionSource).toBe('remote');
+    expect(easConfig.build[profile]).toMatchObject({
+      autoIncrement: true,
+      distribution: 'internal',
+      android: { buildType: 'apk' },
+    });
   });
 });

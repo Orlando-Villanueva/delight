@@ -101,7 +101,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}
+      behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1, backgroundColor: colors.background }}
     >
       <ScrollView
@@ -179,6 +179,7 @@ export default function LoginScreen() {
                   keyboardType="email-address"
                   onBlur={onBlur}
                   onChangeText={onChange}
+                  testID="login-email-input"
                   value={value}
                   style={{
                     minHeight: 50,
@@ -219,6 +220,7 @@ export default function LoginScreen() {
                   onBlur={onBlur}
                   onChangeText={onChange}
                   secureTextEntry
+                  testID="login-password-input"
                   value={value}
                   style={{
                     minHeight: 50,
@@ -258,6 +260,7 @@ export default function LoginScreen() {
             accessibilityHint="Signs in to Delight on this device"
             disabled={disabled}
             onPress={handleSubmit(submit)}
+            testID="login-submit-button"
             style={({ pressed }) => ({
               minHeight: 50,
               alignItems: 'center',
