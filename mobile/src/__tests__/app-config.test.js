@@ -36,6 +36,10 @@ function configForWithApiOverride(appVariant, apiUrl) {
 }
 
 describe('app configuration identities', () => {
+  it.each(['development', 'preview', 'dogfood'])('uses the Delight slug for the %s variant', (appVariant) => {
+    expect(configFor(appVariant).slug).toBe('delight');
+  });
+
   it('omits standalone native identifiers for Expo Go development', () => {
     const config = configFor('development');
 
@@ -65,6 +69,14 @@ describe('app configuration identities', () => {
     expect(configForWithApiOverride('development', 'https://local.example').extra.apiUrl).toBe('https://local.example');
     expect(configForWithApiOverride('preview', 'https://local.example').extra.apiUrl).toBe('https://delight-staging.laravel.cloud');
     expect(configForWithApiOverride('dogfood', 'https://local.example').extra.apiUrl).toBe('https://mydelight.app');
+  });
+
+  it.each(['development', 'preview', 'dogfood'])('links the %s variant to the existing EAS project', (appVariant) => {
+    expect(configFor(appVariant).extra.eas.projectId).toBe('aa50d7fa-9028-4991-abb9-8f58d306cadf');
+  });
+
+  it.each(['development', 'preview', 'dogfood'])('delegates the %s Android version code to EAS', (appVariant) => {
+    expect(configFor(appVariant).android).not.toHaveProperty('versionCode');
   });
 
   it.each(['preview', 'dogfood'])('uses EAS remote version increments for the %s APK', (profile) => {
