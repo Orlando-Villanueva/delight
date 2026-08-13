@@ -51,6 +51,20 @@ describe('authentication session', () => {
     expect(screen.getByText('authenticated')).toBeOnTheScreen();
   });
 
+  it('forwards the restored token with authenticated requests', async () => {
+    mockedStorage.get.mockResolvedValue('stored-token');
+    mockedRequest.mockResolvedValue(undefined);
+    await renderSession();
+    await waitFor(() => expect(screen.getByText('authenticated')).toBeOnTheScreen());
+
+    await fireEvent.press(screen.getByText('Protected request'));
+
+    expect(mockedRequest).toHaveBeenCalledWith('/protected', expect.objectContaining({
+      token: 'stored-token',
+      onUnauthorized: expect.any(Function),
+    }));
+  });
+
   it('stores a successful login and exposes the authenticated user', async () => {
     mockedStorage.get.mockResolvedValue(null);
     mockedRequest.mockResolvedValue({ data: { token: 'new-token', token_type: 'Bearer', user: { id: 1, name: 'Reader', email: 'reader@example.com' } } });

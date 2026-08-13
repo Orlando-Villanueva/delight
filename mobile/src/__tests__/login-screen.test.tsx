@@ -1,5 +1,5 @@
 import * as Linking from 'expo-linking';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 
 import { ApiError } from '@/api/api-error';
@@ -59,6 +59,7 @@ describe('native Login screen', () => {
   });
 
   it('starts a retry cooldown after a rate-limit response', async () => {
+    jest.useFakeTimers();
     login.mockRejectedValue(new ApiError('Too many attempts.', 'http', 429, {}, 30));
     await render(<LoginScreen />);
 
@@ -66,6 +67,12 @@ describe('native Login screen', () => {
 
     await waitFor(() => expect(screen.getByText('Try again in 30s')).toBeOnTheScreen());
     expect(screen.getByLabelText('Sign in')).toBeDisabled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(1_000);
+    });
+
+    expect(screen.getByText('Try again in 29s')).toBeOnTheScreen();
   });
 
   it('opens staging registration and recovery routes and explains Google accounts', async () => {

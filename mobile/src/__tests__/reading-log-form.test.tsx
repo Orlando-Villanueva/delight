@@ -328,6 +328,7 @@ describe('native reading-log form', () => {
   });
 
   it('starts a retry cooldown after a rate-limit response', async () => {
+    jest.useFakeTimers();
     mockApi(jest.fn().mockRejectedValue(new ApiError('Too many attempts.', 'http', 429, {}, 30)));
     await renderLog();
     await screen.findByText('John has 21 chapters.');
@@ -337,6 +338,12 @@ describe('native reading-log form', () => {
     await waitFor(() => expect(screen.getByText('Try again in 30s')).toBeOnTheScreen());
     expect(screen.getByLabelText('Try again in 30s')).toBeDisabled();
     expect(screen.getByDisplayValue('Born of the Spirit.')).toBeOnTheScreen();
+
+    await act(async () => {
+      jest.advanceTimersByTime(1_000);
+    });
+
+    expect(screen.getByText('Try again in 29s')).toBeOnTheScreen();
   });
 
   it('does not create a parallel submission from repeated taps', async () => {
