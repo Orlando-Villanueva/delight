@@ -292,6 +292,7 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
       >
         {success ? (
           <Pressable
+            testID="reading-log-success"
             accessibilityRole="button"
             accessibilityLabel="Dismiss success message"
             accessibilityHint="Hides the confirmation that your reading was saved"
