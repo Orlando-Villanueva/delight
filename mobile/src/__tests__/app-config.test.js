@@ -40,6 +40,25 @@ describe('app configuration identities', () => {
     expect(configFor(appVariant).slug).toBe('delight');
   });
 
+  it.each(['development', 'preview', 'dogfood'])('uses Delight branding for the %s native icon surfaces', (appVariant) => {
+    const config = configFor(appVariant);
+    const splashPlugin = config.plugins.find(([plugin]) => plugin === 'expo-splash-screen');
+
+    expect(config.icon).toBe('./assets/images/delight-logo.png');
+    expect(config.android.adaptiveIcon).toEqual({
+      backgroundColor: '#0f172a',
+      foregroundImage: './assets/images/delight-logo.png',
+    });
+    expect(splashPlugin).toEqual([
+      'expo-splash-screen',
+      {
+        backgroundColor: '#0f172a',
+        image: './assets/images/delight-logo.png',
+        imageWidth: 96,
+      },
+    ]);
+  });
+
   it('omits standalone native identifiers for Expo Go development', () => {
     const config = configFor('development');
 

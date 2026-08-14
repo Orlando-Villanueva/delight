@@ -1,6 +1,7 @@
 const STAGING_API_URL = 'https://delight-staging.laravel.cloud';
 const PRODUCTION_API_URL = 'https://mydelight.app';
 const EAS_PROJECT_ID = 'aa50d7fa-9028-4991-abb9-8f58d306cadf';
+const DELIGHT_APP_ICON = './assets/images/delight-logo.png';
 
 const variants = {
   development: {
@@ -33,7 +34,7 @@ module.exports = ({ config }) => {
     slug: 'delight',
     version: '0.1.0',
     orientation: 'portrait',
-    icon: './assets/images/icon.png',
+    icon: DELIGHT_APP_ICON,
     scheme: 'delight',
     userInterfaceStyle: 'automatic',
     ios: variant.packageIdentifier
@@ -45,8 +46,7 @@ module.exports = ({ config }) => {
       ...(variant.packageIdentifier ? { package: variant.packageIdentifier } : {}),
       adaptiveIcon: {
         backgroundColor: '#0f172a',
-        foregroundImage: './assets/images/android-icon-foreground.png',
-        monochromeImage: './assets/images/android-icon-monochrome.png',
+        foregroundImage: DELIGHT_APP_ICON,
       },
     },
     web: {
@@ -60,7 +60,7 @@ module.exports = ({ config }) => {
         'expo-splash-screen',
         {
           backgroundColor: '#0f172a',
-          image: './assets/images/splash-icon.png',
+          image: DELIGHT_APP_ICON,
           imageWidth: 96,
         },
       ],
