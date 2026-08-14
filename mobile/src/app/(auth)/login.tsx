@@ -5,6 +5,7 @@ import { Controller, useForm } from 'react-hook-form';
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
@@ -101,7 +102,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}
+      behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1, backgroundColor: colors.background }}
     >
       <ScrollView
@@ -110,57 +111,40 @@ export default function LoginScreen() {
         contentContainerStyle={{
           flexGrow: 1,
           justifyContent: 'center',
-          gap: 28,
+          gap: 32,
           padding: themeTokens.spacing.screen,
         }}
       >
-        <View accessibilityRole="header" style={{ alignItems: 'center', gap: 10 }}>
-          <View style={{ width: 86, height: 42, flexDirection: 'row', gap: 4 }}>
-            <View
-              style={{
-                flex: 1,
-                borderWidth: 2,
-                borderColor: colors.primary,
-                borderRadius: 12,
-                borderCurve: 'continuous',
-                transform: [{ rotate: '-4deg' }],
-              }}
-            />
-            <View
-              style={{
-                flex: 1,
-                borderWidth: 2,
-                borderColor: colors.primary,
-                borderRadius: 12,
-                borderCurve: 'continuous',
-                transform: [{ rotate: '4deg' }],
-              }}
-            />
-          </View>
+        <View accessibilityRole="header" style={{ alignItems: 'center', gap: 8 }}>
+          <Image
+            accessibilityLabel="Delight"
+            accessibilityRole="image"
+            source={require('../../../assets/images/delight-logo.png')}
+            style={{ width: 68, height: 68 }}
+          />
           <Text
             selectable
-            style={{ color: colors.text, fontSize: 34, fontWeight: '700', letterSpacing: -1 }}
+            style={{ color: colors.mutedText, fontSize: 13, fontWeight: '700', letterSpacing: 2.2 }}
           >
-            Return to Delight
+            DELIGHT
+          </Text>
+          <Text
+            selectable
+            style={{ color: colors.text, fontSize: 32, fontWeight: '700', letterSpacing: -0.8, marginTop: 8 }}
+          >
+            Welcome back
           </Text>
           <Text
             selectable
             style={{ color: colors.mutedText, fontSize: 17, lineHeight: 25, textAlign: 'center' }}
           >
-            Your reading rhythm continues on this device.
+            Continue your reading rhythm.
           </Text>
         </View>
 
         <View
           style={{
             gap: 18,
-            padding: 20,
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: themeTokens.radius.card,
-            borderCurve: 'continuous',
-            backgroundColor: colors.surface,
-            boxShadow: '0 8px 28px rgba(15, 23, 42, 0.08)',
           }}
         >
           <Controller
@@ -280,7 +264,7 @@ export default function LoginScreen() {
           </Pressable>
         </View>
 
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: 4 }}>
           <Pressable
             accessibilityRole="link"
             accessibilityLabel="Create an account on the web"
@@ -291,7 +275,7 @@ export default function LoginScreen() {
             <Text
               style={{ color: colors.primary, textAlign: 'center', fontSize: 16, fontWeight: '600' }}
             >
-              Create an account on the web
+              Create an account
             </Text>
           </Pressable>
           <Pressable
@@ -309,10 +293,9 @@ export default function LoginScreen() {
           </Pressable>
           <Text
             selectable
-            style={{ color: colors.mutedText, textAlign: 'center', fontSize: 14, lineHeight: 21 }}
+            style={{ color: colors.mutedText, textAlign: 'center', fontSize: 14, lineHeight: 21, marginTop: 8 }}
           >
-            Used Google to create your account? Establish a password through the web reset flow,
-            then return here to sign in.
+            Created your account with Google? Set a password on the web.
           </Text>
         </View>
       </ScrollView>

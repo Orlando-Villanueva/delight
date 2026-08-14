@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { PropsWithChildren } from 'react';
-import { AccessibilityInfo, AppState } from 'react-native';
+import { AccessibilityInfo, AppState, Keyboard, ScrollView } from 'react-native';
 
 import { ApiError } from '@/api/api-error';
 import LogScreen from '@/app/(tabs)/log';
@@ -14,11 +14,20 @@ const request = jest.fn();
 let queryClient: QueryClient;
 let createReading: jest.Mock;
 let appStateListener: ((state: 'active' | 'background') => void) | undefined;
+let keyboardDidShowListener: ((event: unknown) => void) | undefined;
 
 jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
   appStateListener = listener as (state: 'active' | 'background') => void;
 
   return { remove: jest.fn() };
+});
+
+jest.spyOn(Keyboard, 'addListener').mockImplementation((event, listener) => {
+  if (event === 'keyboardDidShow') {
+    keyboardDidShowListener = listener as unknown as (event: unknown) => void;
+  }
+
+  return { remove: jest.fn() } as never;
 });
 
 function bootstrap(overrides: Record<string, unknown> = {}) {
@@ -109,6 +118,7 @@ beforeEach(() => {
   request.mockReset();
   createReading = jest.fn().mockResolvedValue(createdReading());
   appStateListener = undefined;
+  keyboardDidShowListener = undefined;
   jest.mocked(useAuthenticatedApi).mockReturnValue(request);
 });
 
@@ -120,6 +130,33 @@ afterEach(async () => {
 });
 
 describe('native reading-log form', () => {
+  it('prepares the focused note field to scroll above the Android keyboard', async () => {
+    const scrollToEnd = jest.spyOn(ScrollView.prototype, 'scrollToEnd');
+    const requestAnimationFrame = jest.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+
+    try {
+      mockApi();
+      await renderLog();
+      await screen.findByText('John has 21 chapters.');
+      await fireEvent.press(screen.getByLabelText('Add a note or reflection'));
+
+      fireEvent(screen.getByLabelText('Note or reflection'), 'focus');
+
+      expect(keyboardDidShowListener).toEqual(expect.any(Function));
+      expect(scrollToEnd).toHaveBeenCalledWith({ animated: true });
+
+      keyboardDidShowListener?.({ endCoordinates: { height: 300, screenX: 0, screenY: 500, width: 360 } });
+
+      expect(scrollToEnd).toHaveBeenCalledTimes(2);
+    } finally {
+      requestAnimationFrame.mockRestore();
+      scrollToEnd.mockRestore();
+    }
+  });
+
   it('refreshes the untouched server date when the app returns to the foreground', async () => {
     request
       .mockResolvedValueOnce(bootstrap())
@@ -172,6 +209,19 @@ describe('native reading-log form', () => {
 
     expect(await screen.findByText('Enter a start chapter.')).toBeOnTheScreen();
     expect(readingLogPosts()).toHaveLength(0);
+  });
+
+  it('keeps chapter inputs aligned when the optional label wraps at enlarged text sizes', async () => {
+    mockApi();
+    await renderLog();
+    await screen.findByText('John has 21 chapters.');
+
+    const startLabel = screen.getByText('Start chapter');
+    const endLabel = screen.getByText('End chapter (optional)');
+
+    expect(startLabel).toHaveStyle({ flex: 1, lineHeight: 21 });
+    expect(endLabel).toHaveStyle({ flex: 1, lineHeight: 21 });
+    expect(startLabel.parent).toBe(endLabel.parent);
   });
 
   it('clamps chapter controls when a shorter book is selected', async () => {
@@ -291,6 +341,7 @@ describe('native reading-log form', () => {
   });
 
   it('starts a retry cooldown after a rate-limit response', async () => {
+    jest.useFakeTimers();
     mockApi(jest.fn().mockRejectedValue(new ApiError('Too many attempts.', 'http', 429, {}, 30)));
     await renderLog();
     await screen.findByText('John has 21 chapters.');
@@ -300,6 +351,12 @@ describe('native reading-log form', () => {
     await waitFor(() => expect(screen.getByText('Try again in 30s')).toBeOnTheScreen());
     expect(screen.getByLabelText('Try again in 30s')).toBeDisabled();
     expect(screen.getByDisplayValue('Born of the Spirit.')).toBeOnTheScreen();
+
+    await act(async () => {
+      jest.advanceTimersByTime(1_000);
+    });
+
+    expect(screen.getByText('Try again in 29s')).toBeOnTheScreen();
   });
 
   it('does not create a parallel submission from repeated taps', async () => {

@@ -1,5 +1,5 @@
 import * as Linking from 'expo-linking';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 
 import { ApiError } from '@/api/api-error';
@@ -31,6 +31,12 @@ describe('native Login screen', () => {
   it('submits credentials and preserves the native form on success', async () => {
     login.mockResolvedValue(undefined);
     await render(<LoginScreen />);
+
+    expect(screen.getByLabelText('Delight')).toBeOnTheScreen();
+    expect(screen.getByText('Welcome back')).toBeOnTheScreen();
+    expect(screen.getByText('Continue your reading rhythm.')).toBeOnTheScreen();
+    expect(screen.queryByText('Return to Delight')).not.toBeOnTheScreen();
+
     await fillAndSubmit();
     await waitFor(() => expect(login).toHaveBeenCalledWith({ email: 'reader@example.com', password: 'password' }));
   });
@@ -54,6 +60,7 @@ describe('native Login screen', () => {
   });
 
   it('starts a retry cooldown after a rate-limit response', async () => {
+    jest.useFakeTimers();
     login.mockRejectedValue(new ApiError('Too many attempts.', 'http', 429, {}, 30));
     await render(<LoginScreen />);
 
@@ -61,6 +68,12 @@ describe('native Login screen', () => {
 
     await waitFor(() => expect(screen.getByText('Try again in 30s')).toBeOnTheScreen());
     expect(screen.getByLabelText('Sign in')).toBeDisabled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(1_000);
+    });
+
+    expect(screen.getByText('Try again in 29s')).toBeOnTheScreen();
   });
 
   it('opens staging registration and recovery routes and explains Google accounts', async () => {
@@ -69,7 +82,7 @@ describe('native Login screen', () => {
     await fireEvent.press(screen.getByLabelText('Reset your password on the web'));
     expect(Linking.openURL).toHaveBeenNthCalledWith(1, 'https://delight-staging.laravel.cloud/register');
     expect(Linking.openURL).toHaveBeenNthCalledWith(2, 'https://delight-staging.laravel.cloud/forgot-password');
-    expect(screen.getByText(/Used Google to create your account/)).toBeOnTheScreen();
+    expect(screen.getByText('Created your account with Google? Set a password on the web.')).toBeOnTheScreen();
   });
 
   it('shows and announces a recoverable error when a web route cannot open', async () => {

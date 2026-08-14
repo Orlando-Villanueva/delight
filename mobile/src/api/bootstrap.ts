@@ -47,18 +47,6 @@ export function mapBootstrapResponse(response: BootstrapResponse): BootstrapData
   return response.data;
 }
 
-export function mapBootstrapToHomeDashboard(data: BootstrapData): HomeDashboardData {
-  return {
-    today: data.today,
-    has_read_today: data.has_read_today,
-    current_streak: data.current_streak,
-    longest_streak: data.longest_streak,
-    this_week_days: data.this_week_days,
-    this_month_days: data.this_month_days,
-    activity: data.activity,
-  };
-}
-
 export async function fetchBootstrap(
   request: <T>(path: string) => Promise<T>,
 ): Promise<BootstrapData> {

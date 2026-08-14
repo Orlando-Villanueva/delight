@@ -20,6 +20,7 @@ import { fetchBootstrap, type BootstrapBook, type BootstrapData } from '@/api/bo
 import { createReadingLog, type CreateReadingInput, type CreatedReading } from '@/api/reading-log';
 import { useAuthenticatedApi } from '@/auth/auth-context';
 import { BookPickerModal } from '@/components/book-picker-modal';
+import { useKeyboardFocusedScroll } from '@/hooks/use-keyboard-focused-scroll';
 import {
   chapterCountLabel,
   chaptersAfterBookChange,
@@ -131,6 +132,8 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
   const bootstrapRef = useRef(bootstrap);
   const isSubmittingRef = useRef(false);
   const previousBookId = useRef(preferredInitialBookId(bootstrap));
+  const scrollViewRef = useRef<ScrollView>(null);
+  const keyboardFocusedScroll = useKeyboardFocusedScroll(scrollViewRef);
   const [formMessage, setFormMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState<CreatedReading | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
@@ -273,10 +276,12 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
 
   return (
     <KeyboardAvoidingView
-      behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}
+      behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
+      onLayout={keyboardFocusedScroll.onKeyboardLayoutChange}
       style={{ flex: 1, backgroundColor: colors.background }}
     >
       <ScrollView
+        ref={scrollViewRef}
         testID="reading-log-form"
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
@@ -431,13 +436,21 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
           <FieldError message={errors.bookId?.message} />
         </View>
 
-        <View style={{ flexDirection: 'row', gap: themeTokens.spacing.section }}>
-          <Controller
-            control={control}
-            name="startChapter"
-            render={({ field: { onBlur, onChange, value } }) => (
-              <View style={{ flex: 1, gap: 7 }}>
-                <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>Start chapter</Text>
+        <View style={{ gap: 7 }}>
+          <View style={{ flexDirection: 'row', gap: themeTokens.spacing.section }}>
+            <Text style={{ flex: 1, color: colors.text, fontSize: 15, fontWeight: '600', lineHeight: 21 }}>
+              Start chapter
+            </Text>
+            <Text style={{ flex: 1, color: colors.text, fontSize: 15, fontWeight: '600', lineHeight: 21 }}>
+              End chapter (optional)
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: themeTokens.spacing.section }}>
+            <Controller
+              control={control}
+              name="startChapter"
+              render={({ field: { onBlur, onChange, value } }) => (
+                <View style={{ flex: 1, gap: 7 }}>
                 <TextInput
                   accessibilityLabel="Start chapter"
                   accessibilityHint={
@@ -467,17 +480,14 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
                   }}
                 />
                 <FieldError message={errors.startChapter?.message} />
-              </View>
-            )}
-          />
-          <Controller
-            control={control}
-            name="endChapter"
-            render={({ field: { onBlur, onChange, value } }) => (
-              <View style={{ flex: 1, gap: 7 }}>
-                <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>
-                  End chapter (optional)
-                </Text>
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="endChapter"
+              render={({ field: { onBlur, onChange, value } }) => (
+                <View style={{ flex: 1, gap: 7 }}>
                 <TextInput
                   accessibilityLabel="End chapter"
                   accessibilityHint={
@@ -507,9 +517,10 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
                   }}
                 />
                 <FieldError message={errors.endChapter?.message} />
-              </View>
-            )}
-          />
+                </View>
+              )}
+            />
+          </View>
         </View>
         <Text selectable style={{ color: colors.mutedText, fontSize: 14 }}>
           {selectedBook ? chapterCountLabel(selectedBook) : 'Select a book to see available chapters.'}
@@ -528,8 +539,14 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
                   accessibilityLabel="Note or reflection"
                   accessibilityHint="Optional notes, limited to 1,000 characters"
                   multiline
-                  onBlur={onBlur}
+                  onBlur={() => {
+                    keyboardFocusedScroll.onFocusedFieldBlur();
+                    onBlur();
+                  }}
                   onChangeText={onChange}
+                  onFocus={() => {
+                    keyboardFocusedScroll.onFocusedFieldFocus();
+                  }}
                   value={value}
                   style={{
                     minHeight: 96,

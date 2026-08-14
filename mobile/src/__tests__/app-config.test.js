@@ -1,6 +1,8 @@
 const { describe, expect, it } = require('@jest/globals');
+const path = require('node:path');
 
 const createAppConfig = require('../../app.config');
+const easConfig = require(path.resolve(process.cwd(), 'eas.json'));
 
 function configFor(appVariant) {
   const previousAppVariant = process.env.APP_VARIANT;
@@ -34,6 +36,29 @@ function configForWithApiOverride(appVariant, apiUrl) {
 }
 
 describe('app configuration identities', () => {
+  it.each(['development', 'preview', 'dogfood'])('uses the Delight slug for the %s variant', (appVariant) => {
+    expect(configFor(appVariant).slug).toBe('delight');
+  });
+
+  it.each(['development', 'preview', 'dogfood'])('uses Delight branding for the %s native icon surfaces', (appVariant) => {
+    const config = configFor(appVariant);
+    const splashPlugin = config.plugins.find(([plugin]) => plugin === 'expo-splash-screen');
+
+    expect(config.icon).toBe('./assets/images/delight-logo.png');
+    expect(config.android.adaptiveIcon).toEqual({
+      backgroundColor: '#0d67f9',
+      foregroundImage: './assets/images/android-icon-foreground-delight.png',
+    });
+    expect(splashPlugin).toEqual([
+      'expo-splash-screen',
+      {
+        backgroundColor: '#0f172a',
+        image: './assets/images/delight-logo.png',
+        imageWidth: 96,
+      },
+    ]);
+  });
+
   it('omits standalone native identifiers for Expo Go development', () => {
     const config = configFor('development');
 
@@ -63,5 +88,22 @@ describe('app configuration identities', () => {
     expect(configForWithApiOverride('development', 'https://local.example').extra.apiUrl).toBe('https://local.example');
     expect(configForWithApiOverride('preview', 'https://local.example').extra.apiUrl).toBe('https://delight-staging.laravel.cloud');
     expect(configForWithApiOverride('dogfood', 'https://local.example').extra.apiUrl).toBe('https://mydelight.app');
+  });
+
+  it.each(['development', 'preview', 'dogfood'])('links the %s variant to the existing EAS project', (appVariant) => {
+    expect(configFor(appVariant).extra.eas.projectId).toBe('aa50d7fa-9028-4991-abb9-8f58d306cadf');
+  });
+
+  it.each(['development', 'preview', 'dogfood'])('delegates the %s Android version code to EAS', (appVariant) => {
+    expect(configFor(appVariant).android).not.toHaveProperty('versionCode');
+  });
+
+  it.each(['preview', 'dogfood'])('uses EAS remote version increments for the %s APK', (profile) => {
+    expect(easConfig.cli.appVersionSource).toBe('remote');
+    expect(easConfig.build[profile]).toMatchObject({
+      autoIncrement: true,
+      distribution: 'internal',
+      android: { buildType: 'apk' },
+    });
   });
 });

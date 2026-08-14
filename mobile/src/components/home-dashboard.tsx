@@ -42,6 +42,8 @@ function StreakCard({
       style={{
         gap: 4,
         padding: themeTokens.spacing.section,
+        borderWidth: 1,
+        borderColor: colors.border,
         borderRadius: themeTokens.radius.card,
         backgroundColor: colors.surface,
       }}
@@ -252,6 +254,8 @@ export function HomeDashboard() {
         style={{
           gap: 8,
           padding: themeTokens.spacing.screen,
+          borderWidth: 1,
+          borderColor: colors.border,
           borderRadius: themeTokens.radius.card,
           backgroundColor: colors.surface,
         }}
