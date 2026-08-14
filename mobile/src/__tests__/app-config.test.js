@@ -46,8 +46,8 @@ describe('app configuration identities', () => {
 
     expect(config.icon).toBe('./assets/images/delight-logo.png');
     expect(config.android.adaptiveIcon).toEqual({
-      backgroundColor: '#0f172a',
-      foregroundImage: './assets/images/delight-logo.png',
+      backgroundColor: '#0d67f9',
+      foregroundImage: './assets/images/android-icon-foreground-delight.png',
     });
     expect(splashPlugin).toEqual([
       'expo-splash-screen',
