@@ -32,6 +32,11 @@ describe('native Login screen', () => {
     login.mockResolvedValue(undefined);
     await render(<LoginScreen />);
 
+    expect(screen.getByLabelText('Delight')).toBeOnTheScreen();
+    expect(screen.getByText('Welcome back')).toBeOnTheScreen();
+    expect(screen.getByText('Continue your reading rhythm.')).toBeOnTheScreen();
+    expect(screen.queryByText('Return to Delight')).not.toBeOnTheScreen();
+
     await fillAndSubmit();
     await waitFor(() => expect(login).toHaveBeenCalledWith({ email: 'reader@example.com', password: 'password' }));
   });
@@ -77,7 +82,7 @@ describe('native Login screen', () => {
     await fireEvent.press(screen.getByLabelText('Reset your password on the web'));
     expect(Linking.openURL).toHaveBeenNthCalledWith(1, 'https://delight-staging.laravel.cloud/register');
     expect(Linking.openURL).toHaveBeenNthCalledWith(2, 'https://delight-staging.laravel.cloud/forgot-password');
-    expect(screen.getByText(/Used Google to create your account/)).toBeOnTheScreen();
+    expect(screen.getByText('Created your account with Google? Set a password on the web.')).toBeOnTheScreen();
   });
 
   it('shows and announces a recoverable error when a web route cannot open', async () => {
