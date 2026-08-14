@@ -141,11 +141,16 @@ describe('native Home dashboard', () => {
     expect(await screen.findByText('Reading logged today')).toBeOnTheScreen();
     expect(screen.getByText('4 days')).toBeOnTheScreen();
     expect(screen.getByText('11 days')).toBeOnTheScreen();
+    expect(screen.getByText('Reading logged today').parent).toHaveStyle({
+      borderWidth: 1,
+      borderColor: '#cbd5e1',
+    });
     expect(screen.getByLabelText('Days read this week: 3')).toBeOnTheScreen();
     expect(screen.getByLabelText('Days read this month: 8')).toBeOnTheScreen();
     expect(screen.getByText('Best')).toBeOnTheScreen();
     expect(screen.getByLabelText('Current streak: 4 days. Best: 11 days.')).toHaveStyle({
-      borderWidth: undefined,
+      borderWidth: 1,
+      borderColor: '#cbd5e1',
     });
     expect(screen.getByLabelText('Friday, August 14: Read')).toBeOnTheScreen();
     expect(screen.getByLabelText('Monday, August 10: No reading. Today')).toHaveStyle({ borderWidth: 2 });
