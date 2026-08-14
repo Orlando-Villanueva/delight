@@ -188,7 +188,7 @@ function HistoryDay({ day }: { day: ReadingHistoryDay }) {
   const { colors } = useTheme();
 
   return (
-    <View accessibilityRole="header" style={{ gap: 12 }} testID={`history-day-${day.dateRead}`}>
+    <View accessibilityRole="header" style={{ gap: 12 }}>
       <Text selectable style={{ color: colors.text, fontSize: 19, fontWeight: '700' }}>
         {formatDate(day.dateRead)}
       </Text>
@@ -269,7 +269,6 @@ export function ReadingHistory() {
         />
       )}
       style={{ backgroundColor: colors.background }}
-      testID="reading-history"
       contentContainerStyle={{ gap: 24, padding: themeTokens.spacing.screen }}
     >
       {history.refreshError ? (

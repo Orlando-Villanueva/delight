@@ -14,12 +14,8 @@ function renderLogTabSpacer({ style }: BottomTabBarButtonProps) {
   return <View pointerEvents="none" style={[style, { minHeight: 64 }]} />;
 }
 
-function renderHomeTabButton(props: BottomTabBarButtonProps) {
-  return <StandardTabButton {...props} testID="home-tab-button" />;
-}
-
-function renderHistoryTabButton(props: BottomTabBarButtonProps) {
-  return <StandardTabButton {...props} testID="history-tab-button" />;
+function renderStandardTabButton(props: BottomTabBarButtonProps) {
+  return <StandardTabButton {...props} />;
 }
 
 function renderHomeTabIcon({ color, size }: { color: ColorValue; size: number }) {
@@ -58,7 +54,7 @@ export default function TabsLayout() {
             options={{
               title: 'Home',
               tabBarAccessibilityLabel: 'Home tab',
-              tabBarButton: renderHomeTabButton,
+              tabBarButton: renderStandardTabButton,
               tabBarIcon: renderHomeTabIcon,
             }}
           />
@@ -75,7 +71,7 @@ export default function TabsLayout() {
             options={{
               title: 'History',
               tabBarAccessibilityLabel: 'Reading history tab',
-              tabBarButton: renderHistoryTabButton,
+              tabBarButton: renderStandardTabButton,
               tabBarIcon: renderHistoryTabIcon,
             }}
           />
@@ -84,7 +80,6 @@ export default function TabsLayout() {
           bottom={insets.bottom + 20}
           isSelected={isLogRoute}
           onPress={() => router.navigate('/(tabs)/log')}
-          testID="log-tab-button"
         />
       </View>
     </AuthGate>

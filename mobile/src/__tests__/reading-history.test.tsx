@@ -86,8 +86,6 @@ describe('reading history', () => {
 
     expect(screen.getByText(/2 chapters/)).toBeOnTheScreen();
     expect(screen.getByText('A hopeful beginning.')).toBeOnTheScreen();
-    expect(screen.getByTestId('reading-history')).toBeOnTheScreen();
-    expect(screen.getByTestId('history-day-2026-08-10')).toBeOnTheScreen();
     expect(screen.getByText('John 4')).toBeOnTheScreen();
     expect(screen.queryAllByText('A hopeful beginning.')).toHaveLength(1);
     expect(screen.getByText('You have reached the beginning of your history.')).toBeOnTheScreen();

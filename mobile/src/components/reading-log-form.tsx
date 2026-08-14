@@ -68,7 +68,6 @@ function ActionButton({
   loadingLabel,
   isLoading = false,
   onPress,
-  testID,
 }: Readonly<{
   label: string;
   accessibilityLabel?: string;
@@ -77,7 +76,6 @@ function ActionButton({
   loadingLabel?: string;
   isLoading?: boolean;
   onPress: () => void;
-  testID?: string;
 }>) {
   const { colors } = useTheme();
 
@@ -89,7 +87,6 @@ function ActionButton({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      testID={testID}
       style={({ pressed }) => ({
         minHeight: themeTokens.minimumTouchTarget,
         alignItems: 'center',
@@ -292,7 +289,6 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
       >
         {success ? (
           <Pressable
-            testID="reading-log-success"
             accessibilityRole="button"
             accessibilityLabel="Dismiss success message"
             accessibilityHint="Hides the confirmation that your reading was saved"
@@ -348,9 +344,6 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
                       accessibilityHint={`Uses the server date ${option.date}`}
                       accessibilityState={{ selected: isSelected }}
                       onPress={() => onChange(option.date)}
-                      testID={
-                        option.label === 'Today' ? 'reading-log-today' : 'reading-log-yesterday'
-                      }
                       style={{
                         flex: 1,
                         minHeight: themeTokens.minimumTouchTarget,
@@ -426,7 +419,6 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
             accessibilityLabel="Bible book"
             accessibilityHint="Opens the list of Bible books"
             onPress={() => setIsBookPickerOpen(true)}
-            testID="reading-log-book-picker"
             style={{
               minHeight: 50,
               justifyContent: 'center',
@@ -467,7 +459,6 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
                     onBlur();
                   }}
                   onChangeText={onChange}
-                  testID="reading-log-start-chapter"
                   value={value}
                   style={{
                     minHeight: 50,
@@ -508,7 +499,6 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
                     onBlur();
                   }}
                   onChangeText={onChange}
-                  testID="reading-log-end-chapter"
                   value={value}
                   style={{
                     minHeight: 50,
@@ -551,7 +541,6 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
                   onFocus={() => {
                     keyboardFocusedScroll.onFocusedFieldFocus();
                   }}
-                  testID="reading-log-notes"
                   value={value}
                   style={{
                     minHeight: 96,
@@ -580,7 +569,6 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
             accessibilityLabel="Add a note or reflection"
             accessibilityHint="Shows the optional notes field"
             onPress={() => setAreNotesVisible(true)}
-            testID="reading-log-add-note"
             style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center' }}
           >
             <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>
@@ -609,7 +597,6 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
           onPress={() => {
             void handleSubmit(submit)();
           }}
-          testID="reading-log-submit"
         />
       </ScrollView>
 

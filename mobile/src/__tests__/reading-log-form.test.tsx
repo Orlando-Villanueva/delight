@@ -377,7 +377,6 @@ describe('native reading-log form', () => {
     await fireEvent.press(screen.getByLabelText('Log reading'));
 
     expect(await screen.findByText(`John 3 recorded for ${formatReadingDate('2026-08-10')}.`)).toBeOnTheScreen();
-    expect(screen.getByTestId('reading-log-success')).toBeOnTheScreen();
     expect(screen.queryByDisplayValue('Born of the Spirit.')).not.toBeOnTheScreen();
     expect(screen.getByLabelText('Start chapter')).toHaveDisplayValue('');
     expect(screen.getByLabelText('End chapter')).toHaveDisplayValue('');
