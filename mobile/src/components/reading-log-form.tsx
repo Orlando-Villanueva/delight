@@ -436,13 +436,21 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
           <FieldError message={errors.bookId?.message} />
         </View>
 
-        <View style={{ flexDirection: 'row', gap: themeTokens.spacing.section }}>
-          <Controller
-            control={control}
-            name="startChapter"
-            render={({ field: { onBlur, onChange, value } }) => (
-              <View style={{ flex: 1, gap: 7 }}>
-                <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>Start chapter</Text>
+        <View style={{ gap: 7 }}>
+          <View style={{ flexDirection: 'row', gap: themeTokens.spacing.section }}>
+            <Text style={{ flex: 1, color: colors.text, fontSize: 15, fontWeight: '600', lineHeight: 21 }}>
+              Start chapter
+            </Text>
+            <Text style={{ flex: 1, color: colors.text, fontSize: 15, fontWeight: '600', lineHeight: 21 }}>
+              End chapter (optional)
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: themeTokens.spacing.section }}>
+            <Controller
+              control={control}
+              name="startChapter"
+              render={({ field: { onBlur, onChange, value } }) => (
+                <View style={{ flex: 1, gap: 7 }}>
                 <TextInput
                   accessibilityLabel="Start chapter"
                   accessibilityHint={
@@ -472,17 +480,14 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
                   }}
                 />
                 <FieldError message={errors.startChapter?.message} />
-              </View>
-            )}
-          />
-          <Controller
-            control={control}
-            name="endChapter"
-            render={({ field: { onBlur, onChange, value } }) => (
-              <View style={{ flex: 1, gap: 7 }}>
-                <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>
-                  End chapter (optional)
-                </Text>
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="endChapter"
+              render={({ field: { onBlur, onChange, value } }) => (
+                <View style={{ flex: 1, gap: 7 }}>
                 <TextInput
                   accessibilityLabel="End chapter"
                   accessibilityHint={
@@ -512,9 +517,10 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
                   }}
                 />
                 <FieldError message={errors.endChapter?.message} />
-              </View>
-            )}
-          />
+                </View>
+              )}
+            />
+          </View>
         </View>
         <Text selectable style={{ color: colors.mutedText, fontSize: 14 }}>
           {selectedBook ? chapterCountLabel(selectedBook) : 'Select a book to see available chapters.'}

@@ -211,6 +211,19 @@ describe('native reading-log form', () => {
     expect(readingLogPosts()).toHaveLength(0);
   });
 
+  it('keeps chapter inputs aligned when the optional label wraps at enlarged text sizes', async () => {
+    mockApi();
+    await renderLog();
+    await screen.findByText('John has 21 chapters.');
+
+    const startLabel = screen.getByText('Start chapter');
+    const endLabel = screen.getByText('End chapter (optional)');
+
+    expect(startLabel).toHaveStyle({ flex: 1, lineHeight: 21 });
+    expect(endLabel).toHaveStyle({ flex: 1, lineHeight: 21 });
+    expect(startLabel.parent).toBe(endLabel.parent);
+  });
+
   it('clamps chapter controls when a shorter book is selected', async () => {
     mockApi();
     await renderLog();
