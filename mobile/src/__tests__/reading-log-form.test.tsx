@@ -201,9 +201,14 @@ describe('native reading-log form', () => {
 
     await waitFor(() => {
       expect(request).toHaveBeenCalledTimes(2);
-      expect(screen.getByLabelText('Yesterday')).toHaveProp('accessibilityState', { selected: true });
-      expect(screen.getByLabelText('Today')).toHaveProp('accessibilityState', { selected: false });
+      expect(screen.getByLabelText('Yesterday')).toHaveProp(
+        'accessibilityHint',
+        'Uses the server date 2026-08-10',
+      );
     });
+
+    expect(screen.getByLabelText('Today')).toHaveProp('accessibilityState', { selected: false });
+    expect(screen.getByLabelText('Yesterday')).toHaveProp('accessibilityState', { selected: false });
   });
 
   it('prefers a valid recent book and describes that book’s chapter count', async () => {
