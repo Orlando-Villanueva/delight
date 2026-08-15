@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react-native';
 import type { PropsWithChildren } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import LogScreen from '@/app/(tabs)/log';
 import { useAuthenticatedApi } from '@/auth/auth-context';
@@ -50,7 +51,16 @@ describe('mobile tab screens', () => {
     });
 
     function Wrapper({ children }: PropsWithChildren) {
-      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+      return (
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 390, height: 844 },
+            insets: { top: 47, left: 0, right: 0, bottom: 34 },
+          }}
+        >
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        </SafeAreaProvider>
+      );
     }
 
     await render(<LogScreen />, { wrapper: Wrapper });

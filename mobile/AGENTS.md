@@ -22,6 +22,15 @@ These instructions apply to every file under `/mobile` and supplement the reposi
 - Route files live only in `src/app`. Put components, hooks, configuration, state, types, and utilities outside the router tree.
 - Use kebab-case file names and the `@/` path alias instead of deep relative imports.
 - Prefer small reusable components and centralized tokens over duplicated inline values.
+- Before creating a component, look at the rest of the mobile codebase for an existing one that already owns the
+  same chrome, motion, interaction, or visual pattern.
+- If an existing component is almost identical and only the body, title, or accessibility labels differ, extract
+  the shared shell and reuse it. Do not duplicate that pattern in a new file, and do not ask first.
+- If an existing candidate is the right shape but is below the quality you would otherwise ship — unclear API,
+  weak accessibility, hard-coded values, or hard to extend — ask whether to improve and extract that component
+  or keep a new single-use component for this case.
+- Keep feature-specific content in the caller. Shared components should own the repeated shell, motion, and
+  accessibility chrome.
 - Keep source lines at or below 120 characters where practical. Expand dense JSX props and inline React Native
   style objects across multiple lines instead of compressing a component onto one line.
 - Keep dynamic styles close to the component that owns them, but extract named helpers when conditional

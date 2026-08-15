@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { PropsWithChildren } from 'react';
 import { AccessibilityInfo, AppState, Keyboard, ScrollView } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/api-error';
 import LogScreen from '@/app/(tabs)/log';
@@ -78,7 +79,16 @@ async function renderLog() {
   });
 
   function Wrapper({ children }: PropsWithChildren) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 47, left: 0, right: 0, bottom: 34 },
+        }}
+      >
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </SafeAreaProvider>
+    );
   }
 
   return render(<LogScreen />, { wrapper: Wrapper });
@@ -191,9 +201,14 @@ describe('native reading-log form', () => {
 
     await waitFor(() => {
       expect(request).toHaveBeenCalledTimes(2);
-      expect(screen.getByLabelText('Yesterday')).toHaveProp('accessibilityState', { selected: true });
-      expect(screen.getByLabelText('Today')).toHaveProp('accessibilityState', { selected: false });
+      expect(screen.getByLabelText('Yesterday')).toHaveProp(
+        'accessibilityHint',
+        'Uses the server date 2026-08-10',
+      );
     });
+
+    expect(screen.getByLabelText('Today')).toHaveProp('accessibilityState', { selected: false });
+    expect(screen.getByLabelText('Yesterday')).toHaveProp('accessibilityState', { selected: false });
   });
 
   it('prefers a valid recent book and describes that book’s chapter count', async () => {
