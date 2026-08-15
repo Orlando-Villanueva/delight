@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { PropsWithChildren } from 'react';
 import { AccessibilityInfo, AppState, Keyboard, ScrollView } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/api-error';
 import LogScreen from '@/app/(tabs)/log';
@@ -78,7 +79,16 @@ async function renderLog() {
   });
 
   function Wrapper({ children }: PropsWithChildren) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 47, left: 0, right: 0, bottom: 34 },
+        }}
+      >
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </SafeAreaProvider>
+    );
   }
 
   return render(<LogScreen />, { wrapper: Wrapper });

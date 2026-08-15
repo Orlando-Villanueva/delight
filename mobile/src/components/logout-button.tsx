@@ -1,4 +1,4 @@
-import { Alert, Pressable, Text } from 'react-native';
+import { AccessibilityInfo, Alert, Pressable, Text } from 'react-native';
 
 import { ApiError } from '@/api/api-error';
 import { useAuth } from '@/auth/auth-context';
@@ -10,6 +10,8 @@ export function LogoutButton() {
   const { colors } = useTheme();
 
   async function handleLogout() {
+    AccessibilityInfo.announceForAccessibility('Signing out.');
+
     try {
       await logout();
     } catch (error) {
@@ -17,20 +19,25 @@ export function LogoutButton() {
         ? error.message
         : 'Logout could not be completed. Try again.';
       Alert.alert('Still signed in', message);
+      AccessibilityInfo.announceForAccessibility(message);
     }
   }
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Log out"
+      accessibilityLabel="Sign out"
       accessibilityHint="Revokes this device session and returns to Login"
+      accessibilityState={{ disabled: isLoggingOut }}
       disabled={isLoggingOut}
       onPress={handleLogout}
-      style={{ minWidth: themeTokens.minimumTouchTarget, minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center', paddingHorizontal: 12 }}
+      style={{
+        minHeight: themeTokens.minimumTouchTarget,
+        justifyContent: 'center',
+      }}
     >
-      <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>
-        {isLoggingOut ? 'Logging out…' : 'Log out'}
+      <Text style={{ color: colors.danger, fontSize: 16, fontWeight: '600' }}>
+        {isLoggingOut ? 'Signing out…' : 'Sign out'}
       </Text>
     </Pressable>
   );
