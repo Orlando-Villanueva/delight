@@ -2,6 +2,7 @@
 
 @php
     $dayChapterCount = $logsForDay->sum(fn($log) => $log->chapters_count ?? ($log->all_logs?->count() ?? 1));
+    $showDayChapterCount = $logsForDay->count() > 1 && $dayChapterCount > 1;
 @endphp
 
 <li id="reading-day-{{ $date }}" class="ms-6"
@@ -16,7 +17,7 @@
         <time class="text-sm font-semibold text-gray-900 dark:text-white">
             {{ \Carbon\Carbon::parse($date)->format('M j, Y') }}
         </time>
-        @if ($dayChapterCount > 1)
+        @if ($showDayChapterCount)
             <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
                 {{ $dayChapterCount }} chapters
             </span>

@@ -29,9 +29,13 @@ it('hides the day chapter count when the day total is one', function () {
         ->assertDontSee('1 chapter', false)
         ->assertDontSee('chapters', false)
         ->assertDontSee('bg-primary-100 text-primary-800', false);
+
+    expect($response->getContent())->not->toMatch(
+        '/<time[^>]*>\s*Aug 11, 2026\s*<\/time>\s*<span/'
+    );
 });
 
-it('shows a muted day total for a multi-chapter range and repeats it on the passage line', function () {
+it('puts a multi-chapter range count on the passage line and omits the day total', function () {
     $user = User::factory()->create();
     $date = Carbon::parse('2026-08-11');
     $loggedAt = $date->copy()->setTime(7, 30);
@@ -54,13 +58,14 @@ it('shows a muted day total for a multi-chapter range and repeats it on the pass
         ->assertSee('Aug 11, 2026', false)
         ->assertSee('Psalms 112-114', false)
         ->assertSee('3 chapters', false)
-        ->assertSee('text-xs font-medium text-gray-500 dark:text-gray-400', false)
         ->assertSee('shrink-0 text-nowrap text-xs font-normal text-gray-500 dark:text-gray-400', false)
         ->assertSee('Logged at 7:30 AM', false)
         ->assertDontSee('1 chapter', false)
         ->assertDontSee('bg-primary-100 text-primary-800', false);
 
-    expect(preg_match_all('/\b3 chapters\b/', $response->getContent()))->toBeGreaterThanOrEqual(2);
+    expect($response->getContent())->not->toMatch(
+        '/<time[^>]*>\s*Aug 11, 2026\s*<\/time>\s*<span[^>]*>\s*3 chapters\s*<\/span>/'
+    );
 });
 
 it('keeps a day total for mixed single-chapter entries and omits per-card counts', function () {
@@ -98,6 +103,51 @@ it('keeps a day total for mixed single-chapter entries and omits per-card counts
         ->assertDontSee('1 chapter', false)
         ->assertDontSee('3 chapters', false);
 
-    expect(substr_count($response->getContent(), '2 chapters'))->toBe(1)
+    expect($response->getContent())
+        ->toMatch('/<time[^>]*>\s*Aug 11, 2026\s*<\/time>\s*<span[^>]*>\s*2 chapters\s*<\/span>/')
+        ->and(substr_count($response->getContent(), '2 chapters'))->toBe(1)
         ->and(substr_count($response->getContent(), 'chapters'))->toBe(1);
+});
+
+it('shows a day total for mixed entries and a passage-line count only on the range', function () {
+    $user = User::factory()->create();
+    $date = Carbon::parse('2026-08-11');
+    $rangeLoggedAt = $date->copy()->setTime(7, 30);
+
+    foreach (range(112, 114) as $chapter) {
+        ReadingLog::factory()->for($user)->create([
+            'book_id' => 19,
+            'chapter' => $chapter,
+            'passage_text' => "Psalms {$chapter}",
+            'date_read' => $date->toDateString(),
+            'notes_text' => null,
+            'created_at' => $rangeLoggedAt,
+            'updated_at' => $rangeLoggedAt,
+        ]);
+    }
+
+    ReadingLog::factory()->for($user)->create([
+        'book_id' => 43,
+        'chapter' => 4,
+        'passage_text' => 'John 4',
+        'date_read' => $date->toDateString(),
+        'notes_text' => null,
+        'created_at' => $date->copy()->setTime(9, 45),
+    ]);
+
+    $response = $this->actingAs($user)->get(route('logs.index'));
+
+    $response->assertSuccessful()
+        ->assertSee('Aug 11, 2026', false)
+        ->assertSee('4 chapters', false)
+        ->assertSee('Psalms 112-114', false)
+        ->assertSee('3 chapters', false)
+        ->assertSee('John 4', false)
+        ->assertSee('text-xs font-medium text-gray-500 dark:text-gray-400', false)
+        ->assertSee('shrink-0 text-nowrap text-xs font-normal text-gray-500 dark:text-gray-400', false)
+        ->assertDontSee('1 chapter', false);
+
+    expect($response->getContent())
+        ->toMatch('/<time[^>]*>\s*Aug 11, 2026\s*<\/time>\s*<span[^>]*>\s*4 chapters\s*<\/span>/')
+        ->and(substr_count($response->getContent(), '4 chapters'))->toBe(1);
 });
