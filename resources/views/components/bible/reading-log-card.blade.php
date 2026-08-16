@@ -3,7 +3,8 @@
 @php
 // Determine if this is a multi-chapter entry
 $allLogs = $log->all_logs ?? collect([$log]);
-$isMultiChapter = $allLogs->count() > 1;
+$entryChapterCount = $log->chapters_count ?? $allLogs->count();
+$isMultiChapter = $entryChapterCount > 1;
 $modalId = $isMultiChapter ? "delete-chapters-{$log->id}" : "delete-confirmation-{$log->id}";
 $editModalId = "edit-note-{$log->id}";
 @endphp
@@ -13,8 +14,13 @@ $editModalId = "edit-note-{$log->id}";
     <div class="flex items-center justify-between gap-3">
         {{-- Passage and Time Info --}}
         <div class="flex-1 min-w-0">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white leading-tight mb-1">
-                {{ $log->display_passage_text ?? $log->passage_text }}
+            <h3 class="mb-1 flex items-baseline gap-2 text-base font-semibold leading-tight text-gray-900 dark:text-white">
+                <span class="min-w-0">{{ $log->display_passage_text ?? $log->passage_text }}</span>
+                @if ($entryChapterCount > 1)
+                    <span class="shrink-0 text-nowrap text-xs font-normal text-gray-500 dark:text-gray-400">
+                        {{ $entryChapterCount }} chapters
+                    </span>
+                @endif
             </h3>
             <div class="text-xs text-gray-500 dark:text-gray-400">
                 Logged at {{ $log->created_at->format('g:i A') }}
