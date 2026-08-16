@@ -137,10 +137,14 @@ function formatTime(timestamp: string | null): string | null {
   return new Intl.DateTimeFormat('en-CA', { hour: 'numeric', minute: '2-digit' }).format(new Date(timestamp));
 }
 
-function chapterCount(group: ReadingHistoryGroup): string {
-  const count = (group.endChapter ?? group.startChapter) - group.startChapter + 1;
+function chapterCount(group: ReadingHistoryGroup): number {
+  return (group.endChapter ?? group.startChapter) - group.startChapter + 1;
+}
 
-  return `${count} ${count === 1 ? 'chapter' : 'chapters'}`;
+function multiChapterCountLabel(group: ReadingHistoryGroup): string | null {
+  const count = chapterCount(group);
+
+  return count > 1 ? `${count} chapters` : null;
 }
 
 function ActionButton({
@@ -194,6 +198,7 @@ function HistoryDay({ day }: { day: ReadingHistoryDay }) {
       </Text>
       {day.groups.map((group) => {
         const time = formatTime(group.loggedAt);
+        const chapters = multiChapterCountLabel(group);
 
         return (
           <View
@@ -208,12 +213,23 @@ function HistoryDay({ day }: { day: ReadingHistoryDay }) {
               backgroundColor: colors.surface,
             }}
           >
-            <Text selectable style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
-              {group.passage}
-            </Text>
-            <Text selectable style={{ color: colors.mutedText, fontSize: 15 }}>
-              {group.book.name} · {chapterCount(group)}
-            </Text>
+            <View style={{ alignItems: 'baseline', flexDirection: 'row', gap: 8 }}>
+              <Text
+                selectable
+                style={{ color: colors.text, flex: 1, fontSize: 18, fontWeight: '700' }}
+              >
+                {group.passage}
+              </Text>
+              {chapters ? (
+                <Text
+                  selectable
+                  numberOfLines={1}
+                  style={{ color: colors.mutedText, flexShrink: 0, fontSize: 15 }}
+                >
+                  {chapters}
+                </Text>
+              ) : null}
+            </View>
             {group.notesText ? (
               <Text selectable style={{ color: colors.text, fontSize: 16, lineHeight: 24 }}>
                 {group.notesText}

@@ -84,9 +84,12 @@ describe('reading history', () => {
 
     await waitFor(() => expect(screen.getByText('John 1-2')).toBeOnTheScreen());
 
-    expect(screen.getByText(/2 chapters/)).toBeOnTheScreen();
+    expect(screen.getByText('2 chapters')).toBeOnTheScreen();
+    expect(screen.queryByText('1 chapter')).not.toBeOnTheScreen();
+    expect(screen.queryByText(/John ·/)).not.toBeOnTheScreen();
     expect(screen.getByText('A hopeful beginning.')).toBeOnTheScreen();
     expect(screen.getByText('John 4')).toBeOnTheScreen();
+    expect(screen.getAllByText(/Logged at/)).toHaveLength(2);
     expect(screen.queryAllByText('A hopeful beginning.')).toHaveLength(1);
     expect(screen.getByText('You have reached the beginning of your history.')).toBeOnTheScreen();
     expect(dateTimeFormatSpy).toHaveBeenCalledWith('en-CA', { dateStyle: 'full' });
