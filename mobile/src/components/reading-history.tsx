@@ -291,6 +291,42 @@ function ActionButton({
   );
 }
 
+function HistoryLoadMoreControl({
+  isLoadingMore,
+  onLoadMore,
+}: Readonly<{
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
+}>) {
+  const { colors } = useTheme();
+
+  if (isLoadingMore) {
+    return (
+      <View
+        accessible
+        accessibilityLabel="Loading more history"
+        accessibilityLiveRegion="polite"
+        accessibilityRole="progressbar"
+        style={{
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: themeTokens.minimumTouchTarget,
+        }}
+      >
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <ActionButton
+      label="Load more"
+      accessibilityHint="Loads older readings from your history."
+      onPress={onLoadMore}
+    />
+  );
+}
+
 function HistoryDay({ day }: { day: ReadingHistoryDay }) {
   const { colors } = useTheme();
 
@@ -404,13 +440,9 @@ export function ReadingHistory() {
               {history.loadMoreError ? (
                 <Text selectable style={{ color: colors.danger, fontSize: 16 }}>{history.loadMoreError.message}</Text>
               ) : null}
-              {history.isLoadingMore ? (
-                <ActivityIndicator accessibilityLabel="Loading more history" color={colors.primary} />
-              ) : null}
-              <ActionButton
-                label="Load more"
-                accessibilityHint="Loads older readings from your history."
-                onPress={() => void history.loadMore()}
+              <HistoryLoadMoreControl
+                isLoadingMore={history.isLoadingMore}
+                onLoadMore={() => void history.loadMore()}
               />
             </View>
           ) : (

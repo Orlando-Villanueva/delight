@@ -8,6 +8,7 @@ import HistoryScreen from '@/app/(tabs)/history';
 import { mergeReadingHistoryPages, type ReadingHistoryPage } from '@/api/reading-history';
 import { useAuthenticatedApi } from '@/auth/auth-context';
 import { canFitChapterCount } from '@/components/reading-history';
+import { themeTokens } from '@/theme/tokens';
 
 jest.mock('@/auth/auth-context', () => ({ useAuthenticatedApi: jest.fn() }));
 
@@ -131,13 +132,67 @@ describe('reading history', () => {
 
     await user.press(loadMoreButton);
     await user.press(loadMoreButton);
+
+    await waitFor(() => expect(screen.getByLabelText('Loading more history')).toBeOnTheScreen());
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeOnTheScreen();
+
     resolveNextPage(pageTwo);
 
     await waitFor(() => expect(screen.getByText(/John 4/)).toBeOnTheScreen());
 
     expect(request).toHaveBeenCalledTimes(2);
     expect(screen.queryAllByText('John 1-2')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeOnTheScreen();
+    expect(screen.queryByLabelText('Loading more history')).not.toBeOnTheScreen();
     expect(screen.getByText('You have reached the beginning of your history.')).toBeOnTheScreen();
+  });
+
+  it('keeps the pagination control height when swapping Load more for loading', async () => {
+    let resolveNextPage: (value: unknown) => void = () => undefined;
+    const nextPage = new Promise((resolve) => {
+      resolveNextPage = resolve;
+    });
+
+    request
+      .mockResolvedValueOnce(historyResponse(1, 2, '2026-08-10'))
+      .mockReturnValueOnce(nextPage);
+
+    const screen = await renderHistory();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Load more' })).toBeOnTheScreen());
+
+    expect(screen.getByRole('button', { name: 'Load more' })).toHaveStyle({
+      minHeight: themeTokens.minimumTouchTarget,
+    });
+
+    const user = userEvent.setup();
+    await user.press(screen.getByRole('button', { name: 'Load more' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Loading more history')).toBeOnTheScreen());
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeOnTheScreen();
+    expect(screen.getByLabelText('Loading more history')).toHaveStyle({
+      minHeight: themeTokens.minimumTouchTarget,
+    });
+
+    resolveNextPage(historyResponse(2, 2, '2026-08-09', [
+      readingGroup({ log_ids: [104], passage: 'John 4', date_read: '2026-08-09' }),
+    ]));
+
+    await waitFor(() => expect(screen.getByText('John 4')).toBeOnTheScreen());
+  });
+
+  it('restores Load more after a failed older-page request', async () => {
+    request
+      .mockResolvedValueOnce(historyResponse(1, 2, '2026-08-10'))
+      .mockRejectedValueOnce(new Error('Delight could not connect.'));
+
+    const screen = await renderHistory();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Load more' })).toBeOnTheScreen());
+    const user = userEvent.setup();
+    await user.press(screen.getByRole('button', { name: 'Load more' }));
+
+    await waitFor(() => expect(screen.getByText('Delight could not connect.')).toBeOnTheScreen());
+    expect(screen.getByRole('button', { name: 'Load more' })).toBeOnTheScreen();
+    expect(screen.queryByLabelText('Loading more history')).not.toBeOnTheScreen();
   });
 
   it('refreshes instead of rendering a partial overlapping group', async () => {
