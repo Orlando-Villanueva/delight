@@ -213,23 +213,16 @@ function HistoryDay({ day }: { day: ReadingHistoryDay }) {
               backgroundColor: colors.surface,
             }}
           >
-            <View style={{ alignItems: 'baseline', flexDirection: 'row', gap: 8 }}>
-              <Text
-                selectable
-                style={{ color: colors.text, flex: 1, fontSize: 18, fontWeight: '700' }}
-              >
+            <Text selectable>
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
                 {group.passage}
               </Text>
               {chapters ? (
-                <Text
-                  selectable
-                  numberOfLines={1}
-                  style={{ color: colors.mutedText, flexShrink: 0, fontSize: 15 }}
-                >
-                  {chapters}
+                <Text style={{ color: colors.mutedText, fontSize: 15 }}>
+                  {`  ${chapters}`}
                 </Text>
               ) : null}
-            </View>
+            </Text>
             {group.notesText ? (
               <Text selectable style={{ color: colors.text, fontSize: 16, lineHeight: 24 }}>
                 {group.notesText}
