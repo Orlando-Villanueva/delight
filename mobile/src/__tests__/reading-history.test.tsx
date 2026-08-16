@@ -7,6 +7,7 @@ import { AppState } from 'react-native';
 import HistoryScreen from '@/app/(tabs)/history';
 import { mergeReadingHistoryPages, type ReadingHistoryPage } from '@/api/reading-history';
 import { useAuthenticatedApi } from '@/auth/auth-context';
+import { canFitChapterCount } from '@/components/reading-history';
 
 jest.mock('@/auth/auth-context', () => ({ useAuthenticatedApi: jest.fn() }));
 
@@ -315,6 +316,14 @@ describe('reading history', () => {
       'accessibilityHint',
       'Requests your reading history again.',
     );
+  });
+});
+
+describe('canFitChapterCount', () => {
+  it('keeps the count only when the passage, gap, and label fit on one line', () => {
+    expect(canFitChapterCount(320, 90, 80)).toBe(true);
+    expect(canFitChapterCount(320, 260, 80)).toBe(false);
+    expect(canFitChapterCount(0, 90, 80)).toBe(false);
   });
 });
 

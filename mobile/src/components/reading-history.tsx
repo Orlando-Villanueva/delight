@@ -147,6 +147,109 @@ function multiChapterCountLabel(group: ReadingHistoryGroup): string | null {
   return count > 1 ? `${count} chapters` : null;
 }
 
+const chapterCountGap = themeTokens.spacing.section;
+
+export function canFitChapterCount(
+  rowWidth: number,
+  passageWidth: number,
+  countWidth: number,
+): boolean {
+  return rowWidth > 0
+    && passageWidth > 0
+    && countWidth > 0
+    && passageWidth + chapterCountGap + countWidth <= rowWidth;
+}
+
+function HistoryPassageHeading({
+  passage,
+  chapters,
+}: {
+  passage: string;
+  chapters: string | null;
+}) {
+  const { colors } = useTheme();
+  const [showCount, setShowCount] = useState(chapters !== null);
+  const rowWidthRef = useRef(0);
+  const passageWidthRef = useRef(0);
+  const countWidthRef = useRef(0);
+
+  const updateVisibility = useCallback(() => {
+    if (chapters === null) {
+      setShowCount(false);
+      return;
+    }
+
+    if (rowWidthRef.current === 0 || passageWidthRef.current === 0 || countWidthRef.current === 0) {
+      return;
+    }
+
+    setShowCount(canFitChapterCount(
+      rowWidthRef.current,
+      passageWidthRef.current,
+      countWidthRef.current,
+    ));
+  }, [chapters]);
+
+  return (
+    <View
+      onLayout={(event) => {
+        rowWidthRef.current = event.nativeEvent.layout.width;
+        updateVisibility();
+      }}
+    >
+      <View style={{ alignItems: 'baseline', flexDirection: 'row' }}>
+        <Text selectable style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
+          {passage}
+        </Text>
+        {chapters && showCount ? (
+          <Text
+            selectable
+            style={{
+              color: colors.mutedText,
+              fontSize: 15,
+              marginLeft: 'auto',
+              paddingLeft: chapterCountGap,
+            }}
+          >
+            {chapters}
+          </Text>
+        ) : null}
+      </View>
+      {chapters ? (
+        <View
+          collapsable={false}
+          importantForAccessibility="no-hide-descendants"
+          pointerEvents="none"
+          style={{ flexDirection: 'row', left: 0, opacity: 0, position: 'absolute', top: 0 }}
+        >
+          <Text
+            accessible={false}
+            importantForAccessibility="no"
+            onLayout={(event) => {
+              passageWidthRef.current = event.nativeEvent.layout.width;
+              updateVisibility();
+            }}
+            style={{ fontSize: 18, fontWeight: '700' }}
+          >
+            {passage}
+          </Text>
+          <Text
+            accessible={false}
+            importantForAccessibility="no"
+            onLayout={(event) => {
+              countWidthRef.current = event.nativeEvent.layout.width;
+              updateVisibility();
+            }}
+            style={{ fontSize: 15 }}
+          >
+            {chapters}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function ActionButton({
   label,
   accessibilityHint,
@@ -213,18 +316,7 @@ function HistoryDay({ day }: { day: ReadingHistoryDay }) {
               backgroundColor: colors.surface,
             }}
           >
-            <View
-              style={{ alignItems: 'baseline', flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}
-            >
-              <Text selectable style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
-                {group.passage}
-              </Text>
-              {chapters ? (
-                <Text selectable style={{ color: colors.mutedText, fontSize: 15 }}>
-                  {chapters}
-                </Text>
-              ) : null}
-            </View>
+            <HistoryPassageHeading passage={group.passage} chapters={chapters} />
             {group.notesText ? (
               <Text selectable style={{ color: colors.text, fontSize: 16, lineHeight: 24 }}>
                 {group.notesText}
