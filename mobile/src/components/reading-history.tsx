@@ -137,10 +137,117 @@ function formatTime(timestamp: string | null): string | null {
   return new Intl.DateTimeFormat('en-CA', { hour: 'numeric', minute: '2-digit' }).format(new Date(timestamp));
 }
 
-function chapterCount(group: ReadingHistoryGroup): string {
-  const count = (group.endChapter ?? group.startChapter) - group.startChapter + 1;
+function chapterCount(group: ReadingHistoryGroup): number {
+  return (group.endChapter ?? group.startChapter) - group.startChapter + 1;
+}
 
-  return `${count} ${count === 1 ? 'chapter' : 'chapters'}`;
+function multiChapterCountLabel(group: ReadingHistoryGroup): string | null {
+  const count = chapterCount(group);
+
+  return count > 1 ? `${count} chapters` : null;
+}
+
+const chapterCountGap = themeTokens.spacing.section;
+
+export function canFitChapterCount(
+  rowWidth: number,
+  passageWidth: number,
+  countWidth: number,
+): boolean {
+  return rowWidth > 0
+    && passageWidth > 0
+    && countWidth > 0
+    && passageWidth + chapterCountGap + countWidth <= rowWidth;
+}
+
+function HistoryPassageHeading({
+  passage,
+  chapters,
+}: {
+  passage: string;
+  chapters: string | null;
+}) {
+  const { colors } = useTheme();
+  const [showCount, setShowCount] = useState(chapters !== null);
+  const rowWidthRef = useRef(0);
+  const passageWidthRef = useRef(0);
+  const countWidthRef = useRef(0);
+
+  const updateVisibility = useCallback(() => {
+    if (chapters === null) {
+      setShowCount(false);
+      return;
+    }
+
+    if (rowWidthRef.current === 0 || passageWidthRef.current === 0 || countWidthRef.current === 0) {
+      return;
+    }
+
+    setShowCount(canFitChapterCount(
+      rowWidthRef.current,
+      passageWidthRef.current,
+      countWidthRef.current,
+    ));
+  }, [chapters]);
+
+  return (
+    <View
+      onLayout={(event) => {
+        rowWidthRef.current = event.nativeEvent.layout.width;
+        updateVisibility();
+      }}
+    >
+      <View style={{ alignItems: 'baseline', flexDirection: 'row' }}>
+        <Text selectable style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
+          {passage}
+        </Text>
+        {chapters && showCount ? (
+          <Text
+            selectable
+            style={{
+              color: colors.mutedText,
+              fontSize: 15,
+              marginLeft: 'auto',
+              paddingLeft: chapterCountGap,
+            }}
+          >
+            {chapters}
+          </Text>
+        ) : null}
+      </View>
+      {chapters ? (
+        <View
+          collapsable={false}
+          importantForAccessibility="no-hide-descendants"
+          pointerEvents="none"
+          style={{ flexDirection: 'row', left: 0, opacity: 0, position: 'absolute', top: 0 }}
+        >
+          <Text
+            accessible={false}
+            importantForAccessibility="no"
+            onLayout={(event) => {
+              passageWidthRef.current = event.nativeEvent.layout.width;
+              updateVisibility();
+            }}
+            style={{ fontSize: 18, fontWeight: '700' }}
+          >
+            {passage}
+          </Text>
+          <Text
+            accessible={false}
+            importantForAccessibility="no"
+            onLayout={(event) => {
+              countWidthRef.current = event.nativeEvent.layout.width;
+              updateVisibility();
+            }}
+            style={{ fontSize: 15 }}
+          >
+            {chapters}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 function ActionButton({
@@ -194,6 +301,7 @@ function HistoryDay({ day }: { day: ReadingHistoryDay }) {
       </Text>
       {day.groups.map((group) => {
         const time = formatTime(group.loggedAt);
+        const chapters = multiChapterCountLabel(group);
 
         return (
           <View
@@ -208,12 +316,7 @@ function HistoryDay({ day }: { day: ReadingHistoryDay }) {
               backgroundColor: colors.surface,
             }}
           >
-            <Text selectable style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
-              {group.passage}
-            </Text>
-            <Text selectable style={{ color: colors.mutedText, fontSize: 15 }}>
-              {group.book.name} · {chapterCount(group)}
-            </Text>
+            <HistoryPassageHeading passage={group.passage} chapters={chapters} />
             {group.notesText ? (
               <Text selectable style={{ color: colors.text, fontSize: 16, lineHeight: 24 }}>
                 {group.notesText}

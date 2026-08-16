@@ -7,6 +7,7 @@ import { AppState } from 'react-native';
 import HistoryScreen from '@/app/(tabs)/history';
 import { mergeReadingHistoryPages, type ReadingHistoryPage } from '@/api/reading-history';
 import { useAuthenticatedApi } from '@/auth/auth-context';
+import { canFitChapterCount } from '@/components/reading-history';
 
 jest.mock('@/auth/auth-context', () => ({ useAuthenticatedApi: jest.fn() }));
 
@@ -77,6 +78,14 @@ describe('reading history', () => {
     const dateTimeFormatSpy = jest.spyOn(Intl, 'DateTimeFormat');
     request.mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [
       readingGroup(),
+      readingGroup({
+        log_ids: [106],
+        book: { id: 22, name: 'Song of Solomon' },
+        start_chapter: 5,
+        end_chapter: 8,
+        passage: 'Song of Solomon 5-8',
+        notes_text: null,
+      }),
       readingGroup({ log_ids: [103], start_chapter: 4, end_chapter: null, passage: 'John 4', notes_text: null }),
     ]));
 
@@ -84,9 +93,14 @@ describe('reading history', () => {
 
     await waitFor(() => expect(screen.getByText('John 1-2')).toBeOnTheScreen());
 
-    expect(screen.getByText(/2 chapters/)).toBeOnTheScreen();
+    expect(screen.getByText('2 chapters')).toBeOnTheScreen();
+    expect(screen.getByText('Song of Solomon 5-8')).toBeOnTheScreen();
+    expect(screen.getByText('4 chapters')).toBeOnTheScreen();
+    expect(screen.queryByText('1 chapter')).not.toBeOnTheScreen();
+    expect(screen.queryByText(/John ·/)).not.toBeOnTheScreen();
     expect(screen.getByText('A hopeful beginning.')).toBeOnTheScreen();
     expect(screen.getByText('John 4')).toBeOnTheScreen();
+    expect(screen.getAllByText(/Logged at/)).toHaveLength(3);
     expect(screen.queryAllByText('A hopeful beginning.')).toHaveLength(1);
     expect(screen.getByText('You have reached the beginning of your history.')).toBeOnTheScreen();
     expect(dateTimeFormatSpy).toHaveBeenCalledWith('en-CA', { dateStyle: 'full' });
@@ -302,6 +316,14 @@ describe('reading history', () => {
       'accessibilityHint',
       'Requests your reading history again.',
     );
+  });
+});
+
+describe('canFitChapterCount', () => {
+  it('keeps the count only when the passage, gap, and label fit on one line', () => {
+    expect(canFitChapterCount(320, 90, 80)).toBe(true);
+    expect(canFitChapterCount(320, 260, 80)).toBe(false);
+    expect(canFitChapterCount(0, 90, 80)).toBe(false);
   });
 });
 
