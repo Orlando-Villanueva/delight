@@ -3,16 +3,17 @@
         "codex",
         "opencode"
     ],
+    "cloud": false,
     "guidelines": true,
     "herd_mcp": true,
     "mcp": true,
-    "packages": [
-        "laravel/fortify"
-    ],
     "sail": false,
     "skills": [
+        "infer-conventions",
+        "fortify-development",
+        "laravel-best-practices",
+        "socialite-development",
         "pest-testing",
-        "tailwindcss-development",
-        "developing-with-fortify"
+        "tailwindcss-development"
     ]
 }
