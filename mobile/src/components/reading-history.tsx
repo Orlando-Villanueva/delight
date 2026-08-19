@@ -25,7 +25,7 @@ import { useAuthenticatedApi } from '@/auth/auth-context';
 import { themeTokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
-function useReadingHistory() {
+function useReadingHistory(refreshReadTodayStatus: () => Promise<unknown>) {
   const request = useAuthenticatedApi();
   const [loadedPages, setLoadedPages] = useState<ReadingHistoryPage[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -51,12 +51,15 @@ function useReadingHistory() {
   const refresh = useCallback(async () => {
     const refreshGeneration = ++refreshGenerationRef.current;
     setLoadMoreError(null);
-    const result = await refetch();
+    const [result] = await Promise.all([
+      refetch(),
+      refreshReadTodayStatus(),
+    ]);
 
     if (refreshGeneration === refreshGenerationRef.current && result.isSuccess) {
       setLoadedPages([]);
     }
-  }, [refetch]);
+  }, [refetch, refreshReadTodayStatus]);
 
   useEffect(() => {
     function refreshWhenForegrounded(nextAppState: AppStateStatus) {
@@ -414,8 +417,8 @@ function HistoryDay({ day }: { day: ReadingHistoryDay }) {
 
 export function ReadingHistory() {
   const { colors } = useTheme();
-  const history = useReadingHistory();
   const readTodayStatus = useReadTodayStatus();
+  const history = useReadingHistory(readTodayStatus.refetch);
 
   if (history.isInitialLoading) {
     return (
@@ -462,7 +465,7 @@ export function ReadingHistory() {
           History could not be refreshed. {history.refreshError.message}
         </Text>
       ) : null}
-      {readTodayStatus.data?.has_read_today === false ? <LogTodayCallout /> : null}
+      {history.days.length > 0 && readTodayStatus.data?.has_read_today === false ? <LogTodayCallout /> : null}
       {history.days.length === 0 ? (
         <View accessibilityLiveRegion="polite" style={{ gap: 16, paddingTop: 48 }}>
           <Text selectable style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>Your history is waiting</Text>
