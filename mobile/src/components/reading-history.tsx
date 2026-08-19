@@ -20,6 +20,7 @@ import {
   type ReadingHistoryGroup,
   type ReadingHistoryPage,
 } from '@/api/reading-history';
+import { fetchBootstrap } from '@/api/bootstrap';
 import { useAuthenticatedApi } from '@/auth/auth-context';
 import { themeTokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
@@ -121,6 +122,15 @@ function useReadingHistory() {
     retryInitial: refetch,
     loadMore,
   };
+}
+
+function useReadTodayStatus() {
+  const request = useAuthenticatedApi();
+
+  return useQuery({
+    queryKey: ['bootstrap'],
+    queryFn: () => fetchBootstrap(request),
+  });
 }
 
 function formatDate(date: string): string {
@@ -327,6 +337,38 @@ function HistoryLoadMoreControl({
   );
 }
 
+function LogTodayCallout() {
+  const { colors } = useTheme();
+
+  return (
+    <View
+      accessibilityLiveRegion="polite"
+      style={{
+        gap: 8,
+        padding: themeTokens.spacing.section,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: themeTokens.radius.card,
+        borderCurve: 'continuous',
+        backgroundColor: colors.surface,
+      }}
+    >
+      <Text selectable style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
+        No reading logged today
+      </Text>
+      <Text selectable style={{ color: colors.mutedText, fontSize: 16, lineHeight: 24 }}>
+        Start today’s reading whenever you’re ready.
+      </Text>
+      <ActionButton
+        label="Log a reading"
+        accessibilityHint="Opens the Log tab to record today’s reading."
+        onPress={() => router.navigate('/(tabs)/log')}
+        tone="accent"
+      />
+    </View>
+  );
+}
+
 function HistoryDay({ day }: { day: ReadingHistoryDay }) {
   const { colors } = useTheme();
 
@@ -373,6 +415,7 @@ function HistoryDay({ day }: { day: ReadingHistoryDay }) {
 export function ReadingHistory() {
   const { colors } = useTheme();
   const history = useReadingHistory();
+  const readTodayStatus = useReadTodayStatus();
 
   if (history.isInitialLoading) {
     return (
@@ -419,6 +462,7 @@ export function ReadingHistory() {
           History could not be refreshed. {history.refreshError.message}
         </Text>
       ) : null}
+      {readTodayStatus.data?.has_read_today === false ? <LogTodayCallout /> : null}
       {history.days.length === 0 ? (
         <View accessibilityLiveRegion="polite" style={{ gap: 16, paddingTop: 48 }}>
           <Text selectable style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>Your history is waiting</Text>

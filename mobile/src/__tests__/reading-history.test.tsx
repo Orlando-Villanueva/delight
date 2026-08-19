@@ -12,7 +12,7 @@ import { themeTokens } from '@/theme/tokens';
 
 jest.mock('@/auth/auth-context', () => ({ useAuthenticatedApi: jest.fn() }));
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('expo-router', () => ({ router: { navigate: jest.fn(), push: jest.fn() } }));
 
 jest.mock('react-native/Libraries/Components/RefreshControl/RefreshControl', () => {
   const { View } = jest.requireActual('react-native');
@@ -32,16 +32,38 @@ jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) =
   return { remove: jest.fn() };
 });
 
-async function renderHistory() {
+async function renderHistory(readToday: boolean | 'unavailable' = true) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { gcTime: 0, retry: false }, mutations: { retry: false } },
+    defaultOptions: { queries: { gcTime: 0, retry: false, staleTime: Infinity }, mutations: { retry: false } },
   });
+
+  if (readToday !== 'unavailable') {
+    queryClient.setQueryData(['bootstrap'], bootstrapResponse(readToday).data);
+  }
 
   function Wrapper({ children }: PropsWithChildren) {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   }
 
-  return await render(<HistoryScreen />, { wrapper: Wrapper });
+  return Object.assign(await render(<HistoryScreen />, { wrapper: Wrapper }), { queryClient });
+}
+
+function bootstrapResponse(hasReadToday: boolean) {
+  return {
+    data: {
+      user: { id: 1, name: 'Reader', email: 'reader@example.com' },
+      today: '2026-08-10',
+      yesterday: '2026-08-09',
+      books: [],
+      recent_book_ids: [],
+      has_read_today: hasReadToday,
+      current_streak: 0,
+      longest_streak: 0,
+      this_week_days: 0,
+      this_month_days: 0,
+      activity: [],
+    },
+  };
 }
 
 function historyResponse(page: number, lastPage: number, date: string, groups = [readingGroup()]): unknown {
@@ -68,6 +90,7 @@ function readingGroup(overrides: Partial<Record<string, unknown>> = {}) {
 beforeEach(() => {
   request.mockReset();
   mockAppStateListener = undefined;
+  jest.mocked(router.navigate).mockClear();
   jest.mocked(router.push).mockClear();
   jest.mocked(useAuthenticatedApi).mockReturnValue(request);
 });
@@ -75,6 +98,57 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('reading history', () => {
+  it('shows an accessible Log today callout when bootstrap reports no reading today', async () => {
+    request.mockResolvedValue(historyResponse(1, 1, '2026-08-09'));
+
+    const screen = await renderHistory(false);
+
+    expect(await screen.findByText('No reading logged today')).toBeOnTheScreen();
+    const logButton = screen.getByRole('button', { name: 'Log a reading' });
+    expect(logButton).toHaveProp('accessibilityHint', 'Opens the Log tab to record today’s reading.');
+    expect(logButton).toHaveStyle({ minHeight: themeTokens.minimumTouchTarget });
+    fireEvent.press(logButton);
+
+    expect(router.navigate).toHaveBeenCalledWith('/(tabs)/log');
+  });
+
+  it('hides the Log today callout when bootstrap reports a reading today', async () => {
+    request.mockResolvedValue(historyResponse(1, 1, '2026-08-10'));
+
+    const screen = await renderHistory(true);
+
+    await waitFor(() => expect(screen.getByText('John 1-2')).toBeOnTheScreen());
+    expect(screen.queryByText('No reading logged today')).not.toBeOnTheScreen();
+  });
+
+  it('hides the Log today callout after bootstrap refetch reports a reading today', async () => {
+    request.mockResolvedValue(historyResponse(1, 1, '2026-08-09'));
+
+    const screen = await renderHistory(false);
+    expect(await screen.findByText('No reading logged today')).toBeOnTheScreen();
+
+    await act(async () => {
+      screen.queryClient.setQueryData(['bootstrap'], bootstrapResponse(true).data);
+    });
+
+    await waitFor(() => expect(screen.queryByText('No reading logged today')).not.toBeOnTheScreen());
+  });
+
+  it('keeps History usable without a Log today claim when bootstrap is unavailable', async () => {
+    request.mockImplementation((path: string) => {
+      if (path === '/api/v1/bootstrap') {
+        return Promise.reject(new Error('Delight could not connect.'));
+      }
+
+      return Promise.resolve(historyResponse(1, 1, '2026-08-09'));
+    });
+
+    const screen = await renderHistory('unavailable');
+
+    expect(await screen.findByText('John 1-2')).toBeOnTheScreen();
+    expect(screen.queryByText('No reading logged today')).not.toBeOnTheScreen();
+  });
+
   it('renders API-ordered day groups and only renders notes when present', async () => {
     const dateTimeFormatSpy = jest.spyOn(Intl, 'DateTimeFormat');
     request.mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [
