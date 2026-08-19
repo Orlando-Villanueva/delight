@@ -89,6 +89,13 @@ function readingGroup(overrides: Partial<Record<string, unknown>> = {}) {
 
 beforeEach(() => {
   request.mockReset();
+  request.mockImplementation((path: string) => {
+    if (path === '/api/v1/bootstrap') {
+      return Promise.resolve(bootstrapResponse(true));
+    }
+
+    return Promise.reject(new Error(`Unexpected request: ${path}`));
+  });
   mockAppStateListener = undefined;
   jest.mocked(router.navigate).mockClear();
   jest.mocked(router.push).mockClear();
@@ -147,6 +154,44 @@ describe('reading history', () => {
 
     expect(await screen.findByText('John 1-2')).toBeOnTheScreen();
     expect(screen.queryByText('No reading logged today')).not.toBeOnTheScreen();
+  });
+
+  it('refreshes Bootstrap with History so a new reading removes the Log today callout', async () => {
+    let bootstrapRequests = 0;
+    let historyRequests = 0;
+    request.mockImplementation((path: string) => {
+      if (path === '/api/v1/bootstrap') {
+        bootstrapRequests += 1;
+
+        return Promise.resolve(bootstrapResponse(bootstrapRequests > 1));
+      }
+
+      historyRequests += 1;
+
+      return Promise.resolve(historyResponse(1, 1, historyRequests === 1 ? '2026-08-09' : '2026-08-10'));
+    });
+
+    const screen = await renderHistory('unavailable');
+    expect(await screen.findByText('No reading logged today')).toBeOnTheScreen();
+
+    await act(async () => {
+      await screen.getByTestId('history-refresh-control').props.onRefresh();
+    });
+
+    await waitFor(() => expect(screen.getByText('Monday, August 10, 2026')).toBeOnTheScreen());
+    expect(screen.queryByText('No reading logged today')).not.toBeOnTheScreen();
+    expect(bootstrapRequests).toBe(2);
+    expect(historyRequests).toBe(2);
+  });
+
+  it('keeps the empty-history Log action as the only CTA', async () => {
+    request.mockResolvedValueOnce({ data: [], meta: { current_page: 1, last_page: 1 } });
+
+    const screen = await renderHistory(false);
+
+    expect(await screen.findByText('Your history is waiting')).toBeOnTheScreen();
+    expect(screen.queryByText('No reading logged today')).not.toBeOnTheScreen();
+    expect(screen.getAllByRole('button', { name: 'Log a reading' })).toHaveLength(1);
   });
 
   it('renders API-ordered day groups and only renders notes when present', async () => {
@@ -288,8 +333,8 @@ describe('reading history', () => {
 
     await waitFor(() => expect(screen.getByText('John 1-2')).toBeOnTheScreen());
 
-    expect(request).toHaveBeenCalledTimes(3);
-    expect(request).toHaveBeenLastCalledWith('/api/v1/reading-logs?page=1');
+    expect(request).toHaveBeenCalledTimes(4);
+    expect(request.mock.calls).toContainEqual(['/api/v1/reading-logs?page=1']);
     expect(screen.queryByText('John 1')).not.toBeOnTheScreen();
   });
 
@@ -315,7 +360,7 @@ describe('reading history', () => {
 
     await waitFor(() => expect(screen.getByText(/John 5/)).toBeOnTheScreen());
     expect(screen.queryByText(/John 4/)).not.toBeOnTheScreen();
-    expect(request).toHaveBeenLastCalledWith('/api/v1/reading-logs?page=1');
+    expect(request.mock.calls).toContainEqual(['/api/v1/reading-logs?page=1']);
   });
 
   it('discards a pending load-more response after refresh', async () => {
@@ -343,7 +388,7 @@ describe('reading history', () => {
     await act(async () => {
       refreshResult = refresh();
     });
-    await waitFor(() => expect(request).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(4));
 
     await act(async () => {
       resolveRefresh(historyResponse(1, 1, '2026-08-11', [
@@ -393,7 +438,7 @@ describe('reading history', () => {
       mockAppStateListener?.('active');
     });
 
-    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(3));
   });
 
   it('offers the Log tab when history is empty', async () => {
