@@ -67,7 +67,7 @@ function getTodayCardContent({
     return {
       title: 'Your streak is at risk',
       description: `Log today’s reading before the day ends to keep your ${streakLabel}.`,
-      dateColor: colors.accent,
+      dateColor: warningTextColor,
       titleColor: warningTextColor,
       descriptionColor: warningTextColor,
       borderColor: colors.accent,

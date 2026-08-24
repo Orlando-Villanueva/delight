@@ -140,6 +140,7 @@ describe('native Home dashboard', () => {
       backgroundColor: '#fff7ed',
       borderColor: '#f97316',
     });
+    expect(screen.getByText('Monday, August 10')).toHaveStyle({ color: '#0f172a' });
     fireEvent.press(screen.getByRole('button', { name: 'Log today’s reading' }));
     expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/log');
   });

@@ -38,6 +38,7 @@ Local sections in this file are project-specific. The Boost-managed framework gu
 - **Flowbite**: Most complex components (Drawers, Modals, Dropdowns) are based on Flowbite. Refer to `resources/views/components/ui` for local wrappers.
 - **Responsiveness**: Always test mobile (mobile-first approach). Many users log readings on the go.
 - **Accessibility Priority**: Treat baseline accessibility as part of overall quality, including semantic HTML, alt text for meaningful imagery, keyboard navigation, and sufficient color contrast. In reviews, focus on high-impact, low-effort accessibility fixes and defer only low-impact enhancements that do not block core user flows.
+- **UI Review Findings**: Before dismissing an automated or human UI-review comment, verify it against the rendered state and relevant design tokens. Treat concrete, inexpensive usability issues as actionable even when the visual intent is sound.
 
 ## Coding Style & Naming Conventions
 - Structure services as `App\Services\{Domain}Service`; keep action classes verb-oriented.
