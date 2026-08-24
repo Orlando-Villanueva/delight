@@ -126,7 +126,38 @@ describe('native Home dashboard', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/log');
   });
 
-  it('renders all supplied dashboard values without recalculating them', async () => {
+  it('shows a restrained, accessible warning in the Today card when the server reports an at-risk streak', async () => {
+    mockRequest.mockResolvedValue(bootstrap({
+      current_streak: 3,
+      streak_state: 'warning',
+    }));
+
+    await renderHome();
+
+    expect(await screen.findByText('Your streak is at risk')).toBeOnTheScreen();
+    expect(screen.getByText('Log today’s reading before the day ends to keep your 3-day streak.')).toBeOnTheScreen();
+    expect(screen.getByText('Your streak is at risk').parent).toHaveStyle({
+      backgroundColor: '#fff7ed',
+      borderColor: '#f97316',
+    });
+    expect(screen.getByText('Monday, August 10')).toHaveStyle({ color: '#0f172a' });
+    fireEvent.press(screen.getByRole('button', { name: 'Log today’s reading' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/log');
+  });
+
+  it('keeps the generic Today card for an active streak before the warning threshold', async () => {
+    mockRequest.mockResolvedValue(bootstrap({
+      current_streak: 1,
+      streak_state: 'active',
+    }));
+
+    await renderHome();
+
+    expect(await screen.findByText('Ready when you are')).toBeOnTheScreen();
+    expect(screen.queryByText('Your streak is at risk')).not.toBeOnTheScreen();
+  });
+
+  it('renders streak and rhythm values while keeping general reading stats out of Home', async () => {
     mockRequest.mockResolvedValue(bootstrap({
       has_read_today: true,
       current_streak: 4,
@@ -145,8 +176,10 @@ describe('native Home dashboard', () => {
       borderWidth: 1,
       borderColor: '#cbd5e1',
     });
-    expect(screen.getByLabelText('Days read this week: 3')).toBeOnTheScreen();
-    expect(screen.getByLabelText('Days read this month: 8')).toBeOnTheScreen();
+    expect(screen.queryByText('Days read this week')).not.toBeOnTheScreen();
+    expect(screen.queryByText('Days read this month')).not.toBeOnTheScreen();
+    expect(screen.queryByText('This month')).not.toBeOnTheScreen();
+    expect(screen.queryByText('8 days')).not.toBeOnTheScreen();
     expect(screen.getByText('Best')).toBeOnTheScreen();
     expect(screen.getByLabelText('Current streak: 4 days. Best: 11 days.')).toHaveStyle({
       borderWidth: 1,

@@ -21,6 +21,7 @@ export type BootstrapData = {
   books: BootstrapBook[];
   recent_book_ids: number[];
   has_read_today: boolean;
+  streak_state?: 'inactive' | 'active' | 'warning';
   current_streak: number;
   longest_streak: number;
   this_week_days: number;
@@ -36,10 +37,9 @@ export type HomeDashboardData = Pick<
   BootstrapData,
   | 'today'
   | 'has_read_today'
+  | 'streak_state'
   | 'current_streak'
   | 'longest_streak'
-  | 'this_week_days'
-  | 'this_month_days'
   | 'activity'
 >;
 

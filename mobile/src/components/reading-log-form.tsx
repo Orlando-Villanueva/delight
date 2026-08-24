@@ -1,12 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import {
   AccessibilityInfo,
   ActivityIndicator,
-  AppState,
-  type AppStateStatus,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
@@ -16,11 +14,12 @@ import {
 } from 'react-native';
 
 import { ApiError } from '@/api/api-error';
-import { fetchBootstrap, type BootstrapBook, type BootstrapData } from '@/api/bootstrap';
+import { type BootstrapBook, type BootstrapData } from '@/api/bootstrap';
 import { createReadingLog, type CreateReadingInput, type CreatedReading } from '@/api/reading-log';
 import { useAuthenticatedApi } from '@/auth/auth-context';
 import { BookPickerModal } from '@/components/book-picker-modal';
 import { useKeyboardFocusedScroll } from '@/hooks/use-keyboard-focused-scroll';
+import { useBootstrap } from '@/hooks/use-bootstrap';
 import {
   chapterCountLabel,
   chaptersAfterBookChange,
@@ -623,25 +622,7 @@ function preferredInitialBookId(bootstrap: BootstrapData): number | null {
 
 export function ReadingLogForm() {
   const { colors } = useTheme();
-  const request = useAuthenticatedApi();
-  const { data, isPending, refetch } = useQuery({
-    queryKey: ['bootstrap'],
-    queryFn: () => fetchBootstrap(request),
-  });
-
-  const refresh = useCallback(async () => {
-    await refetch();
-  }, [refetch]);
-
-  useEffect(() => {
-    function refreshWhenForegrounded(nextAppState: AppStateStatus) {
-      if (nextAppState === 'active') {
-        void refresh();
-      }
-    }
-
-    return AppState.addEventListener('change', refreshWhenForegrounded).remove;
-  }, [refresh]);
+  const { data, isPending, refresh } = useBootstrap();
 
   if (isPending) {
     return <LoadingState />;

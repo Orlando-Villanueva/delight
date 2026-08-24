@@ -7,6 +7,7 @@ use App\Http\Resources\Api\V1\MobileBootstrapResource;
 use App\Models\User;
 use App\Services\BibleReferenceService;
 use App\Services\ReadingFormService;
+use App\Services\StreakStateService;
 use App\Services\UserStatisticsService;
 use Illuminate\Http\Request;
 
@@ -16,6 +17,7 @@ class MobileBootstrapController extends Controller
         Request $request,
         BibleReferenceService $bibleReferenceService,
         ReadingFormService $readingFormService,
+        StreakStateService $streakStateService,
         UserStatisticsService $userStatisticsService,
     ): MobileBootstrapResource {
         /** @var User $user */
@@ -23,6 +25,8 @@ class MobileBootstrapController extends Controller
         $today = today();
         $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
         $recentBooks = $readingFormService->getRecentBooksForForm($user);
+        $hasReadToday = $readingFormService->hasReadToday($user);
+        $streaks = $userStatisticsService->getStreakStatistics($user);
 
         return new MobileBootstrapResource([
             'user' => $user,
@@ -32,8 +36,12 @@ class MobileBootstrapController extends Controller
                 includeDeuterocanonical: $includeDeuterocanonical,
             ),
             'recent_book_ids' => array_column($recentBooks, 'id'),
-            'has_read_today' => $readingFormService->hasReadToday($user),
-            'streaks' => $userStatisticsService->getStreakStatistics($user),
+            'has_read_today' => $hasReadToday,
+            'streaks' => $streaks,
+            'streak_state' => $streakStateService->determineStreakState(
+                currentStreak: $streaks['current_streak'],
+                hasReadToday: $hasReadToday,
+            ),
             'reading_summary' => $userStatisticsService->getReadingSummary($user),
         ]);
     }
