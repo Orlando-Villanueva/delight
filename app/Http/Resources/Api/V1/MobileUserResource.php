@@ -18,6 +18,7 @@ class MobileUserResource extends JsonResource
             'id' => $this->resource->id,
             'name' => $this->resource->name,
             'email' => $this->resource->email,
+            'avatar_url' => $this->resource->avatar_url,
         ];
     }
 }

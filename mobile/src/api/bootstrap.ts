@@ -15,6 +15,7 @@ export type BootstrapData = {
     id: number;
     name: string;
     email: string;
+    avatar_url?: string | null;
   };
   today: string;
   yesterday: string;

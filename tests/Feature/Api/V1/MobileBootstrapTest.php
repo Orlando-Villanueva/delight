@@ -34,7 +34,9 @@ it('requires a Sanctum token with the mobile ability', function (): void {
 });
 
 it('returns complete zero-filled bootstrap data in the application timezone', function (): void {
-    $user = User::factory()->create();
+    $user = User::factory()->create([
+        'avatar_url' => 'https://example.com/reader.jpg',
+    ]);
     $token = $user->createToken('Pixel', ['mobile'])->plainTextToken;
 
     $response = $this->withToken($token)
@@ -43,6 +45,7 @@ it('returns complete zero-filled bootstrap data in the application timezone', fu
         ->assertJsonPath('data.user.id', $user->id)
         ->assertJsonPath('data.user.name', $user->name)
         ->assertJsonPath('data.user.email', $user->email)
+        ->assertJsonPath('data.user.avatar_url', 'https://example.com/reader.jpg')
         ->assertJsonPath('data.today', MOBILE_BOOTSTRAP_TODAY)
         ->assertJsonPath('data.yesterday', MOBILE_BOOTSTRAP_YESTERDAY)
         ->assertJsonPath('data.recent_book_ids', [])
@@ -56,7 +59,7 @@ it('returns complete zero-filled bootstrap data in the application timezone', fu
         ->assertJsonCount(14, 'data.activity')
         ->assertJsonStructure([
             'data' => [
-                'user' => ['id', 'name', 'email'],
+                'user' => ['id', 'name', 'email', 'avatar_url'],
                 'today',
                 'yesterday',
                 'books' => ['*' => ['id', 'name', 'chapters', 'testament']],

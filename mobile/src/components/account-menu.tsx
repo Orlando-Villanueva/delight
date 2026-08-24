@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, Pressable, Text, View } from 'react-native';
+import { AccessibilityInfo, Image, Pressable, Text, View } from 'react-native';
 
 import { fetchBootstrap } from '@/api/bootstrap';
 import { useAuth, useAuthenticatedApi, type AuthUser } from '@/auth/auth-context';
@@ -56,6 +56,69 @@ function identityAnnouncement(user: AuthUser | null, isLoading: boolean): string
   return 'Account details are unavailable.';
 }
 
+type AccountAvatarProps = {
+  color: string;
+  initials: string | null;
+  url?: string | null;
+  size: number;
+};
+
+function AccountAvatar({ color, initials, url, size }: AccountAvatarProps) {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasFailed, setHasFailed] = useState(false);
+
+  const borderRadius = size / 2;
+
+  return (
+    <View
+      accessible={false}
+      style={{
+        width: size,
+        height: size,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius,
+        overflow: 'hidden',
+      }}
+    >
+      {initials ? (
+        <Text
+          accessible={false}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+          numberOfLines={1}
+          style={{ color, fontSize: size * 0.4, fontWeight: '700' }}
+        >
+          {initials}
+        </Text>
+      ) : (
+        <MaterialCommunityIcons
+          accessible={false}
+          color={color}
+          name="account"
+          size={size * 0.625}
+        />
+      )}
+      {url && !hasFailed ? (
+        <Image
+          accessible={false}
+          testID="account-avatar-image"
+          source={{ uri: url }}
+          resizeMode="cover"
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasFailed(true)}
+          style={{
+            position: 'absolute',
+            width: size,
+            height: size,
+            opacity: isLoaded ? 1 : 0,
+          }}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 export function AccountMenu() {
   const { user: sessionUser } = useAuth();
   const request = useAuthenticatedApi();
@@ -108,30 +171,16 @@ export function AccountMenu() {
             paddingHorizontal: 6,
             borderRadius: 16,
             backgroundColor: colors.primarySubtle,
+            overflow: 'hidden',
           }}
         >
-          {initials ? (
-            <Text
-              accessible={false}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-              numberOfLines={1}
-              style={{
-                color: colors.primary,
-                fontSize: 13,
-                fontWeight: '700',
-              }}
-            >
-              {initials}
-            </Text>
-          ) : (
-            <MaterialCommunityIcons
-              accessible={false}
-              color={colors.primary}
-              name="account"
-              size={20}
-            />
-          )}
+          <AccountAvatar
+            key={user?.avatar_url ?? 'fallback'}
+            color={colors.primary}
+            initials={initials}
+            url={user?.avatar_url}
+            size={32}
+          />
         </View>
       </Pressable>
       <BottomSheet
@@ -147,6 +196,24 @@ export function AccountMenu() {
         <View accessibilityLiveRegion="polite" style={{ gap: 4 }}>
           {user ? (
             <>
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: colors.primarySubtle,
+                  overflow: 'hidden',
+                  marginBottom: 8,
+                }}
+              >
+                <AccountAvatar
+                  key={user.avatar_url ?? 'fallback'}
+                  color={colors.primary}
+                  initials={initials}
+                  url={user.avatar_url}
+                  size={56}
+                />
+              </View>
               <Text
                 selectable
                 style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}
