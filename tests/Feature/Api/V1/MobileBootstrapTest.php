@@ -45,6 +45,7 @@ it('returns complete zero-filled bootstrap data in the application timezone', fu
         ->assertJsonPath('data.yesterday', MOBILE_BOOTSTRAP_YESTERDAY)
         ->assertJsonPath('data.recent_book_ids', [])
         ->assertJsonPath('data.has_read_today', false)
+        ->assertJsonPath('data.streak_state', 'inactive')
         ->assertJsonPath('data.current_streak', 0)
         ->assertJsonPath('data.longest_streak', 0)
         ->assertJsonPath('data.this_week_days', 0)
@@ -59,6 +60,7 @@ it('returns complete zero-filled bootstrap data in the application timezone', fu
                 'books' => ['*' => ['id', 'name', 'chapters', 'testament']],
                 'recent_book_ids',
                 'has_read_today',
+                'streak_state',
                 'current_streak',
                 'longest_streak',
                 'this_week_days',
@@ -149,6 +151,7 @@ it('returns the existing statistics and fourteen-day activity counts', function 
         ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
         ->assertSuccessful()
         ->assertJsonPath('data.has_read_today', true)
+        ->assertJsonPath('data.streak_state', 'active')
         ->assertJsonPath('data.current_streak', 3)
         ->assertJsonPath('data.longest_streak', 3)
         ->assertJsonPath('data.this_week_days', 1)
@@ -160,6 +163,49 @@ it('returns the existing statistics and fourteen-day activity counts', function 
     expect(Cache::has("user_current_streak_{$user->id}"))->toBeTrue()
         ->and(Cache::has("user_recent_reading_activity_series_{$user->id}"))->toBeTrue()
         ->and(Cache::has("user_total_reading_days_{$user->id}"))->toBeTrue();
+});
+
+it('returns the server-computed warning state only for an unread active streak after 18:00', function (): void {
+    Carbon::setTestNow(Carbon::parse(MOBILE_BOOTSTRAP_TODAY.' 18:00:00', config('app.timezone')));
+
+    $user = User::factory()->create();
+    createBootstrapReading($user, 1, MOBILE_BOOTSTRAP_YESTERDAY, MOBILE_BOOTSTRAP_YESTERDAY.' 08:00:00');
+
+    $this->withToken($user->createToken('Pixel', ['mobile'])->plainTextToken)
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
+        ->assertSuccessful()
+        ->assertJsonPath('data.has_read_today', false)
+        ->assertJsonPath('data.current_streak', 1)
+        ->assertJsonPath('data.streak_state', 'warning');
+});
+
+it('returns active instead of warning before 18:00 for an unread active streak', function (): void {
+    Carbon::setTestNow(Carbon::parse(MOBILE_BOOTSTRAP_TODAY.' 17:59:00', config('app.timezone')));
+
+    $user = User::factory()->create();
+    createBootstrapReading($user, 1, MOBILE_BOOTSTRAP_YESTERDAY, MOBILE_BOOTSTRAP_YESTERDAY.' 08:00:00');
+
+    $this->withToken($user->createToken('Pixel', ['mobile'])->plainTextToken)
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
+        ->assertSuccessful()
+        ->assertJsonPath('data.has_read_today', false)
+        ->assertJsonPath('data.current_streak', 1)
+        ->assertJsonPath('data.streak_state', 'active');
+});
+
+it('does not return warning after today has been read', function (): void {
+    Carbon::setTestNow(Carbon::parse(MOBILE_BOOTSTRAP_TODAY.' 18:00:00', config('app.timezone')));
+
+    $user = User::factory()->create();
+    createBootstrapReading($user, 1, MOBILE_BOOTSTRAP_YESTERDAY, MOBILE_BOOTSTRAP_YESTERDAY.' 08:00:00');
+    createBootstrapReading($user, 1, MOBILE_BOOTSTRAP_TODAY, MOBILE_BOOTSTRAP_TODAY.' 12:00:00');
+
+    $this->withToken($user->createToken('Pixel', ['mobile'])->plainTextToken)
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
+        ->assertSuccessful()
+        ->assertJsonPath('data.has_read_today', true)
+        ->assertJsonPath('data.current_streak', 2)
+        ->assertJsonPath('data.streak_state', 'active');
 });
 
 it('does not serve previous-day statistics after midnight', function (): void {

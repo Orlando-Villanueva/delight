@@ -175,7 +175,7 @@ function LoadingState() {
 }
 
 export function HomeDashboard() {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const request = useAuthenticatedApi();
   const router = useRouter();
   const { data, isPending, isRefetchError, isRefetching, refetch } = useQuery({
@@ -234,6 +234,9 @@ export function HomeDashboard() {
 
   const dashboard = data;
   const isEmpty = dashboard.activity.every((entry) => entry.count === 0);
+  const isStreakAtRisk = dashboard.streak_state === 'warning';
+  const warningTextColor = mode === 'dark' ? colors.text : colors.accentContrast;
+  const streakLabel = `${dashboard.current_streak}-day streak`;
 
   return (
     <ScrollView
@@ -255,22 +258,37 @@ export function HomeDashboard() {
           gap: 8,
           padding: themeTokens.spacing.screen,
           borderWidth: 1,
-          borderColor: colors.border,
+          borderColor: isStreakAtRisk ? colors.accent : colors.border,
           borderRadius: themeTokens.radius.card,
-          backgroundColor: colors.surface,
+          backgroundColor: isStreakAtRisk ? colors.accentSubtle : colors.surface,
         }}
       >
-        <Text selectable style={{ color: colors.mutedText, fontWeight: '600' }}>
+        <Text
+          selectable
+          style={{ color: isStreakAtRisk ? colors.accent : colors.mutedText, fontWeight: '600' }}
+        >
           {formatToday(dashboard.today)}
         </Text>
         <Text
           selectable
-          style={{ color: dashboard.has_read_today ? colors.success : colors.text, fontSize: 24, fontWeight: '700' }}
+          style={{
+            color: isStreakAtRisk ? warningTextColor : dashboard.has_read_today ? colors.success : colors.text,
+            fontSize: 24,
+            fontWeight: '700',
+          }}
         >
-          {dashboard.has_read_today ? 'Reading logged today' : 'Ready when you are'}
+          {dashboard.has_read_today
+            ? 'Reading logged today'
+            : isStreakAtRisk
+              ? 'Your streak is at risk'
+              : 'Ready when you are'}
         </Text>
-        <Text selectable style={{ color: colors.mutedText }}>
-          {dashboard.has_read_today ? 'Your reading is safely recorded.' : 'Log today’s reading to keep your journey moving.'}
+        <Text selectable style={{ color: isStreakAtRisk ? warningTextColor : colors.mutedText }}>
+          {dashboard.has_read_today
+            ? 'Your reading is safely recorded.'
+            : isStreakAtRisk
+              ? `Log today’s reading before the day ends to keep your ${streakLabel}.`
+              : 'Log today’s reading to keep your journey moving.'}
         </Text>
         {!dashboard.has_read_today ? (
           <Pressable

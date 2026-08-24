@@ -24,6 +24,7 @@ class MobileBootstrapResource extends JsonResource
             'books' => $this->resource['books'],
             'recent_book_ids' => $this->resource['recent_book_ids'],
             'has_read_today' => $this->resource['has_read_today'],
+            'streak_state' => $this->resource['streak_state'],
             'current_streak' => $streaks['current_streak'],
             'longest_streak' => $streaks['longest_streak'],
             'this_week_days' => $readingSummary['this_week_days'],
