@@ -105,6 +105,11 @@ describe('account menu', () => {
       'Shows the signed-in account and sign out',
     );
     expect(screen.getByText('R')).toBeOnTheScreen();
+    expect(screen.getByTestId('header-account-avatar')).toHaveStyle({
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+    });
     expect(screen.queryByLabelText('Sign out')).not.toBeOnTheScreen();
     expect(screen.queryByText('Log out')).not.toBeOnTheScreen();
     expect(request).not.toHaveBeenCalled();

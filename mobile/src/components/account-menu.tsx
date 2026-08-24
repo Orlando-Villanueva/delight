@@ -162,13 +162,13 @@ export function AccountMenu() {
         }}
       >
         <View
+          testID="header-account-avatar"
           accessible={false}
           style={{
-            minWidth: 32,
-            minHeight: 32,
+            width: 32,
+            height: 32,
             alignItems: 'center',
             justifyContent: 'center',
-            paddingHorizontal: 6,
             borderRadius: 16,
             backgroundColor: colors.primarySubtle,
             overflow: 'hidden',
