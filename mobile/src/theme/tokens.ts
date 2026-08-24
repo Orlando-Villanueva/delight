@@ -50,4 +50,5 @@ export const themeTokens = {
   minimumTouchTarget: 44,
 } as const;
 
-export type ThemeColors = (typeof themeTokens)['light'];
+export type ThemeColors = (typeof themeTokens)['light'] | (typeof themeTokens)['dark'];
+export type ThemeMode = 'light' | 'dark';

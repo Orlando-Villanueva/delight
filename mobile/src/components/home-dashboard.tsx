@@ -10,7 +10,7 @@ import {
 
 import { type HomeDashboardData } from '@/api/bootstrap';
 import { useBootstrap } from '@/hooks/use-bootstrap';
-import { themeTokens } from '@/theme/tokens';
+import { themeTokens, type ThemeColors } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
 function formatDate(date: string, options: Intl.DateTimeFormatOptions): string {
@@ -21,6 +21,71 @@ function formatDate(date: string, options: Intl.DateTimeFormatOptions): string {
 
 function formatToday(date: string): string {
   return formatDate(date, { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+type TodayCardContent = {
+  title: string;
+  description: string;
+  dateColor: string;
+  titleColor: string;
+  descriptionColor: string;
+  borderColor: string;
+  backgroundColor: string;
+  showsLogAction: boolean;
+};
+
+function getTodayCardContent({
+  hasReadToday,
+  isStreakAtRisk,
+  currentStreak,
+  colors,
+  mode,
+}: Readonly<{
+  hasReadToday: boolean;
+  isStreakAtRisk: boolean;
+  currentStreak: number;
+  colors: ThemeColors;
+  mode: 'light' | 'dark';
+}>): TodayCardContent {
+  if (hasReadToday) {
+    return {
+      title: 'Reading logged today',
+      description: 'Your reading is safely recorded.',
+      dateColor: colors.mutedText,
+      titleColor: colors.success,
+      descriptionColor: colors.mutedText,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      showsLogAction: false,
+    };
+  }
+
+  if (isStreakAtRisk) {
+    const streakLabel = `${currentStreak}-day streak`;
+    const warningTextColor = mode === 'dark' ? colors.text : colors.accentContrast;
+
+    return {
+      title: 'Your streak is at risk',
+      description: `Log today’s reading before the day ends to keep your ${streakLabel}.`,
+      dateColor: colors.accent,
+      titleColor: warningTextColor,
+      descriptionColor: warningTextColor,
+      borderColor: colors.accent,
+      backgroundColor: colors.accentSubtle,
+      showsLogAction: true,
+    };
+  }
+
+  return {
+    title: 'Ready when you are',
+    description: 'Log today’s reading to keep your journey moving.',
+    dateColor: colors.mutedText,
+    titleColor: colors.text,
+    descriptionColor: colors.mutedText,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    showsLogAction: true,
+  };
 }
 
 function StreakCard({
@@ -192,9 +257,13 @@ export function HomeDashboard() {
 
   const dashboard = data;
   const isEmpty = dashboard.activity.every((entry) => entry.count === 0);
-  const isStreakAtRisk = dashboard.streak_state === 'warning';
-  const warningTextColor = mode === 'dark' ? colors.text : colors.accentContrast;
-  const streakLabel = `${dashboard.current_streak}-day streak`;
+  const todayCard = getTodayCardContent({
+    hasReadToday: dashboard.has_read_today,
+    isStreakAtRisk: dashboard.streak_state === 'warning',
+    currentStreak: dashboard.current_streak,
+    colors,
+    mode,
+  });
 
   return (
     <ScrollView
@@ -216,39 +285,31 @@ export function HomeDashboard() {
           gap: 8,
           padding: themeTokens.spacing.screen,
           borderWidth: 1,
-          borderColor: isStreakAtRisk ? colors.accent : colors.border,
+          borderColor: todayCard.borderColor,
           borderRadius: themeTokens.radius.card,
-          backgroundColor: isStreakAtRisk ? colors.accentSubtle : colors.surface,
+          backgroundColor: todayCard.backgroundColor,
         }}
       >
         <Text
           selectable
-          style={{ color: isStreakAtRisk ? colors.accent : colors.mutedText, fontWeight: '600' }}
+          style={{ color: todayCard.dateColor, fontWeight: '600' }}
         >
           {formatToday(dashboard.today)}
         </Text>
         <Text
           selectable
           style={{
-            color: isStreakAtRisk ? warningTextColor : dashboard.has_read_today ? colors.success : colors.text,
+            color: todayCard.titleColor,
             fontSize: 24,
             fontWeight: '700',
           }}
         >
-          {dashboard.has_read_today
-            ? 'Reading logged today'
-            : isStreakAtRisk
-              ? 'Your streak is at risk'
-              : 'Ready when you are'}
+          {todayCard.title}
         </Text>
-        <Text selectable style={{ color: isStreakAtRisk ? warningTextColor : colors.mutedText }}>
-          {dashboard.has_read_today
-            ? 'Your reading is safely recorded.'
-            : isStreakAtRisk
-              ? `Log today’s reading before the day ends to keep your ${streakLabel}.`
-              : 'Log today’s reading to keep your journey moving.'}
+        <Text selectable style={{ color: todayCard.descriptionColor }}>
+          {todayCard.description}
         </Text>
-        {!dashboard.has_read_today ? (
+        {todayCard.showsLogAction ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Log today’s reading"
