@@ -29,7 +29,7 @@ export const themeTokens = {
     primarySubtle: '#172554',
     accent: '#fb923c',
     accentContrast: '#0f172a',
-    accentSubtle: '#431407',
+    accentSubtle: '#3f2a1d',
     accentAction: '#f97316',
     accentActionContrast: '#3b1a0a',
     success: '#86efac',

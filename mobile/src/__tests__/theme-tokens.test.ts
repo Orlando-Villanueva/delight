@@ -17,6 +17,7 @@ describe('mobile semantic theme tokens', () => {
       primaryContrast: '#0f172a',
       accent: '#fb923c',
       accentContrast: '#0f172a',
+      accentSubtle: '#3f2a1d',
       accentAction: '#f97316',
       accentActionContrast: '#3b1a0a',
       success: '#86efac',

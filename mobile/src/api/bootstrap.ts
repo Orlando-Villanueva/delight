@@ -40,8 +40,6 @@ export type HomeDashboardData = Pick<
   | 'streak_state'
   | 'current_streak'
   | 'longest_streak'
-  | 'this_week_days'
-  | 'this_month_days'
   | 'activity'
 >;
 

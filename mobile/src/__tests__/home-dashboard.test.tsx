@@ -156,7 +156,7 @@ describe('native Home dashboard', () => {
     expect(screen.queryByText('Your streak is at risk')).not.toBeOnTheScreen();
   });
 
-  it('renders all supplied dashboard values without recalculating them', async () => {
+  it('renders streak and rhythm values while keeping general reading stats out of Home', async () => {
     mockRequest.mockResolvedValue(bootstrap({
       has_read_today: true,
       current_streak: 4,
@@ -175,8 +175,10 @@ describe('native Home dashboard', () => {
       borderWidth: 1,
       borderColor: '#cbd5e1',
     });
-    expect(screen.getByLabelText('Days read this week: 3')).toBeOnTheScreen();
-    expect(screen.getByLabelText('Days read this month: 8')).toBeOnTheScreen();
+    expect(screen.queryByText('Days read this week')).not.toBeOnTheScreen();
+    expect(screen.queryByText('Days read this month')).not.toBeOnTheScreen();
+    expect(screen.queryByText('This month')).not.toBeOnTheScreen();
+    expect(screen.queryByText('8 days')).not.toBeOnTheScreen();
     expect(screen.getByText('Best')).toBeOnTheScreen();
     expect(screen.getByLabelText('Current streak: 4 days. Best: 11 days.')).toHaveStyle({
       borderWidth: 1,

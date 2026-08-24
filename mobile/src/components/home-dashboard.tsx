@@ -68,26 +68,6 @@ function StreakCard({
   );
 }
 
-function SupportingStat({ label, value }: Readonly<{ label: string; value: number }>) {
-  const { colors } = useTheme();
-
-  return (
-    <View
-      accessible
-      accessibilityLabel={`${label}: ${value}`}
-      style={{ flex: 1, minWidth: 130, gap: 4, padding: themeTokens.spacing.section }}
-    >
-      <Text selectable style={{ color: colors.mutedText }}>{label}</Text>
-      <Text
-        selectable
-        style={{ color: colors.text, fontSize: 20, fontWeight: '700', fontVariant: ['tabular-nums'] }}
-      >
-        {value}
-      </Text>
-    </View>
-  );
-}
-
 function ActivityStrip({
   activity,
   today,
@@ -361,11 +341,10 @@ export function HomeDashboard() {
       ) : null}
 
       <View style={{ gap: 8 }}>
-        <StreakCard currentStreak={dashboard.current_streak} longestStreak={dashboard.longest_streak} />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: themeTokens.spacing.section }}>
-          <SupportingStat label="Days read this week" value={dashboard.this_week_days} />
-          <SupportingStat label="Days read this month" value={dashboard.this_month_days} />
-        </View>
+        <StreakCard
+          currentStreak={dashboard.current_streak}
+          longestStreak={dashboard.longest_streak}
+        />
       </View>
 
       <View style={{ gap: 8 }}>
