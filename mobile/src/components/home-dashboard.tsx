@@ -1,9 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect } from 'react';
 import {
-  AppState,
-  type AppStateStatus,
   ActivityIndicator,
   Pressable,
   RefreshControl,
@@ -12,8 +8,8 @@ import {
   View,
 } from 'react-native';
 
-import { fetchBootstrap, type HomeDashboardData } from '@/api/bootstrap';
-import { useAuthenticatedApi } from '@/auth/auth-context';
+import { type HomeDashboardData } from '@/api/bootstrap';
+import { useBootstrap } from '@/hooks/use-bootstrap';
 import { themeTokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
@@ -156,26 +152,8 @@ function LoadingState() {
 
 export function HomeDashboard() {
   const { colors, mode } = useTheme();
-  const request = useAuthenticatedApi();
   const router = useRouter();
-  const { data, isPending, isRefetchError, isRefetching, refetch } = useQuery({
-    queryKey: ['bootstrap'],
-    queryFn: () => fetchBootstrap(request),
-  });
-
-  const refresh = useCallback(async () => {
-    await refetch();
-  }, [refetch]);
-
-  useEffect(() => {
-    function refreshWhenForegrounded(nextAppState: AppStateStatus) {
-      if (nextAppState === 'active') {
-        void refresh();
-      }
-    }
-
-    return AppState.addEventListener('change', refreshWhenForegrounded).remove;
-  }, [refresh]);
+  const { data, isPending, isRefetchError, isRefetching, refresh } = useBootstrap();
 
   if (isPending) {
     return <LoadingState />;
