@@ -8,6 +8,7 @@ it('issues a non-expiring mobile bearer token for valid normalized credentials',
     $user = User::factory()->create([
         'email' => 'reader@example.com',
         'password' => Hash::make('ValidPass123!'),
+        'avatar_url' => null,
     ]);
 
     $response = $this->postJson('/api/v1/auth/token', [
@@ -22,11 +23,12 @@ it('issues a non-expiring mobile bearer token for valid normalized credentials',
         ->assertJsonPath('data.user.id', $user->id)
         ->assertJsonPath('data.user.name', $user->name)
         ->assertJsonPath('data.user.email', $user->email)
+        ->assertJsonPath('data.user.avatar_url', null)
         ->assertJsonStructure([
             'data' => [
                 'token',
                 'token_type',
-                'user' => ['id', 'name', 'email'],
+                'user' => ['id', 'name', 'email', 'avatar_url'],
             ],
         ]);
 

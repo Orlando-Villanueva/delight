@@ -6,7 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/api-error';
 import { AccountMenu, accountInitials } from '@/components/account-menu';
-import { useAuth, useAuthenticatedApi } from '@/auth/auth-context';
+import { useAuth, useAuthenticatedApi, type AuthUser } from '@/auth/auth-context';
 
 jest.mock('@/auth/auth-context', () => ({
   useAuth: jest.fn(),
@@ -17,7 +17,7 @@ const request = jest.fn();
 const logout = jest.fn();
 let queryClient: QueryClient;
 
-const sessionUser = { id: 1, name: 'Reader', email: 'reader@example.com' };
+const sessionUser: AuthUser = { id: 1, name: 'Reader', email: 'reader@example.com' };
 
 function bootstrap(overrides: Record<string, unknown> = {}) {
   return {
@@ -105,6 +105,11 @@ describe('account menu', () => {
       'Shows the signed-in account and sign out',
     );
     expect(screen.getByText('R')).toBeOnTheScreen();
+    expect(screen.getByTestId('header-account-avatar')).toHaveStyle({
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+    });
     expect(screen.queryByLabelText('Sign out')).not.toBeOnTheScreen();
     expect(screen.queryByText('Log out')).not.toBeOnTheScreen();
     expect(request).not.toHaveBeenCalled();
@@ -121,6 +126,32 @@ describe('account menu', () => {
     expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(
       'Signed in as Reader, reader@example.com.',
     );
+  });
+
+  it('shows the stored profile photo in the account control and sheet', async () => {
+    mockAuth({ ...sessionUser, avatar_url: 'https://example.com/reader.jpg' });
+    await renderMenu();
+
+    const headerImage = screen.getByTestId('account-avatar-image');
+    expect(headerImage).toHaveProp('source', { uri: 'https://example.com/reader.jpg' });
+    expect(headerImage).toHaveStyle({ opacity: 0 });
+
+    await fireEvent(headerImage, 'load');
+    expect(headerImage).toHaveStyle({ opacity: 1 });
+
+    await fireEvent.press(screen.getByLabelText('Account for Reader'));
+    expect(screen.getByTestId('account-avatar-image')).toHaveStyle({ width: 56, height: 56 });
+  });
+
+  it('keeps initials visible while the photo loads and after it fails', async () => {
+    mockAuth({ ...sessionUser, avatar_url: 'not-a-valid-image-url' });
+    await renderMenu();
+
+    expect(screen.getByText('R')).toBeOnTheScreen();
+    await fireEvent(screen.getByTestId('account-avatar-image'), 'error');
+
+    expect(screen.getByText('R')).toBeOnTheScreen();
+    expect(screen.queryByTestId('account-avatar-image')).not.toBeOnTheScreen();
   });
 
   it('reads restored identity from bootstrap when the session has no user', async () => {
