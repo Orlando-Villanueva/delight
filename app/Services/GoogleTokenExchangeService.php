@@ -62,6 +62,8 @@ class GoogleTokenExchangeService
 
     public function resolveWebUser(string $email, ?string $subject, string $name, ?string $avatarUrl): User
     {
+        $email = Str::lower($email);
+
         return DB::transaction(function () use ($email, $subject, $name, $avatarUrl): User {
             $subjectOwner = filled($subject)
                 ? User::query()->where('google_subject', $subject)->lockForUpdate()->first()

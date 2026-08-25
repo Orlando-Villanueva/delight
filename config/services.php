@@ -35,7 +35,10 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI'),
-        'mobile_client_ids' => array_filter(explode(',', env('GOOGLE_MOBILE_CLIENT_IDS', ''))),
+        'mobile_client_ids' => array_values(array_filter(
+            array_map('trim', explode(',', (string) env('GOOGLE_MOBILE_CLIENT_IDS', ''))),
+            fn (string $clientId): bool => $clientId !== '',
+        )),
     ],
 
 ];

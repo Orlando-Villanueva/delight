@@ -21,6 +21,24 @@ it('preserves web Google sign-in and records a compatible stable subject', funct
     expect($user->fresh()->google_subject)->toBe('google-subject-1');
 });
 
+it('normalizes the web Google email before resolving an existing user', function (): void {
+    $user = User::factory()->create(['email' => 'reader@example.com']);
+    Socialite::fake('google', SocialiteUser::fake([
+        'id' => 'google-subject-1',
+        'email' => 'READER@EXAMPLE.COM',
+        'name' => 'Delight Reader',
+        'avatar' => 'https://example.com/avatar.png',
+    ]));
+
+    $this->get('/auth/google/callback')
+        ->assertRedirect('/dashboard');
+
+    $this->assertAuthenticatedAs($user);
+
+    expect(User::query()->count())->toBe(1)
+        ->and($user->fresh()->google_subject)->toBe('google-subject-1');
+});
+
 it('rejects a web Google subject that is already bound to a different email owner', function (): void {
     $subjectOwner = User::factory()->create([
         'email' => 'subject-owner@gmail.com',

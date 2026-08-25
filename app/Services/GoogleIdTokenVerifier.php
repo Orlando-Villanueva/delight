@@ -3,19 +3,32 @@
 namespace App\Services;
 
 use App\Contracts\GoogleIdTokenVerifierContract;
+use DomainException;
 use Google_Client;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
+use UnexpectedValueException;
 
 class GoogleIdTokenVerifier implements GoogleIdTokenVerifierContract
 {
+    public function __construct(private Google_Client $client) {}
+
     public function verify(string $idToken): ?GoogleIdentity
     {
         foreach ($this->acceptedAudiences() as $audience) {
             try {
-                $payload = (new Google_Client(['client_id' => $audience]))->verifyIdToken($idToken);
-            } catch (Throwable) {
+                $this->client->setClientId($audience);
+                $payload = $this->client->verifyIdToken($idToken);
+            } catch (DomainException|UnexpectedValueException) {
+                return null;
+            } catch (Throwable $exception) {
+                Log::error('Google ID token verification unavailable.', [
+                    'reason' => 'verification_unavailable',
+                    'exception_class' => $exception::class,
+                ]);
+
                 return null;
             }
 
@@ -39,7 +52,9 @@ class GoogleIdTokenVerifier implements GoogleIdTokenVerifierContract
     private function acceptedAudiences(): array
     {
         return collect(config('services.google.mobile_client_ids', []))
-            ->filter(fn (mixed $clientId): bool => is_string($clientId) && filled($clientId))
+            ->filter(fn (mixed $clientId): bool => is_string($clientId))
+            ->map(fn (string $clientId): string => trim($clientId))
+            ->filter(fn (string $clientId): bool => filled($clientId))
             ->values()
             ->all();
     }

@@ -6,6 +6,7 @@ use App\Contracts\GoogleIdTokenVerifierContract;
 use App\Services\BibleReferenceService;
 use App\Services\GoogleIdTokenVerifier;
 use App\Services\ReadingPlanService;
+use Google_Client;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -17,6 +18,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->scoped(Google_Client::class, fn (): Google_Client => new Google_Client);
         $this->app->bind(GoogleIdTokenVerifierContract::class, GoogleIdTokenVerifier::class);
 
         $this->app->singleton(BibleReferenceService::class, function ($app) {

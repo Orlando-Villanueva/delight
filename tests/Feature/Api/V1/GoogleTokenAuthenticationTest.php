@@ -7,6 +7,7 @@ use App\Services\GoogleTokenExchangeService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Sleep;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -135,16 +136,16 @@ it('rejects conflicting Google subject and email ownership without merging accou
         ->and(PersonalAccessToken::query()->count())->toBe(0);
 });
 
-it('rejects invalid, wrong-audience, and expired Google assertions without issuing tokens', function (string $case): void {
+it('rejects unverifiable Google assertions without issuing tokens', function (): void {
     fakeGoogleIdentityVerifier(null);
 
-    exchangeGoogleToken(['id_token' => "{$case}-assertion"])
+    exchangeGoogleToken(['id_token' => 'unverifiable-assertion'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('id_token');
 
     expect(User::query()->count())->toBe(0)
         ->and(PersonalAccessToken::query()->count())->toBe(0);
-})->with(['invalid token', 'wrong audience', 'expired token']);
+});
 
 it('prevents a verified Google assertion from being replayed', function (): void {
     fakeGoogleIdentityVerifier(googleIdentity());
@@ -200,6 +201,33 @@ it('holds the email identity lock throughout the account resolution window', fun
     });
 
     exchangeGoogleToken()->assertJsonPath('data.user.id', $user->id);
+});
+
+it('returns a validation error when an identity lock times out', function (): void {
+    $identity = googleIdentity();
+    fakeGoogleIdentityVerifier($identity);
+
+    $emailLockKey = 'google-mobile-identity-email-lock:'.hash_hmac(
+        'sha256',
+        $identity->email,
+        (string) config('app.key')
+    );
+    $emailLock = Cache::lock($emailLockKey, 30);
+
+    expect($emailLock->get())->toBeTrue();
+
+    Sleep::fake(syncWithCarbon: true);
+
+    try {
+        exchangeGoogleToken()
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('id_token');
+    } finally {
+        $emailLock->release();
+    }
+
+    expect(User::query()->count())->toBe(0)
+        ->and(PersonalAccessToken::query()->count())->toBe(0);
 });
 
 it('rate limits Google token exchanges by IP in production', function (): void {

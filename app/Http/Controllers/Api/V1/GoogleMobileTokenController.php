@@ -12,7 +12,7 @@ use App\Models\User;
 use App\Services\GoogleIdentity;
 use App\Services\GoogleTokenExchangeService;
 use Closure;
-use Illuminate\Cache\LockTimeoutException;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
