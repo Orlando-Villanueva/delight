@@ -69,41 +69,56 @@ class GoogleTokenExchangeService
                 ? User::query()->where('google_subject', $subject)->lockForUpdate()->first()
                 : null;
             $emailOwner = User::query()->where('email', $email)->lockForUpdate()->first();
+            $existingUser = $this->resolveExistingWebUser($subjectOwner, $emailOwner, $subject);
 
-            if ($subjectOwner !== null) {
-                if ($emailOwner !== null && ! $subjectOwner->is($emailOwner)) {
-                    throw new GoogleIdentityConflictException;
-                }
-
-                return $subjectOwner;
+            if ($existingUser !== null) {
+                return $existingUser;
             }
 
-            if ($emailOwner !== null) {
-                if ($emailOwner->google_subject !== null) {
-                    throw new GoogleIdentityConflictException;
-                }
-
-                if (filled($subject)) {
-                    $emailOwner->forceFill(['google_subject' => $subject])->save();
-                }
-
-                return $emailOwner;
-            }
-
-            $user = new User([
-                'name' => $name,
-                'email' => $email,
-                'password' => Hash::make(Str::random(64)),
-                'avatar_url' => $avatarUrl,
-            ]);
-
-            if (filled($subject)) {
-                $user->forceFill(['google_subject' => $subject]);
-            }
-
-            $user->save();
-
-            return $user;
+            return $this->createWebUser($email, $subject, $name, $avatarUrl);
         });
+    }
+
+    private function resolveExistingWebUser(?User $subjectOwner, ?User $emailOwner, ?string $subject): ?User
+    {
+        if ($subjectOwner !== null) {
+            if ($emailOwner !== null && ! $subjectOwner->is($emailOwner)) {
+                throw new GoogleIdentityConflictException;
+            }
+
+            return $subjectOwner;
+        }
+
+        if ($emailOwner === null) {
+            return null;
+        }
+
+        if ($emailOwner->google_subject !== null) {
+            throw new GoogleIdentityConflictException;
+        }
+
+        if (filled($subject)) {
+            $emailOwner->forceFill(['google_subject' => $subject])->save();
+        }
+
+        return $emailOwner;
+    }
+
+    private function createWebUser(string $email, ?string $subject, string $name, ?string $avatarUrl): User
+    {
+        $user = new User([
+            'name' => $name,
+            'email' => $email,
+            'password' => Hash::make(Str::random(64)),
+            'avatar_url' => $avatarUrl,
+        ]);
+
+        if (filled($subject)) {
+            $user->forceFill(['google_subject' => $subject]);
+        }
+
+        $user->save();
+
+        return $user;
     }
 }
