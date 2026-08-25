@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\GoogleMobileTokenController;
 use App\Http\Controllers\Api\V1\MobileBootstrapController;
 use App\Http\Controllers\Api\V1\MobileTokenController;
 use App\Http\Controllers\Api\V1\ReadingLogController;
@@ -25,6 +26,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::post('/auth/token', [MobileTokenController::class, 'store'])
         ->middleware('throttle:mobile-login')
         ->name('auth.token.store');
+
+    Route::post('/auth/google-token', GoogleMobileTokenController::class)
+        ->middleware('throttle:mobile-google-token')
+        ->name('auth.google-token.store');
 
     Route::middleware(['auth:sanctum', 'abilities:mobile'])->group(function (): void {
         Route::delete('/auth/token', [MobileTokenController::class, 'destroy'])

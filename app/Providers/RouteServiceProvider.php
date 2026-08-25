@@ -37,6 +37,12 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute($limit)->by($throttleKey);
         });
 
+        RateLimiter::for('mobile-google-token', function (Request $request) {
+            $limit = app()->environment('local') ? 20 : 5;
+
+            return Limit::perMinute($limit)->by($request->ip());
+        });
+
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')

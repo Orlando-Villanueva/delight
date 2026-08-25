@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Exceptions\GoogleIdentityConflictException;
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Services\GoogleIdentityLockService;
+use App\Services\GoogleTokenExchangeService;
 use GuzzleHttp\Exception\ClientException;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\InvalidStateException;
 use Throwable;
@@ -28,15 +29,16 @@ class GoogleOAuthController extends Controller
     /**
      * Handle the OAuth callback and log the user in.
      */
-    public function callback(Request $request)
-    {
+    public function callback(
+        Request $request,
+        GoogleIdentityLockService $identityLocks,
+        GoogleTokenExchangeService $exchangeService
+    ) {
         try {
             $googleUser = Socialite::driver('google')->user();
         } catch (InvalidStateException|ClientException $exception) {
             Log::warning('Google OAuth callback failed.', [
                 'exception_class' => $exception::class,
-                'exception_message' => $exception->getMessage(),
-                'state' => $request->get('state'),
             ]);
 
             return redirect()
@@ -46,8 +48,7 @@ class GoogleOAuthController extends Controller
                 ]);
         } catch (Throwable $exception) {
             Log::error('Unexpected Google OAuth callback failure.', [
-                'exception' => $exception,
-                'state' => $request->get('state'),
+                'exception_class' => $exception::class,
             ]);
 
             return redirect()
@@ -64,14 +65,30 @@ class GoogleOAuthController extends Controller
         $googleDisplayName = $googleUser->getName() ?? $googleUser->getNickname() ?? $googleEmail;
         $googleAvatar = $googleUser->getAvatar();
 
-        $user = User::firstOrCreate(
-            ['email' => $googleEmail],
-            [
-                'name' => $googleDisplayName,
-                'password' => Hash::make(Str::random(64)),
-                'avatar_url' => $googleAvatar,
-            ]
-        );
+        try {
+            $user = $identityLocks->block($googleEmail, $googleUser->getId(), fn () => $exchangeService->resolveWebUser(
+                $googleEmail,
+                $googleUser->getId(),
+                $googleDisplayName,
+                $googleAvatar,
+            ));
+        } catch (LockTimeoutException) {
+            Log::warning('Google OAuth callback rejected.', ['reason' => 'lock_timeout']);
+
+            return redirect()
+                ->route('login')
+                ->withErrors([
+                    'oauth' => 'We could not complete Google sign in. Please try again.',
+                ]);
+        } catch (GoogleIdentityConflictException) {
+            Log::warning('Google OAuth callback rejected.', ['reason' => 'identity_conflict']);
+
+            return redirect()
+                ->route('login')
+                ->withErrors([
+                    'oauth' => 'We could not complete Google sign in. Please use your existing sign-in method.',
+                ]);
+        }
 
         $updates = [];
 

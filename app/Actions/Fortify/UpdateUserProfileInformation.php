@@ -3,9 +3,10 @@
 namespace App\Actions\Fortify;
 
 use App\Models\User;
+use Closure;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\UpdatesUserProfileInformation;
 
 class UpdateUserProfileInformation implements UpdatesUserProfileInformation
@@ -17,6 +18,8 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
      */
     public function update(User $user, array $input): void
     {
+        $input['email'] = Str::lower($input['email'] ?? '');
+
         Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
 
@@ -25,7 +28,16 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
                 'string',
                 'email',
                 'max:255',
-                Rule::unique('users')->ignore($user->id),
+                function (string $attribute, mixed $value, Closure $fail) use ($user): void {
+                    $emailBelongsToAnotherUser = User::query()
+                        ->whereRaw('LOWER(email) = ?', [Str::lower((string) $value)])
+                        ->where($user->getKeyName(), '!=', $user->getKey())
+                        ->exists();
+
+                    if ($emailBelongsToAnotherUser) {
+                        $fail('The email has already been taken.');
+                    }
+                },
             ],
         ])->validateWithBag('updateProfileInformation');
 
