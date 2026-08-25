@@ -52,8 +52,15 @@ class GoogleIdTokenVerifier implements GoogleIdTokenVerifierContract
         $subject = Arr::get($payload, 'sub');
         $email = Arr::get($payload, 'email');
         $emailVerified = filter_var(Arr::get($payload, 'email_verified'), FILTER_VALIDATE_BOOL);
+        $expiresAt = filter_var(Arr::get($payload, 'exp'), FILTER_VALIDATE_INT);
 
-        if (! is_string($subject) || blank($subject) || ! is_string($email) || blank($email) || ! $emailVerified) {
+        if (! is_string($subject)
+            || blank($subject)
+            || ! is_string($email)
+            || blank($email)
+            || ! $emailVerified
+            || ! is_int($expiresAt)
+            || $expiresAt <= now()->timestamp) {
             return null;
         }
 
@@ -65,6 +72,7 @@ class GoogleIdTokenVerifier implements GoogleIdTokenVerifierContract
             subject: $subject,
             email: Str::lower($email),
             emailVerified: true,
+            expiresAt: $expiresAt,
             hostedDomain: is_string($hostedDomain) && filled($hostedDomain) ? Str::lower($hostedDomain) : null,
             name: is_string($name) && filled($name) ? Str::limit($name, 255, '') : null,
             avatarUrl: is_string($avatarUrl) && filled($avatarUrl) ? Str::limit($avatarUrl, 255, '') : null,

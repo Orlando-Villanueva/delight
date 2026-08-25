@@ -3,6 +3,7 @@
 use App\Contracts\GoogleIdTokenVerifierContract;
 use App\Models\User;
 use App\Services\GoogleIdentity;
+use App\Services\GoogleTokenExchangeService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -15,6 +16,7 @@ function googleIdentity(array $attributes = []): GoogleIdentity
         subject: $attributes['subject'] ?? 'google-subject-1',
         email: $attributes['email'] ?? 'reader@gmail.com',
         emailVerified: $attributes['email_verified'] ?? true,
+        expiresAt: $attributes['expires_at'] ?? now()->addHour()->timestamp,
         hostedDomain: $attributes['hosted_domain'] ?? null,
         name: $attributes['name'] ?? 'Delight Reader',
         avatarUrl: $attributes['avatar_url'] ?? 'https://example.com/avatar.png',
@@ -148,6 +150,9 @@ it('prevents a verified Google assertion from being replayed', function (): void
     fakeGoogleIdentityVerifier(googleIdentity());
 
     exchangeGoogleToken()->assertSuccessful();
+
+    $this->travel(6)->minutes();
+
     exchangeGoogleToken()
         ->assertUnprocessable()
         ->assertJsonValidationErrors('id_token');
@@ -163,6 +168,38 @@ it('serializes repeated identity resolution without creating a duplicate user', 
 
     expect(User::query()->count())->toBe(1)
         ->and(PersonalAccessToken::query()->count())->toBe(2);
+});
+
+it('holds the email identity lock throughout the account resolution window', function (): void {
+    $identity = googleIdentity();
+    $user = User::factory()->create([
+        'email' => $identity->email,
+        'google_subject' => $identity->subject,
+    ]);
+
+    fakeGoogleIdentityVerifier($identity);
+
+    app()->instance(GoogleTokenExchangeService::class, new class($user) extends GoogleTokenExchangeService
+    {
+        public function __construct(private User $user) {}
+
+        public function resolve(GoogleIdentity $identity, ?string $passwordProof): User
+        {
+            test()->travel(12)->seconds();
+
+            $emailLockKey = 'google-mobile-identity-email-lock:'.hash_hmac(
+                'sha256',
+                $identity->email,
+                (string) config('app.key')
+            );
+
+            expect(Cache::lock($emailLockKey, 10)->get())->toBeFalse();
+
+            return $this->user;
+        }
+    });
+
+    exchangeGoogleToken()->assertJsonPath('data.user.id', $user->id);
 });
 
 it('rate limits Google token exchanges by IP in production', function (): void {

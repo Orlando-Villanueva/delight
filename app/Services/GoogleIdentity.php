@@ -10,6 +10,7 @@ readonly class GoogleIdentity
         public string $subject,
         public string $email,
         public bool $emailVerified,
+        public int $expiresAt,
         public ?string $hostedDomain,
         public ?string $name,
         public ?string $avatarUrl,

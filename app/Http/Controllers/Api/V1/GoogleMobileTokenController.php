@@ -9,14 +9,23 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreGoogleTokenRequest;
 use App\Http\Resources\Api\V1\MobileTokenResource;
 use App\Models\User;
+use App\Services\GoogleIdentity;
 use App\Services\GoogleTokenExchangeService;
+use Closure;
 use Illuminate\Cache\LockTimeoutException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class GoogleMobileTokenController extends Controller
 {
+    private const int EMAIL_LOCK_SECONDS = 30;
+
+    private const int SUBJECT_LOCK_SECONDS = 20;
+
+    private const int LOCK_WAIT_SECONDS = 5;
+
     public function __invoke(
         StoreGoogleTokenRequest $request,
         GoogleIdTokenVerifierContract $verifier,
@@ -32,7 +41,7 @@ class GoogleMobileTokenController extends Controller
         }
 
         try {
-            return Cache::lock($this->identityLockKey($identity->subject), 10)->block(5, function () use ($credentials, $identity, $exchangeService): MobileTokenResource {
+            return $this->withIdentityLocks($identity, function () use ($credentials, $identity, $exchangeService): MobileTokenResource {
                 $replayKey = $this->replayKey($credentials['id_token']);
 
                 if (Cache::has($replayKey)) {
@@ -55,7 +64,7 @@ class GoogleMobileTokenController extends Controller
                     throw $this->invalidIdentity();
                 }
 
-                Cache::put($replayKey, true, now()->addMinutes(5));
+                Cache::put($replayKey, true, Carbon::createFromTimestampUTC($identity->expiresAt));
 
                 return $this->tokenResource($user, $credentials['device_name']);
             });
@@ -83,9 +92,23 @@ class GoogleMobileTokenController extends Controller
         ]);
     }
 
-    private function identityLockKey(string $subject): string
+    private function withIdentityLocks(GoogleIdentity $identity, Closure $callback): MobileTokenResource
     {
-        return 'google-mobile-identity-lock:'.hash_hmac('sha256', $subject, (string) config('app.key'));
+        return Cache::lock(
+            $this->identityLockKey('email', $identity->email),
+            self::EMAIL_LOCK_SECONDS
+        )->block(
+            self::LOCK_WAIT_SECONDS,
+            fn (): MobileTokenResource => Cache::lock(
+                $this->identityLockKey('subject', $identity->subject),
+                self::SUBJECT_LOCK_SECONDS
+            )->block(self::LOCK_WAIT_SECONDS, $callback)
+        );
+    }
+
+    private function identityLockKey(string $claim, string $value): string
+    {
+        return "google-mobile-identity-{$claim}-lock:".hash_hmac('sha256', $value, (string) config('app.key'));
     }
 
     private function replayKey(string $idToken): string
