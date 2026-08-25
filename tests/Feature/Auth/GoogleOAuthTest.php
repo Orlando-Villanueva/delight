@@ -1,0 +1,66 @@
+<?php
+
+use App\Models\User;
+use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\User as SocialiteUser;
+
+it('preserves web Google sign-in and records a compatible stable subject', function (): void {
+    $user = User::factory()->create(['email' => 'reader@gmail.com']);
+    Socialite::fake('google', SocialiteUser::fake([
+        'id' => 'google-subject-1',
+        'email' => $user->email,
+        'name' => 'Delight Reader',
+        'avatar' => 'https://example.com/avatar.png',
+    ]));
+
+    $this->get('/auth/google/callback')
+        ->assertRedirect('/dashboard');
+
+    $this->assertAuthenticatedAs($user);
+
+    expect($user->fresh()->google_subject)->toBe('google-subject-1');
+});
+
+it('rejects a web Google subject that is already bound to a different email owner', function (): void {
+    $subjectOwner = User::factory()->create([
+        'email' => 'subject-owner@gmail.com',
+        'google_subject' => 'google-subject-1',
+    ]);
+    $emailOwner = User::factory()->create(['email' => 'reader@gmail.com']);
+    Socialite::fake('google', SocialiteUser::fake([
+        'id' => 'google-subject-1',
+        'email' => $emailOwner->email,
+        'name' => 'Delight Reader',
+        'avatar' => 'https://example.com/avatar.png',
+    ]));
+
+    $this->get('/auth/google/callback')
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors('oauth');
+
+    $this->assertGuest();
+
+    expect($subjectOwner->fresh()->google_subject)->toBe('google-subject-1')
+        ->and($emailOwner->fresh()->google_subject)->toBeNull();
+});
+
+it('rejects a web Google subject that conflicts with an existing email binding', function (): void {
+    $user = User::factory()->create([
+        'email' => 'reader@gmail.com',
+        'google_subject' => 'google-subject-1',
+    ]);
+    Socialite::fake('google', SocialiteUser::fake([
+        'id' => 'google-subject-2',
+        'email' => $user->email,
+        'name' => 'Delight Reader',
+        'avatar' => 'https://example.com/avatar.png',
+    ]));
+
+    $this->get('/auth/google/callback')
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors('oauth');
+
+    $this->assertGuest();
+
+    expect($user->fresh()->google_subject)->toBe('google-subject-1');
+});

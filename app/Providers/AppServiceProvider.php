@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Contracts\GoogleIdTokenVerifierContract;
 use App\Services\BibleReferenceService;
+use App\Services\GoogleIdTokenVerifier;
 use App\Services\ReadingPlanService;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\View;
@@ -15,6 +17,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(GoogleIdTokenVerifierContract::class, GoogleIdTokenVerifier::class);
+
         $this->app->singleton(BibleReferenceService::class, function ($app) {
             return new BibleReferenceService;
         });
