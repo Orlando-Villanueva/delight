@@ -89,6 +89,30 @@ it('binds an unbound Gmail account without requiring a password proof', function
     expect($user->fresh()->google_subject)->toBe('google-subject-1');
 });
 
+it('reuses an existing account whose stored email has different casing', function (): void {
+    $user = User::factory()->create(['email' => 'Reader@Example.com']);
+    fakeGoogleIdentityVerifier(googleIdentity(['email' => 'reader@example.com']));
+
+    exchangeGoogleToken(['password' => 'password'])
+        ->assertJsonPath('data.user.id', $user->id);
+
+    expect(User::query()->count())->toBe(1)
+        ->and($user->fresh()->google_subject)->toBe('google-subject-1');
+});
+
+it('rejects ambiguous case-insensitive email ownership', function (): void {
+    User::factory()->create(['email' => 'Reader@Example.com']);
+    User::factory()->create(['email' => 'reader@example.com']);
+    fakeGoogleIdentityVerifier(googleIdentity(['email' => 'reader@example.com']));
+
+    exchangeGoogleToken()
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('id_token');
+
+    expect(User::query()->count())->toBe(2)
+        ->and(PersonalAccessToken::query()->count())->toBe(0);
+});
+
 it('requires the existing Delight password before binding an external-domain account', function (): void {
     $user = User::factory()->create([
         'email' => 'reader@example.com',

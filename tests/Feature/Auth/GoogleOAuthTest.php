@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Sleep;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
 
@@ -22,7 +24,7 @@ it('preserves web Google sign-in and records a compatible stable subject', funct
 });
 
 it('normalizes the web Google email before resolving an existing user', function (): void {
-    $user = User::factory()->create(['email' => 'reader@example.com']);
+    $user = User::factory()->create(['email' => 'Reader@Example.com']);
     Socialite::fake('google', SocialiteUser::fake([
         'id' => 'google-subject-1',
         'email' => 'READER@EXAMPLE.COM',
@@ -37,6 +39,39 @@ it('normalizes the web Google email before resolving an existing user', function
 
     expect(User::query()->count())->toBe(1)
         ->and($user->fresh()->google_subject)->toBe('google-subject-1');
+});
+
+it('returns to login when the shared Google identity lock times out', function (): void {
+    Socialite::fake('google', SocialiteUser::fake([
+        'id' => 'google-subject-1',
+        'email' => 'reader@example.com',
+        'name' => 'Delight Reader',
+        'avatar' => 'https://example.com/avatar.png',
+    ]));
+
+    $emailLock = Cache::lock(
+        'google-mobile-identity-email-lock:'.hash_hmac(
+            'sha256',
+            'reader@example.com',
+            (string) config('app.key')
+        ),
+        30
+    );
+
+    expect($emailLock->get())->toBeTrue();
+
+    Sleep::fake(syncWithCarbon: true);
+
+    try {
+        $this->get('/auth/google/callback')
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('oauth');
+    } finally {
+        $emailLock->release();
+    }
+
+    $this->assertGuest();
+    expect(User::query()->count())->toBe(0);
 });
 
 it('rejects a web Google subject that is already bound to a different email owner', function (): void {
