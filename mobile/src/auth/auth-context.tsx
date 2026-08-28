@@ -1,8 +1,22 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createContext, type PropsWithChildren, use, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  type PropsWithChildren,
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { apiRequest } from '@/api/client';
 import { ApiError } from '@/api/api-error';
+import {
+  beginGoogleSignIn,
+  clearGoogleSignInSession,
+  isGoogleSignInAvailable,
+} from '@/auth/google-sign-in';
 import { tokenStorage } from '@/auth/token-storage';
 
 export type AuthUser = {
@@ -25,14 +39,22 @@ type LoginInput = {
   password: string;
 };
 
+export type GoogleLoginResult = 'authenticated' | 'cancelled' | 'password-required';
+
 type AuthContextValue = {
   status: 'loading' | 'authenticated' | 'unauthenticated';
   token: string | null;
   user: AuthUser | null;
   login: (input: LoginInput) => Promise<void>;
+  loginWithGoogle: () => Promise<GoogleLoginResult>;
+  confirmGoogleLink: (password: string) => Promise<void>;
+  cancelGoogleLink: () => void;
   logout: () => Promise<void>;
   clearSession: () => Promise<void>;
+  isGoogleSignInAvailable: boolean;
+  isGooglePasswordRequired: boolean;
   isLoggingIn: boolean;
+  isLoggingInWithGoogle: boolean;
   isLoggingOut: boolean;
 };
 
@@ -45,11 +67,20 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
+  const pendingGoogleIdToken = useRef<string | null>(null);
   const [status, setStatus] = useState<AuthContextValue['status']>('loading');
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isGooglePasswordRequired, setIsGooglePasswordRequired] = useState(false);
+  const [isLoggingInWithGoogle, setIsLoggingInWithGoogle] = useState(false);
+
+  const clearPendingGoogleLogin = useCallback(() => {
+    pendingGoogleIdToken.current = null;
+    setIsGooglePasswordRequired(false);
+  }, []);
 
   const clearSession = useCallback(async () => {
+    clearPendingGoogleLogin();
     try {
       await tokenStorage.clear();
     } catch {
@@ -59,7 +90,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setToken(null);
     setUser(null);
     setStatus('unauthenticated');
-  }, [queryClient]);
+  }, [clearPendingGoogleLogin, queryClient]);
 
   useEffect(() => {
     let isMounted = true;
@@ -93,11 +124,37 @@ export function AuthProvider({ children }: PropsWithChildren) {
     },
     retry: false,
     onSuccess: (data) => {
+      clearPendingGoogleLogin();
       setToken(data.token);
       setUser(data.user);
       setStatus('authenticated');
     },
   });
+
+  const exchangeGoogleToken = useCallback(
+    async (idToken: string, password?: string) => {
+      setIsLoggingInWithGoogle(true);
+
+      try {
+        const response = await apiRequest<TokenResponse>('/api/v1/auth/google-token', {
+          method: 'POST',
+          body: {
+            id_token: idToken,
+            device_name: 'Delight Android',
+            ...(password ? { password } : {}),
+          },
+        });
+        await tokenStorage.set(response.data.token);
+        clearPendingGoogleLogin();
+        setToken(response.data.token);
+        setUser(response.data.user);
+        setStatus('authenticated');
+      } finally {
+        setIsLoggingInWithGoogle(false);
+      }
+    },
+    [clearPendingGoogleLogin],
+  );
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -108,11 +165,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
             token,
           });
         } catch (error) {
-          if (error instanceof ApiError && error.status === 401) {
-            return;
+          if (!(error instanceof ApiError) || error.status !== 401) {
+            throw error;
           }
-          throw error;
         }
+      }
+
+      try {
+        await clearGoogleSignInSession();
+      } catch {
+        // A revoked Delight token must still be cleared when local Google cleanup fails.
       }
     },
     retry: false,
@@ -126,13 +188,80 @@ export function AuthProvider({ children }: PropsWithChildren) {
     login: async (input) => {
       await loginMutation.mutateAsync(input);
     },
+    loginWithGoogle: async () => {
+      clearPendingGoogleLogin();
+      const result = await beginGoogleSignIn();
+
+      if (result.status === 'cancelled') {
+        return 'cancelled';
+      }
+
+      pendingGoogleIdToken.current = result.idToken;
+
+      try {
+        await exchangeGoogleToken(result.idToken);
+        return 'authenticated';
+      } catch (error) {
+        if (
+          error instanceof ApiError
+          && error.status === 422
+          && error.validationErrors.password?.[0]
+        ) {
+          setIsGooglePasswordRequired(true);
+          return 'password-required';
+        }
+
+        clearPendingGoogleLogin();
+        throw error;
+      }
+    },
+    confirmGoogleLink: async (password) => {
+      const idToken = pendingGoogleIdToken.current;
+
+      if (!idToken) {
+        throw new ApiError('Start Google sign-in again.', 'http', 422);
+      }
+
+      try {
+        await exchangeGoogleToken(idToken, password);
+      } catch (error) {
+        const isRecoverableApiFailure = error instanceof ApiError && (
+          error.kind === 'network'
+          || error.kind === 'timeout'
+          || error.status === 429
+          || (typeof error.status === 'number' && error.status >= 500)
+          || (error.status === 422 && Boolean(error.validationErrors.password?.[0]))
+        );
+
+        if (!isRecoverableApiFailure) {
+          clearPendingGoogleLogin();
+        }
+
+        throw error;
+      }
+    },
+    cancelGoogleLink: clearPendingGoogleLogin,
     logout: async () => {
       await logoutMutation.mutateAsync();
     },
     clearSession,
+    isGoogleSignInAvailable: isGoogleSignInAvailable(),
+    isGooglePasswordRequired,
     isLoggingIn: loginMutation.isPending,
+    isLoggingInWithGoogle,
     isLoggingOut: logoutMutation.isPending,
-  }), [clearSession, loginMutation, logoutMutation, status, token, user]);
+  }), [
+    clearPendingGoogleLogin,
+    clearSession,
+    exchangeGoogleToken,
+    isGooglePasswordRequired,
+    isLoggingInWithGoogle,
+    loginMutation,
+    logoutMutation,
+    status,
+    token,
+    user,
+  ]);
 
   return <AuthContext value={value}>{children}</AuthContext>;
 }

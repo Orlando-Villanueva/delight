@@ -5,6 +5,7 @@ import { AccessibilityInfo } from 'react-native';
 import { ApiError } from '@/api/api-error';
 import LoginScreen from '@/app/(auth)/login';
 import { useAuth } from '@/auth/auth-context';
+import { NativeGoogleSignInError } from '@/auth/google-sign-in';
 
 jest.mock('expo-linking', () => ({ openURL: jest.fn() }));
 jest.mock('@/auth/auth-context', () => ({ useAuth: jest.fn() }));
@@ -13,13 +14,33 @@ jest.mock('@/config/environment', () => ({
 }));
 
 const login = jest.fn();
+const loginWithGoogle = jest.fn();
+const confirmGoogleLink = jest.fn();
+const cancelGoogleLink = jest.fn();
+
+function mockAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
+  jest.mocked(useAuth).mockReturnValue({
+    login,
+    loginWithGoogle,
+    confirmGoogleLink,
+    cancelGoogleLink,
+    isGoogleSignInAvailable: false,
+    isGooglePasswordRequired: false,
+    isLoggingIn: false,
+    isLoggingInWithGoogle: false,
+    ...overrides,
+  } as unknown as ReturnType<typeof useAuth>);
+}
 
 describe('native Login screen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     login.mockReset();
+    loginWithGoogle.mockReset();
+    confirmGoogleLink.mockReset();
+    cancelGoogleLink.mockReset();
     jest.mocked(Linking.openURL).mockResolvedValue(true);
-    jest.mocked(useAuth).mockReturnValue({ login, isLoggingIn: false } as unknown as ReturnType<typeof useAuth>);
+    mockAuth();
   });
 
   async function fillAndSubmit() {
@@ -94,5 +115,114 @@ describe('native Login screen', () => {
     const message = 'The web page could not be opened. Try again.';
     expect(await screen.findByText(message)).toBeOnTheScreen();
     expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(message);
+  });
+
+  it('offers accessible Google sign-in without removing email and password', async () => {
+    mockAuth({ isGoogleSignInAvailable: true });
+    loginWithGoogle.mockResolvedValue('authenticated');
+    await render(<LoginScreen />);
+
+    expect(screen.getByLabelText('Continue with Google')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Email')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Password')).toBeOnTheScreen();
+    expect(screen.queryByText('Created your account with Google? Set a password on the web.'))
+      .not.toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByLabelText('Continue with Google'));
+    await waitFor(() => expect(loginWithGoogle).toHaveBeenCalled());
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith('Signed in.');
+  });
+
+  it('treats Google cancellation neutrally', async () => {
+    mockAuth({ isGoogleSignInAvailable: true });
+    loginWithGoogle.mockResolvedValue('cancelled');
+    await render(<LoginScreen />);
+
+    await fireEvent.press(screen.getByLabelText('Continue with Google'));
+
+    await waitFor(() => expect(loginWithGoogle).toHaveBeenCalled());
+    expect(screen.queryByText('Google sign-in could not be completed. Try again.'))
+      .not.toBeOnTheScreen();
+  });
+
+  it('collects Delight password proof and keeps incorrect proof recoverable', async () => {
+    mockAuth({
+      isGoogleSignInAvailable: true,
+      isGooglePasswordRequired: true,
+    });
+    confirmGoogleLink.mockRejectedValue(new ApiError(
+      'The password is incorrect.',
+      'http',
+      422,
+      { password: ['The password is incorrect.'] },
+    ));
+    await render(<LoginScreen />);
+
+    await fireEvent.changeText(
+      screen.getByLabelText('Delight password for Google account'),
+      'wrong-password',
+    );
+    await fireEvent.press(screen.getByLabelText('Confirm Google account linking'));
+
+    expect(await screen.findByText('The password is incorrect.')).toBeOnTheScreen();
+    expect(confirmGoogleLink).toHaveBeenCalledWith('wrong-password');
+
+    await fireEvent.press(screen.getByLabelText('Cancel Google account linking'));
+    expect(cancelGoogleLink).toHaveBeenCalled();
+  });
+
+  it('disables password proof retry for the server cooldown after a 429 response', async () => {
+    mockAuth({
+      isGoogleSignInAvailable: true,
+      isGooglePasswordRequired: true,
+    });
+    confirmGoogleLink.mockRejectedValue(
+      new ApiError('Too many attempts.', 'http', 429, {}, 30),
+    );
+    await render(<LoginScreen />);
+
+    await fireEvent.changeText(
+      screen.getByLabelText('Delight password for Google account'),
+      'ValidPass123!',
+    );
+    await fireEvent.press(screen.getByLabelText('Confirm Google account linking'));
+
+    expect(await screen.findByText('Try again in 30s')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Confirm Google account linking')).toBeDisabled();
+    expect(screen.getByLabelText('Cancel Google account linking')).toBeEnabled();
+
+    await fireEvent.press(screen.getByLabelText('Confirm Google account linking'));
+    expect(confirmGoogleLink).toHaveBeenCalledTimes(1);
+  });
+
+  it('prevents Google password confirmation while email login is pending', async () => {
+    mockAuth({
+      isGoogleSignInAvailable: true,
+      isGooglePasswordRequired: true,
+      isLoggingIn: true,
+    });
+    await render(<LoginScreen />);
+
+    const confirmButton = screen.getByLabelText('Confirm Google account linking');
+    expect(confirmButton).toBeDisabled();
+    expect(screen.getByLabelText('Cancel Google account linking')).toBeEnabled();
+
+    await fireEvent.press(confirmButton);
+    expect(confirmGoogleLink).not.toHaveBeenCalled();
+  });
+
+  it('shows a recoverable Play Services error while leaving email login available', async () => {
+    mockAuth({ isGoogleSignInAvailable: true });
+    loginWithGoogle.mockRejectedValue(new NativeGoogleSignInError(
+      'Google Play Services is unavailable or needs to be updated.',
+      'play-services',
+    ));
+    await render(<LoginScreen />);
+
+    await fireEvent.press(screen.getByLabelText('Continue with Google'));
+
+    expect(await screen.findByText('Google Play Services is unavailable or needs to be updated.'))
+      .toBeOnTheScreen();
+    expect(screen.getByLabelText('Sign in')).toBeEnabled();
   });
 });

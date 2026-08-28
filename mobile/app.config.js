@@ -24,6 +24,8 @@ const variants = {
 module.exports = ({ config }) => {
   const appVariant = process.env.APP_VARIANT ?? 'development';
   const variant = variants[appVariant];
+  const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
+  const googleIosUrlScheme = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME?.trim();
 
   if (!variant) {
     throw new Error(`Unsupported APP_VARIANT: ${appVariant}`);
@@ -57,6 +59,16 @@ module.exports = ({ config }) => {
     plugins: [
       'expo-router',
       'expo-secure-store',
+      ...(googleIosUrlScheme
+        ? [
+            [
+              'react-native-nitro-google-signin',
+              {
+                iosUrlScheme: googleIosUrlScheme,
+              },
+            ],
+          ]
+        : []),
       [
         'expo-splash-screen',
         {
@@ -78,6 +90,7 @@ module.exports = ({ config }) => {
           ? (process.env.EXPO_PUBLIC_API_URL ?? variant.apiUrl)
           : variant.apiUrl,
       appVariant,
+      googleWebClientId,
     },
   };
 };
