@@ -182,7 +182,7 @@ export default function LoginScreen() {
   }
 
   const isGoogleBusy = isStartingGoogleSignIn || isLoggingInWithGoogle;
-  const isGoogleConfirmationDisabled = isGoogleBusy || googleCooldownSeconds > 0;
+  const isGoogleConfirmationDisabled = isGoogleBusy || isLoggingIn || googleCooldownSeconds > 0;
   const disabled = isLoggingIn || isGoogleBusy || cooldownSeconds > 0;
   const buttonLabel = cooldownSeconds > 0 ? `Try again in ${cooldownSeconds}s` : 'Sign in';
   const googleButtonLabel = googleCooldownSeconds > 0

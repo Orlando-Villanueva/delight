@@ -195,6 +195,22 @@ describe('native Login screen', () => {
     expect(confirmGoogleLink).toHaveBeenCalledTimes(1);
   });
 
+  it('prevents Google password confirmation while email login is pending', async () => {
+    mockAuth({
+      isGoogleSignInAvailable: true,
+      isGooglePasswordRequired: true,
+      isLoggingIn: true,
+    });
+    await render(<LoginScreen />);
+
+    const confirmButton = screen.getByLabelText('Confirm Google account linking');
+    expect(confirmButton).toBeDisabled();
+    expect(screen.getByLabelText('Cancel Google account linking')).toBeEnabled();
+
+    await fireEvent.press(confirmButton);
+    expect(confirmGoogleLink).not.toHaveBeenCalled();
+  });
+
   it('shows a recoverable Play Services error while leaving email login available', async () => {
     mockAuth({ isGoogleSignInAvailable: true });
     loginWithGoogle.mockRejectedValue(new NativeGoogleSignInError(
