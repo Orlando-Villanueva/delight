@@ -27,11 +27,23 @@ npm ci
 npm start
 ```
 
-Scan the QR code with Expo Go. If LAN discovery is unavailable, retry with `npx expo start --tunnel`. For an already-running Android emulator, use `npm run android`.
+Scan the QR code with Expo Go. If LAN discovery is unavailable, retry with
+`npx expo start --go --tunnel`. For an already-running Android emulator, use `npm run android`.
 
 If Expo Go reports that the project SDK is incompatible, install the matching Android Expo Go release from [Expo's official selector](https://expo.dev/go) and retry. This remains Expo Go; it is not a custom development client.
 
 The expected shell has stable Home, Log, and History tabs. Expo Go is the default loop; do not create a development client unless a required V1 dependency is unsupported and its native requirement is documented first.
+
+Google Sign-In uses native code that Expo Go does not include, so its button is intentionally hidden in this
+workflow. After a compatible Delight development client has been built and installed, start Metro for that app
+with:
+
+```bash
+npm run start:dev-client
+```
+
+This command only starts the development server; it does not build or install an APK. Rebuild the development
+client whenever its native dependencies or native configuration change.
 
 ## Quality checks
 

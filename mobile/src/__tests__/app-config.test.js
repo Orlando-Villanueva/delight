@@ -35,6 +35,28 @@ function configForWithApiOverride(appVariant, apiUrl) {
   }
 }
 
+function configForWithGoogle(appVariant, webClientId, iosUrlScheme) {
+  const previousWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const previousIosUrlScheme = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME;
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = webClientId;
+  process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME = iosUrlScheme;
+
+  try {
+    return configFor(appVariant);
+  } finally {
+    if (previousWebClientId === undefined) {
+      delete process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+    } else {
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = previousWebClientId;
+    }
+    if (previousIosUrlScheme === undefined) {
+      delete process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME;
+    } else {
+      process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME = previousIosUrlScheme;
+    }
+  }
+}
+
 describe('app configuration identities', () => {
   it.each(['development', 'preview', 'dogfood'])('uses the Delight slug for the %s variant', (appVariant) => {
     expect(configFor(appVariant).slug).toBe('delight');
@@ -105,5 +127,29 @@ describe('app configuration identities', () => {
       distribution: 'internal',
       android: { buildType: 'apk' },
     });
+  });
+
+  it.each(['development', 'preview', 'dogfood'])(
+    'keeps %s valid while Google environment configuration is absent',
+    (appVariant) => {
+      const config = configFor(appVariant);
+
+      expect(config.extra.googleWebClientId).toBeUndefined();
+      expect(config.plugins).not.toContain('react-native-nitro-google-signin');
+    },
+  );
+
+  it('exposes the public web client ID and enables the native plugin with an iOS URL scheme', () => {
+    const config = configForWithGoogle(
+      'preview',
+      'web-client.apps.googleusercontent.com',
+      'com.googleusercontent.apps.ios-client',
+    );
+
+    expect(config.extra.googleWebClientId).toBe('web-client.apps.googleusercontent.com');
+    expect(config.plugins).toContainEqual([
+      'react-native-nitro-google-signin',
+      { iosUrlScheme: 'com.googleusercontent.apps.ios-client' },
+    ]);
   });
 });
