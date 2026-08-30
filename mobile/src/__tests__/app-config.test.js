@@ -151,6 +151,13 @@ describe('app configuration identities', () => {
     });
   });
 
+  it.each([
+    ['preview', 'preview'],
+    ['production', 'dogfood'],
+  ])('uses the %s EAS environment for the %s APK', (environment, profile) => {
+    expect(easConfig.build[profile].environment).toBe(environment);
+  });
+
   it.each(['development', 'preview', 'dogfood'])(
     'keeps %s valid while Google environment configuration is absent',
     (appVariant) => {

@@ -6,6 +6,7 @@
     "preview": {
       "autoIncrement": true,
       "distribution": "internal",
+      "environment": "preview",
       "android": {
         "buildType": "apk"
       },
@@ -17,6 +18,7 @@
     "dogfood": {
       "autoIncrement": true,
       "distribution": "internal",
+      "environment": "production",
       "android": {
         "buildType": "apk"
       },
