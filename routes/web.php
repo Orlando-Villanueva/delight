@@ -192,6 +192,8 @@ Route::middleware(['auth', EnsureUserIsAdmin::class])->prefix('admin')->name('ad
         ->name('analytics.index');
     Route::post('announcements/preview', [AnnouncementController::class, 'preview'])
         ->name('announcements.preview');
+    Route::post('announcements/{announcement}/email-deliveries/retry', [AnnouncementController::class, 'retryFailedEmailDeliveries'])
+        ->name('announcements.email-deliveries.retry');
     Route::resource('announcements', AnnouncementController::class)
         ->only(['index', 'create', 'store']);
 });

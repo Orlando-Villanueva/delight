@@ -2,6 +2,7 @@
 
 use App\Console\Commands\DispatchReadingReminderPushes;
 use App\Console\Commands\SendOnboardingReminders;
+use App\Console\Commands\SendPublishedAnnouncementEmails;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -25,3 +26,9 @@ Schedule::command(DispatchReadingReminderPushes::class)
     ->everyFifteenMinutes()
     ->onOneServer()
     ->withoutOverlapping();
+
+Schedule::command(SendPublishedAnnouncementEmails::class)
+    ->everyFiveMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(30)
+    ->runInBackground();

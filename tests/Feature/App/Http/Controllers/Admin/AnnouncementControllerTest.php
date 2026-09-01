@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Announcement;
+use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
 use Illuminate\Support\Str;
 
@@ -133,4 +134,85 @@ it('it_can_validate_announcement_creation_inputs', function () {
     ]);
 
     $response->assertSessionHasErrors(['title', 'content', 'type', 'hero_image_path']);
+});
+
+it('shows announcement email failures and routine recovery on the admin index', function () {
+    $announcement = Announcement::factory()->create([
+        'title' => 'Delivery status update',
+        'email_broadcast_authorized_at' => now(),
+        'email_audience_finalized_at' => now(),
+    ]);
+    $recipient = User::factory()->create();
+    AnnouncementEmailDelivery::factory()->create([
+        'announcement_id' => $announcement->id,
+        'user_id' => $recipient->id,
+        'recipient_email' => $recipient->email,
+        'attempt_count' => 2,
+        'failed_at' => now(),
+        'failure_reason' => 'Mailgun unavailable (code 503).',
+    ]);
+
+    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+
+    $response->assertOk()
+        ->assertSee('Needs attention')
+        ->assertSee('1 failed')
+        ->assertSee('Mailgun unavailable (code 503).')
+        ->assertSee(route('admin.announcements.email-deliveries.retry', $announcement));
+});
+
+it('retries only terminally failed recipients for an announcement', function () {
+    $announcement = Announcement::factory()->create([
+        'email_broadcast_authorized_at' => now(),
+        'email_audience_finalized_at' => now(),
+    ]);
+    $failed = AnnouncementEmailDelivery::factory()->create([
+        'announcement_id' => $announcement->id,
+        'attempt_count' => 2,
+        'failed_at' => now(),
+        'failure_reason' => 'Mailgun unavailable (code 503).',
+    ]);
+    $sent = AnnouncementEmailDelivery::factory()->create([
+        'announcement_id' => $announcement->id,
+        'sent_at' => now(),
+    ]);
+    $skipped = AnnouncementEmailDelivery::factory()->create([
+        'announcement_id' => $announcement->id,
+        'skipped_at' => now(),
+    ]);
+    $uncertain = AnnouncementEmailDelivery::factory()->create([
+        'announcement_id' => $announcement->id,
+        'uncertain_at' => now(),
+    ]);
+    $pending = AnnouncementEmailDelivery::factory()->create([
+        'announcement_id' => $announcement->id,
+        'next_attempt_at' => now()->addMinutes(5),
+    ]);
+
+    $response = $this->actingAs($this->admin)->post(
+        route('admin.announcements.email-deliveries.retry', $announcement)
+    );
+
+    $response->assertRedirect(route('admin.announcements.index'))
+        ->assertSessionHas('success', 'One failed announcement email will be retried.');
+
+    expect($failed->fresh()->failed_at)->toBeNull()
+        ->and($failed->fresh()->next_attempt_at)->not->toBeNull()
+        ->and($failed->fresh()->failure_reason)->toBe('Mailgun unavailable (code 503).')
+        ->and($sent->fresh()->sent_at)->not->toBeNull()
+        ->and($skipped->fresh()->skipped_at)->not->toBeNull()
+        ->and($uncertain->fresh()->uncertain_at)->not->toBeNull()
+        ->and($pending->fresh()->next_attempt_at?->isFuture())->toBeTrue();
+});
+
+it('blocks non-admins and guests from retrying failed announcement emails', function () {
+    $announcement = Announcement::factory()->create();
+    $user = User::factory()->create(['email' => 'reader@example.com']);
+    $route = route('admin.announcements.email-deliveries.retry', $announcement);
+
+    $this->actingAs($user)->post($route)->assertForbidden();
+
+    auth()->logout();
+
+    $this->post($route)->assertRedirect(route('login'));
 });

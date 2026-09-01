@@ -162,6 +162,11 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    public function announcementEmailDeliveries(): HasMany
+    {
+        return $this->hasMany(AnnouncementEmailDelivery::class);
+    }
+
     /**
      * Get unread announcements for the user.
      */
