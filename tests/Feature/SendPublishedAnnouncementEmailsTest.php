@@ -220,6 +220,23 @@ it('marks a permanent submission failure terminal on its first attempt', functio
         ->and($delivery->fresh()->failed_at)->not->toBeNull();
 });
 
+it('quarantines an accepted http response with an unreadable provider body', function () {
+    $delivery = pendingAnnouncementEmailDelivery();
+    Mail::shouldReceive('to')->once()->andThrow(
+        new HttpTransportException(
+            'Unable to decode the provider response.',
+            new MockResponse('', ['http_code' => 200])
+        )
+    );
+
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($delivery->fresh()->attempt_count)->toBe(1)
+        ->and($delivery->fresh()->next_attempt_at)->toBeNull()
+        ->and($delivery->fresh()->failed_at)->toBeNull()
+        ->and($delivery->fresh()->uncertain_at)->not->toBeNull();
+});
+
 it('schedules a temporary smtp rejection for five minutes later', function () {
     Carbon::setTestNow('2026-08-31 12:00:00');
     $delivery = pendingAnnouncementEmailDelivery();

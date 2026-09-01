@@ -394,6 +394,15 @@ class AnnouncementEmailDeliveryService
             return AnnouncementEmailFailureDisposition::Uncertain;
         }
 
+        return $this->classifyHttpStatus($statusCode);
+    }
+
+    private function classifyHttpStatus(int $statusCode): AnnouncementEmailFailureDisposition
+    {
+        if ($statusCode >= 200 && $statusCode < 300) {
+            return AnnouncementEmailFailureDisposition::Uncertain;
+        }
+
         if ($statusCode === 429 || $statusCode >= 500) {
             return AnnouncementEmailFailureDisposition::Retryable;
         }
