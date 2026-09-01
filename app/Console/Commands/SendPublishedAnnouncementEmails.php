@@ -6,6 +6,7 @@ use App\Models\AnnouncementEmailDelivery;
 use App\Services\AnnouncementEmailDeliveryService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class SendPublishedAnnouncementEmails extends Command
 {
@@ -38,6 +39,7 @@ class SendPublishedAnnouncementEmails extends Command
         }
 
         try {
+            $startedAt = hrtime(true);
             $retryDeliveryId = $this->option('retry-delivery');
 
             if ($retryDeliveryId !== null) {
@@ -56,15 +58,27 @@ class SendPublishedAnnouncementEmails extends Command
                 }
 
                 $result = $deliveryService->processDelivery($delivery->fresh());
+                $deliveryService->completeFinishedBroadcasts();
+                $durationMilliseconds = $this->durationMilliseconds($startedAt);
                 $this->info("Announcement email delivery {$delivery->id}: {$result}.");
+
+                Log::info('Announcement email emergency retry completed.', [
+                    'delivery_id' => $delivery->id,
+                    'announcement_id' => $delivery->announcement_id,
+                    'result' => $result,
+                    'duration_ms' => $durationMilliseconds,
+                ]);
 
                 return self::SUCCESS;
             }
 
             $summary = $deliveryService->processDueBroadcasts();
+            $durationMilliseconds = $this->durationMilliseconds($startedAt);
+            $pendingCount = $this->pendingDeliveryCount();
 
             $this->info(sprintf(
-                'Announcement emails processed: %d audiences finalized, %d recipients added, %d sent, %d skipped, %d retryable, %d failed, %d uncertain.',
+                'Announcement emails processed in %d ms: %d audiences finalized, %d recipients added, %d sent, %d skipped, %d retryable, %d failed, %d uncertain, %d broadcasts completed, %d pending.',
+                $durationMilliseconds,
                 $summary['audiences_finalized'],
                 $summary['recipients_added'],
                 $summary['sent'],
@@ -72,11 +86,44 @@ class SendPublishedAnnouncementEmails extends Command
                 $summary['retryable'],
                 $summary['failed'],
                 $summary['uncertain'],
+                $summary['broadcasts_completed'],
+                $pendingCount,
             ));
+
+            if ($this->summaryHasActivity($summary)) {
+                Log::info('Announcement email processing run completed.', [
+                    'duration_ms' => $durationMilliseconds,
+                    ...$summary,
+                    'pending_count' => $pendingCount,
+                ]);
+            }
 
             return self::SUCCESS;
         } finally {
             $lock->release();
         }
+    }
+
+    private function durationMilliseconds(int $startedAt): int
+    {
+        return (int) round((hrtime(true) - $startedAt) / 1_000_000);
+    }
+
+    private function pendingDeliveryCount(): int
+    {
+        return AnnouncementEmailDelivery::query()
+            ->whereNull('sent_at')
+            ->whereNull('skipped_at')
+            ->whereNull('failed_at')
+            ->whereNull('uncertain_at')
+            ->count();
+    }
+
+    /**
+     * @param  array<string, int>  $summary
+     */
+    private function summaryHasActivity(array $summary): bool
+    {
+        return array_sum($summary) > 0;
     }
 }

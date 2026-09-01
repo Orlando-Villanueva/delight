@@ -35,7 +35,8 @@ class AnnouncementEmailDeliveryService
      *     skipped: int,
      *     retryable: int,
      *     failed: int,
-     *     uncertain: int
+     *     uncertain: int,
+     *     broadcasts_completed: int
      * }
      */
     public function processDueBroadcasts(): array
@@ -48,6 +49,7 @@ class AnnouncementEmailDeliveryService
             'retryable' => 0,
             'failed' => 0,
             'uncertain' => $this->markInterruptedDeliveriesUncertain(),
+            'broadcasts_completed' => 0,
         ];
 
         Announcement::query()
@@ -82,6 +84,8 @@ class AnnouncementEmailDeliveryService
                     $summary[$result]++;
                 }
             });
+
+        $summary['broadcasts_completed'] = $this->completeFinishedBroadcasts();
 
         return $summary;
     }
@@ -152,7 +156,7 @@ class AnnouncementEmailDeliveryService
 
     public function retryFailedDelivery(AnnouncementEmailDelivery $delivery): bool
     {
-        return AnnouncementEmailDelivery::query()
+        $retried = AnnouncementEmailDelivery::query()
             ->whereKey($delivery->id)
             ->whereNotNull('failed_at')
             ->whereNull('sent_at')
@@ -163,11 +167,19 @@ class AnnouncementEmailDeliveryService
                 'next_attempt_at' => now(),
                 'updated_at' => now(),
             ]) === 1;
+
+        if ($retried) {
+            Announcement::query()
+                ->whereKey($delivery->announcement_id)
+                ->update(['email_broadcast_completed_at' => null]);
+        }
+
+        return $retried;
     }
 
     public function retryFailedForAnnouncement(Announcement $announcement): int
     {
-        return $announcement->emailDeliveries()
+        $retriedCount = $announcement->emailDeliveries()
             ->whereNotNull('failed_at')
             ->whereNull('sent_at')
             ->whereNull('skipped_at')
@@ -177,6 +189,66 @@ class AnnouncementEmailDeliveryService
                 'next_attempt_at' => now(),
                 'updated_at' => now(),
             ]);
+
+        if ($retriedCount > 0) {
+            $announcement->forceFill(['email_broadcast_completed_at' => null])->save();
+        }
+
+        return $retriedCount;
+    }
+
+    public function completeFinishedBroadcasts(): int
+    {
+        $completedCount = 0;
+
+        Announcement::query()
+            ->whereNotNull('email_broadcast_authorized_at')
+            ->whereNotNull('email_audience_finalized_at')
+            ->whereNull('email_broadcast_completed_at')
+            ->whereDoesntHave('emailDeliveries', function ($query): void {
+                $query->whereNull('sent_at')
+                    ->whereNull('skipped_at')
+                    ->whereNull('failed_at')
+                    ->whereNull('uncertain_at');
+            })
+            ->orderBy('id')
+            ->each(function (Announcement $announcement) use (&$completedCount): void {
+                $completedAt = now();
+                $completed = Announcement::query()
+                    ->whereKey($announcement->id)
+                    ->whereNull('email_broadcast_completed_at')
+                    ->update(['email_broadcast_completed_at' => $completedAt]);
+
+                if ($completed !== 1) {
+                    return;
+                }
+
+                $announcement->forceFill(['email_broadcast_completed_at' => $completedAt]);
+                $announcement->loadCount([
+                    'emailDeliveries as email_recipient_count',
+                    'emailDeliveries as email_sent_count' => fn ($query) => $query->whereNotNull('sent_at'),
+                    'emailDeliveries as email_skipped_count' => fn ($query) => $query->whereNotNull('skipped_at'),
+                    'emailDeliveries as email_failed_count' => fn ($query) => $query->whereNotNull('failed_at'),
+                    'emailDeliveries as email_uncertain_count' => fn ($query) => $query->whereNotNull('uncertain_at'),
+                ]);
+
+                Log::info('Announcement email broadcast completed.', [
+                    'announcement_id' => $announcement->id,
+                    'duration_seconds' => (int) round($announcement->email_audience_finalized_at->diffInSeconds(
+                        $completedAt,
+                        true
+                    )),
+                    'recipient_count' => $announcement->email_recipient_count,
+                    'sent_count' => $announcement->email_sent_count,
+                    'skipped_count' => $announcement->email_skipped_count,
+                    'failed_count' => $announcement->email_failed_count,
+                    'uncertain_count' => $announcement->email_uncertain_count,
+                ]);
+
+                $completedCount++;
+            });
+
+        return $completedCount;
     }
 
     private function finalizeAudience(Announcement $announcement): int

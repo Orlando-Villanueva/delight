@@ -19,7 +19,7 @@ class AnnouncementController extends Controller
     public function index()
     {
         $announcements = Announcement::query()
-            ->with('latestFailedEmailDelivery')
+            ->with(['latestEmailDelivery', 'latestFailedEmailDelivery'])
             ->withCount([
                 'emailDeliveries',
                 'emailDeliveries as email_sent_count' => fn ($query) => $query->whereNotNull('sent_at'),
@@ -30,7 +30,13 @@ class AnnouncementController extends Controller
             ->latest()
             ->paginate(20);
 
-        return view('admin.announcements.index', compact('announcements'));
+        $hasActiveEmailBroadcasts = $announcements->getCollection()->contains(
+            fn (Announcement $announcement): bool => $announcement->email_broadcast_authorized_at !== null
+                && $announcement->email_broadcast_completed_at === null
+                && $announcement->starts_at?->lte(now())
+        );
+
+        return view('admin.announcements.index', compact('announcements', 'hasActiveEmailBroadcasts'));
     }
 
     public function create()

@@ -55,7 +55,14 @@
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <tbody id="announcement-table-body"
+                                class="divide-y divide-gray-200 dark:divide-gray-700"
+                                @if ($hasActiveEmailBroadcasts)
+                                    hx-get="{{ request()->fullUrl() }}"
+                                    hx-trigger="every 15s"
+                                    hx-select="#announcement-table-body"
+                                    hx-swap="outerHTML"
+                                @endif>
                                 @foreach ($announcements as $announcement)
                                     @php
                                         $status = 'Draft';
@@ -76,6 +83,9 @@
                                             - $announcement->email_skipped_count
                                             - $announcement->email_failed_count
                                             - $announcement->email_uncertain_count;
+                                        $emailHandledCount = $announcement->email_deliveries_count - $emailPendingCount;
+                                        $emailIsDelayed = $emailPendingCount > 0
+                                            && $announcement->email_audience_finalized_at?->lte(now()->subMinutes(15));
 
                                         if (!$announcement->email_broadcast_authorized_at) {
                                             $emailStatus = 'Not enabled';
@@ -92,6 +102,9 @@
                                         } elseif ($announcement->email_uncertain_count > 0) {
                                             $emailStatus = 'Uncertain';
                                             $emailStatusClasses = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+                                        } elseif ($emailIsDelayed) {
+                                            $emailStatus = 'Delayed';
+                                            $emailStatusClasses = 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300';
                                         } elseif ($emailPendingCount > 0) {
                                             $emailStatus = 'Sending';
                                             $emailStatusClasses = 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
@@ -129,7 +142,7 @@
                                                 {{ $status }}
                                             </span>
                                         </td>
-                                        <td class="px-3 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                        <td class="px-3 py-4 text-sm text-gray-600 dark:text-gray-300" aria-live="polite">
                                             <div class="flex min-w-44 flex-col items-start gap-2">
                                                 <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $emailStatusClasses }}">
                                                     {{ $emailStatus }}
@@ -137,7 +150,7 @@
 
                                                 @if ($announcement->email_audience_finalized_at)
                                                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                        {{ $announcement->email_sent_count }} sent
+                                                        {{ $emailHandledCount }} of {{ $announcement->email_deliveries_count }} handled
                                                         @if ($emailPendingCount > 0)
                                                             &middot; {{ $emailPendingCount }} pending
                                                         @endif
@@ -151,6 +164,20 @@
                                                             &middot; {{ $announcement->email_uncertain_count }} uncertain
                                                         @endif
                                                     </p>
+
+                                                    @if ($announcement->email_broadcast_completed_at)
+                                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                            Completed in {{ $announcement->emailBroadcastDurationForHumans() }}
+                                                            &middot; {{ $announcement->email_broadcast_completed_at->diffForHumans() }}
+                                                        </p>
+                                                    @else
+                                                        <p class="text-xs {{ $emailIsDelayed ? 'font-medium text-orange-700 dark:text-orange-300' : 'text-gray-500 dark:text-gray-400' }}">
+                                                            Started {{ $announcement->email_audience_finalized_at->diffForHumans() }}
+                                                            @if ($announcement->latestEmailDelivery)
+                                                                &middot; Last activity {{ $announcement->latestEmailDelivery->updated_at->diffForHumans() }}
+                                                            @endif
+                                                        </p>
+                                                    @endif
                                                 @endif
 
                                                 @if ($announcement->latestFailedEmailDelivery)

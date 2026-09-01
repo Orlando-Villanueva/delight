@@ -226,10 +226,87 @@ it('shows announcement email failures and routine recovery on the admin index', 
         ->assertSee(route('admin.announcements.email-deliveries.retry', $announcement));
 });
 
+it('shows live announcement email progress and polls while delivery is active', function () {
+    $announcement = Announcement::factory()->create([
+        'email_broadcast_authorized_at' => now()->subMinutes(6),
+        'email_audience_finalized_at' => now()->subMinutes(5),
+    ]);
+    AnnouncementEmailDelivery::factory()->count(2)->create([
+        'announcement_id' => $announcement->id,
+        'sent_at' => now()->subMinute(),
+    ]);
+    AnnouncementEmailDelivery::factory()->create([
+        'announcement_id' => $announcement->id,
+    ]);
+
+    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+
+    $response->assertOk()
+        ->assertSee('Sending')
+        ->assertSee('2 of 3 handled')
+        ->assertSee('1 pending')
+        ->assertSee('Started 5 minutes ago')
+        ->assertSee('Last activity')
+        ->assertSee('hx-trigger="every 15s"', false)
+        ->assertSee('hx-select="#announcement-table-body"', false);
+});
+
+it('does not poll for email progress before a scheduled announcement is published', function () {
+    Announcement::factory()->create([
+        'starts_at' => now()->addDay(),
+        'email_broadcast_authorized_at' => now(),
+    ]);
+
+    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+
+    $response->assertOk()
+        ->assertSee('Scheduled')
+        ->assertDontSee('hx-trigger="every 15s"', false);
+});
+
+it('shows completed broadcast duration and stops polling', function () {
+    $announcement = Announcement::factory()->create([
+        'email_broadcast_authorized_at' => now()->subMinutes(11),
+        'email_audience_finalized_at' => now()->subMinutes(10),
+        'email_broadcast_completed_at' => now(),
+    ]);
+    AnnouncementEmailDelivery::factory()->create([
+        'announcement_id' => $announcement->id,
+        'sent_at' => now()->subMinute(),
+    ]);
+
+    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+
+    $response->assertOk()
+        ->assertSee('Delivered')
+        ->assertSee('1 of 1 handled')
+        ->assertSee('Completed in 10m')
+        ->assertDontSee('hx-trigger="every 15s"', false);
+});
+
+it('warns when pending announcement email delivery is delayed', function () {
+    $announcement = Announcement::factory()->create([
+        'email_broadcast_authorized_at' => now()->subMinutes(17),
+        'email_audience_finalized_at' => now()->subMinutes(16),
+    ]);
+    AnnouncementEmailDelivery::factory()->create([
+        'announcement_id' => $announcement->id,
+    ]);
+
+    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+
+    $response->assertOk()
+        ->assertSee('Delayed')
+        ->assertSee('0 of 1 handled')
+        ->assertSee('1 pending')
+        ->assertSee('Started 16 minutes ago');
+});
+
 it('retries only terminally failed recipients for an announcement', function () {
     $announcement = Announcement::factory()->create([
         'email_broadcast_authorized_at' => now(),
         'email_audience_finalized_at' => now(),
+        'email_broadcast_completed_at' => now(),
     ]);
     $failed = AnnouncementEmailDelivery::factory()->create([
         'announcement_id' => $announcement->id,
@@ -267,7 +344,8 @@ it('retries only terminally failed recipients for an announcement', function () 
         ->and($sent->fresh()->sent_at)->not->toBeNull()
         ->and($skipped->fresh()->skipped_at)->not->toBeNull()
         ->and($uncertain->fresh()->uncertain_at)->not->toBeNull()
-        ->and($pending->fresh()->next_attempt_at?->isFuture())->toBeTrue();
+        ->and($pending->fresh()->next_attempt_at?->isFuture())->toBeTrue()
+        ->and($announcement->fresh()->email_broadcast_completed_at)->toBeNull();
 });
 
 it('blocks non-admins and guests from retrying failed announcement emails', function () {

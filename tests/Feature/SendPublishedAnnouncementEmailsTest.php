@@ -7,6 +7,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Mailer\Exception\HttpTransportException;
@@ -71,6 +72,49 @@ it('does not recreate an audience or resend a successful delivery', function () 
     Mail::assertSent(AnnouncementEmail::class, fn (AnnouncementEmail $mail): bool => $mail->hasTo($user->email));
 });
 
+it('logs meaningful processing and broadcast completion once', function () {
+    Mail::fake();
+    Log::spy();
+    Carbon::setTestNow('2026-09-01 12:00:00');
+    User::factory()->create(['created_at' => now()->subDay()]);
+    $announcement = Announcement::factory()->create([
+        'starts_at' => now(),
+        'email_broadcast_authorized_at' => now(),
+    ]);
+
+    $this->artisan('announcements:send-published-emails')
+        ->expectsOutputToContain('1 broadcasts completed, 0 pending')
+        ->assertSuccessful();
+
+    expect($announcement->fresh()->email_broadcast_completed_at)->not->toBeNull();
+    Log::shouldHaveReceived('info')
+        ->with('Announcement email broadcast completed.', Mockery::on(
+            fn (array $context): bool => $context['announcement_id'] === $announcement->id
+                && $context['recipient_count'] === 1
+                && $context['sent_count'] === 1
+                && $context['duration_seconds'] === 0
+        ))
+        ->once();
+    Log::shouldHaveReceived('info')
+        ->with('Announcement email processing run completed.', Mockery::on(
+            fn (array $context): bool => $context['audiences_finalized'] === 1
+                && $context['sent'] === 1
+                && $context['broadcasts_completed'] === 1
+                && $context['pending_count'] === 0
+                && is_int($context['duration_ms'])
+        ))
+        ->once();
+
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    Log::shouldHaveReceived('info')
+        ->with('Announcement email broadcast completed.', Mockery::any())
+        ->once();
+    Log::shouldHaveReceived('info')
+        ->with('Announcement email processing run completed.', Mockery::any())
+        ->once();
+});
+
 it('continues an audience larger than one run without duplicating recipients', function () {
     Mail::fake();
     Carbon::setTestNow('2026-08-31 12:00:00');
@@ -84,14 +128,16 @@ it('continues an audience larger than one run without duplicating recipients', f
 
     expect($announcement->emailDeliveries()->count())->toBe(160)
         ->and($announcement->emailDeliveries()->whereNotNull('sent_at')->count())->toBe(100)
-        ->and($announcement->emailDeliveries()->whereNull('sent_at')->count())->toBe(60);
+        ->and($announcement->emailDeliveries()->whereNull('sent_at')->count())->toBe(60)
+        ->and($announcement->fresh()->email_broadcast_completed_at)->toBeNull();
     Mail::assertSentCount(100);
 
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
 
     expect($announcement->emailDeliveries()->count())->toBe(160)
         ->and($announcement->emailDeliveries()->whereNotNull('sent_at')->count())->toBe(160)
-        ->and($announcement->emailDeliveries()->where('attempt_count', 1)->count())->toBe(160);
+        ->and($announcement->emailDeliveries()->where('attempt_count', 1)->count())->toBe(160)
+        ->and($announcement->fresh()->email_broadcast_completed_at)->not->toBeNull();
     Mail::assertSentCount(160);
 });
 
