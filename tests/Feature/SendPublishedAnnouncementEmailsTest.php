@@ -71,6 +71,30 @@ it('does not recreate an audience or resend a successful delivery', function () 
     Mail::assertSent(AnnouncementEmail::class, fn (AnnouncementEmail $mail): bool => $mail->hasTo($user->email));
 });
 
+it('continues an audience larger than one run without duplicating recipients', function () {
+    Mail::fake();
+    Carbon::setTestNow('2026-08-31 12:00:00');
+    User::factory()->count(160)->create(['created_at' => now()->subDay()]);
+    $announcement = Announcement::factory()->create([
+        'starts_at' => now(),
+        'email_broadcast_authorized_at' => now(),
+    ]);
+
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($announcement->emailDeliveries()->count())->toBe(160)
+        ->and($announcement->emailDeliveries()->whereNotNull('sent_at')->count())->toBe(100)
+        ->and($announcement->emailDeliveries()->whereNull('sent_at')->count())->toBe(60);
+    Mail::assertSentCount(100);
+
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($announcement->emailDeliveries()->count())->toBe(160)
+        ->and($announcement->emailDeliveries()->whereNotNull('sent_at')->count())->toBe(160)
+        ->and($announcement->emailDeliveries()->where('attempt_count', 1)->count())->toBe(160);
+    Mail::assertSentCount(160);
+});
+
 it('skips a recipient who opted out after audience finalization', function () {
     Mail::fake();
     $user = User::factory()->create();

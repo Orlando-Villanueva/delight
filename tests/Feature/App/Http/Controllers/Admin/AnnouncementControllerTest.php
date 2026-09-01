@@ -3,6 +3,7 @@
 use App\Models\Announcement;
 use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 beforeEach(function () {
@@ -37,9 +38,14 @@ it('it_can_show_the_announcement_create_form_for_admins', function () {
     $response->assertSee('Hero Image Path');
     $response->assertSee('Social Image Path');
     $response->assertSee('Markdown');
+    $response->assertSee('Publishing authorizes an email to every eligible user.');
+    $response->assertSee('Publish or schedule announcement');
 });
 
-it('it_can_store_announcements_for_admins', function () {
+it('publishes and authorizes an immediate email broadcast without sending in the request', function () {
+    Mail::fake();
+    $recipient = User::factory()->create();
+
     $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
         'title' => 'New Feature',
         'content' => 'Some markdown content.',
@@ -49,16 +55,74 @@ it('it_can_store_announcements_for_admins', function () {
     ]);
 
     $response->assertRedirect(route('admin.announcements.index'));
-    $response->assertSessionHas('success');
+    $response->assertSessionHas(
+        'success',
+        'Announcement published. Email delivery will begin within five minutes.'
+    );
 
     $announcement = Announcement::first();
 
-    expect($announcement)->not->toBeNull();
-    expect($announcement->title)->toBe('New Feature');
-    expect($announcement->type)->toBe('info');
-    expect($announcement->hero_image_path)->toBe('images/new-feature-hero.png');
-    expect($announcement->social_image_path)->toBe('images/new-feature-social.jpg');
-    expect(Str::startsWith($announcement->slug, Str::slug('New Feature')))->toBeTrue();
+    expect($announcement)->not->toBeNull()
+        ->and($announcement->title)->toBe('New Feature')
+        ->and($announcement->type)->toBe('info')
+        ->and($announcement->hero_image_path)->toBe('images/new-feature-hero.png')
+        ->and($announcement->social_image_path)->toBe('images/new-feature-social.jpg')
+        ->and(Str::startsWith($announcement->slug, Str::slug('New Feature')))->toBeTrue()
+        ->and($announcement->email_broadcast_authorized_at)->not->toBeNull()
+        ->and($announcement->email_audience_finalized_at)->toBeNull()
+        ->and($announcement->emailDeliveries()->count())->toBe(0);
+
+    Mail::assertNothingSent();
+
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($announcement->fresh()->email_audience_finalized_at)->not->toBeNull()
+        ->and($announcement->emailDeliveries()->count())->toBe(2)
+        ->and($announcement->emailDeliveries()->pluck('user_id')->all())
+        ->toEqualCanonicalizing([$this->admin->id, $recipient->id]);
+    Mail::assertSentCount(2);
+});
+
+it('authorizes a scheduled email broadcast without sending before publication', function () {
+    Mail::fake();
+    $recipient = User::factory()->create();
+    $startsAt = now()->addHour()->startOfMinute();
+
+    $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
+        'title' => 'Scheduled Feature',
+        'content' => 'Some scheduled markdown content.',
+        'type' => 'info',
+        'hero_image_path' => 'images/scheduled-feature-hero.png',
+        'starts_at' => $startsAt->format('Y-m-d\TH:i'),
+    ]);
+
+    $response->assertRedirect(route('admin.announcements.index'))
+        ->assertSessionHas(
+            'success',
+            'Announcement scheduled. Eligible users will be emailed after it is published.'
+        );
+
+    $announcement = Announcement::sole();
+
+    expect($announcement->email_broadcast_authorized_at)->not->toBeNull()
+        ->and($announcement->email_audience_finalized_at)->toBeNull()
+        ->and($announcement->emailDeliveries()->count())->toBe(0);
+    Mail::assertNothingSent();
+
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($announcement->fresh()->email_audience_finalized_at)->toBeNull()
+        ->and($announcement->emailDeliveries()->count())->toBe(0);
+    Mail::assertNothingSent();
+
+    $this->travelTo($startsAt);
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($announcement->fresh()->email_audience_finalized_at)->not->toBeNull()
+        ->and($announcement->emailDeliveries()->count())->toBe(2)
+        ->and($announcement->emailDeliveries()->pluck('user_id')->all())
+        ->toEqualCanonicalizing([$this->admin->id, $recipient->id]);
+    Mail::assertSentCount(2);
 });
 
 it('it_can_render_a_markdown_preview_for_admins', function () {
@@ -72,6 +136,7 @@ it('it_can_render_a_markdown_preview_for_admins', function () {
     $response->assertSee('<h1>Hello</h1>', false);
     $response->assertSee('<strong>World</strong>', false);
     $response->assertDontSee('<!DOCTYPE html>');
+    expect(Announcement::query()->count())->toBe(0);
 });
 
 it('it_can_render_an_empty_preview_state_for_admins', function () {

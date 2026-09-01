@@ -43,11 +43,16 @@ class AnnouncementController extends Controller
         $validated = $request->validated();
 
         $validated['slug'] = Str::slug($validated['title']).'-'.now()->timestamp;
+        $validated['email_broadcast_authorized_at'] = now();
 
-        Announcement::create($validated);
+        $announcement = Announcement::create($validated);
+
+        $message = $announcement->starts_at?->isFuture()
+            ? 'Announcement scheduled. Eligible users will be emailed after it is published.'
+            : 'Announcement published. Email delivery will begin within five minutes.';
 
         return redirect()->route('admin.announcements.index')
-            ->with('success', 'Announcement created successfully.');
+            ->with('success', $message);
     }
 
     public function preview(Request $request)
