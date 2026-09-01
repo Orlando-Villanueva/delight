@@ -4,6 +4,7 @@ use App\Mail\AnnouncementEmail;
 use App\Models\Announcement;
 use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
+use App\Services\AnnouncementEmailDeliveryService;
 use Carbon\Carbon;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Mail;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Mailer\Exception\HttpTransportException;
 use Symfony\Component\Mailer\Exception\UnexpectedResponseException;
+
+use function Pest\Laravel\mock;
 
 afterEach(function () {
     Carbon::setTestNow();
@@ -335,6 +338,27 @@ it('an exact emergency retry accepts only a terminally failed delivery', functio
     Mail::assertSentCount(1);
 
     $this->artisan("announcements:send-published-emails --retry-delivery={$uncertain->id}")
+        ->assertFailed();
+});
+
+it('fails cleanly if an emergency retry delivery disappears before sending', function () {
+    $delivery = pendingAnnouncementEmailDelivery([
+        'attempt_count' => 2,
+        'failed_at' => now(),
+        'failure_reason' => 'Mailgun unavailable',
+    ]);
+    $deliveryService = mock(AnnouncementEmailDeliveryService::class);
+    $deliveryService->shouldReceive('retryFailedDelivery')
+        ->once()
+        ->andReturnUsing(function (AnnouncementEmailDelivery $candidate): bool {
+            $candidate->delete();
+
+            return true;
+        });
+    $deliveryService->shouldNotReceive('processDelivery');
+
+    $this->artisan("announcements:send-published-emails --retry-delivery={$delivery->id}")
+        ->expectsOutputToContain('The announcement email delivery no longer exists.')
         ->assertFailed();
 });
 

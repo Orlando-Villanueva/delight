@@ -9,6 +9,7 @@ use App\Services\AnnouncementEmailDeliveryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 
 class AnnouncementController extends Controller
 {
@@ -16,7 +17,7 @@ class AnnouncementController extends Controller
         private AnnouncementEmailDeliveryService $emailDeliveryService
     ) {}
 
-    public function index()
+    public function index(): View
     {
         $announcements = Announcement::query()
             ->with(['latestEmailDelivery', 'latestFailedEmailDelivery'])

@@ -57,7 +57,15 @@ class SendPublishedAnnouncementEmails extends Command
                     return self::FAILURE;
                 }
 
-                $result = $deliveryService->processDelivery($delivery->fresh());
+                $refreshedDelivery = $delivery->fresh();
+
+                if (! $refreshedDelivery) {
+                    $this->error('The announcement email delivery no longer exists.');
+
+                    return self::FAILURE;
+                }
+
+                $result = $deliveryService->processDelivery($refreshedDelivery);
                 $deliveryService->completeFinishedBroadcasts();
                 $durationMilliseconds = $this->durationMilliseconds($startedAt);
                 $this->info("Announcement email delivery {$delivery->id}: {$result}.");

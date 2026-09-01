@@ -8,7 +8,6 @@ use App\Models\Announcement;
 use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -91,6 +90,11 @@ class AnnouncementEmailDeliveryService
         return $summary;
     }
 
+    /**
+     * Deliver to the recipient address captured when the audience was finalized.
+     *
+     * Revalidate the snapshot against the current user email before enabling client-side profile email updates.
+     */
     public function processDelivery(AnnouncementEmailDelivery $delivery): string
     {
         $delivery->loadMissing(['announcement', 'user']);
@@ -114,6 +118,7 @@ class AnnouncementEmailDeliveryService
         }
 
         $messageId = $delivery->message_id ?: $this->messageIdFor($delivery);
+        $claimedAt = now();
         $claimed = AnnouncementEmailDelivery::query()
             ->whereKey($delivery->id)
             ->whereNull('sending_at')
@@ -121,19 +126,22 @@ class AnnouncementEmailDeliveryService
             ->whereNull('skipped_at')
             ->whereNull('failed_at')
             ->whereNull('uncertain_at')
-            ->update([
-                'attempt_count' => DB::raw('attempt_count + 1'),
+            ->increment('attempt_count', 1, [
                 'message_id' => $messageId,
-                'sending_at' => now(),
+                'sending_at' => $claimedAt,
                 'next_attempt_at' => null,
-                'updated_at' => now(),
             ]);
 
         if ($claimed !== 1) {
             return 'ignored';
         }
 
-        $delivery->refresh()->loadMissing(['announcement', 'user']);
+        $delivery->forceFill([
+            'attempt_count' => $delivery->attempt_count + 1,
+            'message_id' => $messageId,
+            'sending_at' => $claimedAt,
+            'next_attempt_at' => null,
+        ])->syncOriginal();
 
         try {
             $sentMessage = Mail::to($delivery->recipient_email)->send(

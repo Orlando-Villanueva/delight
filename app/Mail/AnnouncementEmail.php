@@ -18,9 +18,6 @@ class AnnouncementEmail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    /**
-     * Create a new message instance.
-     */
     public string $unsubscribeUrl;
 
     public string $oneClickUnsubscribeUrl;
