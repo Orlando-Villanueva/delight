@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterval;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model; // Added this line based on 'use HasFactory;'
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class Announcement extends Model
@@ -20,12 +23,18 @@ class Announcement extends Model
         'starts_at',
         'ends_at',
         'sent_via_email_at',
+        'email_broadcast_authorized_at',
+        'email_audience_finalized_at',
+        'email_broadcast_completed_at',
     ];
 
     protected $casts = [
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
         'sent_via_email_at' => 'datetime',
+        'email_broadcast_authorized_at' => 'datetime',
+        'email_audience_finalized_at' => 'datetime',
+        'email_broadcast_completed_at' => 'datetime',
     ];
 
     /**
@@ -111,5 +120,39 @@ class Announcement extends Model
         return $this->belongsToMany(User::class)
             ->withPivot('read_at')
             ->withTimestamps();
+    }
+
+    public function emailDeliveries(): HasMany
+    {
+        return $this->hasMany(AnnouncementEmailDelivery::class);
+    }
+
+    public function latestFailedEmailDelivery(): HasOne
+    {
+        return $this->hasOne(AnnouncementEmailDelivery::class)
+            ->whereNotNull('failed_at')
+            ->latestOfMany('failed_at');
+    }
+
+    public function latestEmailDelivery(): HasOne
+    {
+        return $this->hasOne(AnnouncementEmailDelivery::class)
+            ->latestOfMany('updated_at');
+    }
+
+    public function emailBroadcastDurationForHumans(): ?string
+    {
+        if (! $this->email_audience_finalized_at || ! $this->email_broadcast_completed_at) {
+            return null;
+        }
+
+        $durationSeconds = (int) round($this->email_audience_finalized_at->diffInSeconds(
+            $this->email_broadcast_completed_at,
+            true
+        ));
+
+        return CarbonInterval::seconds($durationSeconds)
+            ->cascade()
+            ->forHumans(['parts' => 2, 'short' => true]);
     }
 }

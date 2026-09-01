@@ -7,7 +7,7 @@
         <div class="sm:flex sm:items-center">
             <div class="sm:flex-auto">
                 <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">Create Announcement</h1>
-                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Draft a new update for your users.</p>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Publish an update now or schedule it for later.</p>
             </div>
             <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
                 <a href="{{ route('admin.announcements.index') }}"
@@ -153,9 +153,13 @@
 
                         <!-- Actions -->
                         <div class="pt-6 mt-6 border-t border-gray-100 dark:border-gray-700 xl:mt-auto">
+                            <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                                Publishing authorizes an email to every eligible user. A future publish date delays both
+                                the public announcement and its email delivery until that time.
+                            </div>
                             <button type="submit"
                                 class="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 transition-colors">
-                                Save Announcement
+                                Publish or schedule announcement
                             </button>
                         </div>
                     </div>
