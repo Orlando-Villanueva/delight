@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Symfony\Component\Mailer\Exception\HttpTransportException;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface as MailerTransportException;
+use Symfony\Component\Mailer\Exception\UnexpectedResponseException;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface as HttpClientTransportException;
 use Throwable;
 
@@ -349,25 +350,47 @@ class AnnouncementEmailDeliveryService
 
     private function classifyFailure(MailerTransportException $exception): AnnouncementEmailFailureDisposition
     {
+        if ($exception instanceof UnexpectedResponseException) {
+            return $this->classifySmtpResponse($exception->getCode());
+        }
+
         if ($exception instanceof HttpTransportException) {
-            if ($exception->getPrevious() instanceof HttpClientTransportException) {
-                return AnnouncementEmailFailureDisposition::Uncertain;
-            }
+            return $this->classifyHttpResponse($exception);
+        }
 
-            try {
-                $statusCode = $exception->getResponse()->getStatusCode();
-            } catch (Throwable) {
-                return AnnouncementEmailFailureDisposition::Uncertain;
-            }
+        return AnnouncementEmailFailureDisposition::Uncertain;
+    }
 
-            if ($statusCode === 429 || $statusCode >= 500) {
-                return AnnouncementEmailFailureDisposition::Retryable;
-            }
+    private function classifySmtpResponse(int $statusCode): AnnouncementEmailFailureDisposition
+    {
+        if ($statusCode >= 400 && $statusCode < 500) {
+            return AnnouncementEmailFailureDisposition::Retryable;
+        }
 
+        if ($statusCode >= 500 && $statusCode < 600) {
             return AnnouncementEmailFailureDisposition::Terminal;
         }
 
         return AnnouncementEmailFailureDisposition::Uncertain;
+    }
+
+    private function classifyHttpResponse(HttpTransportException $exception): AnnouncementEmailFailureDisposition
+    {
+        if ($exception->getPrevious() instanceof HttpClientTransportException) {
+            return AnnouncementEmailFailureDisposition::Uncertain;
+        }
+
+        try {
+            $statusCode = $exception->getResponse()->getStatusCode();
+        } catch (Throwable) {
+            return AnnouncementEmailFailureDisposition::Uncertain;
+        }
+
+        if ($statusCode === 429 || $statusCode >= 500) {
+            return AnnouncementEmailFailureDisposition::Retryable;
+        }
+
+        return AnnouncementEmailFailureDisposition::Terminal;
     }
 
     private function messageIdFor(AnnouncementEmailDelivery $delivery): string

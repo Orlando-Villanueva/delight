@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Mailer\Exception\HttpTransportException;
+use Symfony\Component\Mailer\Exception\UnexpectedResponseException;
 
 afterEach(function () {
     Carbon::setTestNow();
@@ -214,6 +215,35 @@ it('marks a permanent submission failure terminal on its first attempt', functio
     expect($delivery->fresh()->attempt_count)->toBe(1)
         ->and($delivery->fresh()->next_attempt_at)->toBeNull()
         ->and($delivery->fresh()->failed_at)->not->toBeNull();
+});
+
+it('schedules a temporary smtp rejection for five minutes later', function () {
+    Carbon::setTestNow('2026-08-31 12:00:00');
+    $delivery = pendingAnnouncementEmailDelivery();
+    Mail::shouldReceive('to')->once()->andThrow(
+        new UnexpectedResponseException('SMTP server temporarily unavailable.', 451)
+    );
+
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($delivery->fresh()->attempt_count)->toBe(1)
+        ->and($delivery->fresh()->next_attempt_at?->equalTo(now()->addMinutes(5)))->toBeTrue()
+        ->and($delivery->fresh()->failed_at)->toBeNull()
+        ->and($delivery->fresh()->uncertain_at)->toBeNull();
+});
+
+it('marks a permanent smtp rejection terminal on its first attempt', function () {
+    $delivery = pendingAnnouncementEmailDelivery();
+    Mail::shouldReceive('to')->once()->andThrow(
+        new UnexpectedResponseException('SMTP recipient rejected.', 550)
+    );
+
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($delivery->fresh()->attempt_count)->toBe(1)
+        ->and($delivery->fresh()->next_attempt_at)->toBeNull()
+        ->and($delivery->fresh()->failed_at)->not->toBeNull()
+        ->and($delivery->fresh()->uncertain_at)->toBeNull();
 });
 
 it('fails visibly and preserves an unexpected sending error for uncertain reconciliation', function () {
