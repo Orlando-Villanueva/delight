@@ -96,7 +96,6 @@ it('seeds the :dataset release announcement', function (array $expected) {
 
     expect($announcement)->not->toBeNull()
         ->and($announcement->title)->toBe($expected['title'])
-        ->and($announcement->type)->toBe('info')
         ->and($announcement->hero_image_path)->toBe($expected['hero'])
         ->and($announcement->social_image_path)->toBe($expected['social'])
         ->and($announcement->starts_at->toDateTimeString())->toBe($expected['starts_at'])

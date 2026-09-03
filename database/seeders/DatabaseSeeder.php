@@ -104,7 +104,6 @@ MD;
             [
                 'title' => $title,
                 'content' => $content,
-                'type' => 'success',
                 'starts_at' => now(),
                 'ends_at' => null,
             ]

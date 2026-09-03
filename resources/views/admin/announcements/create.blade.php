@@ -117,18 +117,6 @@
                         <div class="space-y-6">
                             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Publishing</h3>
 
-                            <!-- Type -->
-                            <div>
-                                <label for="type"
-                                    class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Type</label>
-                                <select id="type" name="type"
-                                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-                                    <option value="info">Info</option>
-                                    <option value="warning">Warning</option>
-                                    <option value="success">Success</option>
-                                </select>
-                            </div>
-
                             <!-- Publish Date -->
                             <div>
                                 <label for="starts_at"

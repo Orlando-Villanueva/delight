@@ -51,16 +51,6 @@
 @section('content')
     <article class="mx-auto max-w-4xl">
         <header class="mb-10 text-center not-prose">
-            @if ($announcement->type !== 'info')
-                <span
-                    class="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium
-                                                    {{ $announcement->type === 'success' ? 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20' : '' }}
-                                                    {{ $announcement->type === 'warning' ? 'bg-yellow-50 text-yellow-800 ring-1 ring-inset ring-yellow-600/20' : '' }}
-                                                ">
-                    {{ ucfirst($announcement->type) }}
-                </span>
-            @endif
-
             <h1 class="mt-4 text-4xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-5xl">
                 {{ $announcement->title }}
             </h1>

@@ -53,6 +53,7 @@ class AnnouncementEmailDeliveryService
         ];
 
         Announcement::query()
+            ->where('is_draft', false)
             ->whereNotNull('email_broadcast_authorized_at')
             ->whereNotNull('starts_at')
             ->where('starts_at', '<=', now())

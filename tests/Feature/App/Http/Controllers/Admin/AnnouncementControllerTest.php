@@ -19,7 +19,6 @@ it('it_can_show_the_announcement_index_for_admins', function () {
         'title' => 'Weekly Update',
         'slug' => 'weekly-update-123',
         'content' => 'Test content',
-        'type' => 'info',
         'starts_at' => now(),
     ]);
 
@@ -38,8 +37,25 @@ it('it_can_show_the_announcement_create_form_for_admins', function () {
     $response->assertSee('Hero Image Path');
     $response->assertSee('Social Image Path');
     $response->assertSee('Markdown');
+    $response->assertDontSee('name="type"', false);
     $response->assertSee('Publishing authorizes an email to every eligible user.');
     $response->assertSee('Publish or schedule announcement');
+});
+
+it('shows persisted drafts to admins without offering a public view link', function () {
+    $announcement = Announcement::factory()->draft()->create([
+        'title' => 'Command-created draft',
+        'slug' => 'command-created-draft',
+        'ends_at' => now()->subMinute(),
+    ]);
+
+    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+
+    $response->assertSee($announcement->title)
+        ->assertSee('Draft')
+        ->assertSee('Not enabled')
+        ->assertDontSee('Expired')
+        ->assertDontSee(route('announcements.show', $announcement->slug));
 });
 
 it('publishes and authorizes an immediate email broadcast without sending in the request', function () {
@@ -49,9 +65,9 @@ it('publishes and authorizes an immediate email broadcast without sending in the
     $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
         'title' => 'New Feature',
         'content' => 'Some markdown content.',
-        'type' => 'info',
         'hero_image_path' => 'images/new-feature-hero.png',
         'social_image_path' => 'images/new-feature-social.jpg',
+        'is_draft' => true,
     ]);
 
     $response->assertRedirect(route('admin.announcements.index'));
@@ -64,9 +80,9 @@ it('publishes and authorizes an immediate email broadcast without sending in the
 
     expect($announcement)->not->toBeNull()
         ->and($announcement->title)->toBe('New Feature')
-        ->and($announcement->type)->toBe('info')
         ->and($announcement->hero_image_path)->toBe('images/new-feature-hero.png')
         ->and($announcement->social_image_path)->toBe('images/new-feature-social.jpg')
+        ->and($announcement->is_draft)->toBeFalse()
         ->and(Str::startsWith($announcement->slug, Str::slug('New Feature')))->toBeTrue()
         ->and($announcement->email_broadcast_authorized_at)->not->toBeNull()
         ->and($announcement->email_audience_finalized_at)->toBeNull()
@@ -91,7 +107,6 @@ it('authorizes a scheduled email broadcast without sending before publication', 
     $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
         'title' => 'Scheduled Feature',
         'content' => 'Some scheduled markdown content.',
-        'type' => 'info',
         'hero_image_path' => 'images/scheduled-feature-hero.png',
         'starts_at' => $startsAt->format('Y-m-d\TH:i'),
     ]);
@@ -167,7 +182,6 @@ it('it_can_block_non_admins_from_admin_announcement_routes', function (string $m
     ['post', fn () => route('admin.announcements.store'), [
         'title' => 'Blocked',
         'content' => 'Nope',
-        'type' => 'info',
         'hero_image_path' => 'images/nope.png',
         'social_image_path' => 'images/nope-social.jpg',
     ]],
@@ -195,10 +209,9 @@ it('it_can_validate_announcement_creation_inputs', function () {
     $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
         'title' => '',
         'content' => '',
-        'type' => '',
     ]);
 
-    $response->assertSessionHasErrors(['title', 'content', 'type', 'hero_image_path']);
+    $response->assertSessionHasErrors(['title', 'content', 'hero_image_path']);
 });
 
 it('shows announcement email failures and routine recovery on the admin index', function () {

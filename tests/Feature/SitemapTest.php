@@ -8,7 +8,6 @@ it('lists the updates index and visible announcement articles', function () {
         'title' => 'Visible Update',
         'slug' => 'visible-update',
         'content' => 'Visible article body.',
-        'type' => 'info',
         'starts_at' => now()->subDay(),
     ]);
 
@@ -16,7 +15,6 @@ it('lists the updates index and visible announcement articles', function () {
         'title' => 'Future Update',
         'slug' => 'future-update',
         'content' => 'Future article body.',
-        'type' => 'info',
         'starts_at' => now()->addDay(),
     ]);
 
@@ -24,7 +22,6 @@ it('lists the updates index and visible announcement articles', function () {
         'title' => 'Expired Update',
         'slug' => 'expired-update',
         'content' => 'Expired article body.',
-        'type' => 'info',
         'starts_at' => now()->subDays(2),
         'ends_at' => now()->subDay(),
     ]);
@@ -45,7 +42,6 @@ it('uses the most recently updated visible announcement for the updates index la
         'title' => 'Older Update',
         'slug' => 'older-update',
         'content' => 'Older article body.',
-        'type' => 'info',
         'starts_at' => now()->subDays(10),
     ]);
 
@@ -53,7 +49,6 @@ it('uses the most recently updated visible announcement for the updates index la
         'title' => 'Newer Update',
         'slug' => 'newer-update',
         'content' => 'Newer article body.',
-        'type' => 'info',
         'starts_at' => now()->subDays(5),
     ]);
 

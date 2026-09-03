@@ -36,10 +36,6 @@
                                         Title
                                     </th>
                                     <th scope="col"
-                                        class="hidden sm:table-cell px-3 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Type
-                                    </th>
-                                    <th scope="col"
                                         class="hidden md:table-cell px-3 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                         Publish Date</th>
                                     <th scope="col"
@@ -66,14 +62,14 @@
                                 @foreach ($announcements as $announcement)
                                     @php
                                         $status = 'Draft';
-                                        if ($announcement->starts_at && $announcement->starts_at->isFuture()) {
+                                        if (!$announcement->is_draft && $announcement->starts_at && $announcement->starts_at->isFuture()) {
                                             $status = 'Scheduled';
-                                        } elseif (
+                                        } elseif (!$announcement->is_draft &&
                                             $announcement->starts_at &&
                                             (!$announcement->ends_at || $announcement->ends_at->isFuture())
                                         ) {
                                             $status = 'Active';
-                                        } elseif ($announcement->ends_at && $announcement->ends_at->isPast()) {
+                                        } elseif (!$announcement->is_draft && $announcement->ends_at && $announcement->ends_at->isPast()) {
                                             $status = 'Expired';
                                         }
                                     @endphp
@@ -120,25 +116,16 @@
                                             <div class="text-xs text-gray-500 dark:text-gray-500 font-normal">
                                                 /{{ $announcement->slug }}</div>
                                         </td>
-                                        <td class="hidden sm:table-cell whitespace-nowrap px-3 py-4 text-sm">
-                                            <span
-                                                class="inline-flex rounded-full px-2 text-xs font-medium leading-5
-                                                                            {{ $announcement->type === 'warning' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : '' }}
-                                                                            {{ $announcement->type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : '' }}
-                                                                            {{ $announcement->type === 'info' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : '' }}">
-                                                {{ ucfirst($announcement->type) }}
-                                            </span>
-                                        </td>
                                         <td
                                             class="hidden md:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-600 dark:text-gray-400">
-                                            {{ $announcement->starts_at ? $announcement->starts_at->format('M j, Y H:i') : 'Draft' }}
+                                            {{ $announcement->is_draft ? 'Draft' : $announcement->starts_at?->format('M j, Y H:i') }}
                                         </td>
                                         <td class="whitespace-nowrap px-3 py-4 text-sm">
                                             <span
                                                 class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
                                                                             {{ $status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : '' }}
                                                                             {{ $status === 'Scheduled' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : '' }}
-                                                                            {{ $status === 'Expired' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' : '' }}">
+                                                                            {{ in_array($status, ['Draft', 'Expired'], true) ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' : '' }}">
                                                 {{ $status }}
                                             </span>
                                         </td>
@@ -202,9 +189,11 @@
                                         </td>
                                         <td
                                             class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                            <a href="{{ route('announcements.show', $announcement->slug) }}"
-                                                target="_blank"
-                                                class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">View</a>
+                                            @unless ($announcement->is_draft)
+                                                <a href="{{ route('announcements.show', $announcement->slug) }}"
+                                                    target="_blank"
+                                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">View</a>
+                                            @endunless
                                         </td>
                                     </tr>
                                 @endforeach

@@ -11,11 +11,7 @@
         <a href="{{ route('announcements.show', $announcement->slug) }}"
             class="flex px-4 py-4 hover:bg-gray-100/80 dark:hover:bg-gray-700/50 transition-colors group">
             <div class="flex-shrink-0 mt-1">
-                @if ($announcement->type === 'success')
-                    <div class="w-2.5 h-2.5 rounded-full bg-success-500 shadow-sm shadow-success-500/50"></div>
-                @elseif($announcement->type === 'warning')
-                    <div class="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-sm shadow-yellow-400/50"></div>
-                @elseif($isUnread)
+                @if ($isUnread)
                     <div class="w-2.5 h-2.5 rounded-full bg-primary-500 shadow-sm shadow-primary-500/50"></div>
                 @else
                     <div class="w-2.5 h-2.5 rounded-full bg-gray-300 dark:bg-gray-600"></div>

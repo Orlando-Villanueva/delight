@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAnnouncementRequest;
 use App\Models\Announcement;
 use App\Services\AnnouncementEmailDeliveryService;
+use App\Services\AnnouncementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -14,7 +15,8 @@ use Illuminate\View\View;
 class AnnouncementController extends Controller
 {
     public function __construct(
-        private AnnouncementEmailDeliveryService $emailDeliveryService
+        private AnnouncementEmailDeliveryService $emailDeliveryService,
+        private AnnouncementService $announcementService,
     ) {}
 
     public function index(): View
@@ -47,12 +49,7 @@ class AnnouncementController extends Controller
 
     public function store(StoreAnnouncementRequest $request): RedirectResponse
     {
-        $validated = $request->validated();
-
-        $validated['slug'] = Str::slug($validated['title']).'-'.now()->timestamp;
-        $validated['email_broadcast_authorized_at'] = now();
-
-        $announcement = Announcement::create($validated);
+        $announcement = $this->announcementService->createPublishedOrScheduled($request->validated());
 
         $message = $announcement->starts_at?->isFuture()
             ? 'Announcement scheduled. Eligible users will be emailed after it is published.'

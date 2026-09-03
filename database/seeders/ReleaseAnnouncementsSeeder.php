@@ -55,7 +55,6 @@ MD;
             [
                 'title' => $title,
                 'content' => $content,
-                'type' => 'info',
                 'hero_image_path' => 'images/updates/mcheyne-and-catholic-canonical-reading-plans.png',
                 'social_image_path' => 'images/updates/mcheyne-and-catholic-canonical-reading-plans.png',
                 'starts_at' => Carbon::create(2026, 6, 14, 12, 0, 0, config('app.timezone')),
@@ -101,7 +100,6 @@ MD;
             [
                 'title' => $title,
                 'content' => $content,
-                'type' => 'info',
                 'hero_image_path' => 'images/updates/start-reading-plans-from-where-you-are.png',
                 'social_image_path' => 'images/updates/start-reading-plans-from-where-you-are.png',
                 'starts_at' => Carbon::create(2026, 6, 9, 18, 43, 3, config('app.timezone')),
@@ -149,7 +147,6 @@ MD;
             [
                 'title' => $title,
                 'content' => $content,
-                'type' => 'info',
                 'hero_image_path' => 'images/deuterocanonical-books-hero.jpg',
                 'social_image_path' => 'images/deuterocanonical-books-social.jpg',
                 'starts_at' => Carbon::create(2026, 4, 30, 12, 0, 0),
@@ -205,7 +202,6 @@ MD;
             [
                 'title' => $title,
                 'content' => $content,
-                'type' => 'info',
                 'hero_image_path' => 'images/permanent-achievements-release.png',
                 'social_image_path' => 'images/permanent-achievements-release.png',
                 'starts_at' => Carbon::create(2026, 5, 14, 16, 0, 0, config('app.timezone')),

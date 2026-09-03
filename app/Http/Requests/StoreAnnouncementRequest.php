@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\AnnouncementValidator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreAnnouncementRequest extends FormRequest
@@ -11,17 +12,9 @@ class StoreAnnouncementRequest extends FormRequest
         return $this->user() !== null;
     }
 
-    public function rules(): array
+    public function rules(AnnouncementValidator $announcementValidator): array
     {
-        return [
-            'title' => ['required', 'string', 'max:255'],
-            'content' => ['required', 'string'],
-            'type' => ['required', 'in:info,warning,success'],
-            'hero_image_path' => ['required', 'string', 'max:255'],
-            'social_image_path' => ['nullable', 'string', 'max:255'],
-            'starts_at' => ['required', 'date'],
-            'ends_at' => ['nullable', 'date', 'after:starts_at'],
-        ];
+        return $announcementValidator->rules();
     }
 
     protected function prepareForValidation(): void
