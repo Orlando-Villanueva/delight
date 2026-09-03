@@ -55,6 +55,12 @@ class Announcement extends Model
             });
     }
 
+    public function isPublished(): bool
+    {
+        return ! $this->is_draft
+            && ($this->starts_at === null || $this->starts_at->lte(now()));
+    }
+
     /**
      * Scope a query to only include visible announcements (published and not expired).
      */

@@ -1,27 +1,32 @@
 @extends('layouts.reader')
 
-@section('title', $announcement->title . ' - Delight Updates')
+@php($isPreview = $isPreview ?? false)
+
+@section('title', ($isPreview ? 'Preview: ' : '') . $announcement->title . ' - Delight Updates')
 
 @section('meta')
     @php($heroImageUrl = $announcement->heroImageUrl())
     @php($socialImageUrl = $announcement->socialImageUrl())
     @php($seoDescription = $announcement->seoDescription(150))
     <meta name="description" content="{{ $seoDescription }}">
-    <meta name="robots" content="index, follow">
-    <link rel="canonical" href="{{ route('announcements.show', $announcement->slug) }}">
-    <meta property="og:title" content="{{ $announcement->title }}">
-    <meta property="og:description" content="{{ $announcement->seoDescription(200) }}">
-    <meta property="og:type" content="article">
-    <meta property="og:url" content="{{ route('announcements.show', $announcement->slug) }}">
-    <meta property="article:published_time" content="{{ $announcement->starts_at->toIso8601String() }}">
+    @if ($isPreview)
+        <meta name="robots" content="noindex, nofollow">
+    @else
+        <meta name="robots" content="index, follow">
+        <link rel="canonical" href="{{ route('announcements.show', $announcement->slug) }}">
+        <meta property="og:title" content="{{ $announcement->title }}">
+        <meta property="og:description" content="{{ $announcement->seoDescription(200) }}">
+        <meta property="og:type" content="article">
+        <meta property="og:url" content="{{ route('announcements.show', $announcement->slug) }}">
+        <meta property="article:published_time" content="{{ $announcement->starts_at->toIso8601String() }}">
 
-    <!-- Social -->
-    <meta property="og:image" content="{{ $socialImageUrl ?? asset('images/social-article.png') }}">
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:image" content="{{ $socialImageUrl ?? asset('images/social-article.png') }}">
+        <!-- Social -->
+        <meta property="og:image" content="{{ $socialImageUrl ?? asset('images/social-article.png') }}">
+        <meta property="twitter:card" content="summary_large_image">
+        <meta property="twitter:image" content="{{ $socialImageUrl ?? asset('images/social-article.png') }}">
 
-    <!-- JSON-LD Schema -->
-    <script type="application/ld+json">
+        <!-- JSON-LD Schema -->
+        <script type="application/ld+json">
                     {
                         "@@context": "https://schema.org",
                         "@@type": "BlogPosting",
@@ -45,10 +50,25 @@
                         },
                         "description": {!! json_encode($seoDescription, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
                     }
-                    </script>
+        </script>
+    @endif
 @endsection
 
 @section('content')
+    @if ($isPreview)
+        <aside role="status"
+            class="mx-auto mb-8 flex max-w-4xl flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-sm dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <p class="font-semibold">{{ $announcement->is_draft ? 'Draft preview' : 'Scheduled preview' }}</p>
+                <p class="mt-1 text-sm">This announcement is not publicly visible yet.</p>
+            </div>
+            <a href="{{ route('admin.announcements.index') }}"
+                class="text-sm font-semibold text-amber-900 underline decoration-amber-500 underline-offset-4 hover:text-amber-700 dark:text-amber-100 dark:hover:text-amber-300">
+                Back to announcements
+            </a>
+        </aside>
+    @endif
+
     <article class="mx-auto max-w-4xl">
         <header class="mb-10 text-center not-prose">
             <h1 class="mt-4 text-4xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-5xl">
@@ -79,9 +99,9 @@
         </div>
 
         <div class="mx-auto mt-16 max-w-prose border-t border-gray-100 pt-10 dark:border-gray-800">
-            <a href="{{ route('announcements.index') }}"
+            <a href="{{ $isPreview ? route('admin.announcements.index') : route('announcements.index') }}"
                 class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium flex items-center gap-2">
-                &larr; Back to all updates
+                &larr; {{ $isPreview ? 'Back to announcements' : 'Back to all updates' }}
             </a>
         </div>
     </article>

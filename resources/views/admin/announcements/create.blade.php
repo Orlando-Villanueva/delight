@@ -108,7 +108,7 @@
                                         :class="mode === 'preview' ? 'bg-gray-100 text-gray-900 dark:bg-gray-600 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white'"
                                         :aria-pressed="mode === 'preview'"
                                         @click="mode = 'preview'"
-                                        hx-post="{{ route('admin.announcements.preview') }}"
+                                        hx-post="{{ route('admin.announcements.preview-markdown') }}"
                                         hx-target="#announcement-preview"
                                         hx-swap="innerHTML"
                                         hx-include="closest form">

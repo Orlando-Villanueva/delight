@@ -59,7 +59,7 @@ class AnnouncementController extends Controller
             ->with('success', $message);
     }
 
-    public function preview(Request $request)
+    public function previewMarkdown(Request $request)
     {
         $content = (string) $request->input('content', '');
         $trimmedContent = trim($content);
@@ -68,6 +68,18 @@ class AnnouncementController extends Controller
         return response()->htmx('admin.announcements.create', 'announcement-preview', [
             'previewHtml' => $previewHtml,
             'previewIsEmpty' => $trimmedContent === '',
+        ]);
+    }
+
+    public function preview(Announcement $announcement): View|RedirectResponse
+    {
+        if ($announcement->isPublished()) {
+            return redirect()->route('announcements.show', ['slug' => $announcement->slug]);
+        }
+
+        return view('announcements.show', [
+            'announcement' => $announcement,
+            'isPreview' => true,
         ]);
     }
 

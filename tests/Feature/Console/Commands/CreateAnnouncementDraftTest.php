@@ -32,6 +32,9 @@ it('creates a persisted draft without publication or delivery side effects', fun
         'id' => $announcement->id,
         'slug' => 'a-careful-update',
         'state' => 'draft',
+        'preview_url' => route('admin.announcements.preview', [
+            'announcement' => 'a-careful-update',
+        ]),
         'publication_url' => route('announcements.show', ['slug' => 'a-careful-update']),
     ])
         ->and($output['proposed_starts_at'])->not->toBeNull()
@@ -70,6 +73,9 @@ it('uses an explicit clean publication slug', function () {
 
     expect($exitCode)->toBe(Command::SUCCESS)
         ->and($announcement->slug)->toBe('editorial-release-url')
+        ->and($output['preview_url'])->toBe(route('admin.announcements.preview', [
+            'announcement' => 'editorial-release-url',
+        ]))
         ->and($output['publication_url'])->toBe(route('announcements.show', [
             'slug' => 'editorial-release-url',
         ]));
@@ -126,7 +132,11 @@ it('defaults a draft proposed publication time without making it public', functi
         '--title' => 'Immediate after approval',
         '--content-file' => $contentFile,
         '--hero-image-path' => 'images/immediate.png',
-    ])->assertSuccessful();
+    ])->expectsOutputToContain(route('admin.announcements.preview', [
+        'announcement' => 'immediate-after-approval',
+    ]))->expectsOutputToContain(route('announcements.show', [
+        'slug' => 'immediate-after-approval',
+    ]))->assertSuccessful();
 
     $announcement = Announcement::sole();
 

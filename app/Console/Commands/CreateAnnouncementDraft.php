@@ -73,6 +73,9 @@ class CreateAnnouncementDraft extends Command
             'id' => $announcement->id,
             'slug' => $announcement->slug,
             'state' => 'draft',
+            'preview_url' => route('admin.announcements.preview', [
+                'announcement' => $announcement->slug,
+            ]),
             'publication_url' => route('announcements.show', ['slug' => $announcement->slug]),
             'proposed_starts_at' => $announcement->starts_at?->toIso8601String(),
             'proposed_ends_at' => $announcement->ends_at?->toIso8601String(),

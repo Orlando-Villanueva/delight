@@ -25,6 +25,8 @@ it('it_can_show_the_announcement_index_for_admins', function () {
 
     $response->assertOk();
     $response->assertSee('Weekly Update');
+    $response->assertSee(route('announcements.show', 'weekly-update-123'))
+        ->assertDontSee(route('admin.announcements.preview', 'weekly-update-123'));
 });
 
 it('it_can_show_the_announcement_create_form_for_admins', function () {
@@ -44,11 +46,16 @@ it('it_can_show_the_announcement_create_form_for_admins', function () {
     $response->assertSee('Publish or schedule announcement');
 });
 
-it('shows persisted drafts to admins without offering a public view link', function () {
+it('shows persisted drafts to admins with a protected preview link', function () {
     $announcement = Announcement::factory()->draft()->create([
         'title' => 'Command-created draft',
         'slug' => 'command-created-draft',
         'ends_at' => now()->subMinute(),
+    ]);
+    $scheduledAnnouncement = Announcement::factory()->create([
+        'title' => 'Scheduled announcement',
+        'slug' => 'scheduled-announcement',
+        'starts_at' => now()->addDay(),
     ]);
 
     $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
@@ -57,7 +64,66 @@ it('shows persisted drafts to admins without offering a public view link', funct
         ->assertSee('Draft')
         ->assertSee('Not enabled')
         ->assertDontSee('Expired')
-        ->assertDontSee(route('announcements.show', $announcement->slug));
+        ->assertSee(route('admin.announcements.preview', $announcement->slug))
+        ->assertDontSee(route('announcements.show', $announcement->slug))
+        ->assertSee(route('admin.announcements.preview', $scheduledAnnouncement->slug))
+        ->assertDontSee(route('announcements.show', $scheduledAnnouncement->slug));
+});
+
+it('renders a persisted draft preview for admins without side effects', function () {
+    Mail::fake();
+    $announcement = Announcement::factory()->draft()->create([
+        'title' => 'Private release preview',
+        'slug' => 'private-release-preview',
+        'content' => "# Preview heading\n\n**Preview body**",
+        'hero_image_path' => 'images/private-release.png',
+        'starts_at' => now()->addDay(),
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('admin.announcements.preview', $announcement->slug));
+
+    $response->assertViewIs('announcements.show')
+        ->assertViewHas('announcement', $announcement)
+        ->assertSee('Draft preview')
+        ->assertSee('This announcement is not publicly visible yet.')
+        ->assertSee('<h1>Preview heading</h1>', false)
+        ->assertSee('<strong>Preview body</strong>', false)
+        ->assertSee('images/private-release.png', false)
+        ->assertSee('<meta name="robots" content="noindex, nofollow">', false)
+        ->assertDontSee('<link rel="canonical"', false);
+    expect($this->admin->announcements()->whereKey($announcement->id)->exists())->toBeFalse()
+        ->and($announcement->emailDeliveries()->count())->toBe(0);
+    Mail::assertNothingSent();
+});
+
+it('renders a scheduled announcement preview before its publication time', function () {
+    $announcement = Announcement::factory()->create([
+        'slug' => 'scheduled-release-preview',
+        'starts_at' => now()->addDay(),
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('admin.announcements.preview', $announcement->slug));
+
+    $response->assertSee('Scheduled preview')
+        ->assertSee('This announcement is not publicly visible yet.');
+    $this->get(route('announcements.show', $announcement->slug))->assertNotFound();
+});
+
+it('redirects a publicly reachable announcement preview to its publication URL', function () {
+    $announcement = Announcement::factory()->create([
+        'slug' => 'published-release',
+        'starts_at' => now()->subMinute(),
+        'ends_at' => now()->subSecond(),
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->get(route('admin.announcements.preview', $announcement->slug));
+
+    $response->assertRedirectToRoute('announcements.show', [
+        'slug' => $announcement->slug,
+    ]);
 });
 
 it('publishes and authorizes an immediate email broadcast without sending in the request', function () {
@@ -185,7 +251,7 @@ it('authorizes a scheduled email broadcast without sending before publication', 
 });
 
 it('it_can_render_a_markdown_preview_for_admins', function () {
-    $response = $this->actingAs($this->admin)->post(route('admin.announcements.preview'), [
+    $response = $this->actingAs($this->admin)->post(route('admin.announcements.preview-markdown'), [
         'content' => "# Hello\n\n**World**",
     ], [
         'HX-Request' => 'true',
@@ -199,7 +265,7 @@ it('it_can_render_a_markdown_preview_for_admins', function () {
 });
 
 it('it_can_render_an_empty_preview_state_for_admins', function () {
-    $response = $this->actingAs($this->admin)->post(route('admin.announcements.preview'), [
+    $response = $this->actingAs($this->admin)->post(route('admin.announcements.preview-markdown'), [
         'content' => '   ',
     ], [
         'HX-Request' => 'true',
@@ -229,9 +295,12 @@ it('it_can_block_non_admins_from_admin_announcement_routes', function (string $m
         'hero_image_path' => 'images/nope.png',
         'social_image_path' => 'images/nope-social.jpg',
     ]],
-    ['post', fn () => route('admin.announcements.preview'), [
+    ['post', fn () => route('admin.announcements.preview-markdown'), [
         'content' => '# Preview',
     ]],
+    ['get', fn () => route('admin.announcements.preview', [
+        'announcement' => Announcement::factory()->draft()->create()->slug,
+    ])],
 ]);
 
 it('it_can_redirect_guests_from_admin_announcement_routes', function (string $method, Closure $route, array $payload = []) {
@@ -244,9 +313,12 @@ it('it_can_redirect_guests_from_admin_announcement_routes', function (string $me
     ['get', fn () => route('admin.announcements.index')],
     ['get', fn () => route('admin.announcements.create')],
     ['post', fn () => route('admin.announcements.store'), []],
-    ['post', fn () => route('admin.announcements.preview'), [
+    ['post', fn () => route('admin.announcements.preview-markdown'), [
         'content' => '# Preview',
     ]],
+    ['get', fn () => route('admin.announcements.preview', [
+        'announcement' => Announcement::factory()->draft()->create()->slug,
+    ])],
 ]);
 
 it('it_can_validate_announcement_creation_inputs', function () {

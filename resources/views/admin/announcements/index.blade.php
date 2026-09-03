@@ -189,11 +189,15 @@
                                         </td>
                                         <td
                                             class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                            @unless ($announcement->is_draft)
+                                            @if ($announcement->isPublished())
                                                 <a href="{{ route('announcements.show', $announcement->slug) }}"
                                                     target="_blank"
                                                     class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">View</a>
-                                            @endunless
+                                            @else
+                                                <a href="{{ route('admin.announcements.preview', $announcement->slug) }}"
+                                                    target="_blank"
+                                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">Preview</a>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach
