@@ -16,6 +16,7 @@ class CreateAnnouncementDraft extends Command
      */
     protected $signature = 'announcements:draft
         {--title= : Announcement title}
+        {--slug= : Optional publication slug; defaults to the title slug}
         {--content-file= : Path to a Markdown content file}
         {--hero-image-path= : Public hero image path}
         {--social-image-path= : Optional public social image path}
@@ -56,6 +57,7 @@ class CreateAnnouncementDraft extends Command
         try {
             $validated = $announcementValidator->validate([
                 'title' => $this->option('title'),
+                'slug' => $this->option('slug'),
                 'content' => $content,
                 'hero_image_path' => $this->option('hero-image-path'),
                 'social_image_path' => $this->option('social-image-path'),
@@ -71,6 +73,7 @@ class CreateAnnouncementDraft extends Command
             'id' => $announcement->id,
             'slug' => $announcement->slug,
             'state' => 'draft',
+            'publication_url' => route('announcements.show', ['slug' => $announcement->slug]),
             'proposed_starts_at' => $announcement->starts_at?->toIso8601String(),
             'proposed_ends_at' => $announcement->ends_at?->toIso8601String(),
         ];

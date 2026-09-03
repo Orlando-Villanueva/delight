@@ -30,13 +30,15 @@ it('creates a persisted draft without publication or delivery side effects', fun
     expect($exitCode)->toBe(Command::SUCCESS);
     expect($output)->toMatchArray([
         'id' => $announcement->id,
-        'slug' => $announcement->slug,
+        'slug' => 'a-careful-update',
         'state' => 'draft',
+        'publication_url' => route('announcements.show', ['slug' => 'a-careful-update']),
     ])
         ->and($output['proposed_starts_at'])->not->toBeNull()
         ->and($output['proposed_ends_at'])->not->toBeNull();
     expect($announcement->title)->toBe('A Careful Update')
         ->and($announcement->content)->toBe("# A careful update\n\nDraft content.")
+        ->and($announcement->slug)->toBe('a-careful-update')
         ->and($announcement->hero_image_path)->toBe('images/careful-update.png')
         ->and($announcement->social_image_path)->toBe('images/careful-update-social.png')
         ->and($announcement->is_draft)->toBeTrue()
@@ -50,6 +52,45 @@ it('creates a persisted draft without publication or delivery side effects', fun
     expect($announcement->fresh()->email_audience_finalized_at)->toBeNull()
         ->and($announcement->emailDeliveries()->count())->toBe(0);
     Mail::assertNotSent(AnnouncementEmail::class);
+});
+
+it('uses an explicit clean publication slug', function () {
+    $contentFile = announcementDraftContentFile('Draft content.');
+
+    $exitCode = Artisan::call('announcements:draft', [
+        '--title' => 'A Careful Update',
+        '--slug' => 'Editorial Release URL',
+        '--content-file' => $contentFile,
+        '--hero-image-path' => 'images/careful-update.png',
+        '--json' => true,
+    ]);
+
+    $announcement = Announcement::sole();
+    $output = json_decode(trim(Artisan::output()), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($exitCode)->toBe(Command::SUCCESS)
+        ->and($announcement->slug)->toBe('editorial-release-url')
+        ->and($output['publication_url'])->toBe(route('announcements.show', [
+            'slug' => 'editorial-release-url',
+        ]));
+});
+
+it('rejects a duplicate publication slug without creating a draft', function () {
+    Announcement::factory()->create(['slug' => 'reserved-release']);
+    $contentFile = announcementDraftContentFile('Draft content.');
+
+    $exitCode = Artisan::call('announcements:draft', [
+        '--title' => 'Another Release',
+        '--slug' => 'Reserved Release',
+        '--content-file' => $contentFile,
+        '--hero-image-path' => 'images/another-release.png',
+        '--json' => true,
+    ]);
+    $output = json_decode(trim(Artisan::output()), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($exitCode)->toBe(Command::FAILURE)
+        ->and($output['errors'])->toHaveKey('slug')
+        ->and(Announcement::query()->count())->toBe(1);
 });
 
 it('keeps a draft off every public announcement surface', function () {

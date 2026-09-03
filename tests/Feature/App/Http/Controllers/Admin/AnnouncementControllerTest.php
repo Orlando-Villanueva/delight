@@ -4,7 +4,6 @@ use App\Models\Announcement;
 use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 
 beforeEach(function () {
     config(['mail.admin_address' => 'admin@example.com']);
@@ -36,6 +35,9 @@ it('it_can_show_the_announcement_create_form_for_admins', function () {
     $response->assertSee('Content');
     $response->assertSee('Hero Image Path');
     $response->assertSee('Social Image Path');
+    $response->assertSee('Publication Slug');
+    $response->assertSee('Leave blank to');
+    $response->assertSee('generate it from the title.');
     $response->assertSee('Markdown');
     $response->assertDontSee('name="type"', false);
     $response->assertSee('Publishing authorizes an email to every eligible user.');
@@ -83,7 +85,7 @@ it('publishes and authorizes an immediate email broadcast without sending in the
         ->and($announcement->hero_image_path)->toBe('images/new-feature-hero.png')
         ->and($announcement->social_image_path)->toBe('images/new-feature-social.jpg')
         ->and($announcement->is_draft)->toBeFalse()
-        ->and(Str::startsWith($announcement->slug, Str::slug('New Feature')))->toBeTrue()
+        ->and($announcement->slug)->toBe('new-feature')
         ->and($announcement->email_broadcast_authorized_at)->not->toBeNull()
         ->and($announcement->email_audience_finalized_at)->toBeNull()
         ->and($announcement->emailDeliveries()->count())->toBe(0);
@@ -97,6 +99,48 @@ it('publishes and authorizes an immediate email broadcast without sending in the
         ->and($announcement->emailDeliveries()->pluck('user_id')->all())
         ->toEqualCanonicalizing([$this->admin->id, $recipient->id]);
     Mail::assertSentCount(2);
+});
+
+it('shows a duplicate slug error and restores the announcement form', function () {
+    Announcement::factory()->create(['slug' => 'new-feature']);
+
+    $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
+        'title' => 'New Feature',
+        'content' => 'Some markdown content.',
+        'hero_image_path' => 'images/new-feature-hero.png',
+        'social_image_path' => 'images/new-feature-social.png',
+        'starts_at' => '2026-09-10T09:00',
+        'ends_at' => '2026-09-17T09:00',
+    ]);
+
+    $response->assertInvalid(['slug']);
+    $form = $this->get(route('admin.announcements.create'));
+
+    $form->assertSee('The announcement could not be saved.')
+        ->assertSee('The slug has already been taken.')
+        ->assertSee('value="New Feature"', false)
+        ->assertSee('value="new-feature"', false)
+        ->assertSee('value="images/new-feature-hero.png"', false)
+        ->assertSee('value="images/new-feature-social.png"', false)
+        ->assertSee('Some markdown content.')
+        ->assertSee('value="2026-09-10T09:00"', false)
+        ->assertSee('value="2026-09-17T09:00"', false);
+    expect(Announcement::query()->count())->toBe(1);
+});
+
+it('publishes with an explicit clean publication slug', function () {
+    Mail::fake();
+
+    $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
+        'title' => 'New Feature',
+        'slug' => 'Editorial Release URL',
+        'content' => 'Some markdown content.',
+        'hero_image_path' => 'images/new-feature-hero.png',
+    ]);
+
+    $response->assertRedirect(route('admin.announcements.index'));
+    expect(Announcement::sole()->slug)->toBe('editorial-release-url');
+    Mail::assertNothingSent();
 });
 
 it('authorizes a scheduled email broadcast without sending before publication', function () {

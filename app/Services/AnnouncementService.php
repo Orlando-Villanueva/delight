@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Announcement;
-use Illuminate\Support\Str;
 
 class AnnouncementService
 {
@@ -30,7 +29,6 @@ class AnnouncementService
     {
         return Announcement::query()->create([
             ...$validated,
-            'slug' => Str::slug($validated['title']).'-'.now()->timestamp,
             'is_draft' => $isDraft,
             'email_broadcast_authorized_at' => $isDraft ? null : now(),
         ]);
