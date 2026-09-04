@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Announcement;
+use LogicException;
 
 class AnnouncementService
 {
@@ -20,6 +21,20 @@ class AnnouncementService
     public function createPublishedOrScheduled(array $validated): Announcement
     {
         return $this->create($validated, isDraft: false);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    public function updateDraft(Announcement $announcement, array $validated): Announcement
+    {
+        if (! $announcement->is_draft) {
+            throw new LogicException('Only draft announcements can be edited.');
+        }
+
+        $announcement->update($validated);
+
+        return $announcement;
     }
 
     /**

@@ -12,11 +12,16 @@ class AnnouncementValidator
     /**
      * @return array<string, array<int, mixed>>
      */
-    public function rules(): array
+    public function rules(?Announcement $ignoreAnnouncement = null): array
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'slug' => ['required', 'string', 'max:255', Rule::unique(Announcement::class)],
+            'slug' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique(Announcement::class)->ignore($ignoreAnnouncement),
+            ],
             'content' => ['required', 'string'],
             'hero_image_path' => ['required', 'string', 'max:255'],
             'social_image_path' => ['nullable', 'string', 'max:255'],

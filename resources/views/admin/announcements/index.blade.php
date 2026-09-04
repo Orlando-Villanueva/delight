@@ -194,9 +194,15 @@
                                                     target="_blank"
                                                     class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">View</a>
                                             @else
-                                                <a href="{{ route('admin.announcements.preview', $announcement->slug) }}"
-                                                    target="_blank"
-                                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">Preview</a>
+                                                <div class="flex items-center justify-end gap-3">
+                                                    @if ($announcement->is_draft)
+                                                        <a href="{{ route('admin.announcements.edit', $announcement) }}"
+                                                            class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">Edit</a>
+                                                    @endif
+                                                    <a href="{{ route('admin.announcements.preview', $announcement->slug) }}"
+                                                        target="_blank"
+                                                        class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">Preview</a>
+                                                </div>
                                             @endif
                                         </td>
                                     </tr>
