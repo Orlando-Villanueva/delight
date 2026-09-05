@@ -9,6 +9,13 @@
 
 Local sections in this file are project-specific. The Boost-managed framework guidance follows below.
 
+## Project Verification Policy
+
+These project-specific exceptions take precedence over the blanket test-change and full-suite handoff requirements in the Boost-managed guidance below. Other framework guidance remains applicable.
+
+- Add or update tests when needed to cover changed behavior and important failure modes. Existing coverage may suffice for mechanical or behavior-preserving changes; do not change a test merely to accompany every code edit or repeat the implementation.
+- Run the relevant checks yourself. Expand to the full suite when shared behavior, failures, unresolved risk, or an explicit project requirement warrants it. Do not routinely ask the user to run the full suite after targeted tests pass. Report what ran, the results, and any material verification gap; request user action only when the required check cannot be completed in the available environment.
+
 ## Project Structure & Module Organization
 - `app/` houses domain logic; controllers in `app/Http`, service classes in `app/Services`, and action objects in `app/Actions` for discrete workflows.
 - UI is server-driven: Blade layouts and HTMX-ready partials live in `resources/views`; Flowbite components under `resources/views/components`.
@@ -28,7 +35,7 @@ Local sections in this file are project-specific. The Boost-managed framework gu
 - Visit `http://delight.test/telescope` (or `/{TELESCOPE_PATH}`) once enabled.
 - For non-local access, add allowed emails via `TELESCOPE_ADMIN_EMAILS` (comma-separated).
 - Use Telescope to inspect slow requests, N+1 queries, failing jobs, and unexpected cache/queue behavior during feature work or debugging regressions.
-- When reviewing a PR or QAing a flow, check Telescope for errors, repeated queries, or excessive response times before shipping.
+- During PR review or flow QA, inspect Telescope when request errors, query behavior, jobs, or performance are relevant to the change or an observed problem. Telescope inspection is not required for unrelated changes.
 
 ## Visual Language & UI Design
 - **Aesthetics**: Aim for a "Premium & Focused" feel. Use rounded-xl (12px) for cards and rounded-lg (8px) for inputs.
