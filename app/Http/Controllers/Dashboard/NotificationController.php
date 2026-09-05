@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Models\Announcement;
+use Illuminate\Http\Response;
 
 class NotificationController extends Controller
 {
@@ -18,7 +20,7 @@ class NotificationController extends Controller
         // Let's simplify: Get the last 15 active announcements,
         // and in the view we check if they are in "unread" list.
 
-        $announcements = \App\Models\Announcement::visible()
+        $announcements = Announcement::visible()
             ->latest('starts_at')
             ->take(10)
             ->get();
@@ -29,10 +31,12 @@ class NotificationController extends Controller
         return view('partials.notification-bell-dropdown', compact('announcements', 'unreadIds'));
     }
 
-    public function markAsRead(\App\Models\Announcement $announcement)
+    public function markAsRead(Announcement $announcement): Response
     {
+        $visibleAnnouncement = Announcement::visible()->findOrFail($announcement->getKey());
+
         auth()->user()->announcements()->syncWithoutDetaching([
-            $announcement->id => ['read_at' => now()],
+            $visibleAnnouncement->id => ['read_at' => now()],
         ]);
 
         return response()->noContent();

@@ -14,7 +14,6 @@ it('renders announcement index seo directives for guests', function () {
         'title' => 'Visible Update',
         'slug' => 'visible-update',
         'content' => "## What changed\n\nA visible public update.",
-        'type' => 'info',
         'starts_at' => now()->subDay(),
     ]);
 

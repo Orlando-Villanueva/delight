@@ -2,11 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Announcement;
 use App\Services\AnnouncementValidator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 
-class StoreAnnouncementRequest extends FormRequest
+class UpdateAnnouncementRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -15,7 +16,10 @@ class StoreAnnouncementRequest extends FormRequest
 
     public function rules(AnnouncementValidator $announcementValidator): array
     {
-        return $announcementValidator->rules();
+        /** @var Announcement $announcement */
+        $announcement = $this->route('announcement');
+
+        return $announcementValidator->rules($announcement);
     }
 
     protected function prepareForValidation(): void

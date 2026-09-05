@@ -11,7 +11,6 @@ it('renders a hero image at the start of an announcement article', function () {
         'title' => 'New Feature',
         'slug' => 'new-feature',
         'content' => "### Body heading\n\nArticle body.",
-        'type' => 'info',
         'hero_image_path' => HERO_IMAGE_PATH,
         'starts_at' => now()->subMinute(),
     ]);
@@ -32,7 +31,6 @@ it('uses the announcement hero image for social metadata', function () {
         'title' => 'Social Feature',
         'slug' => 'social-feature',
         'content' => 'Article body.',
-        'type' => 'info',
         'hero_image_path' => HERO_IMAGE_PATH,
         'starts_at' => now()->subMinute(),
     ]);
@@ -50,7 +48,6 @@ it('prefers a dedicated social image for social metadata', function () {
         'title' => 'Social Crop Feature',
         'slug' => 'social-crop-feature',
         'content' => 'Article body.',
-        'type' => 'info',
         'hero_image_path' => HERO_IMAGE_PATH,
         'social_image_path' => SOCIAL_IMAGE_PATH,
         'starts_at' => now()->subMinute(),
@@ -70,7 +67,6 @@ it('styles announcement body images with rounded article figure treatment', func
         'title' => 'Image Body Feature',
         'slug' => 'image-body-feature',
         'content' => '![Body image](/images/social-article.png)',
-        'type' => 'info',
         'starts_at' => now()->subMinute(),
     ]);
 

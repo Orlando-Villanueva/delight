@@ -13,13 +13,17 @@ class Announcement extends Model
 {
     use HasFactory;
 
+    protected $attributes = [
+        'is_draft' => false,
+    ];
+
     protected $fillable = [
         'slug',
         'title',
         'content',
-        'type',
         'hero_image_path',
         'social_image_path',
+        'is_draft',
         'starts_at',
         'ends_at',
         'sent_via_email_at',
@@ -29,6 +33,7 @@ class Announcement extends Model
     ];
 
     protected $casts = [
+        'is_draft' => 'boolean',
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
         'sent_via_email_at' => 'datetime',
@@ -43,10 +48,17 @@ class Announcement extends Model
      */
     public function scopePublished($query)
     {
-        return $query->where(function ($q) {
-            $q->whereNull('starts_at')
-                ->orWhere('starts_at', '<=', now());
-        });
+        return $query->where('is_draft', false)
+            ->where(function ($q) {
+                $q->whereNull('starts_at')
+                    ->orWhere('starts_at', '<=', now());
+            });
+    }
+
+    public function isPublished(): bool
+    {
+        return ! $this->is_draft
+            && ($this->starts_at === null || $this->starts_at->lte(now()));
     }
 
     /**
