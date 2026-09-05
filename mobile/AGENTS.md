@@ -71,7 +71,8 @@ These instructions apply to every file under `/mobile` and supplement the reposi
 
 - Add focused Jest tests with `jest-expo` and React Native Testing Library for every behavior change.
 - Prefer user-visible queries and behavior assertions over implementation details or snapshots.
-- Before handoff, run `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run config:validate`, and repository-level `git diff --check`.
+- Run `npm ci` when dependency manifests or the lockfile change, dependencies are missing or the installation is suspect, or clean-install verification is required. Reuse a working installation for other changes.
+- Before handoff, run `npm run lint`, `npm run typecheck`, `npm test`, `npm run config:validate`, and repository-level `git diff --check` for mobile code changes. For documentation-only changes, inspect the diff and run `git diff --check`.
 - Validate preview and dogfood public Expo configuration when identity or environment logic changes.
 - Complete an Expo Go smoke check on Android for navigation or runtime changes. Never claim device verification without observed evidence.
 
