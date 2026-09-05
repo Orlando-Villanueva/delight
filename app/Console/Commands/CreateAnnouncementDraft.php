@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\AnnouncementDraftOutput;
 use App\Services\AnnouncementService;
 use App\Services\AnnouncementValidator;
 use Illuminate\Console\Command;
@@ -37,6 +38,7 @@ class CreateAnnouncementDraft extends Command
     public function handle(
         AnnouncementService $announcementService,
         AnnouncementValidator $announcementValidator,
+        AnnouncementDraftOutput $draftOutput,
     ): int {
         $contentFile = $this->option('content-file');
 
@@ -69,31 +71,7 @@ class CreateAnnouncementDraft extends Command
             return $this->renderFailure($exception->errors());
         }
 
-        $result = [
-            'id' => $announcement->id,
-            'slug' => $announcement->slug,
-            'state' => 'draft',
-            'preview_url' => route('admin.announcements.preview', [
-                'announcement' => $announcement->slug,
-            ]),
-            'publication_url' => route('announcements.show', ['slug' => $announcement->slug]),
-            'proposed_starts_at' => $announcement->starts_at?->toIso8601String(),
-            'proposed_ends_at' => $announcement->ends_at?->toIso8601String(),
-        ];
-
-        if ($this->option('json')) {
-            $this->line(json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
-
-            return self::SUCCESS;
-        }
-
-        $this->info('Announcement draft created.');
-        $this->table(['Field', 'Value'], collect($result)
-            ->map(fn (mixed $value, string $key): array => [$key, $value ?? 'None'])
-            ->values()
-            ->all());
-
-        return self::SUCCESS;
+        return $draftOutput->render($this, $announcement, 'Announcement draft created.');
     }
 
     /**

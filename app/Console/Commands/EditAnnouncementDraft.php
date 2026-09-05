@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\AnnouncementDraftOutput;
 use App\Models\Announcement;
 use App\Services\AnnouncementService;
 use App\Services\AnnouncementValidator;
@@ -42,6 +43,7 @@ class EditAnnouncementDraft extends Command
     public function handle(
         AnnouncementService $announcementService,
         AnnouncementValidator $announcementValidator,
+        AnnouncementDraftOutput $draftOutput,
     ): int {
         $announcement = Announcement::query()
             ->where('slug', Str::slug((string) $this->argument('draft')))
@@ -81,31 +83,7 @@ class EditAnnouncementDraft extends Command
             return $this->renderFailure($exception->errors());
         }
 
-        $result = [
-            'id' => $announcement->id,
-            'slug' => $announcement->slug,
-            'state' => 'draft',
-            'preview_url' => route('admin.announcements.preview', [
-                'announcement' => $announcement->slug,
-            ]),
-            'publication_url' => route('announcements.show', ['slug' => $announcement->slug]),
-            'proposed_starts_at' => $announcement->starts_at?->toIso8601String(),
-            'proposed_ends_at' => $announcement->ends_at?->toIso8601String(),
-        ];
-
-        if ($this->option('json')) {
-            $this->line(json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
-
-            return self::SUCCESS;
-        }
-
-        $this->info('Announcement draft updated.');
-        $this->table(['Field', 'Value'], collect($result)
-            ->map(fn (mixed $value, string $key): array => [$key, $value ?? 'None'])
-            ->values()
-            ->all());
-
-        return self::SUCCESS;
+        return $draftOutput->render($this, $announcement, 'Announcement draft updated.');
     }
 
     private function hasRequestedChanges(): bool
