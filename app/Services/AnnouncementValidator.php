@@ -34,7 +34,7 @@ class AnnouncementValidator
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>
      */
-    public function validate(array $input): array
+    public function validate(array $input, ?Announcement $ignoreAnnouncement = null): array
     {
         if (isset($input['slug']) && is_string($input['slug']) && filled($input['slug'])) {
             $input['slug'] = Str::slug($input['slug']);
@@ -46,6 +46,6 @@ class AnnouncementValidator
             $input['starts_at'] = now();
         }
 
-        return Validator::make($input, $this->rules())->validate();
+        return Validator::make($input, $this->rules($ignoreAnnouncement))->validate();
     }
 }
