@@ -7,9 +7,10 @@ use App\Mail\AnnouncementEmail;
 use App\Models\Announcement;
 use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\LazyCollection;
 use Illuminate\Support\Str;
 use Symfony\Component\Mailer\Exception\HttpTransportException;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface as MailerTransportException;
@@ -26,6 +27,33 @@ class AnnouncementEmailDeliveryService
     private const int RETRY_DELAY_MINUTES = 5;
 
     private const int STALE_SENDING_MINUTES = 15;
+
+    /**
+     * @return array{eligible_recipients: int, excluded_recipients: int}
+     */
+    public function estimateAudience(CarbonInterface $publishedAt): array
+    {
+        $eligible = $this->eligibleRecipients($publishedAt)->count();
+
+        return [
+            'eligible_recipients' => $eligible,
+            'excluded_recipients' => User::query()->count() - $eligible,
+        ];
+    }
+
+    /**
+     * @return LazyCollection<int, User>
+     */
+    private function eligibleRecipients(CarbonInterface $publishedAt): LazyCollection
+    {
+        return User::query()
+            ->where('created_at', '<=', $publishedAt)
+            ->whereNull('marketing_emails_opted_out_at')
+            ->select(['id', 'email'])
+            ->lazyById(100)
+            ->filter(fn (User $user): bool => is_string($user->email)
+                && filter_var($user->email, FILTER_VALIDATE_EMAIL) !== false);
+    }
 
     /**
      * @return array{
@@ -270,27 +298,18 @@ class AnnouncementEmailDeliveryService
             return 0;
         }
 
-        User::query()
-            ->where('created_at', '<=', $publishedAt)
-            ->whereNull('marketing_emails_opted_out_at')
-            ->select(['id', 'email'])
-            ->chunkById(100, function (EloquentCollection $users) use ($announcement, &$recipientsAdded): void {
-                foreach ($users as $user) {
-                    if (! is_string($user->email) || filter_var($user->email, FILTER_VALIDATE_EMAIL) === false) {
-                        continue;
-                    }
+        $this->eligibleRecipients($publishedAt)
+            ->each(function (User $user) use ($announcement, &$recipientsAdded): void {
+                $delivery = AnnouncementEmailDelivery::query()->firstOrCreate(
+                    [
+                        'announcement_id' => $announcement->id,
+                        'user_id' => $user->id,
+                    ],
+                    ['recipient_email' => $user->email]
+                );
 
-                    $delivery = AnnouncementEmailDelivery::query()->firstOrCreate(
-                        [
-                            'announcement_id' => $announcement->id,
-                            'user_id' => $user->id,
-                        ],
-                        ['recipient_email' => $user->email]
-                    );
-
-                    if ($delivery->wasRecentlyCreated) {
-                        $recipientsAdded++;
-                    }
+                if ($delivery->wasRecentlyCreated) {
+                    $recipientsAdded++;
                 }
             });
 

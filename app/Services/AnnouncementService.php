@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Announcement;
+use Carbon\CarbonInterface;
 use LogicException;
 
 class AnnouncementService
@@ -47,5 +48,20 @@ class AnnouncementService
             'is_draft' => $isDraft,
             'email_broadcast_authorized_at' => $isDraft ? null : now(),
         ]);
+    }
+
+    public function publishDraft(Announcement $announcement, CarbonInterface $startsAt): Announcement
+    {
+        if (! $announcement->is_draft) {
+            throw new LogicException('Only draft announcements can be published.');
+        }
+
+        $announcement->update([
+            'is_draft' => false,
+            'starts_at' => $startsAt,
+            'email_broadcast_authorized_at' => now(),
+        ]);
+
+        return $announcement;
     }
 }
