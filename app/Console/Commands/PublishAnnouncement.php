@@ -114,7 +114,13 @@ class PublishAnnouncement extends Command
         }
 
         $this->table(['Field', 'Value'], collect($summary)
-            ->map(fn (mixed $value, string $key): array => [$key, is_bool($value) ? ($value ? 'Yes' : 'No') : ($value ?? 'None')])
+            ->map(function (mixed $value, string $key): array {
+                if (is_bool($value)) {
+                    $value = $value ? 'Yes' : 'No';
+                }
+
+                return [$key, $value ?? 'None'];
+            })
             ->values()->all());
     }
 

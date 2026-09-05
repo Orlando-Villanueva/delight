@@ -56,7 +56,7 @@
 
 @section('content')
     @if ($isPreview)
-        <aside role="status"
+        <aside
             class="mx-auto mb-8 flex max-w-4xl flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-sm dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <p class="font-semibold">{{ $announcement->is_draft ? 'Draft preview' : 'Scheduled preview' }}</p>
