@@ -64,3 +64,26 @@ it('uses the most recently updated visible announcement for the updates index la
     $response->assertOk()
         ->assertSee($expectedUpdatesEntry, false);
 });
+
+it('omits lastmod from static pages while preserving announcement modification dates', function () {
+    Carbon::setTestNow(Carbon::create(2026, 5, 6, 12, 0, 0));
+
+    $announcement = Announcement::create([
+        'title' => 'Visible Update',
+        'slug' => 'visible-update',
+        'content' => 'Visible article body.',
+        'starts_at' => now()->subDay(),
+    ]);
+
+    Announcement::withoutTimestamps(function () use ($announcement) {
+        $announcement->forceFill(['updated_at' => Carbon::create(2026, 4, 30, 9, 30, 0)])->save();
+    });
+
+    $response = $this->get(route('sitemap'));
+
+    $response->assertOk()
+        ->assertSee('<url><loc>'.config('app.url').'</loc><changefreq>weekly</changefreq>', false)
+        ->assertSee('<url><loc>'.config('app.url').'/privacy-policy</loc><changefreq>monthly</changefreq>', false)
+        ->assertSee('<url><loc>'.config('app.url').'/terms-of-service</loc><changefreq>monthly</changefreq>', false)
+        ->assertSee('<url><loc>'.route('announcements.show', $announcement->slug).'</loc><lastmod>'.$announcement->fresh()->updated_at->toIso8601String().'</lastmod>', false);
+});
