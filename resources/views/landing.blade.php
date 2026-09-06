@@ -22,7 +22,7 @@
     <!-- SEO Meta Tags -->
     <title>{{ config('app.name', 'Delight') }} - Bible Reading Tracker</title>
     <meta name="description"
-        content="Track your Bible reading with streaks, progress visualization, structured reading plans, next milestone guidance, and permanent achievement rewards.">
+        content="Delight is a free Bible reading tracker for logging chapters you read, seeing your progress, and using optional reading plans in your web browser.">
     <meta name="keywords"
         content="bible reading plan, bible reading plan app, bible tracking app, bible reading tracker, bible habit tracker, bible reading accountability, scripture reading app, daily bible reading, bible progress tracker">
     <meta name="author" content="Delight">
@@ -43,7 +43,7 @@
     <!-- Open Graph Meta Tags -->
     <meta property="og:title" content="Delight - Bible Reading Tracker">
     <meta property="og:description"
-        content="Track your Bible reading with streaks, structured plans, next milestone guidance, and permanent achievement rewards. Follow a plan or log freely with gentle motivation.">
+        content="A free Bible reading tracker for logging chapters you read, seeing your progress, and using optional reading plans in your web browser.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ config('app.url') }}">
     <meta property="og:image" content="{{ $linkPreviewScreenshot }}">
@@ -53,7 +53,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Delight - Bible Reading Tracker">
     <meta name="twitter:description"
-        content="Track Bible reading with streaks, progress visualization, structured plans, next milestone guidance, and permanent achievement rewards.">
+        content="A free Bible reading tracker for logging chapters you read, seeing your progress, and using optional reading plans in your web browser.">
     <meta name="twitter:image" content="{{ $linkPreviewScreenshot }}">
 
     <!-- Favicon -->
@@ -79,7 +79,7 @@
             "@@context": "https://schema.org",
             "@@type": "WebApplication",
             "name": "Delight - Bible Reading Tracker",
-            "description": "Track your Bible reading with streaks, progress visualization, structured reading plans, next milestone guidance, and permanent achievement rewards.",
+            "description": "A free Bible reading tracker for logging chapters you read, seeing your progress, and using optional reading plans in your web browser.",
             "url": "{{ config('app.url') }}",
             "applicationCategory": "LifestyleApplication",
             "operatingSystem": "Web Browser",
@@ -167,18 +167,18 @@
                     <!-- Hero Content -->
                     <div class="text-center lg:text-left lg:pr-24">
                         <h1 id="hero-heading" class="text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-6">
-                            Keep Every Bible Reading Visible, Stay on Track
+                            A Bible reading tracker that fits the way you already read
                         </h1>
                         <p class="text-xl text-gray-600 mb-6 leading-relaxed">
-                            Delight logs each chapter in seconds, keeps your current streak and next milestone in view,
-                            and makes permanent achievements feel earned without overwhelming the habit.
+                            Read from your paper Bible or preferred Bible app, then log the chapters here. Delight keeps
+                            your personal progress, streaks, and next milestone in one place without replacing how you read.
                         </p>
 
                         <!-- Primary CTA -->
                         <div class="flex flex-col sm:flex-row sm:items-center gap-4">
                             <x-ui.button variant="accent" size="lg" href="{{ route('register') }}"
                                 class="whitespace-normal sm:whitespace-nowrap">
-                                Start Building Life-Changing Habits
+                                Create Your Free Account
                             </x-ui.button>
                             <x-ui.button variant="ghost" size="lg" href="#features-heading"
                                 aria-label="Scroll to see Delight features"
@@ -227,6 +227,64 @@
             </div>
         </section>
 
+        <!-- Positioning and product boundaries -->
+        <section class="py-20 bg-white" aria-labelledby="fit-heading">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="max-w-3xl mx-auto text-center mb-12">
+                    <h2 id="fit-heading" class="text-3xl md:text-4xl font-bold text-gray-900">
+                        Keep a clear reading record
+                    </h2>
+                    <p class="mt-4 text-xl leading-relaxed text-gray-600">
+                        Delight is for readers who want to remember what they have read and see the progress add up. It is a
+                        companion for your reading, not a Bible text or a replacement for the tools you already prefer.
+                    </p>
+                </div>
+
+                <ol class="grid gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 md:grid-cols-3"
+                    aria-label="How Delight fits your existing reading routine">
+                    <li class="relative flex items-center gap-4 bg-white p-5 sm:p-6 md:p-7">
+                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-primary-700"
+                            aria-hidden="true">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6.03v13m0-13C9.181 5.199 7.285 4.954 3.971 5.007A.99.99 0 0 0 3 6v11c0 .563.466 1.014 1.03 1.007 3.122-.043 5.018.212 7.97 1.023m0-13c2.819-.831 4.715-1.076 8.029-1.023A.99.99 0 0 1 21 6v11c0 .563-.466 1.014-1.03 1.007-3.122-.043-5.018.212-7.97 1.023" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-primary-700">1. Read where you prefer</p>
+                            <p class="mt-1.5 leading-relaxed text-gray-600">Use a paper Bible or another Bible app.</p>
+                        </div>
+                    </li>
+                    <li class="relative flex items-center gap-4 bg-white p-5 sm:p-6 md:p-7">
+                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-100 text-accent-600"
+                            aria-hidden="true">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="m9 12 2 2 4-4m5.5-3.5v11a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2h11" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-accent-700">2. Log your chapters</p>
+                            <p class="mt-1.5 leading-relaxed text-gray-600">Record what you read, with or without a plan.</p>
+                        </div>
+                    </li>
+                    <li class="relative flex items-center gap-4 bg-white p-5 sm:p-6 md:p-7">
+                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-success-100 text-success-700"
+                            aria-hidden="true">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 3v18h18M7 16l4-5 3 3 5-7" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-success-700">3. See your progress</p>
+                            <p class="mt-1.5 leading-relaxed text-gray-600">Return to your history, streaks, and milestones.</p>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </section>
+
         <!-- Features Section -->
         <section class="py-20 bg-primary-50" aria-labelledby="features-heading">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -246,7 +304,7 @@
                     <li class="order-2">
                         <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
                             <x-ui.card-content class="space-y-3">
-                                <div class="flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-3">
                                     <div class="flex items-center gap-3">
                                         <span class="shrink-0 text-orange-500" aria-hidden="true">
                                             <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 384 512"
@@ -257,9 +315,6 @@
                                         </span>
                                         <x-ui.card-title class="mb-0">Daily Streak Tracking</x-ui.card-title>
                                     </div>
-                                    <span
-                                        class="text-[11px] font-semibold text-orange-700 bg-white/70 border border-orange-100 px-2 py-1 rounded-full">Core
-                                        habit</span>
                                 </div>
                                 <p class="text-gray-400 text-xs">Watch consistency grow</p>
 
@@ -557,7 +612,7 @@
                         How Delight Works
                     </h2>
                     <p class="text-xl text-gray-600">
-                        Build a resilient Bible habit in three simple steps.
+                        Record the reading you already do in three simple steps.
                     </p>
                 </div>
 
@@ -571,8 +626,8 @@
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-3">Read & Log</h3>
                         <p class="text-gray-600 leading-relaxed">
-                            Simply log which chapter you read today with our intuitive Bible reading tracker interface.
-                            Takes just seconds and fits seamlessly into your routine.
+                            Read from the Bible or app you prefer, then log the book and chapter in Delight. You can also
+                            choose yesterday when you forgot to record it.
                         </p>
                     </li>
 
@@ -584,8 +639,8 @@
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-3">See Progress</h3>
                         <p class="text-gray-600 leading-relaxed">
-                            Watch your daily streaks and book completion grid grow. Beautiful visuals show your
-                            Scripture journey.
+                            Watch your personal history, daily streaks, and book completion grid grow as you add the
+                            chapters you read.
                         </p>
                     </li>
 
@@ -597,11 +652,59 @@
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-3">Stay Motivated</h3>
                         <p class="text-gray-600 leading-relaxed">
-                            Gentle accountability and progress celebration keep you coming back. This
-                            Bible habit tracker helps build the consistency that transforms lives.
+                            Use the next milestone and optional achievements as encouragement when they are useful to you.
                         </p>
                     </li>
                 </ol>
+            </div>
+        </section>
+
+        <!-- Practical questions -->
+        <section class="py-20 bg-white" aria-labelledby="questions-heading">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 id="questions-heading" class="text-3xl md:text-4xl font-bold text-gray-900">Frequently asked questions</h2>
+                    <p class="mt-4 text-lg text-gray-600">The practical details of using Delight as your Bible reading tracker.</p>
+                </div>
+
+                <div class="mt-12 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                    <details class="group open:bg-primary-50/40">
+                        <summary class="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-lg font-semibold text-gray-900 marker:content-none hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset group-open:hover:bg-primary-50/40">
+                            What does Delight cost?
+                            <svg class="h-5 w-5 shrink-0 text-primary-600 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
+                            </svg>
+                        </summary>
+                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">Delight is currently free to use.</p>
+                    </details>
+                    <details class="group border-t border-gray-200 open:bg-primary-50/40">
+                        <summary class="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-lg font-semibold text-gray-900 marker:content-none hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset group-open:hover:bg-primary-50/40">
+                            Where can I use it?
+                            <svg class="h-5 w-5 shrink-0 text-primary-600 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
+                            </svg>
+                        </summary>
+                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">Delight is currently available in your web browser. A public native iPhone or Android app is not currently available.</p>
+                    </details>
+                    <details class="group border-t border-gray-200 open:bg-primary-50/40">
+                        <summary class="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-lg font-semibold text-gray-900 marker:content-none hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset group-open:hover:bg-primary-50/40">
+                            Do I need an account or a reading plan?
+                            <svg class="h-5 w-5 shrink-0 text-primary-600 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
+                            </svg>
+                        </summary>
+                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">Create an account to save your reading history. A reading plan is optional; you can log chapters without one.</p>
+                    </details>
+                    <details class="group border-t border-gray-200 open:bg-primary-50/40">
+                        <summary class="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-lg font-semibold text-gray-900 marker:content-none hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset group-open:hover:bg-primary-50/40">
+                            What should I expect when I am offline?
+                            <svg class="h-5 w-5 shrink-0 text-primary-600 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
+                            </svg>
+                        </summary>
+                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">Delight needs a connection to load your readings and save new logs.</p>
+                    </details>
+                </div>
             </div>
         </section>
 
@@ -609,15 +712,13 @@
         <section class="py-20 bg-gradient-to-br from-[#3366CC] to-[#2952A3]" aria-labelledby="final-cta-heading">
             <div class="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
                 <h2 id="final-cta-heading" class="text-3xl md:text-4xl font-bold text-white mb-6">
-                    Ready to Experience Consistent Bible Reading?
+                    Ready to keep your Bible reading record in one place?
                 </h2>
                 <p class="text-xl text-white mb-8">
-                    Join readers discovering how gentle tracking makes Scripture engagement feel sustainable. Experience
-                    the transformation that comes from steady, grace-filled momentum.
+                    Create a free account, log the chapters you already read, and see your progress over time.
                 </p>
-                <x-ui.button variant="accent" size="lg" href="{{ route('register') }}"
-                    aria-label="Start building life-changing Bible reading habits">
-                    Start Building Life-Changing Habits
+                <x-ui.button variant="accent" size="lg" href="{{ route('register') }}">
+                    Create Your Free Account
                 </x-ui.button>
             </div>
         </section>
