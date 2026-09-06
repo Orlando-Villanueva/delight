@@ -61,6 +61,7 @@ test('landing page explains the Bible reading tracker workflow and product bound
         ->assertSee('3. See your progress')
         ->assertSee('Record what you read, with or without a plan.')
         ->assertDontSee('Core habit')
+        ->assertDontSee('Start building life-changing Bible reading habits')
         ->assertSee('Delight is currently free to use.')
         ->assertSee('Frequently asked questions')
         ->assertSee('A public native iPhone or Android app is not currently available.')

@@ -718,8 +718,7 @@
                 <p class="text-xl text-white mb-8">
                     Create a free account, log the chapters you already read, and see your progress over time.
                 </p>
-                <x-ui.button variant="accent" size="lg" href="{{ route('register') }}"
-                    aria-label="Start building life-changing Bible reading habits">
+                <x-ui.button variant="accent" size="lg" href="{{ route('register') }}">
                     Create Your Free Account
                 </x-ui.button>
             </div>
