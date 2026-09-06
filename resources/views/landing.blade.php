@@ -240,8 +240,7 @@
                     </p>
                 </div>
 
-                <ol class="grid overflow-hidden rounded-xl border border-gray-200 bg-gray-200 md:grid-cols-3"
-                    style="gap: 1px"
+                <ol class="grid gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 md:grid-cols-3"
                     aria-label="How Delight fits your existing reading routine">
                     <li class="relative flex items-center gap-4 bg-white p-5 sm:p-6 md:p-7">
                         <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-primary-700"
