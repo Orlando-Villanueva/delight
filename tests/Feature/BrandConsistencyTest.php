@@ -49,6 +49,27 @@ test('landing page does not claim an unsupported aggregate rating', function () 
     $response->assertDontSee('"aggregateRating"', false);
 });
 
+test('landing page explains the Bible reading tracker workflow and product boundaries', function () {
+    $response = $this->get('/');
+
+    $response->assertSuccessful()
+        ->assertSee('A Bible reading tracker that fits the way you already read')
+        ->assertSee('Keep a clear reading record')
+        ->assertSee('Read from your paper Bible or preferred Bible app, then log the chapters here.')
+        ->assertSee('1. Read where you prefer')
+        ->assertSee('2. Log your chapters')
+        ->assertSee('3. See your progress')
+        ->assertSee('Record what you read, with or without a plan.')
+        ->assertDontSee('Core habit')
+        ->assertSee('Delight is currently free to use.')
+        ->assertSee('Frequently asked questions')
+        ->assertSee('A public native iPhone or Android app is not currently available.')
+        ->assertSee('Create an account to save your reading history.')
+        ->assertSee('Delight needs a connection to load your readings and save new logs.')
+        ->assertSee('<div class="mt-12 overflow-hidden rounded-xl border border-gray-200 bg-white">', false)
+        ->assertSee('content="Delight is a free Bible reading tracker for logging chapters you read, seeing your progress, and using optional reading plans in your web browser."', false);
+});
+
 test('landing page uses versioned brand assets', function () {
     $assetVersion = config('app.asset_version');
 

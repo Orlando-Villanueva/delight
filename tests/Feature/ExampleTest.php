@@ -8,7 +8,7 @@ test('the application returns a successful response', function () {
         ->assertSeeText('66-book canon by default')
         ->assertSeeText('optional Catholic 73-book deuterocanonical support')
         ->assertSeeTextInOrder([
-            'Keep Every Bible Reading Visible, Stay on Track',
+            'A Bible reading tracker that fits the way you already read',
             'Everything You Need to Stay Consistent',
             'Book Completion Grid',
             'optional Catholic 73-book deuterocanonical support',
