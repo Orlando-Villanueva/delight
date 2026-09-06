@@ -15,7 +15,6 @@ class SitemapController extends Controller
         // Landing page
         $sitemap .= '<url>';
         $sitemap .= '<loc>'.config('app.url').'</loc>';
-        $sitemap .= '<lastmod>'.now()->toIso8601String().'</lastmod>';
         $sitemap .= '<changefreq>weekly</changefreq>';
         $sitemap .= '<priority>1.0</priority>';
         $sitemap .= '</url>';
@@ -23,14 +22,12 @@ class SitemapController extends Controller
         // Legal pages
         $sitemap .= '<url>';
         $sitemap .= '<loc>'.config('app.url').'/privacy-policy</loc>';
-        $sitemap .= '<lastmod>'.now()->toIso8601String().'</lastmod>';
         $sitemap .= '<changefreq>monthly</changefreq>';
         $sitemap .= '<priority>0.3</priority>';
         $sitemap .= '</url>';
 
         $sitemap .= '<url>';
         $sitemap .= '<loc>'.config('app.url').'/terms-of-service</loc>';
-        $sitemap .= '<lastmod>'.now()->toIso8601String().'</lastmod>';
         $sitemap .= '<changefreq>monthly</changefreq>';
         $sitemap .= '<priority>0.3</priority>';
         $sitemap .= '</url>';

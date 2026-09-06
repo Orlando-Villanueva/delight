@@ -85,11 +85,6 @@
             "operatingSystem": "Web Browser",
             "browserRequirements": "Requires JavaScript. Requires HTML5.",
             "softwareVersion": "1.0",
-            "aggregateRating": {
-                "@@type": "AggregateRating",
-                "ratingValue": "5.0",
-                "ratingCount": "1"
-            },
             "offers": {
                 "@@type": "Offer",
                 "price": "0",

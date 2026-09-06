@@ -42,6 +42,13 @@ test('landing page uses consistent public brand name', function () {
     $response->assertSee('"name": "'.$publicBrandName.'"', false);
 });
 
+test('landing page does not claim an unsupported aggregate rating', function () {
+    $response = $this->get('/');
+
+    $response->assertSuccessful();
+    $response->assertDontSee('"aggregateRating"', false);
+});
+
 test('landing page uses versioned brand assets', function () {
     $assetVersion = config('app.asset_version');
 
