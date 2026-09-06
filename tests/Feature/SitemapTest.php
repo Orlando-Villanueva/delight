@@ -68,7 +68,7 @@ it('uses the most recently updated visible announcement for the updates index la
 it('omits lastmod from static pages while preserving announcement modification dates', function () {
     Carbon::setTestNow(Carbon::create(2026, 5, 6, 12, 0, 0));
 
-    $announcement = Announcement::create([
+    $announcement = Announcement::factory()->create([
         'title' => 'Visible Update',
         'slug' => 'visible-update',
         'content' => 'Visible article body.',
@@ -82,8 +82,8 @@ it('omits lastmod from static pages while preserving announcement modification d
     $response = $this->get(route('sitemap'));
 
     $response->assertOk()
-        ->assertSee('<url><loc>'.config('app.url').'</loc><changefreq>weekly</changefreq>', false)
-        ->assertSee('<url><loc>'.config('app.url').'/privacy-policy</loc><changefreq>monthly</changefreq>', false)
-        ->assertSee('<url><loc>'.config('app.url').'/terms-of-service</loc><changefreq>monthly</changefreq>', false)
+        ->assertSee('<url><loc>'.config('app.url').'</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>', false)
+        ->assertSee('<url><loc>'.config('app.url').'/privacy-policy</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>', false)
+        ->assertSee('<url><loc>'.config('app.url').'/terms-of-service</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>', false)
         ->assertSee('<url><loc>'.route('announcements.show', $announcement->slug).'</loc><lastmod>'.$announcement->fresh()->updated_at->toIso8601String().'</lastmod>', false);
 });
