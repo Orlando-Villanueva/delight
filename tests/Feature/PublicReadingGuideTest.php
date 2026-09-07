@@ -21,7 +21,7 @@ it('serves the approved guide in initial HTML to guests with an account CTA and 
         ->assertSee('guide-reading-form.png')
         ->assertSee('guide-reading-calendar.png');
 
-    preg_match('/<script type="application\/ld\+json">(.*?)<\/script>/s', $response->getContent(), $matches);
+    expect(preg_match('/<script type="application\/ld\+json">(.*?)<\/script>/s', $response->getContent(), $matches))->toBe(1);
     $schema = json_decode($matches[1], true, flags: JSON_THROW_ON_ERROR);
     expect($schema['@type'])->toBe('Article');
     expect($schema['author']['name'])->toBe('Orlando Villanueva');
