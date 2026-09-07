@@ -175,7 +175,7 @@
                         </p>
 
                         <!-- Primary CTA -->
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-center lg:justify-start gap-4">
                             <x-ui.button variant="accent" size="lg" href="{{ route('register') }}"
                                 class="whitespace-normal sm:whitespace-nowrap">
                                 Create Your Free Account
@@ -282,6 +282,10 @@
                         </div>
                     </li>
                 </ol>
+                <p class="mt-6 text-center leading-relaxed text-gray-600">
+                    Read from a paper Bible?
+                    <a href="{{ route('guides.paper-bible') }}" class="inline-block font-semibold text-blue-700 underline underline-offset-4 hover:text-blue-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">See how to track your reading <span aria-hidden="true">→</span></a>
+                </p>
             </div>
         </section>
 

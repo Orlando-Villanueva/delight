@@ -40,6 +40,8 @@ Route::get('/', function () {
     return view('landing');
 })->name('landing');
 
+Route::view('/guides/track-bible-reading-with-a-paper-bible', 'guides.paper-bible')->name('guides.paper-bible');
+
 // XML Sitemap
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 

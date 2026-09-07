@@ -40,7 +40,7 @@
 
     $footerLinkClasses = match ($theme) {
         'cosmic' => 'text-sm text-gray-400 hover:text-white transition-colors',
-        default => 'text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors',
+        default => 'text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 transition-colors',
     };
 
     $primaryButtonClasses = match ($theme) {
@@ -53,7 +53,7 @@
     $bodyClasses = match ($theme) {
         'cosmic' => 'font-sans antialiased bg-[#0F1115] text-gray-100 min-h-screen flex flex-col',
         default
-            => 'font-sans antialiased bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col',
+            => "[font-family:'Instrument_Sans',sans-serif] antialiased bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col",
     };
 
     $showUpdatesNav = !request()->routeIs('recap.show');

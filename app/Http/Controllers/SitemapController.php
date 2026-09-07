@@ -32,6 +32,10 @@ class SitemapController extends Controller
         $sitemap .= '<priority>0.3</priority>';
         $sitemap .= '</url>';
 
+        $sitemap .= '<url>';
+        $sitemap .= '<loc>'.route('guides.paper-bible').'</loc>';
+        $sitemap .= '</url>';
+
         $announcements = Announcement::active()->latest('updated_at')->get();
         $updatesLastModified = $announcements->first()?->updated_at ?? now();
 
