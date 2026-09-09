@@ -8,6 +8,7 @@ use App\Http\Resources\Api\V1\NativeReminderPreferenceResource;
 use App\Models\NativeReminderPreference;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class NativeReminderPreferenceController extends Controller
 {
@@ -17,7 +18,9 @@ class NativeReminderPreferenceController extends Controller
         $user = $request->user();
 
         return new NativeReminderPreferenceResource(
-            $user->nativeReminderPreference ?? new NativeReminderPreference
+            $user->nativeReminderPreferences()
+                ->where('personal_access_token_id', $this->sessionId($request))
+                ->first() ?? new NativeReminderPreference
         );
     }
 
@@ -25,8 +28,20 @@ class NativeReminderPreferenceController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $preference = $user->nativeReminderPreference()->updateOrCreate([], $request->validated());
+        $preference = $user->nativeReminderPreferences()->updateOrCreate(
+            ['personal_access_token_id' => $this->sessionId($request)],
+            $request->validated(),
+        );
 
         return new NativeReminderPreferenceResource($preference);
+    }
+
+    private function sessionId(Request $request): int
+    {
+        $token = $request->user()->currentAccessToken();
+
+        abort_unless($token instanceof PersonalAccessToken, 403, 'A mobile access token is required.');
+
+        return $token->getKey();
     }
 }

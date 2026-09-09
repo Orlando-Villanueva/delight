@@ -13,6 +13,8 @@ class NativeReminderPreferenceFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
+            'personal_access_token_id' => fn (array $attributes): int => User::findOrFail($attributes['user_id'])
+                ->createToken('Android', ['mobile'])->accessToken->id,
             'enabled' => false,
             'timezone' => 'America/Toronto',
         ];

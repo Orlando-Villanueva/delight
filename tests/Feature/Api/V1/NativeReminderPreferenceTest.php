@@ -2,6 +2,7 @@
 
 use App\Models\NativeReminderPreference;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 
 const NATIVE_REMINDER_PREFERENCES_ENDPOINT = '/api/v1/native-reminder-preferences';
 
@@ -35,7 +36,7 @@ it('defaults native reminders to off without inheriting web preferences or creat
     $this->assertDatabaseCount('native_reminder_preferences', 0);
 });
 
-it('persists enablement repeated saves timezone changes and disablement in one account record', function (string $method): void {
+it('persists enablement repeated saves timezone changes and disablement in one device session record', function (string $method): void {
     $user = User::factory()->create();
     $token = $user->createToken('Android', ['mobile'])->plainTextToken;
 
@@ -73,9 +74,13 @@ it('returns 422 for missing required preferences without saving', function (): v
 
 it('returns 422 for invalid preferences without altering saved state', function (array $invalid, string $field): void {
     $user = User::factory()->create();
-    NativeReminderPreference::factory()->for($user)->create(['enabled' => true]);
+    $token = $user->createToken('Android', ['mobile']);
+    NativeReminderPreference::factory()->for($user)->create([
+        'enabled' => true,
+        'personal_access_token_id' => $token->accessToken->id,
+    ]);
 
-    $this->withToken($user->createToken('Android', ['mobile'])->plainTextToken)
+    $this->withToken($token->plainTextToken)
         ->putJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [
             'enabled' => false,
             'timezone' => 'Europe/Paris',
@@ -162,4 +167,83 @@ it('leaves native preferences unchanged when web settings are updated', function
     $this->assertDatabaseHas('native_reminder_preferences', [
         'user_id' => $preference->user_id, 'enabled' => true, 'timezone' => 'America/Toronto',
     ]);
+});
+
+it('keeps phone and tablet preferences independent for the same account', function (): void {
+    $user = User::factory()->create();
+    $phone = $user->createToken('Phone', ['mobile']);
+    $tablet = $user->createToken('Tablet', ['mobile']);
+
+    $this->withToken($phone->plainTextToken)->putJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [
+        'enabled' => true, 'timezone' => 'America/Toronto',
+    ])->assertSuccessful();
+
+    $this->app['auth']->forgetGuards();
+    $this->withToken($tablet->plainTextToken)->getJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT)
+        ->assertOk()->assertExactJson(['data' => ['enabled' => false, 'timezone' => null]]);
+
+    $this->withToken($tablet->plainTextToken)->putJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [
+        'enabled' => true, 'timezone' => 'Europe/Paris',
+        'personal_access_token_id' => $phone->accessToken->id,
+    ])->assertSuccessful();
+
+    $this->app['auth']->forgetGuards();
+    $this->withToken($phone->plainTextToken)->getJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT)
+        ->assertOk()->assertExactJson(['data' => ['enabled' => true, 'timezone' => 'America/Toronto']]);
+    $this->withToken($phone->plainTextToken)->putJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [
+        'enabled' => false, 'timezone' => 'America/Toronto',
+    ])->assertSuccessful();
+
+    $this->app['auth']->forgetGuards();
+    $this->withToken($tablet->plainTextToken)->getJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT)
+        ->assertOk()->assertExactJson(['data' => ['enabled' => true, 'timezone' => 'Europe/Paris']]);
+
+    $this->assertDatabaseCount('native_reminder_preferences', 2);
+    $this->assertDatabaseHas('native_reminder_preferences', [
+        'personal_access_token_id' => $phone->accessToken->id, 'enabled' => false,
+    ]);
+});
+
+it('removes only the signed out session preference and leaves a new session opted out', function (): void {
+    $user = User::factory()->create();
+    $phone = $user->createToken('Phone', ['mobile']);
+    $tablet = $user->createToken('Tablet', ['mobile']);
+    $phonePreference = NativeReminderPreference::factory()->for($user)->create([
+        'personal_access_token_id' => $phone->accessToken->id, 'enabled' => true,
+    ]);
+    $tabletPreference = NativeReminderPreference::factory()->for($user)->create([
+        'personal_access_token_id' => $tablet->accessToken->id, 'enabled' => true,
+    ]);
+
+    $this->withToken($phone->plainTextToken)->deleteJson('/api/v1/auth/token')->assertNoContent();
+
+    $this->assertModelMissing($phonePreference);
+    $this->assertModelExists($tabletPreference);
+    $this->app['auth']->forgetGuards();
+    $this->withToken($phone->plainTextToken)->getJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT)->assertUnauthorized();
+
+    $newPhone = $user->createToken('Phone', ['mobile']);
+    $this->app['auth']->forgetGuards();
+    $this->withToken($newPhone->plainTextToken)->getJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT)
+        ->assertOk()->assertExactJson(['data' => ['enabled' => false, 'timezone' => null]]);
+});
+
+it('returns 403 for cookie authentication without a persisted mobile session', function (string $method): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->{$method}(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [
+        'enabled' => true, 'timezone' => 'America/Toronto',
+    ])->assertForbidden();
+
+    $this->assertDatabaseCount('native_reminder_preferences', 0);
+})->with(['getJson', 'putJson', 'patchJson']);
+
+it('enforces one preference record per mobile session in the database', function (): void {
+    $preference = NativeReminderPreference::factory()->create();
+
+    expect(fn () => NativeReminderPreference::factory()->for($preference->user)->create([
+        'personal_access_token_id' => $preference->personal_access_token_id,
+    ]))->toThrow(QueryException::class);
+
+    $this->assertDatabaseCount('native_reminder_preferences', 1);
 });

@@ -10,7 +10,8 @@ return new class extends Migration
     {
         Schema::create('native_reminder_preferences', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('personal_access_token_id')->unique()->constrained()->cascadeOnDelete();
             $table->boolean('enabled')->default(false);
             $table->string('timezone');
             $table->timestamps();
