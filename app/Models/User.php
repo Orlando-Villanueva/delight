@@ -8,7 +8,6 @@ use App\Services\EmailService;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -223,9 +222,9 @@ class User extends Authenticatable
         return $this->deuterocanonical_books_enabled_at !== null;
     }
 
-    public function nativeReminderPreference(): HasOne
+    public function nativeReminderPreferences(): HasMany
     {
-        return $this->hasOne(NativeReminderPreference::class);
+        return $this->hasMany(NativeReminderPreference::class);
     }
 
     public function hasPushNotificationsEnabled(): bool
