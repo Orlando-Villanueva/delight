@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\GoogleMobileTokenController;
 use App\Http\Controllers\Api\V1\MobileBootstrapController;
 use App\Http\Controllers\Api\V1\MobileTokenController;
+use App\Http\Controllers\Api\V1\NativePushRegistrationController;
 use App\Http\Controllers\Api\V1\NativeReminderPreferenceController;
 use App\Http\Controllers\Api\V1\ReadingLogController;
 use Illuminate\Http\Request;
@@ -35,6 +36,9 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::middleware(['auth:sanctum', 'abilities:mobile'])->group(function (): void {
         Route::delete('/auth/token', [MobileTokenController::class, 'destroy'])
             ->name('auth.token.destroy');
+
+        Route::apiSingleton('native-push-registration', NativePushRegistrationController::class)
+            ->destroyable()->middleware('throttle:30,1');
 
         Route::apiSingleton('native-reminder-preferences', NativeReminderPreferenceController::class);
 
