@@ -11,7 +11,8 @@ class ReadingFormService
     private const RECENT_BOOK_LIMIT = 3;
 
     public function __construct(
-        private BibleReferenceService $bibleReferenceService
+        private BibleReferenceService $bibleReferenceService,
+        private ReadingCalendarService $readingCalendar
     ) {}
 
     /**
@@ -20,7 +21,7 @@ class ReadingFormService
     public function hasReadToday(User $user): bool
     {
         return $user->readingLogs()
-            ->whereDate('date_read', today())
+            ->whereDate('date_read', $this->readingCalendar->todayFor($user)->toDateString())
             ->exists();
     }
 

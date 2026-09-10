@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\ReadingCalendarService;
 use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class DeleteReadingLogTest extends TestCase
@@ -339,12 +341,13 @@ class DeleteReadingLogTest extends TestCase
             'date_read' => today()->toDateString(),
         ]);
 
-        $request = \Illuminate\Http\Request::create('/logs', 'GET');
+        $request = Request::create('/logs', 'GET');
         $request->setUserResolver(fn () => $user);
 
         $paginatedLogs = $readingLogService->getPaginatedDayGroupsFor($request, $statisticsService);
 
         $html = view('partials.reading-log-items', [
+            'readingToday' => app(ReadingCalendarService::class)->todayFor($user),
             'logs' => $paginatedLogs,
             'includeEmptyToday' => false,
         ])->render();

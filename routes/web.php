@@ -19,6 +19,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Middleware\EnsureAdminOrAnalyticsToken;
 use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Http\Middleware\EstablishReadingTimezone;
 use Illuminate\Support\Facades\Route;
 
 // Development Routes (Local Development Only)
@@ -106,7 +107,7 @@ Route::middleware('guest')->group(function () {
 });
 
 // Authenticated Routes
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', EstablishReadingTimezone::class])->group(function () {
     // Main Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

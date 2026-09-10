@@ -36,6 +36,46 @@ describe('typed API client', () => {
     );
   });
 
+  afterEach(() => jest.restoreAllMocks());
+
+  it('reports the device timezone on authenticated requests', async () => {
+    jest.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+      timeZone: 'Asia/Tokyo',
+    } as Intl.ResolvedDateTimeFormatOptions);
+    mockedFetch.mockResolvedValue(response(200, { data: {} }));
+
+    await apiRequest('/api/v1/bootstrap', { token: 'secret' });
+
+    expect(mockedFetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      headers: expect.objectContaining({ 'X-Reading-Timezone': 'Asia/Tokyo' }),
+    }));
+  });
+
+  it('keeps authenticated requests available when timezone detection fails', async () => {
+    jest.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => {
+      throw new Error('Timezone unavailable');
+    });
+    mockedFetch.mockResolvedValue(response(200, { data: {} }));
+
+    await expect(apiRequest('/api/v1/bootstrap', { token: 'secret' })).resolves.toEqual({ data: {} });
+
+    expect(mockedFetch.mock.calls[0][1]?.headers).not.toHaveProperty('X-Reading-Timezone');
+  });
+
+  it('omits empty timezone reports and does not report a timezone on unauthenticated requests', async () => {
+    const resolvedOptions = jest.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+      timeZone: '',
+    } as Intl.ResolvedDateTimeFormatOptions);
+    mockedFetch.mockResolvedValue(response(200, { data: {} }));
+
+    await apiRequest('/api/v1/bootstrap', { token: 'secret' });
+    expect(mockedFetch.mock.calls[0][1]?.headers).not.toHaveProperty('X-Reading-Timezone');
+    resolvedOptions.mockClear();
+    mockedFetch.mockResolvedValueOnce(response(200, { data: {} }));
+    await apiRequest('/api/v1/auth/token', { method: 'POST' });
+    expect(resolvedOptions).not.toHaveBeenCalled();
+  });
+
   it('returns no data for a successful empty response', async () => {
     mockedFetch.mockResolvedValue(response(204));
 

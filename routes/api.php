@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\GoogleMobileTokenController;
 use App\Http\Controllers\Api\V1\MobileBootstrapController;
 use App\Http\Controllers\Api\V1\MobileTokenController;
 use App\Http\Controllers\Api\V1\ReadingLogController;
+use App\Http\Middleware\EstablishReadingTimezone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -31,7 +32,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         ->middleware('throttle:mobile-google-token')
         ->name('auth.google-token.store');
 
-    Route::middleware(['auth:sanctum', 'abilities:mobile'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'abilities:mobile', EstablishReadingTimezone::class])->group(function (): void {
         Route::delete('/auth/token', [MobileTokenController::class, 'destroy'])
             ->name('auth.token.destroy');
 

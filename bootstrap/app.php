@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'abilities' => CheckAbilities::class,
         ]);
 
+        // Browser JavaScript writes this timezone report without Laravel's cookie encryption.
+        $middleware->encryptCookies(except: ['reading_timezone_report']);
+
         $middleware->validateCsrfTokens(except: [
             'marketing/unsubscribe/*/one-click',
         ]);

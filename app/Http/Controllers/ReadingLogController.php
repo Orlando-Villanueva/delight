@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\AchievementService;
 use App\Services\BibleReferenceService;
 use App\Services\OnboardingService;
+use App\Services\ReadingCalendarService;
 use App\Services\ReadingFormService;
 use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
@@ -28,7 +29,8 @@ class ReadingLogController extends Controller
         private ReadingFormService $readingFormService,
         private UserStatisticsService $userStatisticsService,
         private OnboardingService $onboardingService,
-        private AchievementService $achievementService
+        private AchievementService $achievementService,
+        private ReadingCalendarService $readingCalendar
     ) {}
 
     /**
@@ -63,8 +65,8 @@ class ReadingLogController extends Controller
     {
         try {
             // Late Logging Grace: Only allow today or yesterday
-            $today = today()->toDateString();
-            $yesterday = today()->subDay()->toDateString();
+            $today = $this->readingCalendar->todayFor($request->user())->toDateString();
+            $yesterday = $this->readingCalendar->yesterdayFor($request->user())->toDateString();
 
             $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
 
@@ -229,11 +231,11 @@ class ReadingLogController extends Controller
 
     private function selectedDateReadForForm(Request $request): string
     {
-        $yesterday = today()->subDay()->toDateString();
+        $yesterday = $this->readingCalendar->yesterdayFor($request->user())->toDateString();
 
         return $request->input('date_read') === $yesterday
             ? $yesterday
-            : today()->toDateString();
+            : $this->readingCalendar->todayFor($request->user())->toDateString();
     }
 
     /**

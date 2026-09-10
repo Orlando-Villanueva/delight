@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\BibleReferenceService;
+use App\Services\ReadingCalendarService;
 use App\Services\ReadingFormService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,7 +24,7 @@ class ReadingFormServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new ReadingFormService(new BibleReferenceService);
+        $this->service = new ReadingFormService(new BibleReferenceService, new ReadingCalendarService);
         $this->user = User::factory()->create();
     }
 

@@ -11,12 +11,13 @@ use App\Models\User;
 use App\Services\AchievementService;
 use App\Services\BibleReferenceService;
 use App\Services\OnboardingService;
+use App\Services\ReadingCalendarService;
 use App\Services\ReadingPlanService;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 
 class ReadingPlanController extends Controller
@@ -25,7 +26,8 @@ class ReadingPlanController extends Controller
         private ReadingPlanService $planService,
         private OnboardingService $onboardingService,
         private BibleReferenceService $bibleReferenceService,
-        private AchievementService $achievementService
+        private AchievementService $achievementService,
+        private ReadingCalendarService $readingCalendar
     ) {}
 
     /**
@@ -259,7 +261,7 @@ class ReadingPlanController extends Controller
             return response()->json(['error' => 'Plan day already complete'], 409);
         }
 
-        $result = $this->planService->logChapter($user, $subscription, $dayNumber, $chapter, Carbon::today());
+        $result = $this->planService->logChapter($user, $subscription, $dayNumber, $chapter, $this->readingCalendar->todayFor($user)->toMutable());
 
         // Return updated today view
         $viewData = $this->getTodayViewData($subscription, $dayNumber);
@@ -292,7 +294,7 @@ class ReadingPlanController extends Controller
             fn ($ch) => ! $ch['completed']
         );
 
-        $results = $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, Carbon::today());
+        $results = $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, $this->readingCalendar->todayFor($user)->toMutable());
 
         // Return updated today view
         $viewData = $this->getTodayViewData($subscription, $dayNumber);
@@ -317,7 +319,7 @@ class ReadingPlanController extends Controller
         ['user' => $user, 'subscription' => $subscription, 'dayNumber' => $dayNumber, 'reading' => $reading] = $result;
 
         $chapters = $reading['chapters'] ?? [];
-        $unlinkedKeys = $this->getUnlinkedTodayChapterKeys($user->id, $subscription->id, $chapters);
+        $unlinkedKeys = $this->getUnlinkedTodayChapterKeys($user, $subscription->id, $chapters);
 
         if (! empty($unlinkedKeys)) {
             $chaptersToApply = array_values(array_filter($chapters, function ($chapter) use ($unlinkedKeys) {
@@ -330,7 +332,7 @@ class ReadingPlanController extends Controller
                     $subscription,
                     $dayNumber,
                     $chaptersToApply,
-                    Carbon::today()
+                    $this->readingCalendar->todayFor($user)->toMutable()
                 );
             }
         }
@@ -346,7 +348,7 @@ class ReadingPlanController extends Controller
         return response($content);
     }
 
-    private function achievementCelebrationFragmentForResults(User $user, \Illuminate\Support\Collection $results): string
+    private function achievementCelebrationFragmentForResults(User $user, Collection $results): string
     {
         $awardedAchievements = $results
             ->flatMap(fn ($result) => $result->awardedAchievements)
@@ -364,7 +366,7 @@ class ReadingPlanController extends Controller
         return $this->achievementCelebrationFragment($user, $awardedAchievements, $lastResult->log, $isFirstReadingOfDay);
     }
 
-    private function achievementCelebrationFragment(User $user, \Illuminate\Support\Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): string
+    private function achievementCelebrationFragment(User $user, Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): string
     {
         $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log, $isFirstReadingOfDay);
 
@@ -380,7 +382,7 @@ class ReadingPlanController extends Controller
     /**
      * Validate and retrieve the reading for a given day from the request.
      *
-     * @return array{user: \App\Models\User, subscription: \App\Models\ReadingPlanSubscription, dayNumber: int, reading: array}|JsonResponse
+     * @return array{user: User, subscription: ReadingPlanSubscription, dayNumber: int, reading: array}|JsonResponse
      */
     private function getValidatedDayReading(Request $request, ReadingPlan $plan): array|JsonResponse
     {
@@ -438,7 +440,7 @@ class ReadingPlanController extends Controller
         if ($reading && ! $isBeforeTracking) {
             $chapters = $reading['chapters'] ?? [];
             $unlinkedTodayTotal = count($chapters);
-            $unlinkedTodayChapterKeys = $this->getUnlinkedTodayChapterKeys($subscription->user_id, $subscription->id, $chapters);
+            $unlinkedTodayChapterKeys = $this->getUnlinkedTodayChapterKeys($subscription->user, $subscription->id, $chapters);
         }
 
         // Check if there's another active plan (not this one)
@@ -477,14 +479,14 @@ class ReadingPlanController extends Controller
      *
      * @return array<int, string>
      */
-    private function getUnlinkedTodayChapterKeys(int $userId, int $subscriptionId, array $chapters): array
+    private function getUnlinkedTodayChapterKeys(User $user, int $subscriptionId, array $chapters): array
     {
         if (empty($chapters)) {
             return [];
         }
 
-        $query = ReadingLog::where('user_id', $userId)
-            ->whereDate('date_read', Carbon::today())
+        $query = ReadingLog::where('user_id', $user->id)
+            ->whereDate('date_read', $this->readingCalendar->todayFor($user)->toMutable())
             ->whereDoesntHave('planCompletions', function ($query) use ($subscriptionId) {
                 $query->where('reading_plan_subscription_id', $subscriptionId);
             })
@@ -506,7 +508,7 @@ class ReadingPlanController extends Controller
     /**
      * Get plans with subscription status for a user.
      *
-     * @return array{plans: \Illuminate\Support\Collection, has_active_plan: bool}
+     * @return array{plans: Collection, has_active_plan: bool}
      */
     private function getPlansWithStatus($user): array
     {

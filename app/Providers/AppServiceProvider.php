@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\GoogleIdTokenVerifierContract;
 use App\Services\BibleReferenceService;
 use App\Services\GoogleIdTokenVerifier;
+use App\Services\ReadingCalendarService;
 use App\Services\ReadingPlanService;
 use Google_Client;
 use Illuminate\Support\Facades\Response;
@@ -42,6 +43,12 @@ class AppServiceProvider extends ServiceProvider
         View::composer('components.ui.notification-bell', function ($view) {
             if (auth()->check()) {
                 $view->with('unreadCount', auth()->user()->unreadAnnouncements()->count());
+            }
+        });
+
+        View::composer(['logs.create', 'partials.reading-log-list', 'partials.reading-log-items'], function ($view): void {
+            if ($user = auth()->user()) {
+                $view->with('readingToday', app(ReadingCalendarService::class)->todayFor($user));
             }
         });
 

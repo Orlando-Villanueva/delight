@@ -30,10 +30,19 @@ async function errorBody(response: Response): Promise<LaravelErrorBody> {
   }
 }
 
+function reportedTimezone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function apiRequest<T>(
   path: string,
   { method = 'GET', body, token, onUnauthorized }: ApiRequestOptions = {},
 ): Promise<T> {
+  const timezone = token ? reportedTimezone() : undefined;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
 
@@ -42,6 +51,7 @@ export async function apiRequest<T>(
       method,
       headers: {
         Accept: 'application/json',
+        ...(timezone ? { 'X-Reading-Timezone': timezone } : {}),
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },

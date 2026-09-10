@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Contracts\ReadingLogInterface;
+use App\Services\ReadingCalendarService;
 use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
 use Carbon\Carbon;
@@ -19,7 +20,8 @@ class UserStatisticsServiceTest extends TestCase
         parent::setUp();
         $this->readingLogService = $this->createMock(ReadingLogService::class);
         $this->service = new UserStatisticsService(
-            $this->readingLogService
+            $this->readingLogService,
+            new ReadingCalendarService
         );
     }
 

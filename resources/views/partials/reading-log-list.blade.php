@@ -3,7 +3,7 @@
 
 @php
     // Extract useful state about the logs and whether the user has any history yet
-    $today = today()->format('Y-m-d');
+    $today = $readingToday->format('Y-m-d');
     $logItems = $logs instanceof \Illuminate\Pagination\AbstractPaginator ? collect($logs->items()) : collect($logs);
 
     $totalLoggedDays = method_exists($logs, 'total') ? $logs->total() : $logItems->count();

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateSettingsRequest;
 use App\Services\AnnualRecapService;
+use App\Services\ReadingCalendarService;
 use App\Services\ReadingPlanService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -14,7 +15,8 @@ use Illuminate\Support\Facades\Cache;
 class SettingsController extends Controller
 {
     public function __construct(
-        private ReadingPlanService $readingPlanService
+        private ReadingPlanService $readingPlanService,
+        private ReadingCalendarService $readingCalendar
     ) {}
 
     /**
@@ -55,7 +57,7 @@ class SettingsController extends Controller
             $user->forceFill($updates)->save();
         }
 
-        Cache::forget("user_dashboard_stats_{$user->id}");
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_dashboard_stats_{$user->id}"));
 
         $freshUser = $user->fresh();
         $pausedCatholicCanonicalPlan = false;

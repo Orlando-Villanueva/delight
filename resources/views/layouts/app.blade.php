@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    @if (request()->routeIs('login', 'register'))
+        @include('partials.reading-timezone-detection', ['reloadAfterDetection' => false])
+    @endif
+
     <title>{{ config('app.name', 'Delight') }}</title>
 
     <!-- Favicon -->

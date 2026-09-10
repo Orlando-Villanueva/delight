@@ -58,6 +58,11 @@ class ReadingCalendarService
         return $this->todayFor($user, $referenceTime)->subDay();
     }
 
+    public function cacheKey(User $user, string $key): string
+    {
+        return $key.':'.$this->timezoneFor($user).':'.$this->todayFor($user)->toDateString();
+    }
+
     private function isValidTimezone(?string $timezone): bool
     {
         return $timezone !== null && in_array($timezone, DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC), true);
