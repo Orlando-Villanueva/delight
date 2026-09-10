@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\DB;
 class ReadingPlanService
 {
     public function __construct(
-        private ReadingLogService $readingLogService
+        private ReadingLogService $readingLogService,
+        private ReadingCalendarService $readingCalendar
     ) {}
 
     /**
@@ -41,7 +42,7 @@ class ReadingPlanService
             ]);
 
             if (! $subscription->exists) {
-                $subscription->started_at = $startDate ?? Carbon::today();
+                $subscription->started_at = $startDate ?? $this->readingCalendar->todayFor($user)->toMutable();
                 $subscription->start_day = $resolvedStartDay;
             }
 

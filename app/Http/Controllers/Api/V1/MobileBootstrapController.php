@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\MobileBootstrapResource;
 use App\Models\User;
 use App\Services\BibleReferenceService;
+use App\Services\ReadingCalendarService;
 use App\Services\ReadingFormService;
 use App\Services\StreakStateService;
 use App\Services\UserStatisticsService;
@@ -15,6 +16,7 @@ class MobileBootstrapController extends Controller
 {
     public function __invoke(
         Request $request,
+        ReadingCalendarService $readingCalendar,
         BibleReferenceService $bibleReferenceService,
         ReadingFormService $readingFormService,
         StreakStateService $streakStateService,
@@ -22,7 +24,7 @@ class MobileBootstrapController extends Controller
     ): MobileBootstrapResource {
         /** @var User $user */
         $user = $request->user();
-        $today = today();
+        $today = $readingCalendar->todayFor($user);
         $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
         $recentBooks = $readingFormService->getRecentBooksForForm($user);
         $hasReadToday = $readingFormService->hasReadToday($user);

@@ -56,7 +56,7 @@
                     >
                         @csrf
                         @php
-                            $selectedDateRead = $selectedDateRead ?? today()->toDateString();
+                            $selectedDateRead = $selectedDateRead ?? $readingToday->toDateString();
                         @endphp
 
                         <fieldset class="space-y-2">
@@ -71,8 +71,8 @@
                                         type="radio"
                                         id="today"
                                         name="date_read"
-                                        value="{{ today()->toDateString() }}"
-                                        {{ $selectedDateRead === today()->toDateString() ? 'checked' : '' }}
+                                        value="{{ $readingToday->toDateString() }}"
+                                        {{ $selectedDateRead === $readingToday->toDateString() ? 'checked' : '' }}
                                         class="peer sr-only"
                                     >
                                     <label
@@ -88,8 +88,8 @@
                                         type="radio"
                                         id="yesterday"
                                         name="date_read"
-                                        value="{{ today()->subDay()->toDateString() }}"
-                                        {{ $selectedDateRead === today()->subDay()->toDateString() ? 'checked' : '' }}
+                                        value="{{ $readingToday->subDay()->toDateString() }}"
+                                        {{ $selectedDateRead === $readingToday->subDay()->toDateString() ? 'checked' : '' }}
                                         class="peer sr-only"
                                     >
                                     <label

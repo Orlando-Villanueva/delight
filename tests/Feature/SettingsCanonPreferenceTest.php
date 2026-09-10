@@ -4,6 +4,7 @@ use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
 use App\Services\AnnualRecapService;
+use App\Services\ReadingCalendarService;
 use Illuminate\Support\Facades\Cache;
 
 it('requires authentication to view settings', function () {
@@ -29,7 +30,7 @@ it('shows the Catholic canon setting as disabled by default', function () {
 
 it('enables the Catholic canon setting', function () {
     $user = User::factory()->create();
-    Cache::put("user_dashboard_stats_{$user->id}", ['total_bible_books' => 66], 300);
+    Cache::put(app(ReadingCalendarService::class)->cacheKey($user, "user_dashboard_stats_{$user->id}"), ['total_bible_books' => 66], 300);
     Cache::put(AnnualRecapService::cacheKeyFor($user, now()->year), ['top_books' => []], 300);
 
     $response = $this->actingAs($user)
@@ -41,7 +42,7 @@ it('enables the Catholic canon setting', function () {
         ->assertSessionHas('status', 'Settings saved.');
 
     expect($user->fresh()->includesDeuterocanonicalBooks())->toBeTrue();
-    expect(Cache::has("user_dashboard_stats_{$user->id}"))->toBeFalse()
+    expect(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_dashboard_stats_{$user->id}")))->toBeFalse()
         ->and(Cache::has(AnnualRecapService::cacheKeyFor($user, now()->year)))->toBeFalse();
 });
 
@@ -51,7 +52,7 @@ it('updates the Catholic canon setting over JSON without changing reminder prefe
         'streak_warning_enabled_at' => now(),
         'push_notification_timezone' => 'America/Toronto',
     ]);
-    Cache::put("user_dashboard_stats_{$user->id}", ['total_bible_books' => 66], 300);
+    Cache::put(app(ReadingCalendarService::class)->cacheKey($user, "user_dashboard_stats_{$user->id}"), ['total_bible_books' => 66], 300);
 
     $response = $this->actingAs($user)
         ->patchJson(route('settings.update'), [
@@ -69,7 +70,7 @@ it('updates the Catholic canon setting over JSON without changing reminder prefe
     expect($freshUser->includesDeuterocanonicalBooks())->toBeTrue()
         ->and($freshUser->hasDailyReadingReminderEnabled())->toBeTrue()
         ->and($freshUser->hasStreakWarningEnabled())->toBeTrue()
-        ->and(Cache::has("user_dashboard_stats_{$user->id}"))->toBeFalse();
+        ->and(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_dashboard_stats_{$user->id}")))->toBeFalse();
 });
 
 it('keeps the existing reminder timezone when a fallback form submits a blank timezone', function () {

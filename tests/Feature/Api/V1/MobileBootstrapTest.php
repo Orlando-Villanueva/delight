@@ -2,6 +2,7 @@
 
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\ReadingCalendarService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -165,9 +166,9 @@ it('returns the existing statistics and fourteen-day activity counts', function 
         ->assertJsonPath('data.activity.12', ['date' => MOBILE_BOOTSTRAP_YESTERDAY, 'count' => 1])
         ->assertJsonPath('data.activity.13', ['date' => MOBILE_BOOTSTRAP_TODAY, 'count' => 2]);
 
-    expect(Cache::has("user_current_streak_{$user->id}"))->toBeTrue()
-        ->and(Cache::has("user_recent_reading_activity_series_{$user->id}"))->toBeTrue()
-        ->and(Cache::has("user_total_reading_days_{$user->id}"))->toBeTrue();
+    expect(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_current_streak_{$user->id}")))->toBeTrue()
+        ->and(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_recent_reading_activity_series_{$user->id}")))->toBeTrue()
+        ->and(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_total_reading_days_{$user->id}")))->toBeTrue();
 });
 
 it('returns the server-computed state for an unread active streak at the warning threshold', function (

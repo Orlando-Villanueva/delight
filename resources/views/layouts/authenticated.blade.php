@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    @if (auth()->user()?->reading_timezone === null)
+        @include('partials.reading-timezone-detection')
+    @endif
+
     @php($appName = config('app.name', 'Delight'))
     <title>
         @hasSection('page-title')
