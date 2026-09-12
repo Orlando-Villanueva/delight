@@ -15,7 +15,12 @@ jest.mock('@/auth/auth-context', () => ({
 
 const request = jest.fn();
 const logout = jest.fn();
+const mockPush = jest.fn();
 let queryClient: QueryClient;
+
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 
 const sessionUser: AuthUser = { id: 1, name: 'Reader', email: 'reader@example.com' };
 
@@ -84,6 +89,7 @@ describe('account menu', () => {
   beforeEach(() => {
     request.mockReset();
     logout.mockReset();
+    mockPush.mockReset();
     logout.mockResolvedValue(undefined);
     request.mockResolvedValue(bootstrap());
     jest.mocked(useAuthenticatedApi).mockReturnValue(request);
@@ -102,7 +108,7 @@ describe('account menu', () => {
     expect(screen.getByLabelText('Account for Reader')).toBeOnTheScreen();
     expect(screen.getByLabelText('Account for Reader')).toHaveProp(
       'accessibilityHint',
-      'Shows the signed-in account and sign out',
+      'Shows account details, settings, and sign out',
     );
     expect(screen.getByText('R')).toBeOnTheScreen();
     expect(screen.getByTestId('header-account-avatar')).toHaveStyle({
@@ -111,6 +117,7 @@ describe('account menu', () => {
       borderRadius: 16,
     });
     expect(screen.queryByLabelText('Sign out')).not.toBeOnTheScreen();
+    expect(screen.queryByLabelText('Settings')).not.toBeOnTheScreen();
     expect(screen.queryByText('Log out')).not.toBeOnTheScreen();
     expect(request).not.toHaveBeenCalled();
   });
@@ -199,6 +206,16 @@ describe('account menu', () => {
 
     expect(logout).toHaveBeenCalled();
     expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith('Signing out.');
+  });
+
+  it('opens settings from the account surface', async () => {
+    await renderMenu();
+
+    await fireEvent.press(screen.getByLabelText('Account for Reader'));
+    await fireEvent.press(screen.getByLabelText('Settings'));
+
+    expect(mockPush).toHaveBeenCalledWith('/settings');
+    expect(screen.queryByLabelText('Sign out')).not.toBeOnTheScreen();
   });
 
   it('keeps sign out available when restored identity cannot load', async () => {

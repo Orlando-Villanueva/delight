@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Image, Pressable, Text, View } from 'react-native';
 
@@ -122,6 +123,7 @@ function AccountAvatar({ color, initials, url, size }: AccountAvatarProps) {
 export function AccountMenu() {
   const { user: sessionUser } = useAuth();
   const request = useAuthenticatedApi();
+  const router = useRouter();
   const { colors } = useTheme();
   const [visible, setVisible] = useState(false);
   const { data, isLoading } = useQuery({
@@ -145,12 +147,17 @@ export function AccountMenu() {
     setVisible(false);
   }
 
+  function openSettings() {
+    close();
+    router.push('/settings');
+  }
+
   return (
     <>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accountAccessibilityLabel(user)}
-        accessibilityHint="Shows the signed-in account and sign out"
+        accessibilityHint="Shows account details, settings, and sign out"
         accessibilityState={{ expanded: visible }}
         onPress={() => setVisible(true)}
         style={{
@@ -231,6 +238,44 @@ export function AccountMenu() {
                 : 'Account details are unavailable.'}
             </Text>
           )}
+        </View>
+        <View
+          style={{
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            paddingTop: 8,
+          }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            accessibilityHint="Opens account, privacy, and support settings"
+            onPress={openSettings}
+            style={({ pressed }) => ({
+              minHeight: themeTokens.minimumTouchTarget,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              paddingVertical: 10,
+              opacity: pressed ? 0.72 : 1,
+            })}
+          >
+            <MaterialCommunityIcons
+              accessible={false}
+              color={colors.primary}
+              name="cog-outline"
+              size={22}
+            />
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', flex: 1 }}>
+              Settings
+            </Text>
+            <MaterialCommunityIcons
+              accessible={false}
+              color={colors.mutedText}
+              name="chevron-right"
+              size={22}
+            />
+          </Pressable>
         </View>
         <View
           style={{
