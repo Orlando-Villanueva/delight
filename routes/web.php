@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountDeletionController;
 use App\Http\Controllers\AchievementsController;
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AnnouncementController;
@@ -66,6 +67,23 @@ Route::get('/privacy-policy', function () {
 Route::get('/terms-of-service', function () {
     return view('legal.terms-of-service');
 })->name('terms-of-service');
+
+Route::controller(AccountDeletionController::class)
+    ->prefix('account-deletion')
+    ->name('account-deletion.')
+    ->group(function () {
+        Route::get('/', 'create')->name('create');
+        Route::post('/', 'store')
+            ->middleware('throttle:account-deletion-request')
+            ->name('store');
+        Route::get('/confirm/{user}', 'confirm')
+            ->middleware('signed')
+            ->name('confirm');
+        Route::post('/confirm/{user}', 'submitConfirmation')
+            ->middleware(['signed', 'throttle:5,1'])
+            ->name('confirm.store');
+        Route::get('/received', 'received')->name('received');
+    });
 
 // Marketing Email Preferences (Signed URLs - no auth required)
 Route::get('/marketing/unsubscribe/{user}', [MarketingPreferencesController::class, 'show'])

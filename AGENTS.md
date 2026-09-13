@@ -49,6 +49,7 @@ These project-specific exceptions take precedence over the blanket test-change a
 
 ## Coding Style & Naming Conventions
 - Structure services as `App\Services\{Domain}Service`; keep action classes verb-oriented.
+- Group related routes when they share a controller, URI prefix, route-name prefix, or middleware. Keep routes separate when grouping would obscure meaningful differences or combine unrelated behavior.
 - Blade files should stay HTMX-first: prefer `hx-*` attributes and use **Blade Fragments** (`@fragment`) for partial page updates over separate partial files.
 - Admin Styling: Align all admin forms with the "Feedback Form" style found in `resources/views/partials/feedback-form.blade.php`.
 - Lean on Tailwind utilities; avoid custom CSS unless a technical constraint demands it.

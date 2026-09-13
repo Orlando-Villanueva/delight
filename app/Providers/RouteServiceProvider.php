@@ -43,6 +43,13 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute($limit)->by($request->ip());
         });
 
+        RateLimiter::for('account-deletion-request', function (Request $request) {
+            $email = $request->input('email');
+            $normalizedEmail = is_string($email) ? Str::of($email)->trim()->lower()->toString() : 'invalid-email';
+
+            return Limit::perMinute(5)->by(hash('sha256', $normalizedEmail.'|'.$request->ip()));
+        });
+
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')

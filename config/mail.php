@@ -120,4 +120,6 @@ return [
 
     'admin_address' => env('ADMIN_EMAIL', 'hello@delight.app'),
 
+    'support_address' => env('SUPPORT_EMAIL', 'orlando@mg.mydelight.app'),
+
 ];
