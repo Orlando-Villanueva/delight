@@ -103,14 +103,8 @@ describe('app configuration identities', () => {
     ]);
   });
 
-  it('omits standalone native identifiers for Expo Go development', () => {
-    const config = configFor('development');
-
-    expect(config.ios).toBeUndefined();
-    expect(config.android).not.toHaveProperty('package');
-  });
-
   it.each([
+    ['development', 'com.orlandovillanueva.delight.preview'],
     ['preview', 'com.orlandovillanueva.delight.preview'],
     ['dogfood', 'com.orlandovillanueva.delight'],
   ])('reserves the %s native identity', (appVariant, packageIdentifier) => {
@@ -142,6 +136,25 @@ describe('app configuration identities', () => {
     expect(configFor(appVariant).android).not.toHaveProperty('versionCode');
   });
 
+  it('builds the development client with staging identity and remote signing', () => {
+    const profile = easConfig.build.development;
+    const config = configFor(profile.env.APP_VARIANT);
+
+    expect(profile).toMatchObject({
+      developmentClient: true,
+      distribution: 'internal',
+      environment: 'preview',
+      credentialsSource: 'remote',
+      autoIncrement: true,
+      android: { buildType: 'apk' },
+    });
+    expect(easConfig.cli.appVersionSource).toBe('remote');
+    expect(config.android.package).toBe(configFor('preview').android.package);
+    expect(config.android.package).not.toBe(configFor('dogfood').android.package);
+    expect(config.extra.apiUrl).toBe('https://delight-staging.laravel.cloud');
+    expect(profile.env.EXPO_PUBLIC_API_URL).toBe(config.extra.apiUrl);
+  });
+
   it.each(['preview', 'dogfood'])('uses EAS remote version increments for the %s APK', (profile) => {
     expect(easConfig.cli.appVersionSource).toBe('remote');
     expect(easConfig.build[profile]).toMatchObject({
@@ -168,9 +181,9 @@ describe('app configuration identities', () => {
     },
   );
 
-  it('exposes the public web client ID and enables the native plugin with an iOS URL scheme', () => {
+  it.each(['development', 'preview'])('preserves Google configuration for %s', (appVariant) => {
     const config = configForWithGoogle(
-      'preview',
+      appVariant,
       'web-client.apps.googleusercontent.com',
       'com.googleusercontent.apps.ios-client',
     );

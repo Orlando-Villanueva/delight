@@ -3,6 +3,20 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "development": {
+      "developmentClient": true,
+      "autoIncrement": true,
+      "distribution": "internal",
+      "environment": "preview",
+      "credentialsSource": "remote",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_VARIANT": "development",
+        "EXPO_PUBLIC_API_URL": "https://delight-staging.laravel.cloud"
+      }
+    },
     "preview": {
       "autoIncrement": true,
       "distribution": "internal",

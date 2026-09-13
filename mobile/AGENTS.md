@@ -11,10 +11,21 @@ These instructions apply to every file under `/mobile` and supplement the reposi
 ## Expo and native projects
 
 - Use the current stable Expo SDK and version-compatible packages installed through Expo tooling where possible.
-- Expo Go is the default development loop. Add a custom development client only when a required V1 dependency cannot run in Expo Go, and document the exact native requirement before doing so.
+- Use a Delight development build for the full development loop. Native Google Sign-In requires a library that Expo Go does not include. Expo Go is an optional shortcut for compatible UI/JavaScript work, not evidence that native authentication works.
 - Follow Continuous Native Generation. Express native configuration through Expo config and config plugins; never commit generated `android/` or `ios/` directories.
 - Do not run EAS cloud builds, manage credentials, submit stores, publish updates, or release artifacts without explicit approval.
 - Keep the app Android-first and iOS-compatible. The reserved production identifiers must continue to match.
+
+## Testing feature branches on a phone
+
+- Test from the intended feature checkout, including its uncommitted changes; a push or merge to `main` is not required. Confirm the checkout, branch, working-tree state, and API target before starting. Preserve the user's checkout choice and unrelated changes.
+- From that checkout's `mobile/` directory, use `npm run start:dev-client` and connect the installed development app to that Metro server. If another server is running, verify its checkout before reusing it; do not silently test another branch or stop another task's server.
+- A development APK supplies native code; Metro supplies the current checkout's JavaScript/TypeScript. Reuse a compatible installed development build for JavaScript changes. Native dependency, SDK, or native configuration changes require a separately approved rebuild and installation before those changes can be verified.
+- Development uses the Preview package identity and defaults to staging. For Laravel changes, use an explicitly selected phone-reachable local backend or a separately approved staging deployment. Starting Metro does not run or deploy the backend. Never silently use production for unfinished feature testing.
+- Local Metro configuration comes from the local environment, not automatically from EAS. Verify that the staging public Google client configuration is present without printing secrets. Follow `mobile/README.md` for backend reachability and environment setup.
+- Development and standalone Preview share a package identity. Switching between them replaces the installed app and requires compatible signing and version codes. Do not uninstall or discard local session data merely to resolve an installation conflict without approval.
+- Use a standalone Preview APK for staging verification without Metro. Record its source and artifact identity; it does not acquire later branch changes automatically. Producing a new APK remains separately approved.
+- If the required development build, backend, or device connection is unavailable, report the specific missing prerequisite and finish the available automated checks. Do not substitute Expo Go evidence for native feature verification or claim phone testing from configuration checks alone.
 
 ## TypeScript, files, and imports
 
@@ -73,8 +84,8 @@ These instructions apply to every file under `/mobile` and supplement the reposi
 - Prefer user-visible queries and behavior assertions over implementation details or snapshots.
 - Run `npm ci` when dependency manifests or the lockfile change, dependencies are missing or the installation is suspect, or clean-install verification is required. Reuse a working installation for other changes.
 - Before handoff, run `npm run lint`, `npm run typecheck`, `npm test`, `npm run config:validate`, and repository-level `git diff --check` for mobile code changes. For documentation-only changes, inspect the diff and run `git diff --check`.
-- Validate preview and dogfood public Expo configuration when identity or environment logic changes.
-- Complete an Expo Go smoke check on Android for navigation or runtime changes. Never claim device verification without observed evidence.
+- Validate development, preview, and dogfood public Expo configuration when identity or environment logic changes, including development API overrides and fixed preview/production targets.
+- Complete an Android development-build smoke check for navigation or runtime changes. Expo Go may cover compatible changes, but explicitly record that limitation; native Google Sign-In requires the development build. Report the tested checkout, backend, device/build, and observed results. Keep automated checks, development-build testing, and standalone artifact testing distinct; never claim device verification without observed evidence.
 
 ## Releases
 
