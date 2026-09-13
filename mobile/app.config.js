@@ -15,7 +15,7 @@ const variants = {
     packageIdentifier: 'com.orlandovillanueva.delight.preview',
     apiUrl: STAGING_API_URL,
   },
-  dogfood: {
+  production: {
     name: 'Delight',
     packageIdentifier: 'com.orlandovillanueva.delight',
     apiUrl: PRODUCTION_API_URL,

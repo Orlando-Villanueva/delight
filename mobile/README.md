@@ -64,7 +64,7 @@ security. The local backend must have the matching staging mobile Google audienc
 Google login. Staging remains the simpler default when backend changes are unnecessary.
 
 Restart the development server and reload the app after changing configuration. Restore the staging URL
-when local backend testing is finished. Preview and dogfood ignore API URL overrides and retain their fixed
+when local backend testing is finished. Preview and production ignore API URL overrides and retain their fixed
 backend targets.
 
 ### Standalone preview and Expo Go
@@ -104,13 +104,26 @@ CI runs the same install, lint, typecheck, and Jest checks with Node 22.13 when 
 | Development build | `com.orlandovillanueva.delight.preview` | Staging or explicit local override |
 | Development / Expo Go | Expo Go container | Staging or explicit local override |
 | Preview | `com.orlandovillanueva.delight.preview` | Staging |
-| Dogfood | `com.orlandovillanueva.delight` | Production |
+| Production / Play | `com.orlandovillanueva.delight` | Production |
 
-Development, preview, and dogfood profiles are defined in `eas.json`. EAS cloud builds, signing changes, and releases require explicit approval and are not part of the normal development loop. After that approval, the intended Android commands are:
+Development, preview, and play profiles are defined in `eas.json`. EAS cloud builds, signing changes, and releases require explicit approval and are not part of the normal development loop. After that approval, the intended Android commands are:
 
 ```bash
 npx eas-cli build --platform android --profile preview
-npx eas-cli build --platform android --profile dogfood
+npx eas-cli build --platform android --profile play
 ```
 
 The project uses Continuous Native Generation. Do not commit generated `android/` or `ios/` directories; both are ignored.
+
+The `play` profile uses the `production` app variant and produces a Google Play AAB, with development mode
+explicitly disabled. It replaces the former dogfood APK profile. Development and Preview remain APK workflows.
+The production EAS environment supplies the established Google configuration; local staging values are not
+the production authentication configuration.
+
+Remote versioning and automatic increments remain enabled. Before any Play build, freeze the reviewed source
+commit and included issues, verify the production package's current EAS version counter and Play version history,
+and present the exact command, expected app version/version code, backend, and credential source for approval.
+Do not assume the Preview counter determines the production counter. Remote credentials specify where EAS
+obtains upload signing material; they do not select or verify the Play app-signing identity. Signing decisions,
+credential changes, build execution, upload, candidate acceptance, and track rollout remain separate gates.
+Internal Testing precedes validation of the Play-installed artifact and any promotion to Closed Testing.

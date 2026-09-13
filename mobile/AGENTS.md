@@ -69,7 +69,7 @@ These instructions apply to every file under `/mobile` and supplement the reposi
 - Store authentication tokens only in SecureStore and clear them on 401 or logout.
 - Never use AsyncStorage for tokens.
 - Preserve generic authentication errors and avoid logging credentials, tokens, notes, or personal reading data.
-- Keep production and preview application identifiers distinct; dogfood uses production identity only through an explicitly approved build.
+- Keep production and preview application identifiers distinct; Play uses production identity only through an explicitly approved build.
 
 ## Theme and accessibility
 
@@ -84,7 +84,7 @@ These instructions apply to every file under `/mobile` and supplement the reposi
 - Prefer user-visible queries and behavior assertions over implementation details or snapshots.
 - Run `npm ci` when dependency manifests or the lockfile change, dependencies are missing or the installation is suspect, or clean-install verification is required. Reuse a working installation for other changes.
 - Before handoff, run `npm run lint`, `npm run typecheck`, `npm test`, `npm run config:validate`, and repository-level `git diff --check` for mobile code changes. For documentation-only changes, inspect the diff and run `git diff --check`.
-- Validate development, preview, and dogfood public Expo configuration when identity or environment logic changes, including development API overrides and fixed preview/production targets.
+- Validate development, preview, and production public Expo configuration (the `play` EAS profile selects `production`) when identity or environment logic changes, including development API overrides and fixed preview/production targets.
 - Complete an Android development-build smoke check for navigation or runtime changes. Expo Go may cover compatible changes, but explicitly record that limitation; native Google Sign-In requires the development build. Report the tested checkout, backend, device/build, and observed results. Keep automated checks, development-build testing, and standalone artifact testing distinct; never claim device verification without observed evidence.
 
 ## Releases
