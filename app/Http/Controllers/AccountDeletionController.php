@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class AccountDeletionController extends Controller
 {
@@ -32,7 +33,10 @@ class AccountDeletionController extends Controller
             $verificationUrl = URL::temporarySignedRoute(
                 'account-deletion.confirm',
                 now()->addHour(),
-                ['user' => $user],
+                [
+                    'user' => $user,
+                    'email_hash' => $this->emailHash($user->email),
+                ],
             );
 
             $this->emailService->sendWithErrorHandling(function () use ($user, $verificationUrl): void {
@@ -47,6 +51,8 @@ class AccountDeletionController extends Controller
 
     public function confirm(User $user, Request $request): View
     {
+        abort_unless($this->hasMatchingEmailHash($user, $request), 403);
+
         return view('account-deletion.confirm', [
             'confirmationUrl' => $request->fullUrl(),
             'isAlreadyConfirmed' => Cache::has($this->confirmationCacheKey($request)),
@@ -55,6 +61,8 @@ class AccountDeletionController extends Controller
 
     public function submitConfirmation(User $user, Request $request): RedirectResponse
     {
+        abort_unless($this->hasMatchingEmailHash($user, $request), 403);
+
         $confirmationCacheKey = $this->confirmationCacheKey($request);
 
         if (Cache::has($confirmationCacheKey)) {
@@ -96,5 +104,18 @@ class AccountDeletionController extends Controller
     private function confirmationCacheKey(Request $request): string
     {
         return 'account-deletion-confirmed:'.hash('sha256', (string) $request->query('signature'));
+    }
+
+    private function hasMatchingEmailHash(User $user, Request $request): bool
+    {
+        return hash_equals(
+            $this->emailHash($user->email),
+            (string) $request->query('email_hash'),
+        );
+    }
+
+    private function emailHash(string $email): string
+    {
+        return hash('sha256', Str::of($email)->trim()->lower()->toString());
     }
 }
