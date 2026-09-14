@@ -80,11 +80,11 @@ function configForWithoutGoogle(appVariant) {
 }
 
 describe('app configuration identities', () => {
-  it.each(['development', 'preview', 'dogfood'])('uses the Delight slug for the %s variant', (appVariant) => {
+  it.each(['development', 'preview', 'production'])('uses the Delight slug for the %s variant', (appVariant) => {
     expect(configFor(appVariant).slug).toBe('delight');
   });
 
-  it.each(['development', 'preview', 'dogfood'])('uses Delight branding for the %s native icon surfaces', (appVariant) => {
+  it.each(['development', 'preview', 'production'])('uses Delight branding for the %s native icon surfaces', (appVariant) => {
     const config = configFor(appVariant);
     const splashPlugin = config.plugins.find(([plugin]) => plugin === 'expo-splash-screen');
 
@@ -103,16 +103,10 @@ describe('app configuration identities', () => {
     ]);
   });
 
-  it('omits standalone native identifiers for Expo Go development', () => {
-    const config = configFor('development');
-
-    expect(config.ios).toBeUndefined();
-    expect(config.android).not.toHaveProperty('package');
-  });
-
   it.each([
+    ['development', 'com.orlandovillanueva.delight.preview'],
     ['preview', 'com.orlandovillanueva.delight.preview'],
-    ['dogfood', 'com.orlandovillanueva.delight'],
+    ['production', 'com.orlandovillanueva.delight'],
   ])('reserves the %s native identity', (appVariant, packageIdentifier) => {
     const config = configFor(appVariant);
 
@@ -123,26 +117,66 @@ describe('app configuration identities', () => {
   it.each([
     ['development', 'https://delight-staging.laravel.cloud'],
     ['preview', 'https://delight-staging.laravel.cloud'],
-    ['dogfood', 'https://mydelight.app'],
+    ['production', 'https://mydelight.app'],
   ])('uses the matching %s web and API environment', (appVariant, apiUrl) => {
     expect(configFor(appVariant).extra.apiUrl).toBe(apiUrl);
   });
 
-  it('allows a development override without changing preview or dogfood targets', () => {
+  it('allows a development override without changing preview or production targets', () => {
     expect(configForWithApiOverride('development', 'https://local.example').extra.apiUrl).toBe('https://local.example');
     expect(configForWithApiOverride('preview', 'https://local.example').extra.apiUrl).toBe('https://delight-staging.laravel.cloud');
-    expect(configForWithApiOverride('dogfood', 'https://local.example').extra.apiUrl).toBe('https://mydelight.app');
+    expect(configForWithApiOverride('production', 'https://local.example').extra.apiUrl).toBe('https://mydelight.app');
   });
 
-  it.each(['development', 'preview', 'dogfood'])('links the %s variant to the existing EAS project', (appVariant) => {
+  it.each(['development', 'preview', 'production'])('links the %s variant to the existing EAS project', (appVariant) => {
     expect(configFor(appVariant).extra.eas.projectId).toBe('aa50d7fa-9028-4991-abb9-8f58d306cadf');
   });
 
-  it.each(['development', 'preview', 'dogfood'])('delegates the %s Android version code to EAS', (appVariant) => {
+  it.each(['development', 'preview', 'production'])('delegates the %s Android version code to EAS', (appVariant) => {
     expect(configFor(appVariant).android).not.toHaveProperty('versionCode');
   });
 
-  it.each(['preview', 'dogfood'])('uses EAS remote version increments for the %s APK', (profile) => {
+  it('builds the development client with staging identity and remote signing', () => {
+    const profile = easConfig.build.development;
+    const config = configFor(profile.env.APP_VARIANT);
+
+    expect(profile).toMatchObject({
+      developmentClient: true,
+      distribution: 'internal',
+      environment: 'preview',
+      credentialsSource: 'remote',
+      autoIncrement: true,
+      android: { buildType: 'apk' },
+    });
+    expect(easConfig.cli.appVersionSource).toBe('remote');
+    expect(config.android.package).toBe(configFor('preview').android.package);
+    expect(config.android.package).not.toBe(configFor('production').android.package);
+    expect(config.extra.apiUrl).toBe('https://delight-staging.laravel.cloud');
+    expect(profile.env.EXPO_PUBLIC_API_URL).toBe(config.extra.apiUrl);
+  });
+
+  it('resolves the Play profile to a production AAB without development overrides', () => {
+    const profile = easConfig.build.play;
+    const config = configForWithApiOverride(profile.env.APP_VARIANT, 'https://local.example');
+
+    expect(profile).toMatchObject({
+      distribution: 'store',
+      developmentClient: false,
+      environment: 'production',
+      credentialsSource: 'remote',
+      autoIncrement: true,
+      android: { buildType: 'app-bundle' },
+    });
+    expect(profile.android.gradleCommand).toBeUndefined();
+    expect(easConfig.cli.appVersionSource).toBe('remote');
+    expect(config.name).toBe('Delight');
+    expect(config.android.package).toBe('com.orlandovillanueva.delight');
+    expect(config.extra.apiUrl).toBe('https://mydelight.app');
+    expect(profile.env.EXPO_PUBLIC_API_URL).toBe(config.extra.apiUrl);
+    expect(config.android.versionCode).toBeUndefined();
+  });
+
+  it.each(['preview'])('uses EAS remote version increments for the %s APK', (profile) => {
     expect(easConfig.cli.appVersionSource).toBe('remote');
     expect(easConfig.build[profile]).toMatchObject({
       autoIncrement: true,
@@ -153,12 +187,12 @@ describe('app configuration identities', () => {
 
   it.each([
     ['preview', 'preview'],
-    ['production', 'dogfood'],
-  ])('uses the %s EAS environment for the %s APK', (environment, profile) => {
+    ['production', 'play'],
+  ])('uses the %s EAS environment for the %s build', (environment, profile) => {
     expect(easConfig.build[profile].environment).toBe(environment);
   });
 
-  it.each(['development', 'preview', 'dogfood'])(
+  it.each(['development', 'preview', 'production'])(
     'keeps %s valid while Google environment configuration is absent',
     (appVariant) => {
       const config = configForWithoutGoogle(appVariant);
@@ -168,9 +202,9 @@ describe('app configuration identities', () => {
     },
   );
 
-  it('exposes the public web client ID and enables the native plugin with an iOS URL scheme', () => {
+  it.each(['development', 'preview', 'production'])('preserves Google configuration for %s', (appVariant) => {
     const config = configForWithGoogle(
-      'preview',
+      appVariant,
       'web-client.apps.googleusercontent.com',
       'com.googleusercontent.apps.ios-client',
     );

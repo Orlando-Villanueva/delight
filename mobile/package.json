@@ -38,7 +38,7 @@
   },
   "scripts": {
     "start": "expo start --go",
-    "start:dev-client": "expo start --dev-client",
+    "start:dev-client": "APP_VARIANT=development expo start --dev-client",
     "android": "expo start --go --android",
     "ios": "expo start --go --ios",
     "web": "expo start --web",

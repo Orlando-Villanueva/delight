@@ -6,7 +6,8 @@ const DELIGHT_ADAPTIVE_ICON_FOREGROUND = './assets/images/android-icon-foregroun
 
 const variants = {
   development: {
-    name: 'Delight',
+    name: 'Delight Preview',
+    packageIdentifier: 'com.orlandovillanueva.delight.preview',
     apiUrl: STAGING_API_URL,
   },
   preview: {
@@ -14,7 +15,7 @@ const variants = {
     packageIdentifier: 'com.orlandovillanueva.delight.preview',
     apiUrl: STAGING_API_URL,
   },
-  dogfood: {
+  production: {
     name: 'Delight',
     packageIdentifier: 'com.orlandovillanueva.delight',
     apiUrl: PRODUCTION_API_URL,

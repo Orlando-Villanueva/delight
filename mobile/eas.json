@@ -3,6 +3,20 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "development": {
+      "developmentClient": true,
+      "autoIncrement": true,
+      "distribution": "internal",
+      "environment": "preview",
+      "credentialsSource": "remote",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_VARIANT": "development",
+        "EXPO_PUBLIC_API_URL": "https://delight-staging.laravel.cloud"
+      }
+    },
     "preview": {
       "autoIncrement": true,
       "distribution": "internal",
@@ -15,17 +29,19 @@
         "EXPO_PUBLIC_API_URL": "https://delight-staging.laravel.cloud"
       }
     },
-    "dogfood": {
+    "play": {
       "autoIncrement": true,
-      "distribution": "internal",
+      "distribution": "store",
       "environment": "production",
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       },
       "env": {
-        "APP_VARIANT": "dogfood",
+        "APP_VARIANT": "production",
         "EXPO_PUBLIC_API_URL": "https://mydelight.app"
-      }
+      },
+      "credentialsSource": "remote",
+      "developmentClient": false
     }
   }
 }
