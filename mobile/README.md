@@ -127,3 +127,48 @@ Do not assume the Preview counter determines the production counter. Remote cred
 obtains upload signing material; they do not select or verify the Play app-signing identity. Signing decisions,
 credential changes, build execution, upload, candidate acceptance, and track rollout remain separate gates.
 Internal Testing precedes validation of the Play-installed artifact and any promotion to Closed Testing.
+
+### Candidate provenance and approval record
+
+Keep each filled release record in the private release issue. This template defines what to capture; an
+unavailable value stays explicitly pending and is resolved at its gate, never inferred from an older APK.
+
+| Field | Evidence required |
+| --- | --- |
+| Source | Full reviewed `main` SHA after configuration changes merge; clean checkout |
+| Included work | Reviewed issue/PR list, including the privacy/support/deletion and Play configuration work |
+| Configuration | `play` profile, `production` variant and EAS environment, production backend, EAS project |
+| Identity | `com.orlandovillanueva.delight`; resolved app version |
+| Android version | Current production EAS counter, highest Play-uploaded version, approved next versionCode; actual build value afterward |
+| Build approval | Exact command, source, expected versions, environment and credential source; approver/date |
+| Upload signing | Selected remote credential identity and public SHA-1/SHA-256; confirm the resulting artifact signer |
+| Play signing | Selected arrangement and all applicable Play app-signing certificate fingerprints; pending until exposed by Play |
+| Google authentication | Production OAuth project/client references and package/certificate registration evidence for Play-delivered APKs |
+| Artifact | EAS build ID/URL, actual source/version metadata, AAB URL and SHA-256 checksum; pending until build completes |
+| Play processing | Uploaded versionCode, processing result and track; pending until separately approved upload |
+| Device validation | Device/Android version, Play install source, installed version, date, observations and blockers |
+| Acceptance | Explicit decision and approver/date for this exact candidate; promotion reuses it where feasible |
+
+If EAS increments the counter before a failed upload/build, record the consumed value and refresh the expected
+next value before retrying. Do not reset the counter to reuse an assumed available number. Compare EAS and Play
+history again immediately before the approved build; concurrent builds can change the counter.
+
+### Play-installed candidate validation
+
+Run this checklist on the exact candidate installed through Play Internal Testing, after separate upload and
+track approvals. A development APK, Expo Go session, or direct APK installation does not substitute for it.
+
+- Confirm package, versionCode, Play installation source, correct app identity, and production backend.
+- Verify email/password login, native Google login, cancellation/retry, logout and account switching.
+- Force-close and reopen the app; verify the expected session and account are restored without Metro.
+- Check Home, Today/Yesterday reading creation, History and pagination. Use an explicitly approved real reading
+  or approved test account; verify each submitted reading appears exactly once on both mobile and web,
+  including after refresh and reopening. Record actual observations without copying private reading content.
+- Open account/settings, support, privacy and deletion resources. Verify the intended pages and navigation;
+  do not submit an actual deletion request as a routine smoke test.
+- Check light/dark modes and core navigation on the device. Record crashes, authentication failures and
+  data-integrity issues as blockers.
+- Confirm first installation works. Verify Play-to-Play update/session retention when a prior Play version is
+  available; otherwise mark it not yet exercised. The retired private Firebase APK is outside compatibility scope.
+- Record acceptance only after results are reviewed. Promote the same accepted version to Closed Testing when
+  feasible. A replacement artifact or source change needs its own provenance and proportionate validation.
