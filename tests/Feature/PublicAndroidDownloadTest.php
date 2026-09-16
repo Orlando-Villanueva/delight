@@ -54,6 +54,24 @@ it('presents the accepted Android release with installation and support guidance
         ->assertSee('href="mailto:support@example.com?subject=Delight%20Google%20Play%20closed%20test"', false);
 });
 
+it('renders a dedicated Android social preview for link sharing', function () {
+    $socialImageUrl = asset('images/android-social-preview.png');
+
+    $response = $this->get(route('android.download'));
+
+    $response
+        ->assertSee('<link rel="canonical" href="'.route('android.download').'">', false)
+        ->assertSee('<meta property="og:title" content="Delight for Android - Bible Reading Tracker">', false)
+        ->assertSee('<meta property="og:image" content="'.$socialImageUrl.'">', false)
+        ->assertSee('<meta property="og:image:width" content="1200">', false)
+        ->assertSee('<meta property="og:image:height" content="630">', false)
+        ->assertSee('<meta property="og:image:type" content="image/png">', false)
+        ->assertSee('<meta name="twitter:card" content="summary_large_image">', false)
+        ->assertSee('<meta name="twitter:image" content="'.$socialImageUrl.'">', false);
+
+    expect(public_path('images/android-social-preview.png'))->toBeFile();
+});
+
 it('exposes the Android release from public discovery surfaces only when download is enabled', function () {
     config(['android_release.download_url' => null]);
 

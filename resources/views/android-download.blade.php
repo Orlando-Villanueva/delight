@@ -3,6 +3,35 @@
 @section('title', 'Download Delight for Android')
 @section('content-width', 'max-w-5xl')
 
+@php
+    $androidPageTitle = 'Delight for Android - Bible Reading Tracker';
+    $androidPageDescription = 'Download Delight for Android to log Bible readings, protect your streak, and keep your reading history synchronized with Delight on the web.';
+    $androidPageUrl = route('android.download');
+    $androidSocialImageUrl = asset('images/android-social-preview.png');
+    $androidSocialImageAlt = 'Download Delight for Android — the Delight Bible reading tracker shown with the Android robot and app home screen.';
+@endphp
+
+@section('meta')
+    <meta name="description" content="{{ $androidPageDescription }}">
+    <meta name="robots" content="{{ app()->environment('production') ? 'index, follow' : 'noindex, nofollow' }}">
+    <link rel="canonical" href="{{ $androidPageUrl }}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ $androidPageTitle }}">
+    <meta property="og:description" content="{{ $androidPageDescription }}">
+    <meta property="og:url" content="{{ $androidPageUrl }}">
+    <meta property="og:site_name" content="Delight">
+    <meta property="og:image" content="{{ $androidSocialImageUrl }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="{{ $androidSocialImageAlt }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $androidPageTitle }}">
+    <meta name="twitter:description" content="{{ $androidPageDescription }}">
+    <meta name="twitter:image" content="{{ $androidSocialImageUrl }}">
+    <meta name="twitter:image:alt" content="{{ $androidSocialImageAlt }}">
+@endsection
+
 @section('content')
     @php
         $downloadUrl = config('android_release.download_url');
