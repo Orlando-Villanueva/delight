@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Delight') }}</title>
+    <title>@yield('title', config('app.name', 'Delight'))</title>
 
     <!-- Favicon -->
     <link rel="icon" href="{{ asset('favicon-app.ico') }}?v={{ config('app.asset_version') }}" type="image/x-icon">
@@ -67,22 +67,22 @@
                         <nav class="flex items-center gap-2 mt-3 sm:mt-0">
                             @auth
                                 <a href="{{ url('/dashboard') }}"
-                                    class="px-3 py-1.5 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition text-sm font-medium shadow-sm">
+                                    class="rounded-lg bg-primary-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-600">
                                     Dashboard
                                 </a>
                             @else
                                 <a href="{{ url('/') }}"
-                                    class="px-3 py-1.5 transition text-sm font-medium rounded-lg shadow-sm {{ request()->routeIs('landing') ? 'bg-primary-500 text-white' : 'text-gray-700 dark:text-gray-200 hover:text-primary-500 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:border-primary-500 dark:hover:border-primary-400' }}">
+                                    class="rounded-lg px-3 py-2 text-sm font-medium transition {{ request()->routeIs('landing') ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white' }}">
                                     Welcome
                                 </a>
                                 <a href="{{ route('login') }}"
-                                    class="px-3 py-1.5 transition text-sm font-medium rounded-lg shadow-sm {{ request()->routeIs('login') || request()->routeIs('password.*') ? 'bg-primary-500 text-white' : 'text-gray-700 dark:text-gray-200 hover:text-primary-500 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:border-primary-500 dark:hover:border-primary-400' }}">
+                                    class="rounded-lg px-3 py-2 text-sm font-medium transition {{ request()->routeIs('login') || request()->routeIs('password.*') ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white' }}">
                                     Log in
                                 </a>
 
                                 @if (Route::has('register'))
                                     <a href="{{ route('register') }}"
-                                        class="px-3 py-1.5 transition text-sm font-medium rounded-lg shadow-sm {{ request()->routeIs('register') ? 'bg-primary-500 text-white' : 'text-gray-700 dark:text-gray-200 hover:text-primary-500 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:border-primary-500 dark:hover:border-primary-400' }}">
+                                        class="rounded-lg bg-primary-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-primary-600">
                                         Register
                                     </a>
                                 @endif

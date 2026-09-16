@@ -34,6 +34,13 @@ class SitemapController extends Controller
 
         $sitemap .= '<url>';
         $sitemap .= '<loc>'.route('guides.paper-bible').'</loc>';
+        $sitemap .= '<lastmod>2026-09-16</lastmod>';
+        $sitemap .= '</url>';
+
+        $sitemap .= '<url>';
+        $sitemap .= '<loc>'.route('android.download').'</loc>';
+        $sitemap .= '<changefreq>monthly</changefreq>';
+        $sitemap .= '<priority>0.8</priority>';
         $sitemap .= '</url>';
 
         $announcements = Announcement::active()->latest('updated_at')->get();
