@@ -39,7 +39,6 @@ test('landing page uses consistent public brand name', function () {
     $response->assertSee('<title>'.$publicBrandName.'</title>', false);
     $response->assertSee('<meta property="og:title" content="'.$publicBrandName.'">', false);
     $response->assertSee('<meta name="twitter:title" content="'.$publicBrandName.'">', false);
-    $response->assertSee('"name": "'.$publicBrandName.'"', false);
 });
 
 test('landing page does not claim an unsupported aggregate rating', function () {
@@ -74,8 +73,25 @@ test('landing page explains the Bible reading tracker workflow and product bound
         ->assertSee('Create an account to save your reading history.')
         ->assertSee('Delight needs a connection to load your readings and save new logs.')
         ->assertSee('<div class="mt-12 overflow-hidden rounded-xl border border-gray-200 bg-white">', false)
-        ->assertSee('content="Delight is a free Bible reading tracker for logging chapters, building a consistent reading rhythm, and keeping your progress synchronized across the web and Android."', false)
-        ->assertSee('"operatingSystem": "Web Browser, Android 7.0+"', false);
+        ->assertSee('content="Delight is a free Bible reading tracker for logging chapters, building a consistent reading rhythm, and keeping your progress synchronized across the web and Android."', false);
+});
+
+test('landing page publishes valid web and Android structured data', function () {
+    $response = $this->get('/');
+
+    expect(preg_match('/<script type="application\/ld\+json">(.*?)<\/script>/s', $response->getContent(), $matches))
+        ->toBe(1);
+
+    $structuredData = json_decode($matches[1], true, flags: JSON_THROW_ON_ERROR);
+    $desktopScreenshot = asset('images/screenshots/desktop-v3.png').'?v='.filemtime(public_path('images/screenshots/desktop-v3.png'));
+    $androidScreenshot = asset('images/screenshots/android-home-v1.png').'?v='.filemtime(public_path('images/screenshots/android-home-v1.png'));
+
+    expect($structuredData['name'])->toBe('Delight - Bible Reading Tracker')
+        ->and($structuredData['operatingSystem'])->toBe('Web Browser, Android 7.0+')
+        ->and($structuredData['screenshot'])->toBe([
+            $desktopScreenshot,
+            $androidScreenshot,
+        ]);
 });
 
 test('landing page uses versioned brand assets', function () {

@@ -18,6 +18,7 @@
         'author' => ['@type' => 'Person', 'name' => 'Orlando Villanueva'],
         'publisher' => ['@type' => 'Organization', 'name' => 'Delight'],
         'datePublished' => '2026-09-07',
+        'dateModified' => '2026-09-16',
     ];
 @endphp
 
@@ -30,6 +31,7 @@
     <link rel="canonical" href="{{ $canonicalUrl }}">
     <meta property="og:type" content="article">
     <meta property="article:published_time" content="2026-09-07">
+    <meta property="article:modified_time" content="2026-09-16">
     <meta property="og:title" content="{{ $title }}">
     <meta property="og:description" content="{{ $description }}">
     <meta property="og:url" content="{{ $canonicalUrl }}">
@@ -51,8 +53,7 @@
 @section('guide-byline', 'By Orlando Villanueva · Creator of Delight · 4 min read')
 
 @section('guide-dates')
-    Published <time datetime="2026-09-07">September 7, 2026</time>
-    {{-- After a post-publication revision, add: · Updated <time datetime="YYYY-MM-DD">Month D, YYYY</time> and matching dateModified metadata. --}}
+    Published <time datetime="2026-09-07">September 7, 2026</time> · Updated <time datetime="2026-09-16">September 16, 2026</time>
 @endsection
 
 @section('guide-hero')
@@ -103,7 +104,7 @@
         <figcaption class="mt-3 text-center text-sm leading-6 text-gray-600 dark:text-gray-400">A Reading Calendar from the creator's account: six reading days and six chapters recorded in September.</figcaption>
     </figure>
     <h2>Use it alongside your Bible</h2>
-    <p>Delight is currently free to use, with an account required to save your reading history. Open it in your web browser or install it on your phone's home screen as a progressive web app (PWA), where supported. It needs an internet connection to load readings and save new logs. A public native iPhone or Android app is not currently available.</p>
+    <p>Delight is currently free to use, with an account required to save your reading history. Open it in your web browser, install it on your phone's home screen as a progressive web app (PWA), where supported, or <a href="{{ route('android.download') }}">download the native Android app</a>. It needs an internet connection to load readings and save new logs. A native iPhone app is not currently available.</p>
     <p>You can start with your next reading; you do not need to reconstruct your entire reading history. Keep the record useful to you. Chapters and reading days describe activity, not your understanding of Scripture or your spiritual maturity.</p>
     <p>Create a free Delight account, log your next reading, and begin seeing your chapter progress and reading frequency in one place.</p>
 @endsection

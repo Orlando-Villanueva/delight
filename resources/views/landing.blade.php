@@ -7,10 +7,46 @@
     };
 
     $desktopScreenshot = $versionedAsset('images/screenshots/desktop-v3.png');
-    $mobileScreenshot = $versionedAsset('images/screenshots/mobile-v3.png');
     $androidScreenshot = $versionedAsset('images/screenshots/android-home-v1.png');
     $linkPreviewScreenshot = $versionedAsset('images/screenshots/link-preview.png');
-    $androidAvailable = filled(config('android_release.download_url'));
+    $landingDescription = 'Delight is a free Bible reading tracker for logging chapters, building a consistent reading rhythm, and keeping your progress synchronized across the web and Android.';
+    $landingShareDescription = 'A free Bible reading tracker for logging chapters and keeping your reading history synchronized across the web and Android.';
+    $structuredData = [
+        '@context' => 'https://schema.org',
+        '@type' => 'WebApplication',
+        'name' => 'Delight - Bible Reading Tracker',
+        'description' => $landingShareDescription,
+        'url' => config('app.url'),
+        'applicationCategory' => 'LifestyleApplication',
+        'operatingSystem' => 'Web Browser, Android 7.0+',
+        'browserRequirements' => 'Requires JavaScript. Requires HTML5.',
+        'softwareVersion' => '1.0',
+        'offers' => [
+            '@type' => 'Offer',
+            'price' => '0',
+            'priceCurrency' => 'USD',
+            'availability' => 'https://schema.org/InStock',
+        ],
+        'author' => [
+            '@type' => 'Organization',
+            'name' => 'Delight',
+        ],
+        'keywords' => 'bible reading plan, bible reading plan app, bible tracking app, bible reading tracker, bible habit tracker',
+        'screenshot' => [
+            $desktopScreenshot,
+            $androidScreenshot,
+        ],
+        'featureList' => [
+            'Reading Plans',
+            'Daily Streak Tracking',
+            'Daily Reading Log',
+            'Book Completion Grid',
+            'Optional Catholic 73-Book Support',
+            'Reading Statistics',
+            'Permanent Achievement Shelf',
+            'Next Milestone Guidance',
+        ],
+    ];
 @endphp
 
 <!DOCTYPE html>
@@ -23,13 +59,7 @@
 
     <!-- SEO Meta Tags -->
     <title>{{ config('app.name', 'Delight') }} - Bible Reading Tracker</title>
-    @if ($androidAvailable)
-        <meta name="description"
-            content="Delight is a free Bible reading tracker for logging chapters, building a consistent reading rhythm, and keeping your progress synchronized across the web and Android.">
-    @else
-        <meta name="description"
-            content="Delight is a free Bible reading tracker for logging chapters you read, seeing your progress, and using optional reading plans in your web browser.">
-    @endif
+    <meta name="description" content="{{ $landingDescription }}">
     <meta name="keywords"
         content="bible reading plan, bible reading plan app, bible tracking app, bible reading tracker, bible habit tracker, bible reading accountability, scripture reading app, daily bible reading, bible progress tracker">
     <meta name="author" content="Delight">
@@ -49,8 +79,7 @@
 
     <!-- Open Graph Meta Tags -->
     <meta property="og:title" content="Delight - Bible Reading Tracker">
-    <meta property="og:description"
-        content="{{ $androidAvailable ? 'A free Bible reading tracker for logging chapters and keeping your reading history synchronized across the web and Android.' : 'A free Bible reading tracker for logging chapters you read, seeing your progress, and using optional reading plans in your web browser.' }}">
+    <meta property="og:description" content="{{ $landingShareDescription }}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ config('app.url') }}">
     <meta property="og:image" content="{{ $linkPreviewScreenshot }}">
@@ -59,8 +88,7 @@
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Delight - Bible Reading Tracker">
-    <meta name="twitter:description"
-        content="{{ $androidAvailable ? 'A free Bible reading tracker for logging chapters and keeping your reading history synchronized across the web and Android.' : 'A free Bible reading tracker for logging chapters you read, seeing your progress, and using optional reading plans in your web browser.' }}">
+    <meta name="twitter:description" content="{{ $landingShareDescription }}">
     <meta name="twitter:image" content="{{ $linkPreviewScreenshot }}">
 
     <!-- Favicon -->
@@ -81,48 +109,7 @@
         media="(min-width: 1024px)">
 
     <!-- Structured Data -->
-    <script type="application/ld+json">
-        {
-            "@@context": "https://schema.org",
-            "@@type": "WebApplication",
-            "name": "Delight - Bible Reading Tracker",
-            "description": "{{ $androidAvailable ? 'A free Bible reading tracker for logging chapters and keeping your reading history synchronized across the web and Android.' : 'A free Bible reading tracker for logging chapters you read, seeing your progress, and using optional reading plans in your web browser.' }}",
-            "url": "{{ config('app.url') }}",
-            "applicationCategory": "LifestyleApplication",
-            "operatingSystem": "{{ $androidAvailable ? 'Web Browser, Android 7.0+' : 'Web Browser' }}",
-            "browserRequirements": "Requires JavaScript. Requires HTML5.",
-            "softwareVersion": "1.0",
-            "offers": {
-                "@@type": "Offer",
-                "price": "0",
-                "priceCurrency": "USD",
-                "availability": "https://schema.org/InStock"
-            },
-            "author": {
-                "@@type": "Organization",
-                "name": "Delight"
-            },
-            "keywords": "bible reading plan, bible reading plan app, bible tracking app, bible reading tracker, bible habit tracker",
-            @if ($androidAvailable)
-                "screenshot": [
-                    "{{ $desktopScreenshot }}",
-                    "{{ $androidScreenshot }}"
-                ],
-            @else
-                "screenshot": "{{ $desktopScreenshot }}",
-            @endif
-            "featureList": [
-                "Reading Plans",
-                "Daily Streak Tracking",
-                "Daily Reading Log",
-                "Book Completion Grid",
-                "Optional Catholic 73-Book Support",
-                "Reading Statistics",
-                "Permanent Achievement Shelf",
-                "Next Milestone Guidance"
-            ]
-        }
-    </script>
+    <script type="application/ld+json">{!! json_encode($structuredData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 </head>
 
 <body class="font-sans antialiased bg-white">
@@ -152,15 +139,13 @@
 
                 <!-- Navigation Actions -->
                 <div class="flex items-center space-x-4" role="group" aria-label="Account actions">
-                    @if ($androidAvailable)
-                        <div class="hidden sm:block">
-                            <x-ui.button variant="ghost" href="{{ route('android.download') }}"
-                                aria-label="Get Delight for Android" class="gap-1.5">
-                                <img src="{{ asset('images/android-robot-head.svg') }}" alt="" width="24" height="15" class="h-auto w-5">
-                                Android
-                            </x-ui.button>
-                        </div>
-                    @endif
+                    <div class="hidden sm:block">
+                        <x-ui.button variant="ghost" href="{{ route('android.download') }}"
+                            aria-label="Get Delight for Android" class="gap-1.5">
+                            <img src="{{ asset('images/android-robot-head.svg') }}" alt="" width="24" height="15" class="h-auto w-5">
+                            Android
+                        </x-ui.button>
+                    </div>
                     @auth
                         <a href="{{ route('dashboard') }}"
                             class="text-gray-700 hover:text-blue-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-2 py-1"
@@ -193,14 +178,9 @@
                             A Bible reading tracker that fits the way you already read
                         </h1>
                         <p class="text-xl text-gray-600 mb-6 leading-relaxed">
-                            @if ($androidAvailable)
-                                Read from your paper Bible or preferred Bible app, then log your chapters with Delight on the
-                                web or Android. Your personal progress, streaks, and reading history stay synchronized wherever
-                                you use it.
-                            @else
-                                Read from your paper Bible or preferred Bible app, then log the chapters here. Delight keeps
-                                your personal progress, streaks, and next milestone in one place without replacing how you read.
-                            @endif
+                            Read from your paper Bible or preferred Bible app, then log your chapters with Delight on the
+                            web or Android. Your personal progress, streaks, and reading history stay synchronized wherever
+                            you use it.
                         </p>
 
                         <!-- Primary CTA -->
@@ -209,20 +189,12 @@
                                 class="whitespace-normal sm:whitespace-nowrap">
                                 Create Your Free Account
                             </x-ui.button>
-                            @if ($androidAvailable)
-                                <x-ui.button variant="primary" size="lg" href="{{ route('android.download') }}"
-                                    aria-label="Get Delight for Android"
-                                    class="whitespace-normal sm:whitespace-nowrap">
-                                    <img src="{{ asset('images/android-robot-head.svg') }}" alt="" width="24" height="15" class="h-auto w-5">
-                                    Get Delight for Android
-                                </x-ui.button>
-                            @else
-                                <x-ui.button variant="ghost" size="lg" href="#features-heading"
-                                    aria-label="Scroll to see Delight features"
-                                    class="whitespace-normal sm:whitespace-nowrap">
-                                    Explore the Dashboard
-                                </x-ui.button>
-                            @endif
+                            <x-ui.button variant="primary" size="lg" href="{{ route('android.download') }}"
+                                aria-label="Get Delight for Android"
+                                class="whitespace-normal sm:whitespace-nowrap">
+                                <img src="{{ asset('images/android-robot-head.svg') }}" alt="" width="24" height="15" class="h-auto w-5">
+                                Get Delight for Android
+                            </x-ui.button>
                         </div>
                     </div>
 
@@ -242,17 +214,10 @@
                         <div class="lg:hidden flex justify-center mt-8">
                             <div class="bg-white rounded-2xl shadow-2xl p-0 max-w-xs w-full">
                                 <div class="rounded-lg overflow-hidden">
-                                    @if ($androidAvailable)
-                                        <img src="{{ $androidScreenshot }}"
-                                            alt="Delight native Android home screen showing a logged reading, reading streak, and 14-day reading rhythm"
-                                            class="w-full h-auto" width="1080" height="2183" loading="lazy"
-                                            decoding="async" />
-                                    @else
-                                        <img src="{{ $mobileScreenshot }}"
-                                            alt="Delight mobile dashboard featuring daily streak, next milestone, reading stats, and bottom navigation"
-                                            class="w-full h-auto" width="726" height="1570" loading="lazy"
-                                            decoding="async" />
-                                    @endif
+                                    <img src="{{ $androidScreenshot }}"
+                                        alt="Delight native Android home screen showing a logged reading, reading streak, and 14-day reading rhythm"
+                                        class="w-full h-auto" width="1080" height="2183" loading="lazy"
+                                        decoding="async" />
                                 </div>
                             </div>
                         </div>
@@ -261,17 +226,10 @@
                         <div
                             class="hidden lg:block absolute -bottom-6 -right-6 w-36 sm:w-40 lg:w-48 bg-white rounded-xl shadow-xl p-0 transform rotate-6">
                             <div class="rounded-lg overflow-hidden">
-                                @if ($androidAvailable)
-                                    <img src="{{ $androidScreenshot }}"
-                                        alt="Delight native Android home screen showing a logged reading, reading streak, and 14-day reading rhythm"
-                                        class="w-full h-auto max-w-full" width="1080" height="2183" loading="lazy"
-                                        decoding="async" fetchpriority="low" />
-                                @else
-                                    <img src="{{ $mobileScreenshot }}"
-                                        alt="Delight mobile dashboard featuring daily streak, next milestone, reading stats, and bottom navigation"
-                                        class="w-full h-auto max-w-full" width="726" height="1570" loading="lazy"
-                                        decoding="async" fetchpriority="low" />
-                                @endif
+                                <img src="{{ $androidScreenshot }}"
+                                    alt="Delight native Android home screen showing a logged reading, reading streak, and 14-day reading rhythm"
+                                    class="w-full h-auto max-w-full" width="1080" height="2183" loading="lazy"
+                                    decoding="async" fetchpriority="low" />
                             </div>
                         </div>
                     </div>
@@ -741,12 +699,7 @@
                             </svg>
                         </summary>
                         <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">
-                            Delight is available in your web browser.
-                            @if (filled(config('android_release.download_url')))
-                                Android users can also <a href="{{ route('android.download') }}" class="font-medium text-primary-700 underline hover:text-primary-800">download the native app</a> directly from mydelight.app while Google Play availability remains in testing.
-                            @else
-                                A public native iPhone or Android app is not currently available.
-                            @endif
+                            Delight is available in your web browser. Android users can also <a href="{{ route('android.download') }}" class="font-medium text-primary-700 underline hover:text-primary-800">download the native app</a> directly from mydelight.app while Google Play availability remains in testing.
                         </p>
                     </details>
                     <details class="group border-t border-gray-200 open:bg-primary-50/40">
@@ -813,11 +766,9 @@
                         <li><a href="{{ route('announcements.index') }}"
                                 class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Updates</a>
                         </li>
-                        @if (filled(config('android_release.download_url')))
-                            <li><a href="{{ route('android.download') }}"
-                                    class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Android app</a>
-                            </li>
-                        @endif
+                        <li><a href="{{ route('android.download') }}"
+                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Android app</a>
+                        </li>
                     </ul>
                 </nav>
 

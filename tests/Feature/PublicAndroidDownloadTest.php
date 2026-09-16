@@ -4,20 +4,8 @@ const ANDROID_APK_URL = 'https://github.com/Orlando-Villanueva/delight/releases/
 const ANDROID_APK_SHA256 = 'e0c466cc1b35bf4cad174d7cb6e268688612a8997ea80b13847508b7bfc2dcf3';
 const ANDROID_RELEASE_URL = 'https://github.com/Orlando-Villanueva/delight/releases/tag/android-v0.1.0-10';
 
-it('shows a truthful preparation state before the direct download is enabled', function () {
-    config(['android_release.download_url' => null]);
-
-    $response = $this->get(route('android.download'));
-
-    $response->assertOk()
-        ->assertSeeText('Delight for Android')
-        ->assertSeeText('The direct download is being prepared.')
-        ->assertDontSee('Download APK · 103 MB');
-});
-
 it('presents the accepted Android release with installation and support guidance', function () {
     config([
-        'android_release.download_url' => ANDROID_APK_URL,
         'mail.support_address' => 'support@example.com',
     ]);
 
@@ -27,6 +15,7 @@ it('presents the accepted Android release with installation and support guidance
         ->assertSee('href="'.ANDROID_APK_URL.'"', false)
         ->assertSeeText('Download APK · 103 MB')
         ->assertSeeText('Version 0.1.0 (10)')
+        ->assertSeeText('September 16, 2026')
         ->assertSeeText('Android™ 7.0+')
         ->assertSee('src="'.asset('images/android-robot-head.svg').'"', false)
         ->assertSee('href="'.ANDROID_RELEASE_URL.'"', false)
@@ -72,18 +61,7 @@ it('renders a dedicated Android social preview for link sharing', function () {
     expect(public_path('images/android-social-preview.png'))->toBeFile();
 });
 
-it('exposes the Android release from public discovery surfaces only when download is enabled', function () {
-    config(['android_release.download_url' => null]);
-
-    $this->get(route('landing'))
-        ->assertSeeText('A public native iPhone or Android app is not currently available.')
-        ->assertDontSeeText('Get Delight for Android')
-        ->assertDontSee('href="'.route('android.download').'"', false);
-    $this->get(route('sitemap'))
-        ->assertDontSee(route('android.download'), false);
-
-    config(['android_release.download_url' => ANDROID_APK_URL]);
-
+it('exposes the Android release from public discovery surfaces', function () {
     $this->get(route('landing'))
         ->assertSee('href="'.route('android.download').'"', false)
         ->assertSeeText('download the native app');

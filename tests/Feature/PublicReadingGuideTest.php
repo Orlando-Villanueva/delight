@@ -10,7 +10,9 @@ it('serves the approved guide in initial HTML to guests with an account CTA and 
         ->assertSeeText('How to keep track of Bible reading with a paper Bible')
         ->assertSeeText('Orlando Villanueva')
         ->assertSee('<time datetime="2026-09-07">September 7, 2026</time>', false)
+        ->assertSee('<time datetime="2026-09-16">September 16, 2026</time>', false)
         ->assertSee('<meta property="article:published_time" content="2026-09-07">', false)
+        ->assertSee('<meta property="article:modified_time" content="2026-09-16">', false)
         ->assertSeeText('three reading days')
         ->assertSee('href="'.route('register').'"', false)
         ->assertSee('<link rel="canonical" href="'.$url.'">', false)
@@ -18,6 +20,8 @@ it('serves the approved guide in initial HTML to guests with an account CTA and 
         ->assertSee('<meta property="og:image" content="'.asset('images/guide-paper-bible-social.jpg').'">', false)
         ->assertSee('<meta name="twitter:card" content="summary_large_image">', false)
         ->assertSee('src="'.asset('images/guide-paper-bible-hero.jpg').'"', false)
+        ->assertSee('href="'.route('android.download').'"', false)
+        ->assertSeeText('download the native Android app')
         ->assertSee('guide-reading-form.png')
         ->assertSee('guide-reading-calendar.png');
 
@@ -27,14 +31,14 @@ it('serves the approved guide in initial HTML to guests with an account CTA and 
     expect($schema['author']['name'])->toBe('Orlando Villanueva');
     expect($schema['image'])->toBe(asset('images/guide-paper-bible-hero.jpg'));
     expect($schema['datePublished'])->toBe('2026-09-07');
-    expect($schema)->not->toHaveKey('dateModified');
+    expect($schema['dateModified'])->toBe('2026-09-16');
 });
 
-it('links the guide from the landing page and sitemap without inventing modification dates', function () {
+it('links the guide from the landing page and includes its modification date in the sitemap', function () {
     $url = route('guides.paper-bible');
 
     $this->get('/')->assertSee('href="'.$url.'"', false);
-    $this->get(route('sitemap'))->assertSee('<url><loc>'.$url.'</loc></url>', false);
+    $this->get(route('sitemap'))->assertSee('<url><loc>'.$url.'</loc><lastmod>2026-09-16</lastmod></url>', false);
 });
 
 it('sends signed-in readers to the reading form', function () {

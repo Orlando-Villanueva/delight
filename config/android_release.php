@@ -1,15 +1,12 @@
 <?php
 
 return [
-    'download_url' => env(
-        'ANDROID_APK_URL',
-        'https://github.com/Orlando-Villanueva/delight/releases/download/android-v0.1.0-10/delight-android.apk'
-    ),
+    'download_url' => 'https://github.com/Orlando-Villanueva/delight/releases/download/android-v0.1.0-10/delight-android.apk',
     'release_url' => 'https://github.com/Orlando-Villanueva/delight/releases/tag/android-v0.1.0-10',
 
     'version' => '0.1.0',
     'version_code' => 10,
-    'release_date' => 'September 15, 2026',
+    'release_date' => 'September 16, 2026',
     'package' => 'com.orlandovillanueva.delight',
     'file_name' => 'delight-android.apk',
     'file_size' => '103 MB',

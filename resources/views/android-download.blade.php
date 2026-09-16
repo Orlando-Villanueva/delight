@@ -35,7 +35,6 @@
 @section('content')
     @php
         $downloadUrl = config('android_release.download_url');
-        $downloadAvailable = filled($downloadUrl);
     @endphp
 
     <div class="w-full">
@@ -68,24 +67,14 @@
                 </div>
 
                 <div class="lg:min-w-64">
-                    @if ($downloadAvailable)
-                        <a href="{{ $downloadUrl }}"
-                            class="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-primary-500 px-6 py-3 text-base font-semibold text-white transition hover:bg-primary-600 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800">
-                            Download APK · {{ config('android_release.file_size') }}
-                        </a>
-                        <div class="mt-3 flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                            <img src="{{ asset('images/android-robot-head.svg') }}" alt="" width="28" height="17" class="h-auto w-6">
-                            <span>Android™ 7.0+ · Version {{ config('android_release.version') }} ({{ config('android_release.version_code') }})</span>
-                        </div>
-                    @else
-                        <div role="status"
-                            class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
-                            <p class="font-semibold">The direct download is being prepared.</p>
-                            <p class="mt-1 text-sm leading-relaxed">
-                                The app has passed device validation, but the public download has not been enabled yet.
-                            </p>
-                        </div>
-                    @endif
+                    <a href="{{ $downloadUrl }}"
+                        class="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-primary-500 px-6 py-3 text-base font-semibold text-white transition hover:bg-primary-600 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800">
+                        Download APK · {{ config('android_release.file_size') }}
+                    </a>
+                    <div class="mt-3 flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        <img src="{{ asset('images/android-robot-head.svg') }}" alt="" width="28" height="17" class="h-auto w-6">
+                        <span>Android™ 7.0+ · Version {{ config('android_release.version') }} ({{ config('android_release.version_code') }})</span>
+                    </div>
                 </div>
             </div>
         </section>
