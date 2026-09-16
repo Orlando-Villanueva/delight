@@ -36,6 +36,7 @@ it('presents the accepted Android release with installation and support guidance
         ->assertSeeText('Get Started')
         ->assertSeeText('Early access')
         ->assertSee('bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600', false)
+        ->assertSee('grid-cols-[3.5rem_minmax(0,1fr)]', false)
         ->assertSeeText('Technical download details')
         ->assertSeeText('com.orlandovillanueva.delight')
         ->assertSeeText(ANDROID_APK_SHA256)

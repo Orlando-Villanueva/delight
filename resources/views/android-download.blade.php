@@ -15,24 +15,22 @@
             aria-labelledby="android-download-heading">
             <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div>
-                    <div class="flex items-center gap-4">
-                        <span class="flex h-16 w-16 shrink-0 overflow-hidden rounded-[22%] sm:h-18 sm:w-18">
+                    <div class="grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-y-1">
+                        <span class="col-start-1 row-start-2 flex h-14 w-14 shrink-0 overflow-hidden rounded-[22%] sm:row-span-2 sm:row-start-1 sm:h-18 sm:w-18">
                             <img src="{{ asset('images/app-icon-v2-192.png') }}?v={{ config('app.asset_version') }}"
                                 alt="" width="72" height="72" class="h-full w-full scale-[1.06] object-cover">
                         </span>
-                        <div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <p class="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">
-                                    Delight: Bible Tracker
-                                </p>
-                                <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                                    Early access
-                                </span>
-                            </div>
-                            <h1 id="android-download-heading" class="mt-1 text-3xl font-bold text-gray-950 sm:text-4xl dark:text-white">
-                                Delight for Android™
-                            </h1>
+                        <div class="col-span-2 row-start-1 flex flex-wrap items-center gap-2 sm:col-span-1 sm:col-start-2">
+                            <p class="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">
+                                Delight: Bible Tracker
+                            </p>
+                            <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                Early access
+                            </span>
                         </div>
+                        <h1 id="android-download-heading" class="col-start-2 row-start-2 text-2xl font-bold leading-tight text-gray-950 sm:text-4xl dark:text-white">
+                            Delight for Android™
+                        </h1>
                     </div>
 
                     <p class="mt-6 max-w-2xl text-lg leading-relaxed text-gray-700 dark:text-gray-300">
