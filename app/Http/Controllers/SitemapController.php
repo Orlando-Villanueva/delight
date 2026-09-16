@@ -36,6 +36,14 @@ class SitemapController extends Controller
         $sitemap .= '<loc>'.route('guides.paper-bible').'</loc>';
         $sitemap .= '</url>';
 
+        if (filled(config('android_release.download_url'))) {
+            $sitemap .= '<url>';
+            $sitemap .= '<loc>'.route('android.download').'</loc>';
+            $sitemap .= '<changefreq>monthly</changefreq>';
+            $sitemap .= '<priority>0.8</priority>';
+            $sitemap .= '</url>';
+        }
+
         $announcements = Announcement::active()->latest('updated_at')->get();
         $updatesLastModified = $announcements->first()?->updated_at ?? now();
 

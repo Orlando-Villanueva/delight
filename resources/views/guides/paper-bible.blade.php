@@ -109,7 +109,7 @@
 @endsection
 
 @section('guide-cta')
-    <a href="{{ auth()->check() ? route('logs.create') : route('register') }}" class="inline-flex min-h-12 items-center justify-center rounded-lg bg-blue-700 px-6 py-3 text-base font-semibold text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500">
+    <a href="{{ auth()->check() ? route('logs.create') : route('register') }}" class="inline-flex min-h-12 items-center justify-center rounded-lg bg-primary-500 px-6 py-3 text-base font-semibold text-white hover:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-500">
         {{ auth()->check() ? 'Log a Reading' : 'Create Your Free Account' }}
     </a>
 @endsection

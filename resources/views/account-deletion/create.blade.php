@@ -50,7 +50,7 @@
                 </div>
 
                 <button type="submit"
-                    class="inline-flex min-h-11 w-full sm:w-auto items-center justify-center rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800">
+                    class="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primary-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-600 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800 sm:w-auto">
                     Send confirmation link
                 </button>
             </form>

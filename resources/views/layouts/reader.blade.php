@@ -45,9 +45,9 @@
 
     $primaryButtonClasses = match ($theme) {
         'cosmic'
-            => 'hidden sm:inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm',
+            => 'hidden sm:inline-flex items-center justify-center rounded-md border border-transparent bg-primary-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
         default
-            => 'hidden sm:inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm',
+            => 'hidden sm:inline-flex items-center justify-center rounded-md border border-transparent bg-primary-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
     };
 
     $bodyClasses = match ($theme) {
@@ -122,7 +122,7 @@
 
     <!-- Main Content -->
     <main class="flex-grow">
-        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+        <div class="@yield('content-width', 'max-w-3xl') mx-auto px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
             @yield('content')
         </div>
     </main>

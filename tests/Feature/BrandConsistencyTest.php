@@ -64,7 +64,9 @@ test('landing page explains the Bible reading tracker workflow and product bound
         ->assertDontSee('Start building life-changing Bible reading habits')
         ->assertSee('Delight is currently free to use.')
         ->assertSee('Frequently asked questions')
-        ->assertSee('A public native iPhone or Android app is not currently available.')
+        ->assertSee('Android users can also')
+        ->assertSee('href="'.route('android.download').'"', false)
+        ->assertSee('download the native app')
         ->assertSee('Create an account to save your reading history.')
         ->assertSee('Delight needs a connection to load your readings and save new logs.')
         ->assertSee('<div class="mt-12 overflow-hidden rounded-xl border border-gray-200 bg-white">', false)
@@ -102,6 +104,27 @@ test('landing page footer links app social profiles', function () {
     $response->assertSee('aria-label="Follow Delight on X (opens in a new tab)"', false);
     $response->assertSee('aria-label="Follow Delight on Instagram (opens in a new tab)"', false);
     $response->assertSee('target="_blank" rel="noopener noreferrer"', false);
+});
+
+test('public primary calls to action use the Delight blue palette', function () {
+    $this->get(route('register'))
+        ->assertSuccessful()
+        ->assertSee('bg-primary-500 text-white py-3', false);
+
+    $this->get(route('android.download'))
+        ->assertSuccessful()
+        ->assertSee('bg-primary-500 px-4 py-2', false)
+        ->assertSee('bg-primary-500 px-6 py-3', false)
+        ->assertDontSee('bg-blue-600', false);
+
+    $this->get(route('guides.paper-bible'))
+        ->assertSuccessful()
+        ->assertSee('bg-primary-500 px-6 py-3', false)
+        ->assertDontSee('bg-blue-700', false);
+
+    $this->get(route('account-deletion.create'))
+        ->assertSuccessful()
+        ->assertSee('bg-primary-500 px-5 py-2.5', false);
 });
 
 test('app layouts link versioned pwa manifest route', function () {

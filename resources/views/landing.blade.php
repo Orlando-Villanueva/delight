@@ -688,7 +688,14 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
                             </svg>
                         </summary>
-                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">Delight is currently available in your web browser. A public native iPhone or Android app is not currently available.</p>
+                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">
+                            Delight is available in your web browser.
+                            @if (filled(config('android_release.download_url')))
+                                Android users can also <a href="{{ route('android.download') }}" class="font-medium text-primary-700 underline hover:text-primary-800">download the native app</a> directly from mydelight.app while Google Play availability remains in testing.
+                            @else
+                                A public native iPhone or Android app is not currently available.
+                            @endif
+                        </p>
                     </details>
                     <details class="group border-t border-gray-200 open:bg-primary-50/40">
                         <summary class="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-lg font-semibold text-gray-900 marker:content-none hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset group-open:hover:bg-primary-50/40">
@@ -754,6 +761,11 @@
                         <li><a href="{{ route('announcements.index') }}"
                                 class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Updates</a>
                         </li>
+                        @if (filled(config('android_release.download_url')))
+                            <li><a href="{{ route('android.download') }}"
+                                    class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Android app</a>
+                            </li>
+                        @endif
                     </ul>
                 </nav>
 
