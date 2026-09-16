@@ -25,7 +25,7 @@
                                 <p class="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">
                                     Delight: Bible Tracker
                                 </p>
-                                <span class="rounded-full bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary-700 dark:bg-primary-900 dark:text-primary-200">
+                                <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                                     Early access
                                 </span>
                             </div>

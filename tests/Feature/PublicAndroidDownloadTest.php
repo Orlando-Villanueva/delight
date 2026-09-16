@@ -35,6 +35,7 @@ it('presents the accepted Android release with installation and support guidance
         ->assertSeeText('Updates')
         ->assertSeeText('Get Started')
         ->assertSeeText('Early access')
+        ->assertSee('bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600', false)
         ->assertSeeText('Technical download details')
         ->assertSeeText('com.orlandovillanueva.delight')
         ->assertSeeText(ANDROID_APK_SHA256)
@@ -57,6 +58,7 @@ it('exposes the Android release from public discovery surfaces only when downloa
 
     $this->get(route('landing'))
         ->assertSeeText('A public native iPhone or Android app is not currently available.')
+        ->assertDontSeeText('Get Delight for Android')
         ->assertDontSee('href="'.route('android.download').'"', false);
     $this->get(route('sitemap'))
         ->assertDontSee(route('android.download'), false);
