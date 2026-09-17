@@ -44,10 +44,11 @@ it('uses the announcement hero image for social metadata', function () {
     ]);
 
     $response = $this->get(route('announcements.show', $announcement->slug));
+    $twitterImageUrl = asset(HERO_IMAGE_PATH).'?v='.rawurlencode((string) config('app.asset_version'));
 
     $response->assertOk();
     $response->assertSee('property="og:image" content="'.asset(HERO_IMAGE_PATH).'"', false);
-    $response->assertSee('property="twitter:image" content="'.asset(HERO_IMAGE_PATH).'"', false);
+    $response->assertSee('name="twitter:image" content="'.$twitterImageUrl.'"', false);
     $response->assertSee('"image": "'.asset(HERO_IMAGE_PATH).'"', false);
 });
 
@@ -62,11 +63,17 @@ it('prefers a dedicated social image for social metadata', function () {
     ]);
 
     $response = $this->get(route('announcements.show', $announcement->slug));
+    $twitterImageUrl = asset(SOCIAL_IMAGE_PATH).'?v='.rawurlencode((string) config('app.asset_version'));
 
     $response->assertOk();
     $response->assertSee(IMAGE_SOURCE_ATTRIBUTE.asset(HERO_IMAGE_PATH).'"', false);
     $response->assertSee('property="og:image" content="'.asset(SOCIAL_IMAGE_PATH).'"', false);
-    $response->assertSee('property="twitter:image" content="'.asset(SOCIAL_IMAGE_PATH).'"', false);
+    $response->assertSee('name="twitter:card" content="summary_large_image"', false);
+    $response->assertSee('name="twitter:title" content="Social Crop Feature"', false);
+    $response->assertSee('name="twitter:description" content="Article body."', false);
+    $response->assertSee('name="twitter:image" content="'.$twitterImageUrl.'"', false);
+    $response->assertSee('name="twitter:image:alt" content="Social Crop Feature"', false);
+    $response->assertDontSee('property="twitter:', false);
     $response->assertSee('"image": "'.asset(SOCIAL_IMAGE_PATH).'"', false);
 });
 

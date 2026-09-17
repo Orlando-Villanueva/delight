@@ -8,6 +8,8 @@
     @php($heroImageUrl = $announcement->heroImageUrl())
     @php($socialImageUrl = $announcement->socialImageUrl())
     @php($seoDescription = $announcement->seoDescription(150))
+    @php($shareImageUrl = $socialImageUrl ?? asset('images/social-article.png'))
+    @php($twitterImageUrl = $shareImageUrl . (str_contains($shareImageUrl, '?') ? '&' : '?') . 'v=' . rawurlencode((string) config('app.asset_version')))
     <meta name="description" content="{{ $seoDescription }}">
     @if ($isPreview)
         <meta name="robots" content="noindex, nofollow">
@@ -21,9 +23,12 @@
         <meta property="article:published_time" content="{{ $announcement->starts_at->toIso8601String() }}">
 
         <!-- Social -->
-        <meta property="og:image" content="{{ $socialImageUrl ?? asset('images/social-article.png') }}">
-        <meta property="twitter:card" content="summary_large_image">
-        <meta property="twitter:image" content="{{ $socialImageUrl ?? asset('images/social-article.png') }}">
+        <meta property="og:image" content="{{ $shareImageUrl }}">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ $announcement->title }}">
+        <meta name="twitter:description" content="{{ $seoDescription }}">
+        <meta name="twitter:image" content="{{ $twitterImageUrl }}">
+        <meta name="twitter:image:alt" content="{{ $announcement->title }}">
 
         <!-- JSON-LD Schema -->
         <script type="application/ld+json">
