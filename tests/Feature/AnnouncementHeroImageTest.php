@@ -4,7 +4,15 @@ use App\Models\Announcement;
 
 const HERO_IMAGE_PATH = 'images/deuterocanonical-books-hero.jpg';
 const SOCIAL_IMAGE_PATH = 'images/deuterocanonical-books-social.jpg';
+const ANDROID_ANNOUNCEMENT_SOCIAL_IMAGE_PATH = 'images/updates/delight-for-android-social.png';
 const IMAGE_SOURCE_ATTRIBUTE = 'src="';
+
+it('serves the Android announcement social image as a 1200 by 630 PNG', function () {
+    $image = getimagesize(public_path(ANDROID_ANNOUNCEMENT_SOCIAL_IMAGE_PATH));
+
+    expect($image)->not->toBeFalse();
+    expect([$image[0], $image[1], $image['mime']])->toBe([1200, 630, 'image/png']);
+});
 
 it('renders a hero image at the start of an announcement article', function () {
     $announcement = Announcement::create([
