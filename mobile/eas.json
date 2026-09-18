@@ -14,7 +14,8 @@
       },
       "env": {
         "APP_VARIANT": "development",
-        "EXPO_PUBLIC_API_URL": "https://delight-staging.laravel.cloud"
+        "EXPO_PUBLIC_API_URL": "https://delight-staging.laravel.cloud",
+        "EXPO_PUBLIC_ANDROID_UPDATE_CHECKER_ENABLED": "true"
       }
     },
     "preview": {

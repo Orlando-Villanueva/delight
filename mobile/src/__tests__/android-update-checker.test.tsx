@@ -10,12 +10,17 @@ import {
   androidUpdateDismissalWindowMs,
 } from '@/api/android-update';
 import { AndroidUpdateChecker } from '@/components/android-update-checker';
+import { environment } from '@/config/environment';
 import { getAndroidInstallerSource } from '@/native/installer-source';
 
 jest.mock('@/api/client', () => ({ apiRequest: jest.fn() }));
 jest.mock('@/native/installer-source', () => ({ getAndroidInstallerSource: jest.fn() }));
 jest.mock('@/config/environment', () => ({
-  environment: { apiUrl: 'https://mydelight.app', appVariant: 'production' },
+  environment: {
+    apiUrl: 'https://mydelight.app',
+    appVariant: 'production',
+    androidUpdateCheckerEnabled: true,
+  },
 }));
 jest.mock('expo-constants', () => ({
   __esModule: true,
@@ -33,6 +38,7 @@ const mockedSetItem = jest.mocked(SecureStore.setItemAsync);
 const mockedOpenURL = jest.mocked(Linking.openURL);
 const mockedAlert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
 const mockedInstallerSource = jest.mocked(getAndroidInstallerSource);
+const mockedEnvironment = environment;
 
 let mockAppStateListener: ((state: 'active' | 'background') => void) | undefined;
 const queryClients = new Set<QueryClient>();
@@ -68,6 +74,7 @@ describe('Android update checker', () => {
     mockedSetItem.mockResolvedValue(undefined);
     mockedOpenURL.mockResolvedValue(true);
     mockedInstallerSource.mockReturnValue('non-play');
+    mockedEnvironment.androidUpdateCheckerEnabled = true;
   });
 
   afterEach(async () => {
@@ -124,6 +131,15 @@ describe('Android update checker', () => {
 
   it('does not request direct-download metadata for a Play-installed build', async () => {
     mockedInstallerSource.mockReturnValue('play');
+
+    renderChecker();
+
+    expect(mockedApiRequest).not.toHaveBeenCalled();
+    expect(mockedAlert).not.toHaveBeenCalled();
+  });
+
+  it('does not request metadata when the environment disables the checker', async () => {
+    mockedEnvironment.androidUpdateCheckerEnabled = false;
 
     renderChecker();
 

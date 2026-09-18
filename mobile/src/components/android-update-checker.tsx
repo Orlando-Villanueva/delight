@@ -27,7 +27,7 @@ export function AndroidUpdateChecker(): null {
 export function useAndroidUpdateChecker(): void {
   const installedVersionCode = installedAndroidVersionCode();
   const installerSource = getAndroidInstallerSource();
-  const isEnabled = environment.appVariant === 'production'
+  const isEnabled = environment.androidUpdateCheckerEnabled
     && installerSource === 'non-play'
     && installedVersionCode !== null;
   const lastCheckAtRef = useRef<number | null>(null);

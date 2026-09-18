@@ -13,7 +13,11 @@ jest.mock('expo-constants', () => ({
 }));
 jest.mock('@/api/client', () => ({ apiRequest: jest.fn() }));
 jest.mock('@/config/environment', () => ({
-  environment: { apiUrl: 'https://mydelight.app', appVariant: 'production' },
+  environment: {
+    apiUrl: 'https://mydelight.app',
+    appVariant: 'production',
+    androidUpdateCheckerEnabled: true,
+  },
 }));
 
 describe('Android update metadata', () => {
