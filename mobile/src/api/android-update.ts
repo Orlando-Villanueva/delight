@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 import { z } from 'zod';
 
 import { apiRequest } from '@/api/client';
@@ -17,7 +17,7 @@ export const androidUpdateCheckCooldownMs = 6 * 60 * 60 * 1_000;
 export const androidUpdateDismissalWindowMs = 7 * 24 * 60 * 60 * 1_000;
 
 export function installedAndroidVersionCode(): number | null {
-  const versionCode = Number(Constants.nativeBuildVersion);
+  const versionCode = Number(Application.nativeBuildVersion);
 
   return Number.isInteger(versionCode) && versionCode > 0 ? versionCode : null;
 }

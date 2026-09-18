@@ -22,10 +22,7 @@ jest.mock('@/config/environment', () => ({
     androidUpdateCheckerEnabled: true,
   },
 }));
-jest.mock('expo-constants', () => ({
-  __esModule: true,
-  default: { nativeBuildVersion: '9' },
-}));
+jest.mock('expo-application', () => ({ nativeBuildVersion: '9' }));
 jest.mock('expo-linking', () => ({ openURL: jest.fn() }));
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(),

@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 
 import {
   androidReleaseResponseSchema,
@@ -7,10 +7,7 @@ import {
   isCanonicalAndroidUpdateUrl,
 } from '@/api/android-update';
 
-jest.mock('expo-constants', () => ({
-  __esModule: true,
-  default: { nativeBuildVersion: '9' },
-}));
+jest.mock('expo-application', () => ({ nativeBuildVersion: '9' }));
 jest.mock('@/api/client', () => ({ apiRequest: jest.fn() }));
 jest.mock('@/config/environment', () => ({
   environment: {
@@ -46,7 +43,7 @@ describe('Android update metadata', () => {
   });
 
   it('treats an unavailable native build version as unknown', () => {
-    Object.defineProperty(Constants, 'nativeBuildVersion', { value: null, configurable: true });
+    Object.defineProperty(Application, 'nativeBuildVersion', { value: null, configurable: true });
 
     expect(installedAndroidVersionCode()).toBeNull();
   });
