@@ -3,6 +3,16 @@
 const ANDROID_APK_URL = 'https://github.com/Orlando-Villanueva/delight/releases/download/android-v0.1.0-10/delight-android.apk';
 const ANDROID_APK_SHA256 = 'e0c466cc1b35bf4cad174d7cb6e268688612a8997ea80b13847508b7bfc2dcf3';
 const ANDROID_RELEASE_URL = 'https://github.com/Orlando-Villanueva/delight/releases/tag/android-v0.1.0-10';
+const ANDROID_UPDATE_URL = 'https://mydelight.app/android';
+
+it('returns cacheable current Android release metadata without authentication', function () {
+    $this->getJson('/api/v1/android/release')
+        ->assertSuccessful()
+        ->assertHeader('cache-control', 'max-age=300, public, s-maxage=300, stale-while-revalidate=600')
+        ->assertJsonPath('data.version', '0.1.0')
+        ->assertJsonPath('data.version_code', 10)
+        ->assertJsonPath('data.update_url', ANDROID_UPDATE_URL);
+});
 
 it('presents the accepted Android release with installation and support guidance', function () {
     config([
