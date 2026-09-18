@@ -6,7 +6,7 @@ return [
     'release_url' => 'https://github.com/Orlando-Villanueva/delight/releases/tag/android-v0.1.0-10',
 
     'version' => '0.1.0',
-    'version_code' => 10,
+    'version_code' => 13,
     'release_date' => 'September 16, 2026',
     'package' => 'com.orlandovillanueva.delight',
     'file_name' => 'delight-android.apk',
