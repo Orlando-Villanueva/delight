@@ -10,8 +10,8 @@ cd "$CODEX_WORKTREE_PATH"
 
 npm ci --no-audit --no-fund
 
-if [ ! -f .env ] && [ -f .env.example ]; then
-    cp .env.example .env
+if [ ! -f .env.local ] && [ -f .env.example ]; then
+    cp .env.example .env.local
 fi'''
 
 [setup.darwin]
@@ -22,6 +22,6 @@ cd "$CODEX_WORKTREE_PATH"
 
 npm ci --no-audit --no-fund
 
-if [ ! -f .env ] && [ -f .env.example ]; then
-    cp .env.example .env
+if [ ! -f .env.local ] && [ -f .env.example ]; then
+    cp .env.example .env.local
 fi'''
