@@ -64,7 +64,7 @@ class DashboardController extends Controller
         $streakStatusLabel = $messagePayload['label'] ?? null;
         $streakShowCta = $messagePayload['show_cta'] ?? false;
 
-        $recapCard = $this->recapService->getDashboardCardState();
+        $recapCard = $this->recapService->getDashboardCardState($accountNow);
         $showRecapCard = $recapCard['show'];
         $recapCardYear = $recapCard['year'];
         $recapCardEndLabel = $recapCard['end_label'];

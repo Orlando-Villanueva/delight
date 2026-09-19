@@ -19,7 +19,8 @@ class SettingsController extends Controller
     public function __construct(
         private ReadingPlanService $readingPlanService,
         private ReadingCalendarService $readingCalendar,
-        private UserStatisticsService $userStatistics
+        private UserStatisticsService $userStatistics,
+        private AnnualRecapService $annualRecapService
     ) {}
 
     /**
@@ -50,6 +51,8 @@ class SettingsController extends Controller
     {
         $user = $request->user();
         $wasIncludingDeuterocanonical = $user->includesDeuterocanonicalBooks();
+        $wasReadingTimezone = $user->reading_timezone;
+        $oldAccountNow = $this->readingCalendar->nowFor($user);
         $validated = $request->validated();
         $updates = [];
 
@@ -80,8 +83,27 @@ class SettingsController extends Controller
         $freshUser = $user->fresh();
         $pausedCatholicCanonicalPlan = false;
 
-        if ($wasIncludingDeuterocanonical !== $freshUser->includesDeuterocanonicalBooks()) {
-            Cache::forget(AnnualRecapService::cacheKeyFor($user, now()->year));
+        $readingTimezoneChanged = $wasReadingTimezone !== $freshUser->reading_timezone;
+        $canonChanged = $wasIncludingDeuterocanonical !== $freshUser->includesDeuterocanonicalBooks();
+
+        if ($readingTimezoneChanged || $canonChanged) {
+            $newAccountYear = $this->readingCalendar->nowFor($freshUser)->year;
+            $recapYears = [$newAccountYear];
+
+            if ($readingTimezoneChanged) {
+                $oldAccountYear = $oldAccountNow->year;
+                $recapYears = [
+                    $oldAccountYear,
+                    $oldAccountYear - 1,
+                    $newAccountYear,
+                    $newAccountYear - 1,
+                ];
+            }
+
+            $this->annualRecapService->invalidateForYears(
+                $freshUser,
+                ...$recapYears
+            );
         }
 
         if ($wasIncludingDeuterocanonical && ! $freshUser->includesDeuterocanonicalBooks()) {

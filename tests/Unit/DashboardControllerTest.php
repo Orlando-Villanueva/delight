@@ -165,6 +165,20 @@ class DashboardControllerTest extends TestCase
         $this->travelBack();
     }
 
+    public function test_index_uses_the_account_timezone_for_the_recap_card()
+    {
+        $this->user->forceFill(['reading_timezone' => 'Asia/Tokyo'])->save();
+        $this->travelTo(Carbon::parse('2025-12-01 04:30:00', 'UTC'));
+
+        $response = $this->get('/dashboard');
+
+        $response->assertStatus(200)
+            ->assertViewHas('showRecapCard', true)
+            ->assertViewHas('recapCardYear', 2025);
+
+        $this->travelBack();
+    }
+
     public function test_acknowledgment_uses_the_account_local_warning_date_near_midnight()
     {
         $this->user->forceFill(['reading_timezone' => 'Pacific/Honolulu'])->save();

@@ -23,7 +23,8 @@ class ReadingLogService
         BibleReferenceService $bibleService,
         private OnboardingService $onboardingService,
         private AchievementService $achievementService,
-        private ReadingCalendarService $readingCalendar
+        private ReadingCalendarService $readingCalendar,
+        private AnnualRecapService $annualRecapService
     ) {
         $this->bibleService = $bibleService;
     }
@@ -159,7 +160,11 @@ class ReadingLogService
     private function handlePostLogSideEffects(User $user, bool $isFirstReadingOfDay, string $loggedDate, bool $evaluateAchievements = true): array
     {
         // Server-side state updated - HTMX will handle UI updates
-        $this->invalidateUserStatisticsCache($user, $isFirstReadingOfDay);
+        $this->invalidateUserStatisticsCache(
+            $user,
+            $isFirstReadingOfDay,
+            [(int) Carbon::parse($loggedDate)->format('Y')]
+        );
         $this->markChurnRecoveryCampaignsReactivated($user);
 
         if (! $evaluateAchievements) {
@@ -598,11 +603,13 @@ class ReadingLogService
     }
 
     /**
-     * Invalidate user statistics cache when reading logs change.
-     * Uses smart invalidation to minimize expensive recalculations.
+     * @param  list<int>  $recapYears
      */
-    private function invalidateUserStatisticsCache(User $user, bool $isFirstReadingOfDay = true): void
-    {
+    private function invalidateUserStatisticsCache(
+        User $user,
+        bool $isFirstReadingOfDay = true,
+        array $recapYears = []
+    ): void {
         $currentYear = $this->readingCalendar->nowFor($user)->year;
         $previousYear = $currentYear - 1;
         $currentMonth = $this->readingCalendar->nowFor($user)->format('Y-m');
@@ -620,7 +627,10 @@ class ReadingLogService
         Cache::forget($this->readingCalendar->cacheKey($user, "user_avg_chapters_per_day_{$user->id}"));
         Cache::forget($this->readingCalendar->cacheKey($user, "user_current_streak_series_{$user->id}"));
         Cache::forget($this->readingCalendar->cacheKey($user, "user_recent_reading_activity_series_{$user->id}"));
-        Cache::forget(AnnualRecapService::cacheKeyFor($user, now()->year));
+        $this->annualRecapService->invalidateForYears(
+            $user,
+            ...($recapYears === [] ? [$currentYear] : array_values(array_unique($recapYears)))
+        );
 
         // Smart invalidation - only invalidate on first reading of the day
         if ($isFirstReadingOfDay) {
@@ -652,6 +662,7 @@ class ReadingLogService
         $user = $readingLog->user;
         $bookId = $readingLog->book_id;
         $chapter = $readingLog->chapter;
+        $recapYear = $readingLog->date_read->year;
 
         $deleted = $readingLog->delete();
 
@@ -661,7 +672,7 @@ class ReadingLogService
 
             // For deletions, we can't easily determine if this was the only reading of the day
             // so we invalidate all caches to be safe
-            $this->invalidateUserStatisticsCache($user, true);
+            $this->invalidateUserStatisticsCache($user, true, [$recapYear]);
         }
 
         return $deleted;
@@ -673,11 +684,13 @@ class ReadingLogService
     public function updateReadingLog(ReadingLog $readingLog, array $data): ReadingLog
     {
         $user = $readingLog->user;
+        $previousRecapYear = $readingLog->date_read->year;
         $readingLog->update($data);
+        $currentRecapYear = $readingLog->date_read->year;
 
         // For updates, we can't easily determine the impact on daily reading status
         // so we invalidate all caches to be safe
-        $this->invalidateUserStatisticsCache($user, true);
+        $this->invalidateUserStatisticsCache($user, true, [$previousRecapYear, $currentRecapYear]);
 
         return $readingLog;
     }

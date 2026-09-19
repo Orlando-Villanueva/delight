@@ -2,9 +2,11 @@
 
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\AnnualRecapService;
 use App\Services\ReadingCalendarService;
 use App\Services\UserStatisticsService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 it('shows the saved timezone alongside other preferences in the same accessible settings form', function () {
     $user = User::factory()->create(['reading_timezone' => 'Asia/Tokyo']);
@@ -76,6 +78,27 @@ it('refreshes cached streaks when correcting the timezone and switching back', f
 
     $this->patchJson(route('settings.update'), ['reading_timezone' => 'America/Toronto'])->assertOk();
     expect($stats->getStreakStatistics($user->fresh())['current_streak'])->toBe(2);
+});
+
+it('invalidates recap years when correcting the timezone', function () {
+    $this->travelTo(Carbon::parse('2026-01-01 10:30:00', 'UTC'));
+    $user = User::factory()->create(['reading_timezone' => 'Asia/Tokyo']);
+    $oldCurrentYear = now('Asia/Tokyo')->year;
+    $newCurrentYear = now('Pacific/Honolulu')->year;
+
+    foreach ([$oldCurrentYear, $oldCurrentYear - 1, $newCurrentYear, $newCurrentYear - 1] as $year) {
+        Cache::put(AnnualRecapService::cacheKeyFor($user, $year), ['cached' => true], 300);
+    }
+
+    $this->actingAs($user)->patchJson(route('settings.update'), [
+        'reading_timezone' => 'Pacific/Honolulu',
+    ])->assertOk();
+
+    foreach ([$oldCurrentYear, $oldCurrentYear - 1, $newCurrentYear, $newCurrentYear - 1] as $year) {
+        expect(Cache::has(AnnualRecapService::cacheKeyFor($user, $year)))->toBeFalse();
+    }
+
+    $this->travelBack();
 });
 
 it('keeps an explicit timezone when a reminder form reports a different browser timezone', function () {
