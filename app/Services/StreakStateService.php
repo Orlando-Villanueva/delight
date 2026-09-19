@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use Carbon\Carbon;
+use Carbon\CarbonInterface;
 
 class StreakStateService
 {
@@ -29,10 +29,10 @@ class StreakStateService
     /**
      * Generate consistent cache keys for warning state tracking
      */
-    private function getWarningStateCacheKey(?int $userId = null): string
+    private function getWarningStateCacheKey(?int $userId = null, ?CarbonInterface $currentTime = null): string
     {
         $userId = $userId ?? auth()->id();
-        $dateString = now()->format('Y-m-d');
+        $dateString = ($currentTime ?? now())->format('Y-m-d');
 
         return "warning_state_{$userId}_{$dateString}";
     }
@@ -40,8 +40,11 @@ class StreakStateService
     /**
      * Determine the visual state of the streak counter component
      */
-    public function determineStreakState(int $currentStreak, bool $hasReadToday, ?Carbon $currentTime = null): string
-    {
+    public function determineStreakState(
+        int $currentStreak,
+        bool $hasReadToday,
+        ?CarbonInterface $currentTime = null
+    ): string {
         $currentTime = $currentTime ?? now();
 
         // Inactive state: current streak is 0
@@ -52,7 +55,7 @@ class StreakStateService
         // Warning state: has streak but hasn't read today and it's past warning time
         if ($currentStreak > 0 && ! $hasReadToday && $currentTime->hour >= self::WARNING_HOUR) {
             // Mark that user entered warning state today for acknowledgment tracking
-            $this->markWarningStateToday();
+            $this->markWarningStateToday($currentTime);
 
             return 'warning';
         }
@@ -90,8 +93,13 @@ class StreakStateService
     /**
      * Select appropriate message based on current streak, state, and longest streak
      */
-    public function selectMessage(int $currentStreak, string $state, int $longestStreak = 0, bool $hasReadToday = false): string
-    {
+    public function selectMessage(
+        int $currentStreak,
+        string $state,
+        int $longestStreak = 0,
+        bool $hasReadToday = false,
+        ?CarbonInterface $currentTime = null
+    ): string {
         switch ($state) {
             case 'inactive':
                 return $this->selectInactiveMessage($longestStreak);
@@ -107,7 +115,7 @@ class StreakStateService
                 }
 
                 // Check if user was in warning state today and then read to save their streak
-                if ($hasReadToday && $this->wasInWarningStateToday()) {
+                if ($hasReadToday && $this->wasInWarningStateToday($currentTime)) {
                     return $this->selectAcknowledgmentMessage();
                 }
 
@@ -127,9 +135,16 @@ class StreakStateService
         int $longestStreak = 0,
         bool $hasReadToday = false,
         string $recordStatus = 'none',
-        bool $recordJustBroken = false
+        bool $recordJustBroken = false,
+        ?CarbonInterface $currentTime = null
     ): array {
-        $message = $this->selectMessage($currentStreak, $state, $longestStreak, $hasReadToday);
+        $message = $this->selectMessage(
+            $currentStreak,
+            $state,
+            $longestStreak,
+            $hasReadToday,
+            $currentTime,
+        );
         $tone = 'default';
         $label = $hasReadToday ? 'Today complete' : 'Start a streak';
         $showCta = ! $hasReadToday;
@@ -262,20 +277,24 @@ class StreakStateService
      * Check if user was in warning state today (after 6 PM before reading)
      * This is used to show acknowledgment messages only after the user "saved" their streak
      */
-    private function wasInWarningStateToday(): bool
+    private function wasInWarningStateToday(?CarbonInterface $currentTime = null): bool
     {
         // Check if there's a cached warning state flag for today
-        return cache()->has($this->getWarningStateCacheKey());
+        return cache()->has($this->getWarningStateCacheKey(currentTime: $currentTime));
     }
 
     /**
      * Mark that user was in warning state today
      * This should be called when the user enters warning state (after 6 PM without reading)
      */
-    public function markWarningStateToday(): void
+    public function markWarningStateToday(?CarbonInterface $currentTime = null): void
     {
         // Cache until end of day - will automatically clear at midnight
-        $minutesUntilMidnight = now()->diffInMinutes(now()->endOfDay());
-        cache()->put($this->getWarningStateCacheKey(), true, $minutesUntilMidnight);
+        $currentTime = $currentTime ?? now();
+        cache()->put(
+            $this->getWarningStateCacheKey(currentTime: $currentTime),
+            true,
+            $currentTime->copy()->endOfDay(),
+        );
     }
 }

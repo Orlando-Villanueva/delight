@@ -10,7 +10,7 @@ it('restores previous reminder device state when current-device unsubscribe fail
 
     expect($javascript)->toContain('previousDeviceEnabled')
         ->and($javascript)->toContain('previousAccountHasDevices')
-        ->and($javascript)->toContain('setEnabledState(previousDeviceEnabled, previousAccountHasDevices, false)')
+        ->and($javascript)->toContain('setEnabledState(previousDeviceEnabled, previousAccountHasDevices)')
         ->and($javascript)->not->toContain('setEnabledState(true, false, false)');
 });
 

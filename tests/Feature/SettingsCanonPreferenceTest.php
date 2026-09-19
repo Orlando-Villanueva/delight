@@ -1,9 +1,11 @@
 <?php
 
+use App\Models\AnnualRecap;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
 use App\Services\AnnualRecapService;
+use App\Services\ReadingCalendarService;
 use Illuminate\Support\Facades\Cache;
 
 it('requires authentication to view settings', function () {
@@ -29,7 +31,7 @@ it('shows the Catholic canon setting as disabled by default', function () {
 
 it('enables the Catholic canon setting', function () {
     $user = User::factory()->create();
-    Cache::put("user_dashboard_stats_{$user->id}", ['total_bible_books' => 66], 300);
+    Cache::put(app(ReadingCalendarService::class)->cacheKey($user, "user_dashboard_stats_{$user->id}"), ['total_bible_books' => 66], 300);
     Cache::put(AnnualRecapService::cacheKeyFor($user, now()->year), ['top_books' => []], 300);
 
     $response = $this->actingAs($user)
@@ -41,7 +43,7 @@ it('enables the Catholic canon setting', function () {
         ->assertSessionHas('status', 'Settings saved.');
 
     expect($user->fresh()->includesDeuterocanonicalBooks())->toBeTrue();
-    expect(Cache::has("user_dashboard_stats_{$user->id}"))->toBeFalse()
+    expect(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_dashboard_stats_{$user->id}")))->toBeFalse()
         ->and(Cache::has(AnnualRecapService::cacheKeyFor($user, now()->year)))->toBeFalse();
 });
 
@@ -49,9 +51,9 @@ it('updates the Catholic canon setting over JSON without changing reminder prefe
     $user = User::factory()->create([
         'daily_reading_reminder_enabled_at' => now(),
         'streak_warning_enabled_at' => now(),
-        'push_notification_timezone' => 'America/Toronto',
+        'reading_timezone' => 'America/Toronto',
     ]);
-    Cache::put("user_dashboard_stats_{$user->id}", ['total_bible_books' => 66], 300);
+    Cache::put(app(ReadingCalendarService::class)->cacheKey($user, "user_dashboard_stats_{$user->id}"), ['total_bible_books' => 66], 300);
 
     $response = $this->actingAs($user)
         ->patchJson(route('settings.update'), [
@@ -62,31 +64,14 @@ it('updates the Catholic canon setting over JSON without changing reminder prefe
         ->assertJsonPath('include_deuterocanonical', true)
         ->assertJsonPath('daily_reading_reminder_enabled', true)
         ->assertJsonPath('streak_warning_enabled', true)
-        ->assertJsonPath('push_notification_timezone', 'America/Toronto');
+        ->assertJsonPath('reading_timezone', 'America/Toronto');
 
     $freshUser = $user->fresh();
 
     expect($freshUser->includesDeuterocanonicalBooks())->toBeTrue()
         ->and($freshUser->hasDailyReadingReminderEnabled())->toBeTrue()
         ->and($freshUser->hasStreakWarningEnabled())->toBeTrue()
-        ->and(Cache::has("user_dashboard_stats_{$user->id}"))->toBeFalse();
-});
-
-it('keeps the existing reminder timezone when a fallback form submits a blank timezone', function () {
-    $user = User::factory()->create([
-        'push_notification_timezone' => 'America/Toronto',
-    ]);
-
-    $response = $this->actingAs($user)
-        ->patch(route('settings.update'), [
-            'include_deuterocanonical' => '1',
-            'push_notification_timezone' => '',
-        ]);
-
-    $response->assertRedirect(route('settings.edit'))
-        ->assertSessionHas('status', 'Settings saved.');
-
-    expect($user->fresh()->push_notification_timezone)->toBe('America/Toronto');
+        ->and(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_dashboard_stats_{$user->id}")))->toBeFalse();
 });
 
 it('disables the Catholic canon setting', function () {
@@ -105,6 +90,31 @@ it('disables the Catholic canon setting', function () {
 
     expect($user->fresh()->includesDeuterocanonicalBooks())->toBeFalse()
         ->and(Cache::has(AnnualRecapService::cacheKeyFor($user, now()->year)))->toBeFalse();
+});
+
+it('invalidates persisted recap snapshots when the Catholic canon changes', function () {
+    $user = User::factory()->create();
+    $currentYear = now()->year;
+    $recapYears = [$currentYear - 2, $currentYear - 1, $currentYear];
+
+    foreach ($recapYears as $year) {
+        AnnualRecap::create([
+            'user_id' => $user->id,
+            'year' => $year,
+            'snapshot' => ['top_books' => []],
+            'generated_at' => now(),
+        ]);
+        Cache::put(AnnualRecapService::cacheKeyFor($user, $year), ['cached' => true], 300);
+    }
+
+    $this->actingAs($user)
+        ->patch(route('settings.update'), ['include_deuterocanonical' => '1'])
+        ->assertRedirect(route('settings.edit'));
+
+    foreach ($recapYears as $year) {
+        $this->assertDatabaseMissing('annual_recaps', ['user_id' => $user->id, 'year' => $year]);
+        expect(Cache::has(AnnualRecapService::cacheKeyFor($user, $year)))->toBeFalse();
+    }
 });
 
 it('pauses the Catholic canonical plan when the Catholic canon setting is disabled', function () {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\AchievementService;
 use App\Services\AnnualRecapService;
+use App\Services\ReadingCalendarService;
 use App\Services\ReadingFormService;
 use App\Services\ReadingPlanService;
 use App\Services\StreakStateService;
@@ -16,6 +17,7 @@ class DashboardController extends Controller
         private ReadingFormService $readingFormService,
         private UserStatisticsService $statisticsService,
         private StreakStateService $streakStateService,
+        private ReadingCalendarService $readingCalendar,
         private AnnualRecapService $recapService,
         private ReadingPlanService $planService,
         private AchievementService $achievementService
@@ -33,6 +35,7 @@ class DashboardController extends Controller
 
         // Get dashboard statistics
         $stats = $this->statisticsService->getDashboardStatistics($user);
+        $accountNow = $this->readingCalendar->nowFor($user);
 
         // Get monthly calendar data for calendar widget
         $calendarData = $this->statisticsService->getMonthlyCalendarData($user);
@@ -40,7 +43,8 @@ class DashboardController extends Controller
         // Compute streak state and classes for the component
         $streakState = $this->streakStateService->determineStreakState(
             $stats['streaks']['current_streak'],
-            $hasReadToday
+            $hasReadToday,
+            $accountNow
         );
         $streakStateClasses = $this->streakStateService->getStateClasses($streakState);
 
@@ -52,14 +56,15 @@ class DashboardController extends Controller
             $stats['streaks']['longest_streak'],
             $hasReadToday,
             $recordStatus,
-            $recordJustBroken
+            $recordJustBroken,
+            $accountNow
         );
         $streakMessage = $messagePayload['message'];
         $streakMessageTone = $messagePayload['tone'] ?? 'default';
         $streakStatusLabel = $messagePayload['label'] ?? null;
         $streakShowCta = $messagePayload['show_cta'] ?? false;
 
-        $recapCard = $this->recapService->getDashboardCardState();
+        $recapCard = $this->recapService->getDashboardCardState($accountNow);
         $showRecapCard = $recapCard['show'];
         $recapCardYear = $recapCard['year'];
         $recapCardEndLabel = $recapCard['end_label'];

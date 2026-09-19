@@ -1,0 +1,86 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\User;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
+use DateTimeZone;
+use InvalidArgumentException;
+
+class ReadingCalendarService
+{
+    public function timezoneFor(User $user): string
+    {
+        if ($this->isValidTimezone($user->reading_timezone)) {
+            return $user->reading_timezone;
+        }
+
+        return config('app.timezone');
+    }
+
+    /**
+     * Establish a persisted account's calendar once, without saving the provisional fallback.
+     */
+    public function establishTimezone(User $user, ?string $reportedTimezone = null): string
+    {
+        $user->refresh();
+
+        if ($user->reading_timezone === null) {
+            if ($this->isValidTimezone($reportedTimezone)) {
+                User::query()->whereKey($user->id)->whereNull('reading_timezone')
+                    ->update(['reading_timezone' => $reportedTimezone]);
+
+                $user->refresh();
+            }
+        }
+
+        return $this->timezoneFor($user);
+    }
+
+    public function hasEstablishedTimezone(User $user): bool
+    {
+        return $this->isValidTimezone($user->reading_timezone);
+    }
+
+    /**
+     * Change the account calendar only after an explicit settings choice.
+     */
+    public function changeTimezone(User $user, string $timezone): void
+    {
+        if (! $this->isValidTimezone($timezone)) {
+            throw new InvalidArgumentException('Invalid reading timezone.');
+        }
+
+        $user->refresh();
+
+        if ($user->reading_timezone !== $timezone) {
+            $user->forceFill(['reading_timezone' => $timezone])->save();
+        }
+    }
+
+    public function nowFor(User $user, ?CarbonInterface $referenceTime = null): CarbonImmutable
+    {
+        return CarbonImmutable::instance($referenceTime ?? now())->setTimezone($this->timezoneFor($user));
+    }
+
+    public function todayFor(User $user, ?CarbonInterface $referenceTime = null): CarbonImmutable
+    {
+        return $this->nowFor($user, $referenceTime)->startOfDay();
+    }
+
+    public function yesterdayFor(User $user, ?CarbonInterface $referenceTime = null): CarbonImmutable
+    {
+        return $this->todayFor($user, $referenceTime)->subDay();
+    }
+
+    public function cacheKey(User $user, string $key): string
+    {
+        return $key.':'.$this->timezoneFor($user).':'.$this->todayFor($user)->toDateString();
+    }
+
+    private function isValidTimezone(?string $timezone): bool
+    {
+        return $timezone !== null && in_array($timezone, DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC), true);
+    }
+}

@@ -25,7 +25,8 @@ class AchievementService
     private const array BIBLE_PROGRESS_THRESHOLDS = [25, 50, 75, 100];
 
     public function __construct(
-        private BibleReferenceService $bibleReferenceService
+        private BibleReferenceService $bibleReferenceService,
+        private ReadingCalendarService $readingCalendar
     ) {}
 
     /**
@@ -266,7 +267,7 @@ class AchievementService
 
         $earnedContexts = $this->earnedContextLookup($earned);
         $candidates = collect();
-        $currentStreak = $this->currentStreak($readingDates);
+        $currentStreak = $this->currentStreak($readingDates, $user);
         $bibleProgress = $this->bibleProgress($user);
 
         $streakMilestone = $this->nextStreakDashboardMilestone($currentStreak, $earnedContexts);
@@ -274,7 +275,7 @@ class AchievementService
             $candidates->push($streakMilestone);
         }
 
-        $weeklyRhythmMilestone = $this->weeklyRhythmDashboardMilestone($readingDates);
+        $weeklyRhythmMilestone = $this->weeklyRhythmDashboardMilestone($readingDates, $user);
         if ($weeklyRhythmMilestone !== null) {
             $candidates->push($weeklyRhythmMilestone);
         }
@@ -429,8 +430,8 @@ class AchievementService
     private function recordCelebrationPayload(User $user): ?array
     {
         $readingDates = $this->readingDates($user);
-        $currentStreak = $this->currentStreak($readingDates);
-        $previousBest = $this->previousBestBeforeCurrentRun($readingDates);
+        $currentStreak = $this->currentStreak($readingDates, $user);
+        $previousBest = $this->previousBestBeforeCurrentRun($readingDates, $user);
 
         if ($previousBest <= 0 || $currentStreak !== $previousBest + 1) {
             return null;
@@ -688,15 +689,15 @@ class AchievementService
         return $longest;
     }
 
-    private function currentStreak(Collection $readingDates): int
+    private function currentStreak(Collection $readingDates, User $user): int
     {
         if ($readingDates->isEmpty()) {
             return 0;
         }
 
         $lookup = $readingDates->map(fn (Carbon $date): string => $date->toDateString())->flip();
-        $checkDate = today();
-        $yesterday = today()->subDay();
+        $checkDate = $this->readingCalendar->todayFor($user)->toMutable();
+        $yesterday = $this->readingCalendar->yesterdayFor($user)->toMutable();
 
         if (! $lookup->has($checkDate->toDateString()) && $lookup->has($yesterday->toDateString())) {
             $checkDate = $yesterday;
@@ -712,9 +713,9 @@ class AchievementService
         return $streak;
     }
 
-    private function previousBestBeforeCurrentRun(Collection $readingDates): int
+    private function previousBestBeforeCurrentRun(Collection $readingDates, User $user): int
     {
-        $currentStreak = $this->currentStreak($readingDates);
+        $currentStreak = $this->currentStreak($readingDates, $user);
 
         if ($currentStreak === 0) {
             return $this->longestStreak($readingDates);
@@ -827,12 +828,12 @@ class AchievementService
         return $milestone;
     }
 
-    private function weeklyRhythmDashboardMilestone(Collection $readingDates): ?array
+    private function weeklyRhythmDashboardMilestone(Collection $readingDates, User $user): ?array
     {
-        $weekStart = today()->startOfWeek(Carbon::SUNDAY);
+        $weekStart = $this->readingCalendar->todayFor($user)->toMutable()->startOfWeek(Carbon::SUNDAY);
         $weekEnd = $weekStart->copy()->addDays(6)->endOfDay();
         $current = $readingDates
-            ->filter(fn (Carbon $date): bool => $date->betweenIncluded($weekStart, $weekEnd))
+            ->filter(fn (Carbon $date): bool => $date->toDateString() >= $weekStart->toDateString() && $date->toDateString() <= $weekEnd->toDateString())
             ->count();
 
         if ($current <= 0 || $current >= self::WEEKLY_TARGET_DAYS) {

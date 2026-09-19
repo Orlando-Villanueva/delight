@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AnnualRecap;
 use App\Models\User;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\View;
@@ -12,7 +13,8 @@ use Illuminate\Support\Facades\View;
 class AnnualRecapService
 {
     public function __construct(
-        private BibleReferenceService $bibleService
+        private BibleReferenceService $bibleService,
+        private ReadingCalendarService $readingCalendar
     ) {}
 
     /**
@@ -20,8 +22,10 @@ class AnnualRecapService
      */
     public function getRecap(User $user, int $year): array
     {
-        if ($year >= now()->year) {
-            return $this->getLiveRecap($user, $year);
+        $accountNow = $this->readingCalendar->nowFor($user);
+
+        if ($year >= $accountNow->year) {
+            return $this->getLiveRecap($user, $year, $accountNow);
         }
 
         $existingRecap = AnnualRecap::query()
@@ -33,7 +37,7 @@ class AnnualRecapService
             return $this->normalizeRecap($existingRecap->snapshot ?? []);
         }
 
-        $recap = $this->calculateRecap($user, $year);
+        $recap = $this->calculateRecap($user, $year, $accountNow);
 
         if (! empty($recap)) {
             AnnualRecap::create([
@@ -47,6 +51,21 @@ class AnnualRecapService
         return $this->normalizeRecap($recap);
     }
 
+    /**
+     * Invalidate derived recap data for the supplied years.
+     */
+    public function invalidateForYears(User $user, int ...$years): void
+    {
+        foreach (array_unique($years) as $year) {
+            Cache::forget(self::cacheKeyFor($user, $year));
+
+            AnnualRecap::query()
+                ->where('user_id', $user->id)
+                ->where('year', $year)
+                ->delete();
+        }
+    }
+
     public static function cacheKeyFor(User $user, int $year): string
     {
         return "user_annual_recap_{$user->id}_{$year}";
@@ -55,18 +74,19 @@ class AnnualRecapService
     /**
      * Get the seasonal dashboard card state for the annual recap.
      */
-    public function getDashboardCardState(?Carbon $now = null): array
+    public function getDashboardCardState(?CarbonInterface $now = null): array
     {
         $now = $now?->copy() ?? now();
         $year = $now->year;
-        $start = Carbon::create($year, 12, 1)->startOfDay();
-        $yearEnd = Carbon::create($year, 12, 31)->endOfDay();
+        $timezone = $now->getTimezone();
+        $start = Carbon::create($year, 12, 1, 0, 0, 0, $timezone)->startOfDay();
+        $yearEnd = Carbon::create($year, 12, 31, 0, 0, 0, $timezone)->endOfDay();
         $windowEnd = $yearEnd->copy()->addWeek();
 
         if (! $now->between($start, $windowEnd)) {
             $previousYear = $year - 1;
-            $previousStart = Carbon::create($previousYear, 12, 1)->startOfDay();
-            $previousYearEnd = Carbon::create($previousYear, 12, 31)->endOfDay();
+            $previousStart = Carbon::create($previousYear, 12, 1, 0, 0, 0, $timezone)->startOfDay();
+            $previousYearEnd = Carbon::create($previousYear, 12, 31, 0, 0, 0, $timezone)->endOfDay();
             $previousWindowEnd = $previousYearEnd->copy()->addWeek();
 
             if ($now->between($previousStart, $previousWindowEnd)) {
@@ -90,26 +110,27 @@ class AnnualRecapService
         ];
     }
 
-    private function getLiveRecap(User $user, int $year): array
+    private function getLiveRecap(User $user, int $year, CarbonInterface $accountNow): array
     {
-        if ($year !== now()->year) {
-            return $this->normalizeRecap($this->calculateRecap($user, $year));
+        if ($year !== $accountNow->year) {
+            return $this->normalizeRecap($this->calculateRecap($user, $year, $accountNow));
         }
 
         $cacheKey = self::cacheKeyFor($user, $year);
-        $ttl = now()->endOfDay();
+        $ttl = $accountNow->endOfDay();
 
         return $this->normalizeRecap(
-            Cache::remember($cacheKey, $ttl, fn () => $this->calculateRecap($user, $year))
+            Cache::remember($cacheKey, $ttl, fn () => $this->calculateRecap($user, $year, $accountNow))
         );
     }
 
-    private function calculateRecap(User $user, int $year): array
+    private function calculateRecap(User $user, int $year, CarbonInterface $accountNow): array
     {
-        $yearStart = Carbon::create($year, 1, 1)->startOfDay();
-        $yearEnd = Carbon::create($year, 12, 31)->endOfDay();
-        $userStart = Carbon::parse($user->created_at)->startOfDay();
-        $today = today();
+        $timezone = $accountNow->getTimezone();
+        $yearStart = Carbon::create($year, 1, 1, 0, 0, 0, $timezone)->startOfDay();
+        $yearEnd = Carbon::create($year, 12, 31, 0, 0, 0, $timezone)->endOfDay();
+        $userStart = Carbon::parse($user->created_at)->setTimezone($timezone)->startOfDay();
+        $today = $accountNow->copy()->startOfDay();
         $firstLogDate = $user->readingLogs()
             ->whereBetween('date_read', [$yearStart, $yearEnd])
             ->min('date_read');
@@ -118,7 +139,7 @@ class AnnualRecapService
             return [];
         }
 
-        $logStart = Carbon::parse($firstLogDate)->startOfDay();
+        $logStart = Carbon::parse($firstLogDate, $timezone)->startOfDay();
         $earliestStart = $logStart->lt($userStart) ? $logStart : $userStart;
         $effectiveStart = $earliestStart->gt($yearStart) ? $earliestStart : $yearStart;
         $effectiveEnd = $year === $today->year ? $today : $yearEnd;
@@ -265,11 +286,20 @@ class AnnualRecapService
      * Note: This is an approximation as BookProgress only stores "last_updated",
      * but for a recap it's a "good enough" proxy for recent achievements.
      */
-    private function calculateBooksCompleted(User $user, int $year, Carbon $effectiveStart, Carbon $effectiveEnd): int
-    {
+    private function calculateBooksCompleted(
+        User $user,
+        int $year,
+        CarbonInterface $effectiveStart,
+        CarbonInterface $effectiveEnd
+    ): int {
+        $databaseTimezone = config('app.timezone');
+
         return $user->bookProgress()
             ->where('is_completed', true)
-            ->whereBetween('last_updated', [$effectiveStart, $effectiveEnd])
+            ->whereBetween('last_updated', [
+                $effectiveStart->copy()->setTimezone($databaseTimezone),
+                $effectiveEnd->copy()->setTimezone($databaseTimezone),
+            ])
             ->count();
     }
 
@@ -280,11 +310,11 @@ class AnnualRecapService
     private function determineReaderPersonality(
         Collection $logs,
         int $year,
-        Carbon $effectiveStart,
-        Carbon $effectiveEnd
+        CarbonInterface $effectiveStart,
+        CarbonInterface $effectiveEnd
     ): array {
         // Calculate available days based on the effective window (signup or year start).
-        $yearStart = Carbon::create($year, 1, 1);
+        $yearStart = Carbon::create($year, 1, 1, 0, 0, 0, $effectiveStart->getTimezone());
         $availableDays = $effectiveEnd->lt($effectiveStart)
             ? 0
             : $effectiveStart->diffInDays($effectiveEnd) + 1;
@@ -296,7 +326,7 @@ class AnnualRecapService
         $consistencyRate = $availableDays > 0 ? $windowedUniqueDays / $availableDays : 0;
         $chaptersPerDay = $windowedUniqueDays > 0 ? $windowedCount / $windowedUniqueDays : 0;
 
-        $yearEnd = Carbon::create($year, 12, 31);
+        $yearEnd = Carbon::create($year, 12, 31, 0, 0, 0, $effectiveEnd->getTimezone());
         $isPartialYear = $effectiveStart->gt($yearStart) || $effectiveEnd->lt($yearEnd);
         $monthsAvailable = $isPartialYear ? (int) ceil($availableDays / 30) : 12;
 

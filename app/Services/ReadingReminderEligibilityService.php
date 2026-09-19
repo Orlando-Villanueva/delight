@@ -5,8 +5,6 @@ namespace App\Services;
 use App\Models\PushReminderDelivery;
 use App\Models\User;
 use Carbon\CarbonInterface;
-use DateTimeZone;
-use Throwable;
 
 class ReadingReminderEligibilityService
 {
@@ -14,8 +12,14 @@ class ReadingReminderEligibilityService
 
     public const string STREAK_WARNING_TIME = '18:00';
 
+    public function __construct(private ReadingCalendarService $readingCalendar) {}
+
     public function isEligible(User $user, string $reminderType, ?CarbonInterface $referenceTime = null): bool
     {
+        if (! $this->readingCalendar->hasEstablishedTimezone($user)) {
+            return false;
+        }
+
         $hasPushSubscription = $user->relationLoaded('pushSubscriptions')
             ? $user->pushSubscriptions->isNotEmpty()
             : $user->pushSubscriptions()->exists();
@@ -33,7 +37,7 @@ class ReadingReminderEligibilityService
 
     public function reminderDateFor(User $user, ?CarbonInterface $referenceTime = null): string
     {
-        return $this->localNow($user, $referenceTime)->toDateString();
+        return $this->readingCalendar->nowFor($user, $referenceTime)->toDateString();
     }
 
     private function isDailyReadingReminderEligible(User $user, ?CarbonInterface $referenceTime = null): bool
@@ -42,7 +46,7 @@ class ReadingReminderEligibilityService
             return false;
         }
 
-        $localNow = $this->localNow($user, $referenceTime);
+        $localNow = $this->readingCalendar->nowFor($user, $referenceTime);
 
         return $this->isAfterLocalTime($localNow, self::DAILY_TIME)
             && ! $this->hasReadOnLocalDate($user, $localNow->toDateString());
@@ -54,7 +58,7 @@ class ReadingReminderEligibilityService
             return false;
         }
 
-        $localNow = $this->localNow($user, $referenceTime);
+        $localNow = $this->readingCalendar->nowFor($user, $referenceTime);
         $today = $localNow->toDateString();
 
         return $this->isAfterLocalTime($localNow, self::STREAK_WARNING_TIME)
@@ -72,16 +76,5 @@ class ReadingReminderEligibilityService
         return $user->readingLogs()
             ->whereDate('date_read', $date)
             ->exists();
-    }
-
-    private function localNow(User $user, ?CarbonInterface $referenceTime = null): CarbonInterface
-    {
-        try {
-            $timezone = new DateTimeZone($user->pushNotificationTimezone());
-        } catch (Throwable) {
-            $timezone = new DateTimeZone(config('app.timezone'));
-        }
-
-        return ($referenceTime ?? now())->copy()->setTimezone($timezone);
     }
 }

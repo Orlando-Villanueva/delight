@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1;
 
 use App\Services\BibleReferenceService;
+use App\Services\ReadingCalendarService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -23,7 +24,7 @@ class StoreReadingLogRequest extends FormRequest
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
-    public function rules(BibleReferenceService $bibleReferenceService): array
+    public function rules(BibleReferenceService $bibleReferenceService, ReadingCalendarService $readingCalendar): array
     {
         $allowedBookIds = collect($bibleReferenceService->listBibleBooks(
             includeDeuterocanonical: $this->user()->includesDeuterocanonicalBooks()
@@ -36,7 +37,7 @@ class StoreReadingLogRequest extends FormRequest
             'date_read' => [
                 'required',
                 'date_format:Y-m-d',
-                Rule::in([today()->toDateString(), today()->subDay()->toDateString()]),
+                Rule::in([$readingCalendar->todayFor($this->user())->toDateString(), $readingCalendar->yesterdayFor($this->user())->toDateString()]),
             ],
             'notes_text' => ['nullable', 'string', 'max:1000'],
         ];

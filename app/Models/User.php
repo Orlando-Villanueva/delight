@@ -36,7 +36,7 @@ class User extends Authenticatable
         'push_notifications_enabled_at',
         'daily_reading_reminder_enabled_at',
         'streak_warning_enabled_at',
-        'push_notification_timezone',
+        'reading_timezone',
     ];
 
     /**
@@ -235,11 +235,6 @@ class User extends Authenticatable
     public function hasStreakWarningEnabled(): bool
     {
         return $this->streak_warning_enabled_at !== null;
-    }
-
-    public function pushNotificationTimezone(): string
-    {
-        return $this->push_notification_timezone ?: config('app.timezone');
     }
 
     /**

@@ -2,6 +2,7 @@
 
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\ReadingCalendarService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -165,9 +166,9 @@ it('returns the existing statistics and fourteen-day activity counts', function 
         ->assertJsonPath('data.activity.12', ['date' => MOBILE_BOOTSTRAP_YESTERDAY, 'count' => 1])
         ->assertJsonPath('data.activity.13', ['date' => MOBILE_BOOTSTRAP_TODAY, 'count' => 2]);
 
-    expect(Cache::has("user_current_streak_{$user->id}"))->toBeTrue()
-        ->and(Cache::has("user_recent_reading_activity_series_{$user->id}"))->toBeTrue()
-        ->and(Cache::has("user_total_reading_days_{$user->id}"))->toBeTrue();
+    expect(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_current_streak_{$user->id}")))->toBeTrue()
+        ->and(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_recent_reading_activity_series_{$user->id}")))->toBeTrue()
+        ->and(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_total_reading_days_{$user->id}")))->toBeTrue();
 });
 
 it('returns the server-computed state for an unread active streak at the warning threshold', function (
@@ -188,6 +189,28 @@ it('returns the server-computed state for an unread active streak at the warning
 })->with([
     'at 18:00' => ['18:00:00', 'warning'],
     'before 18:00' => ['17:59:00', 'active'],
+]);
+
+it('uses the account timezone for the mobile streak warning threshold', function (
+    string $timezone,
+    string $instant,
+    string $today,
+    string $yesterday,
+): void {
+    Carbon::setTestNow(Carbon::parse($instant, 'UTC'));
+
+    $user = User::factory()->create(['reading_timezone' => $timezone]);
+    createBootstrapReading($user, 1, $yesterday, $yesterday.MOBILE_BOOTSTRAP_MORNING);
+
+    $this->withToken($user->createToken('Pixel', ['mobile'])->plainTextToken)
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
+        ->assertSuccessful()
+        ->assertJsonPath('data.today', $today)
+        ->assertJsonPath('data.has_read_today', false)
+        ->assertJsonPath('data.streak_state', 'warning');
+})->with([
+    'Tokyo ahead of the server' => ['Asia/Tokyo', '2026-08-09 09:00:00', '2026-08-09', '2026-08-08'],
+    'Honolulu behind the server' => ['Pacific/Honolulu', '2026-08-10 04:00:00', '2026-08-09', '2026-08-08'],
 ]);
 
 it('does not return warning after today has been read', function (): void {

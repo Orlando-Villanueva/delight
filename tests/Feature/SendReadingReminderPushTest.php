@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\ReadingReminderPushNotification;
 use Carbon\Carbon;
 use Illuminate\Contracts\Notifications\Dispatcher;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Notification;
 use NotificationChannels\WebPush\WebPushChannel;
 
@@ -42,7 +43,7 @@ it('dispatch command uses subscription rows rather than the account connected ma
         'push_notifications_enabled_at' => null,
         'daily_reading_reminder_enabled_at' => now(),
         'streak_warning_enabled_at' => now(),
-        'push_notification_timezone' => 'America/Toronto',
+        'reading_timezone' => 'America/Toronto',
     ]);
     $user->updatePushSubscription('https://example.com/subscription-'.$user->id, 'key', 'token', 'aes128gcm');
 
@@ -147,7 +148,7 @@ it('send job uses overlapping middleware keyed by delivery id', function () {
     $middleware = $job->middleware();
 
     expect($middleware)->toHaveCount(1)
-        ->and($middleware[0])->toBeInstanceOf(\Illuminate\Queue\Middleware\WithoutOverlapping::class)
+        ->and($middleware[0])->toBeInstanceOf(WithoutOverlapping::class)
         ->and($job->tries)->toBe(3)
         ->and($middleware[0]->releaseAfter)->toBe(30)
         ->and($middleware[0]->expiresAfter)->toBe(300);
@@ -178,7 +179,7 @@ function pushReminderUser(): User
         'push_notifications_enabled_at' => now(),
         'daily_reading_reminder_enabled_at' => now(),
         'streak_warning_enabled_at' => now(),
-        'push_notification_timezone' => 'America/Toronto',
+        'reading_timezone' => 'America/Toronto',
     ]);
 
     $user->updatePushSubscription('https://example.com/subscription-'.$user->id, 'key', 'token', 'aes128gcm');

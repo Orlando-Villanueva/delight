@@ -47,9 +47,18 @@ class DispatchReadingReminderPushes extends Command
                         ]);
 
                         if (! $delivery->wasRecentlyCreated) {
-                            $skippedCount++;
+                            // A skipped delivery may become due after a timezone correction.
+                            $requeued = PushReminderDelivery::query()->whereKey($delivery->id)
+                                ->whereNotNull('skipped_at')
+                                ->whereNull('sent_at')
+                                ->whereNull('failed_at')
+                                ->update(['skipped_at' => null, 'scheduled_for_at' => $referenceTime]);
 
-                            continue;
+                            if (! $requeued) {
+                                $skippedCount++;
+
+                                continue;
+                            }
                         }
 
                         SendReadingReminderPush::dispatch($delivery->id);

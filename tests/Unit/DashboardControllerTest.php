@@ -6,8 +6,10 @@ use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
+use App\Services\StreakStateService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class DashboardControllerTest extends TestCase
@@ -118,6 +120,88 @@ class DashboardControllerTest extends TestCase
         $response->assertSee(self::LOG_TODAY_LABEL);
 
         Carbon::setTestNow();
+    }
+
+    public function test_index_uses_the_account_timezone_for_the_warning_threshold()
+    {
+        $this->user->forceFill(['reading_timezone' => 'Asia/Tokyo'])->save();
+        $this->travelTo(Carbon::parse('2026-05-16 09:00:00', 'UTC'));
+
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 19,
+            'chapter' => 1,
+            'passage_text' => self::STREAK_PASSAGE_TEXT,
+            'date_read' => '2026-05-15',
+        ]);
+
+        $this->get('/dashboard')
+            ->assertStatus(200)
+            ->assertSee('Streak at risk');
+
+        $this->travelBack();
+    }
+
+    public function test_index_uses_the_account_local_date_for_warning_state_cache()
+    {
+        $this->user->forceFill(['reading_timezone' => 'Pacific/Honolulu'])->save();
+        $this->travelTo(Carbon::parse('2026-05-17 04:00:00', 'UTC'));
+
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 19,
+            'chapter' => 1,
+            'passage_text' => self::STREAK_PASSAGE_TEXT,
+            'date_read' => '2026-05-15',
+        ]);
+
+        $this->get('/dashboard')
+            ->assertStatus(200)
+            ->assertSee('Streak at risk');
+
+        expect(Cache::has("warning_state_{$this->user->id}_2026-05-16"))->toBeTrue()
+            ->and(Cache::has("warning_state_{$this->user->id}_2026-05-17"))->toBeFalse();
+
+        $this->travelBack();
+    }
+
+    public function test_index_uses_the_account_timezone_for_the_recap_card()
+    {
+        $this->user->forceFill(['reading_timezone' => 'Asia/Tokyo'])->save();
+        $this->travelTo(Carbon::parse('2025-11-30 15:30:00', 'UTC'));
+
+        $response = $this->get('/dashboard');
+
+        $response->assertStatus(200)
+            ->assertViewHas('showRecapCard', true)
+            ->assertViewHas('recapCardYear', 2025);
+
+        $this->travelBack();
+    }
+
+    public function test_acknowledgment_uses_the_account_local_warning_date_near_midnight()
+    {
+        $this->user->forceFill(['reading_timezone' => 'Pacific/Honolulu'])->save();
+        $this->travelTo(Carbon::parse('2026-05-17 09:59:00', 'UTC'));
+        $accountNow = now('Pacific/Honolulu');
+        Cache::put("warning_state_{$this->user->id}_{$accountNow->toDateString()}", true, $accountNow->copy()->endOfDay());
+
+        $payload = app(StreakStateService::class)->getMessagePayload(
+            currentStreak: 5,
+            state: 'active',
+            longestStreak: 0,
+            hasReadToday: true,
+            currentTime: $accountNow,
+        );
+
+        expect([
+            'Well done! You\'ve read today!',
+            'Great job staying consistent!',
+            'Your streak is safe for today!',
+            'Another day of progress!',
+        ])->toContain($payload['message']);
+
+        $this->travelBack();
     }
 
     public function test_index_renders_streak_status_for_htmx_request()

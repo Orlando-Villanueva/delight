@@ -22,7 +22,9 @@ class ReadingLogService
     public function __construct(
         BibleReferenceService $bibleService,
         private OnboardingService $onboardingService,
-        private AchievementService $achievementService
+        private AchievementService $achievementService,
+        private ReadingCalendarService $readingCalendar,
+        private AnnualRecapService $annualRecapService
     ) {
         $this->bibleService = $bibleService;
     }
@@ -62,7 +64,7 @@ class ReadingLogService
             $data['passage_text'] = $this->formatPassageText($data['book_id'], $data, $includeDeuterocanonical);
         }
 
-        $dateRead = $data['date_read'] ?? now()->toDateString();
+        $dateRead = $data['date_read'] ?? $this->readingCalendar->todayFor($user)->toDateString();
 
         // Check if user has already read today BEFORE creating the new reading
         $hasReadToday = $user->readingLogs()
@@ -158,7 +160,11 @@ class ReadingLogService
     private function handlePostLogSideEffects(User $user, bool $isFirstReadingOfDay, string $loggedDate, bool $evaluateAchievements = true): array
     {
         // Server-side state updated - HTMX will handle UI updates
-        $this->invalidateUserStatisticsCache($user, $isFirstReadingOfDay);
+        $this->invalidateUserStatisticsCache(
+            $user,
+            $isFirstReadingOfDay,
+            [(int) Carbon::parse($loggedDate)->format('Y')]
+        );
         $this->markChurnRecoveryCampaignsReactivated($user);
 
         if (! $evaluateAchievements) {
@@ -255,11 +261,11 @@ class ReadingLogService
             return 0;
         }
 
-        $today = today();
-        $yesterday = today()->subDay();
+        $today = $this->readingCalendar->todayFor($user)->toMutable();
+        $yesterday = $this->readingCalendar->yesterdayFor($user)->toMutable();
 
         // Check if user has read recently (today or yesterday - grace period)
-        $hasRecentReading = $readingDates->contains(fn ($date) => $date->equalTo($today) || $date->equalTo($yesterday)
+        $hasRecentReading = $readingDates->contains(fn ($date) => $date->toDateString() === $today->toDateString() || $date->toDateString() === $yesterday->toDateString()
         );
 
         if (! $hasRecentReading) {
@@ -314,8 +320,8 @@ class ReadingLogService
             return [];
         }
 
-        $today = today();
-        $yesterday = today()->subDay();
+        $today = $this->readingCalendar->todayFor($user)->toMutable();
+        $yesterday = $this->readingCalendar->yesterdayFor($user)->toMutable();
 
         $todayKey = $today->toDateString();
         $yesterdayKey = $yesterday->toDateString();
@@ -354,7 +360,7 @@ class ReadingLogService
             throw new InvalidArgumentException('Recent reading activity window must be at least one day.');
         }
 
-        $endDate = today();
+        $endDate = $this->readingCalendar->todayFor($user)->toMutable();
         $startDate = $endDate->copy()->subDays($days - 1);
         $exclusiveEndDate = $endDate->copy()->addDay();
 
@@ -597,41 +603,50 @@ class ReadingLogService
     }
 
     /**
-     * Invalidate user statistics cache when reading logs change.
-     * Uses smart invalidation to minimize expensive recalculations.
+     * @param  list<int>  $recapYears
      */
-    private function invalidateUserStatisticsCache(User $user, bool $isFirstReadingOfDay = true): void
-    {
-        $currentYear = now()->year;
+    private function invalidateUserStatisticsCache(
+        User $user,
+        bool $isFirstReadingOfDay = true,
+        array $recapYears = []
+    ): void {
+        $currentYear = $this->readingCalendar->nowFor($user)->year;
         $previousYear = $currentYear - 1;
-        $currentMonth = now()->format('Y-m');
+        $currentMonth = $this->readingCalendar->nowFor($user)->format('Y-m');
 
         // Always invalidate - these change on every reading
-        Cache::forget("user_dashboard_stats_{$user->id}");
-        Cache::forget("user_calendar_{$user->id}_{$currentYear}");
-        Cache::forget("user_calendar_{$user->id}_{$previousYear}");
-        Cache::forget("user_monthly_calendar_{$user->id}_{$currentMonth}");
-        Cache::forget("user_total_reading_days_{$user->id}");
-        Cache::forget("user_avg_chapters_per_day_{$user->id}");
-        Cache::forget("user_current_streak_series_{$user->id}");
-        Cache::forget("user_recent_reading_activity_series_{$user->id}");
-        Cache::forget(AnnualRecapService::cacheKeyFor($user, $currentYear));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_dashboard_stats_{$user->id}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_calendar_{$user->id}_{$currentYear}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_calendar_{$user->id}_{$previousYear}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_monthly_calendar_{$user->id}_{$currentMonth}"));
+        $yesterdayMonth = $this->readingCalendar->yesterdayFor($user)->format('Y-m');
+        if ($yesterdayMonth !== $currentMonth) {
+            Cache::forget($this->readingCalendar->cacheKey($user, "user_monthly_calendar_{$user->id}_{$yesterdayMonth}"));
+        }
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_total_reading_days_{$user->id}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_avg_chapters_per_day_{$user->id}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_current_streak_series_{$user->id}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_recent_reading_activity_series_{$user->id}"));
+        $this->annualRecapService->invalidateForYears(
+            $user,
+            ...($recapYears === [] ? [$currentYear] : array_values(array_unique($recapYears)))
+        );
 
         // Smart invalidation - only invalidate on first reading of the day
         if ($isFirstReadingOfDay) {
             // First reading of the day - streak will change
-            Cache::forget("user_current_streak_{$user->id}");
+            Cache::forget($this->readingCalendar->cacheKey($user, "user_current_streak_{$user->id}"));
 
             // Longest streak - only invalidate if current streak might exceed it
-            $cachedLongest = Cache::get("user_longest_streak_{$user->id}");
+            $cachedLongest = Cache::get($this->readingCalendar->cacheKey($user, "user_longest_streak_{$user->id}"));
             if ($cachedLongest === null) {
                 // No cached longest streak, need to calculate
-                Cache::forget("user_longest_streak_{$user->id}");
+                Cache::forget($this->readingCalendar->cacheKey($user, "user_longest_streak_{$user->id}"));
             } else {
                 // Check if current streak + 1 (after today's reading) might exceed longest
-                $cachedCurrent = Cache::get("user_current_streak_{$user->id}");
+                $cachedCurrent = Cache::get($this->readingCalendar->cacheKey($user, "user_current_streak_{$user->id}"));
                 if ($cachedCurrent === null || ($cachedCurrent + 1) > $cachedLongest) {
-                    Cache::forget("user_longest_streak_{$user->id}");
+                    Cache::forget($this->readingCalendar->cacheKey($user, "user_longest_streak_{$user->id}"));
                 }
             }
         }
@@ -647,6 +662,7 @@ class ReadingLogService
         $user = $readingLog->user;
         $bookId = $readingLog->book_id;
         $chapter = $readingLog->chapter;
+        $recapYear = $readingLog->date_read->year;
 
         $deleted = $readingLog->delete();
 
@@ -656,7 +672,7 @@ class ReadingLogService
 
             // For deletions, we can't easily determine if this was the only reading of the day
             // so we invalidate all caches to be safe
-            $this->invalidateUserStatisticsCache($user, true);
+            $this->invalidateUserStatisticsCache($user, true, [$recapYear]);
         }
 
         return $deleted;
@@ -668,11 +684,13 @@ class ReadingLogService
     public function updateReadingLog(ReadingLog $readingLog, array $data): ReadingLog
     {
         $user = $readingLog->user;
+        $previousRecapYear = $readingLog->date_read->year;
         $readingLog->update($data);
+        $currentRecapYear = $readingLog->date_read->year;
 
         // For updates, we can't easily determine the impact on daily reading status
         // so we invalidate all caches to be safe
-        $this->invalidateUserStatisticsCache($user, true);
+        $this->invalidateUserStatisticsCache($user, true, [$previousRecapYear, $currentRecapYear]);
 
         return $readingLog;
     }
@@ -743,7 +761,7 @@ class ReadingLogService
             // Step 3: Group and prepare logs for display
             $groupedLogs = $logs
                 ->groupBy(fn ($log) => $log->date_read->format('Y-m-d'))
-                ->map(fn ($logsForDay) => $this->prepareDisplayLogs($logsForDay, $statisticsService))
+                ->map(fn ($logsForDay) => $this->prepareDisplayLogs($logsForDay, $statisticsService, $user))
                 ->sortByDesc(fn ($logsForDay, $date) => $date);
         }
 
@@ -795,7 +813,7 @@ class ReadingLogService
             return null;
         }
 
-        return $this->prepareDisplayLogs($logsForDay, $statisticsService);
+        return $this->prepareDisplayLogs($logsForDay, $statisticsService, $user);
     }
 
     public function getPreparedLogsForDates(User $user, array $dates, UserStatisticsService $statisticsService): array
@@ -818,7 +836,7 @@ class ReadingLogService
                 return [$date => null];
             }
 
-            return [$date => $this->prepareDisplayLogs($logsForDay, $statisticsService)];
+            return [$date => $this->prepareDisplayLogs($logsForDay, $statisticsService, $user)];
         })->all();
     }
 
@@ -835,7 +853,7 @@ class ReadingLogService
         return $user->readingLogs()->recentFirst()
             ->get()
             ->groupBy(fn ($log) => $log->date_read->format('Y-m-d'))
-            ->map(fn ($logsForDay) => $this->prepareDisplayLogs($logsForDay, $statisticsService))
+            ->map(fn ($logsForDay) => $this->prepareDisplayLogs($logsForDay, $statisticsService, $user))
             ->sortByDesc(fn ($logsForDay, $date) => $date);
     }
 
@@ -905,7 +923,7 @@ class ReadingLogService
         return $this->bibleService->formatBibleChapterList($bookId, $chapters, $locale, true);
     }
 
-    private function prepareDisplayLogs(Collection $logsForDay, UserStatisticsService $statisticsService): Collection
+    private function prepareDisplayLogs(Collection $logsForDay, UserStatisticsService $statisticsService, User $user): Collection
     {
         $sessions = $logsForDay->groupBy(function ($log) {
             return implode('|', [
@@ -930,8 +948,8 @@ class ReadingLogService
         });
 
         return $displayLogs
-            ->map(function ($log) use ($statisticsService) {
-                $log->time_ago = $statisticsService->calculateSmartTimeAgo($log);
+            ->map(function ($log) use ($statisticsService, $user) {
+                $log->time_ago = $statisticsService->calculateSmartTimeAgo($log, $user);
                 $log->logged_time_ago = $statisticsService->formatTimeAgo($log->created_at);
 
                 return $log;

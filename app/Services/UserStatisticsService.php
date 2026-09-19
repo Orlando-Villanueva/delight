@@ -13,6 +13,7 @@ class UserStatisticsService
 
     public function __construct(
         private ReadingLogService $readingLogService,
+        private ReadingCalendarService $readingCalendar,
         private ?BibleReferenceService $bibleReferenceService = null
     ) {}
 
@@ -22,7 +23,7 @@ class UserStatisticsService
     public function getDashboardStatistics(User $user): array
     {
         return Cache::remember(
-            "user_dashboard_stats_{$user->id}",
+            $this->readingCalendar->cacheKey($user, "user_dashboard_stats_{$user->id}"),
             300, // 5 minutes TTL
             fn () => [
                 'streaks' => $this->getStreakStatistics($user),
@@ -38,28 +39,28 @@ class UserStatisticsService
      */
     public function getStreakStatistics(User $user): array
     {
-        $ttl = now()->endOfDay();
+        $ttl = $this->readingCalendar->nowFor($user)->endOfDay();
 
         $currentStreak = Cache::remember(
-            "user_current_streak_{$user->id}",
+            $this->readingCalendar->cacheKey($user, "user_current_streak_{$user->id}"),
             $ttl, // Cache until end of day (invalidated on log changes)
             fn () => $this->readingLogService->calculateCurrentStreak($user)
         );
 
         $longestStreak = Cache::remember(
-            "user_longest_streak_{$user->id}",
+            $this->readingCalendar->cacheKey($user, "user_longest_streak_{$user->id}"),
             $ttl, // Cache until end of day (invalidated on log changes)
             fn () => $this->readingLogService->calculateLongestStreak($user)
         );
 
         $currentStreakSeries = Cache::remember(
-            "user_current_streak_series_{$user->id}",
+            $this->readingCalendar->cacheKey($user, "user_current_streak_series_{$user->id}"),
             $ttl, // Cache until end of day (invalidated on log changes)
             fn () => $this->readingLogService->getCurrentStreakSeries($user)
         );
 
         $recentReadingActivitySeries = Cache::remember(
-            "user_recent_reading_activity_series_{$user->id}",
+            $this->readingCalendar->cacheKey($user, "user_recent_reading_activity_series_{$user->id}"),
             $ttl, // Cache until end of day (invalidated on log changes)
             fn () => $this->readingLogService->getRecentReadingActivitySeries($user, self::RECENT_READING_ACTIVITY_DAYS)
         );
@@ -68,7 +69,7 @@ class UserStatisticsService
         if (! empty($currentStreakSeries)) {
             $firstEntry = $currentStreakSeries[0];
             if (! empty($firstEntry['date'])) {
-                $currentStreakStartDate = Carbon::parse($firstEntry['date'])->startOfDay();
+                $currentStreakStartDate = Carbon::parse($firstEntry['date'], $this->readingCalendar->timezoneFor($user))->startOfDay();
             }
         }
 
@@ -118,7 +119,7 @@ class UserStatisticsService
         $lastReadingDate = $summary->last_date;
 
         $daysSinceFirst = $firstReadingDate
-            ? Carbon::parse($firstReadingDate)->diffInDays(now()) + 1
+            ? max(1, (int) Carbon::parse($firstReadingDate, $this->readingCalendar->timezoneFor($user))->diffInDays($this->readingCalendar->todayFor($user)) + 1)
             : 0;
 
         return [
@@ -139,8 +140,8 @@ class UserStatisticsService
     private function getTotalReadingDays(User $user): int
     {
         return Cache::remember(
-            "user_total_reading_days_{$user->id}",
-            now()->endOfDay(), // Cache until end of day (invalidated on log changes)
+            $this->readingCalendar->cacheKey($user, "user_total_reading_days_{$user->id}"),
+            $this->readingCalendar->nowFor($user)->endOfDay(), // Cache until end of day (invalidated on log changes)
             fn () => $user->readingLogs()->distinct('date_read')->count('date_read')
         );
     }
@@ -151,8 +152,8 @@ class UserStatisticsService
     private function getAverageChaptersPerDay(User $user, int $totalReadings, int $daysSinceFirst): float
     {
         return Cache::remember(
-            "user_avg_chapters_per_day_{$user->id}",
-            now()->endOfDay(), // Cache until end of day (invalidated on log changes)
+            $this->readingCalendar->cacheKey($user, "user_avg_chapters_per_day_{$user->id}"),
+            $this->readingCalendar->nowFor($user)->endOfDay(), // Cache until end of day (invalidated on log changes)
             function () use ($totalReadings, $daysSinceFirst) {
                 if ($totalReadings === 0 || $daysSinceFirst === 0) {
                     return 0.0;
@@ -169,8 +170,8 @@ class UserStatisticsService
     private function getThisMonthReadingDays(User $user): int
     {
         return $user->readingLogs()
-            ->whereMonth('date_read', now()->month)
-            ->whereYear('date_read', now()->year)
+            ->whereMonth('date_read', $this->readingCalendar->nowFor($user)->month)
+            ->whereYear('date_read', $this->readingCalendar->nowFor($user)->year)
             ->distinct()
             ->count('date_read');
     }
@@ -179,8 +180,8 @@ class UserStatisticsService
     {
         return $user->readingLogs()
             ->whereBetween('date_read', [
-                now()->startOfWeek(Carbon::SUNDAY)->toDateString(),
-                now()->endOfWeek(Carbon::SATURDAY)->toDateString(),
+                $this->readingCalendar->nowFor($user)->startOfWeek(Carbon::SUNDAY)->toDateString(),
+                $this->readingCalendar->nowFor($user)->endOfWeek(Carbon::SATURDAY)->toDateString(),
             ])
             ->distinct()
             ->count('date_read');
@@ -263,13 +264,13 @@ class UserStatisticsService
             })
             ->take($limit);
 
-        return $recentReadings->map(function ($reading) {
+        return $recentReadings->map(function ($reading) use ($user) {
             return [
                 'id' => $reading->id,
                 'passage_text' => $reading->passage_text,
                 'date_read' => $reading->date_read,
                 'notes_text' => $reading->notes_text,
-                'time_ago' => $this->calculateSmartTimeAgo($reading),
+                'time_ago' => $this->calculateSmartTimeAgo($reading, $user),
             ];
         })->values()->toArray();
     }
@@ -279,11 +280,11 @@ class UserStatisticsService
      */
     public function getCalendarData(User $user, ?string $year = null): array
     {
-        $year = $year ?? now()->year;
+        $year = $year ?? $this->readingCalendar->nowFor($user)->year;
 
         return Cache::remember(
-            "user_calendar_{$user->id}_{$year}",
-            now()->endOfDay(), // Cache until end of day (invalidated on log changes)
+            $this->readingCalendar->cacheKey($user, "user_calendar_{$user->id}_{$year}"),
+            $this->readingCalendar->nowFor($user)->endOfDay(), // Cache until end of day (invalidated on log changes)
             function () use ($user, $year) {
                 $startDate = Carbon::create($year, 1, 1)->startOfDay();
                 $endDate = Carbon::create($year, 12, 31)->endOfDay();
@@ -327,15 +328,15 @@ class UserStatisticsService
      */
     public function getMonthlyCalendarData(User $user, ?int $year = null, ?int $month = null): array
     {
-        $currentDate = now();
+        $currentDate = $this->readingCalendar->nowFor($user);
         $year = $year ?? $currentDate->year;
         $month = $month ?? $currentDate->month;
 
-        $targetDate = Carbon::create($year, $month, 1);
+        $targetDate = Carbon::create($year, $month, 1, 0, 0, 0, $this->readingCalendar->timezoneFor($user));
         $monthKey = $targetDate->format('Y-m');
 
         return Cache::remember(
-            "user_monthly_calendar_{$user->id}_{$monthKey}",
+            $this->readingCalendar->cacheKey($user, "user_monthly_calendar_{$user->id}_{$monthKey}"),
             900, // 15 minutes TTL - lighter than full year
             fn () => $this->buildMonthlyCalendarData($user, $year, $month, $targetDate)
         );
@@ -349,8 +350,8 @@ class UserStatisticsService
         $monthName = $targetDate->format('F Y');
         $calendarData = $this->getCalendarData($user, (string) $year);
 
-        $calendar = $this->generateMonthlyCalendarGrid($calendarData, $targetDate);
-        $statistics = $this->calculateMonthlyStatistics($calendar, $year, $month);
+        $calendar = $this->generateMonthlyCalendarGrid($calendarData, $targetDate, $user);
+        $statistics = $this->calculateMonthlyStatistics($calendar, $year, $month, $user);
 
         return array_merge([
             'calendar' => $calendar,
@@ -363,7 +364,7 @@ class UserStatisticsService
     /**
      * Generate calendar grid for the month with reading data.
      */
-    private function generateMonthlyCalendarGrid(array $calendarData, Carbon $targetDate): array
+    private function generateMonthlyCalendarGrid(array $calendarData, Carbon $targetDate, User $user): array
     {
         $firstDay = $targetDate->copy()->startOfMonth();
         $lastDay = $targetDate->copy()->endOfMonth();
@@ -392,7 +393,7 @@ class UserStatisticsService
                 'date' => $date,
                 'hasReading' => $hasReading,
                 'readingCount' => $readingCount,
-                'isToday' => $date->isToday(),
+                'isToday' => $dateStr === $this->readingCalendar->todayFor($user)->toDateString(),
                 'dateString' => $dateStr,
             ];
         }
@@ -403,7 +404,7 @@ class UserStatisticsService
     /**
      * Calculate monthly statistics from calendar data.
      */
-    private function calculateMonthlyStatistics(array $calendar, int $year, int $month): array
+    private function calculateMonthlyStatistics(array $calendar, int $year, int $month, User $user): array
     {
         $thisMonthReadings = 0;
         $thisMonthChapters = 0;
@@ -416,8 +417,8 @@ class UserStatisticsService
         }
 
         // Calculate success rate based on days passed in month
-        $today = now();
-        $daysInMonth = Carbon::create($year, $month, 1)->daysInMonth;
+        $today = $this->readingCalendar->nowFor($user);
+        $daysInMonth = Carbon::create($year, $month, 1, 0, 0, 0, $this->readingCalendar->timezoneFor($user))->daysInMonth;
         $daysPassedInMonth = $today->month === $month && $today->year === $year
             ? min($daysInMonth, $today->day)
             : $daysInMonth;
@@ -435,7 +436,7 @@ class UserStatisticsService
     /**
      * Calculate smart time ago that considers the context of when reading was done vs when it was logged.
      */
-    public function calculateSmartTimeAgo(ReadingLogInterface $reading): string
+    public function calculateSmartTimeAgo(ReadingLogInterface $reading, ?User $user = null): string
     {
         // Handle null date_read by falling back to created_at
         $dateRead = $reading->getDateRead();
@@ -443,16 +444,17 @@ class UserStatisticsService
             return $this->formatTimeAgo($reading->getCreatedAt());
         }
 
-        $dateReadCarbon = Carbon::parse($dateRead);
+        $today = $user ? $this->readingCalendar->todayFor($user) : today();
+        $dateReadCarbon = Carbon::parse($dateRead, $today->timezone);
         $createdAt = $reading->getCreatedAt();
 
         // If the reading was done today, use created_at for more accurate "hours/minutes ago"
-        if ($dateReadCarbon->isToday()) {
+        if ($dateReadCarbon->toDateString() === $today->toDateString()) {
             return $this->formatTimeAgo($createdAt);
         }
 
         // If the reading was done yesterday, always show "1 day ago" regardless of when logged
-        if ($dateReadCarbon->isYesterday()) {
+        if ($dateReadCarbon->toDateString() === $today->copy()->subDay()->toDateString()) {
             return '1 day ago';
         }
 
@@ -499,21 +501,25 @@ class UserStatisticsService
      */
     public function invalidateUserCache(User $user): void
     {
-        $currentYear = now()->year;
+        $currentYear = $this->readingCalendar->nowFor($user)->year;
         $previousYear = $currentYear - 1;
-        $currentMonth = now()->format('Y-m');
+        $currentMonth = $this->readingCalendar->nowFor($user)->format('Y-m');
 
         // Clear all user-specific caches
-        Cache::forget("user_dashboard_stats_{$user->id}");
-        Cache::forget("user_current_streak_{$user->id}");
-        Cache::forget("user_longest_streak_{$user->id}");
-        Cache::forget("user_current_streak_series_{$user->id}");
-        Cache::forget("user_recent_reading_activity_series_{$user->id}");
-        Cache::forget("user_calendar_{$user->id}_{$currentYear}");
-        Cache::forget("user_calendar_{$user->id}_{$previousYear}");
-        Cache::forget("user_monthly_calendar_{$user->id}_{$currentMonth}");
-        Cache::forget("user_total_reading_days_{$user->id}");
-        Cache::forget("user_avg_chapters_per_day_{$user->id}");
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_dashboard_stats_{$user->id}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_current_streak_{$user->id}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_longest_streak_{$user->id}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_current_streak_series_{$user->id}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_recent_reading_activity_series_{$user->id}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_calendar_{$user->id}_{$currentYear}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_calendar_{$user->id}_{$previousYear}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_monthly_calendar_{$user->id}_{$currentMonth}"));
+        $yesterdayMonth = $this->readingCalendar->yesterdayFor($user)->format('Y-m');
+        if ($yesterdayMonth !== $currentMonth) {
+            Cache::forget($this->readingCalendar->cacheKey($user, "user_monthly_calendar_{$user->id}_{$yesterdayMonth}"));
+        }
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_total_reading_days_{$user->id}"));
+        Cache::forget($this->readingCalendar->cacheKey($user, "user_avg_chapters_per_day_{$user->id}"));
     }
 
     /**

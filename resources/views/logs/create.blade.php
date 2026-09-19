@@ -56,7 +56,7 @@
                     >
                         @csrf
                         @php
-                            $selectedDateRead = $selectedDateRead ?? today()->toDateString();
+                            $selectedDateRead = $selectedDateRead ?? $readingToday->toDateString();
                         @endphp
 
                         <fieldset class="space-y-2">
@@ -64,15 +64,15 @@
 
                             <div
                                 data-date-read-segmented-control
-                                class="grid grid-cols-2 overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-700"
+                                class="grid grid-cols-2 overflow-hidden rounded-lg border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-700"
                             >
                                 <div class="flex items-center">
                                     <input
                                         type="radio"
                                         id="today"
                                         name="date_read"
-                                        value="{{ today()->toDateString() }}"
-                                        {{ $selectedDateRead === today()->toDateString() ? 'checked' : '' }}
+                                        value="{{ $readingToday->toDateString() }}"
+                                        {{ $selectedDateRead === $readingToday->toDateString() ? 'checked' : '' }}
                                         class="peer sr-only"
                                     >
                                     <label
@@ -88,8 +88,8 @@
                                         type="radio"
                                         id="yesterday"
                                         name="date_read"
-                                        value="{{ today()->subDay()->toDateString() }}"
-                                        {{ $selectedDateRead === today()->subDay()->toDateString() ? 'checked' : '' }}
+                                        value="{{ $readingToday->subDay()->toDateString() }}"
+                                        {{ $selectedDateRead === $readingToday->subDay()->toDateString() ? 'checked' : '' }}
                                         class="peer sr-only"
                                     >
                                     <label
@@ -114,7 +114,7 @@
                                     id="testament-button"
                                     data-dropdown-toggle="testament-dropdown"
                                     data-dropdown-placement="bottom-start"
-                                    class="z-10 inline-flex shrink-0 items-center rounded-s-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:z-10 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus:ring-primary-600"
+                                    class="z-10 inline-flex shrink-0 items-center rounded-s-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus:ring-primary-600"
                                     type="button"
                                 >
                                     <span x-text="testamentLabel"></span>
@@ -173,7 +173,7 @@
                                         id="book_id"
                                         name="book_id"
                                         required
-                                        class="form-input -ml-px w-full rounded-s-none"
+                                        class="form-input -ml-px w-full rounded-s-none shadow-none"
                                         aria-label="Select Bible book"
                                         x-model="selectedBook"
                                         @change="updateChapterPlaceholder($event.target.value)"

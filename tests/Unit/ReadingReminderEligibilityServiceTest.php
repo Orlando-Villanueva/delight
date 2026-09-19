@@ -59,7 +59,7 @@ it('uses actual subscription rows rather than the account connected marker for e
         'push_notifications_enabled_at' => null,
         'daily_reading_reminder_enabled_at' => now(),
         'streak_warning_enabled_at' => now(),
-        'push_notification_timezone' => 'America/Toronto',
+        'reading_timezone' => 'America/Toronto',
     ]);
 
     expect($service->isEligible($user, 'daily_reading', Carbon::parse('2026-05-26 09:00:00', 'America/Toronto')))->toBeFalse();
@@ -69,15 +69,13 @@ it('uses actual subscription rows rather than the account connected marker for e
     expect($service->isEligible($user->fresh(), 'daily_reading', Carbon::parse('2026-05-26 09:00:00', 'America/Toronto')))->toBeTrue();
 });
 
-it('falls back to the app timezone when a stored reminder timezone is invalid', function () {
-    config(['app.timezone' => 'America/Toronto']);
-
+it('does not send reminders without an established account timezone', function (?string $timezone) {
     $service = app(ReadingReminderEligibilityService::class);
     $user = reminderEligibleUser();
-    $user->forceFill(['push_notification_timezone' => 'Not/AZone'])->save();
+    $user->forceFill(['reading_timezone' => $timezone])->save();
 
-    expect($service->isEligible($user->fresh(), 'daily_reading', Carbon::parse('2026-05-26 13:00:00', 'UTC')))->toBeTrue();
-});
+    expect($service->isEligible($user->fresh(), 'daily_reading', Carbon::parse('2026-05-26 13:00:00', 'UTC')))->toBeFalse();
+})->with([null, 'Not/AZone']);
 
 function reminderEligibleUser(): User
 {
@@ -85,7 +83,7 @@ function reminderEligibleUser(): User
         'push_notifications_enabled_at' => now(),
         'daily_reading_reminder_enabled_at' => now(),
         'streak_warning_enabled_at' => now(),
-        'push_notification_timezone' => 'America/Toronto',
+        'reading_timezone' => 'America/Toronto',
     ]);
 
     $user->updatePushSubscription('https://example.com/subscription-'.$user->id, 'key', 'token', 'aes128gcm');
