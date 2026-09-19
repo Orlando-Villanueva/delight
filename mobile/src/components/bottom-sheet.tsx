@@ -26,6 +26,7 @@ type BottomSheetProps = {
   dismissAccessibilityHint: string;
   closeAccessibilityLabel: string;
   closeAccessibilityHint: string;
+  closeLabel?: string;
   maxHeight?: DimensionValue;
   /**
    * Reserve extra space below chrome for the system gesture inset.
@@ -64,6 +65,7 @@ export function BottomSheet({
   dismissAccessibilityHint,
   closeAccessibilityLabel,
   closeAccessibilityHint,
+  closeLabel = 'Close',
   maxHeight,
   padBottomSafeArea = false,
   paddingBottom,
@@ -173,7 +175,7 @@ export function BottomSheet({
               }}
             >
               <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>
-                Close
+                {closeLabel}
               </Text>
             </Pressable>
           </View>

@@ -1,8 +1,16 @@
 import * as SecureStore from 'expo-secure-store';
 import * as Linking from 'expo-linking';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, render, waitFor } from '@testing-library/react-native';
-import { Alert, AppState } from 'react-native';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
+import { AppState } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { apiRequest } from '@/api/client';
 import {
@@ -33,7 +41,6 @@ const mockedApiRequest = jest.mocked(apiRequest);
 const mockedGetItem = jest.mocked(SecureStore.getItemAsync);
 const mockedSetItem = jest.mocked(SecureStore.setItemAsync);
 const mockedOpenURL = jest.mocked(Linking.openURL);
-const mockedAlert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
 const mockedInstallerSource = jest.mocked(getAndroidInstallerSource);
 const mockedEnvironment = environment;
 
@@ -52,9 +59,16 @@ function renderChecker() {
   });
   queryClients.add(queryClient);
   const rendered = render(
-    <QueryClientProvider client={queryClient}>
-      <AndroidUpdateChecker />
-    </QueryClientProvider>,
+    <SafeAreaProvider
+      initialMetrics={{
+        frame: { x: 0, y: 0, width: 390, height: 844 },
+        insets: { top: 47, left: 0, right: 0, bottom: 34 },
+      }}
+    >
+      <QueryClientProvider client={queryClient}>
+        <AndroidUpdateChecker />
+      </QueryClientProvider>
+    </SafeAreaProvider>,
   );
 
   return {
@@ -97,18 +111,33 @@ describe('Android update checker', () => {
 
     renderChecker();
 
-    await waitFor(() => expect(mockedAlert).toHaveBeenCalledWith(
-      'A new Delight update is available',
-      'Version 0.2.0 (10) is ready. Update from the official Delight download page.',
-      expect.any(Array),
-    ));
+    await waitFor(() => expect(screen.getByText('A newer Delight version is ready')).toBeOnTheScreen());
+    expect(screen.getByText('Delight 0.2.0 is ready.')).toBeOnTheScreen();
 
-    const buttons = mockedAlert.mock.calls[0][2];
-    await act(async () => {
-      buttons?.[1]?.onPress?.();
-    });
+    await fireEvent.press(screen.getByLabelText('Download update'));
 
     expect(mockedOpenURL).toHaveBeenCalledWith('https://mydelight.app/android');
+  });
+
+  it('persists the release when the user chooses Later', async () => {
+    mockedApiRequest.mockResolvedValue({
+      data: {
+        version: '0.2.0',
+        version_code: 10,
+        update_url: 'https://mydelight.app/android',
+      },
+    });
+
+    renderChecker();
+
+    await waitFor(() => expect(screen.getByText('A newer Delight version is ready')).toBeOnTheScreen());
+    await fireEvent.press(screen.getByLabelText('Later'));
+
+    expect(mockedSetItem).toHaveBeenCalledWith(
+      'delight.android-update-dismissed',
+      expect.stringContaining('"versionCode":10'),
+    );
+    expect(screen.queryByText('A newer Delight version is ready')).not.toBeOnTheScreen();
   });
 
   it('does not prompt when the installed build is current', async () => {
@@ -123,7 +152,8 @@ describe('Android update checker', () => {
     renderChecker();
 
     await waitFor(() => expect(mockedApiRequest).toHaveBeenCalledWith('/api/v1/android/release'));
-    expect(mockedAlert).not.toHaveBeenCalled();
+    expect(mockedOpenURL).not.toHaveBeenCalled();
+    expect(mockedSetItem).not.toHaveBeenCalled();
   });
 
   it('does not request direct-download metadata for a Play-installed build', async () => {
@@ -132,7 +162,6 @@ describe('Android update checker', () => {
     renderChecker();
 
     expect(mockedApiRequest).not.toHaveBeenCalled();
-    expect(mockedAlert).not.toHaveBeenCalled();
   });
 
   it('does not request metadata when the environment disables the checker', async () => {
@@ -141,7 +170,6 @@ describe('Android update checker', () => {
     renderChecker();
 
     expect(mockedApiRequest).not.toHaveBeenCalled();
-    expect(mockedAlert).not.toHaveBeenCalled();
   });
 
   it('fails closed when Android cannot identify the installer', async () => {
@@ -150,7 +178,6 @@ describe('Android update checker', () => {
     renderChecker();
 
     expect(mockedApiRequest).not.toHaveBeenCalled();
-    expect(mockedAlert).not.toHaveBeenCalled();
   });
 
   it('does not prompt again during the dismissal window but prompts for a newer release', async () => {
@@ -165,7 +192,8 @@ describe('Android update checker', () => {
 
     const { queryClient } = renderChecker();
     await waitFor(() => expect(mockedApiRequest).toHaveBeenCalled());
-    expect(mockedAlert).not.toHaveBeenCalled();
+    expect(mockedOpenURL).not.toHaveBeenCalled();
+    expect(mockedSetItem).not.toHaveBeenCalled();
 
     mockedApiRequest.mockResolvedValue({
       data: {
@@ -181,11 +209,7 @@ describe('Android update checker', () => {
     });
 
     const newer = renderChecker();
-    await waitFor(() => expect(mockedAlert).toHaveBeenCalledWith(
-      'A new Delight update is available',
-      'Version 0.3.0 (11) is ready. Update from the official Delight download page.',
-      expect.any(Array),
-    ));
+    await waitFor(() => expect(screen.getByText('Delight 0.3.0 is ready.')).toBeOnTheScreen());
     await cleanup();
     await act(async () => {
       await newer.queryClient.cancelQueries();
@@ -207,7 +231,8 @@ describe('Android update checker', () => {
 
     renderChecker();
     await waitFor(() => expect(mockedApiRequest).toHaveBeenCalled());
-    expect(mockedAlert).not.toHaveBeenCalled();
+    expect(mockedOpenURL).not.toHaveBeenCalled();
+    expect(mockedSetItem).not.toHaveBeenCalled();
 
     dateNow.mockReturnValue(
       initialTime + androidUpdateDismissalWindowMs + androidUpdateCheckCooldownMs,
@@ -216,11 +241,7 @@ describe('Android update checker', () => {
       mockAppStateListener?.('active');
     });
 
-    await waitFor(() => expect(mockedAlert).toHaveBeenCalledWith(
-      'A new Delight update is available',
-      'Version 0.2.0 (10) is ready. Update from the official Delight download page.',
-      expect.any(Array),
-    ));
+    await waitFor(() => expect(screen.getByText('Delight 0.2.0 is ready.')).toBeOnTheScreen());
 
     dateNow.mockRestore();
   });
@@ -237,6 +258,7 @@ describe('Android update checker', () => {
     renderChecker();
 
     await waitFor(() => expect(mockedApiRequest).toHaveBeenCalled());
-    expect(mockedAlert).not.toHaveBeenCalled();
+    expect(mockedOpenURL).not.toHaveBeenCalled();
+    expect(mockedSetItem).not.toHaveBeenCalled();
   });
 });
