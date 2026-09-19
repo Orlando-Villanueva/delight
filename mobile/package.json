@@ -1,7 +1,7 @@
 {
   "name": "delight-mobile",
   "main": "expo-router/entry",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "@hookform/resolvers": "^5.7.1",
