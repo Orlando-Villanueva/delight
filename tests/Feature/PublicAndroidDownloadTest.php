@@ -10,7 +10,7 @@ it('returns cacheable current Android release metadata without authentication', 
         ->assertSuccessful()
         ->assertHeader('cache-control', 'max-age=300, public, s-maxage=300, stale-while-revalidate=600')
         ->assertJsonPath('data.version', '0.1.0')
-        ->assertJsonPath('data.version_code', 14)
+        ->assertJsonPath('data.version_code', 10)
         ->assertJsonPath('data.update_url', ANDROID_UPDATE_URL);
 });
 
@@ -24,7 +24,7 @@ it('presents the accepted Android release with installation and support guidance
     $response->assertOk()
         ->assertSee('href="'.ANDROID_APK_URL.'"', false)
         ->assertSeeText('Download APK · 103 MB')
-        ->assertSeeText('Version 0.1.0 (14)')
+        ->assertSeeText('Version 0.1.0 (10)')
         ->assertSeeText('September 16, 2026')
         ->assertSeeText('Android™ 7.0+')
         ->assertSee('src="'.asset('images/android-robot-head.svg').'"', false)

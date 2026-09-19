@@ -137,6 +137,7 @@ export function useAndroidUpdateChecker(): AndroidUpdatePrompt | null {
       return;
     }
 
+    promptedVersionCodeRef.current = null;
     setReleaseToPrompt(null);
     void saveAndroidUpdateDismissal({
       versionCode: releaseToPrompt.version_code,

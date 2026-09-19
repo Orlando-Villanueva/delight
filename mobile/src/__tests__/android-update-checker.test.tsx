@@ -141,6 +141,38 @@ describe('Android update checker', () => {
     expect(screen.queryByText('A newer Delight version is ready')).not.toBeOnTheScreen();
   });
 
+  it('prompts again when a Later dismissal expires in the same process', async () => {
+    const initialTime = 1_700_000_000_000;
+    const dateNow = jest.spyOn(Date, 'now').mockReturnValue(initialTime);
+    mockedGetItem
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(JSON.stringify({ versionCode: 10, dismissedAt: initialTime }));
+    mockedApiRequest.mockResolvedValue({
+      data: {
+        version: '0.2.0',
+        version_code: 10,
+        update_url: 'https://mydelight.app/android',
+      },
+    });
+
+    renderChecker();
+
+    await waitFor(() => expect(screen.getByText('A newer Delight version is ready')).toBeOnTheScreen());
+    await fireEvent.press(screen.getByLabelText('Later'));
+    expect(screen.queryByText('A newer Delight version is ready')).not.toBeOnTheScreen();
+
+    dateNow.mockReturnValue(
+      initialTime + androidUpdateDismissalWindowMs + androidUpdateCheckCooldownMs,
+    );
+    await act(async () => {
+      mockAppStateListener?.('active');
+    });
+
+    await waitFor(() => expect(screen.getByText('A newer Delight version is ready')).toBeOnTheScreen());
+
+    dateNow.mockRestore();
+  });
+
   it('keeps gesture navigation spacing tight and adds room for a button bar', async () => {
     mockedApiRequest.mockResolvedValue({
       data: {
