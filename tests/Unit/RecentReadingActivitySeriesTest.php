@@ -2,6 +2,7 @@
 
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Services\ReadingCalendarService;
 use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
 use Carbon\Carbon;
@@ -126,7 +127,7 @@ it('invalidates recent activity cache after an additional same day reading', fun
 
     $initialStats = $statisticsService->getStreakStatistics($user);
 
-    expect(Cache::has("user_recent_reading_activity_series_{$user->id}"))->toBeTrue()
+    expect(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_recent_reading_activity_series_{$user->id}")))->toBeTrue()
         ->and($initialStats['recent_reading_activity_series'][13])->toBe(['date' => '2024-01-14', 'count' => 1]);
 
     $readingLogService->logReading($user, [
@@ -135,7 +136,7 @@ it('invalidates recent activity cache after an additional same day reading', fun
         'date_read' => '2024-01-14',
     ]);
 
-    expect(Cache::has("user_recent_reading_activity_series_{$user->id}"))->toBeFalse();
+    expect(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_recent_reading_activity_series_{$user->id}")))->toBeFalse();
 
     $refreshedStats = $statisticsService->getStreakStatistics($user);
 
@@ -152,13 +153,13 @@ it('manual user statistics invalidation clears streak series caches', function (
 
     $statisticsService->getStreakStatistics($user);
 
-    expect(Cache::has("user_current_streak_series_{$user->id}"))->toBeTrue()
-        ->and(Cache::has("user_recent_reading_activity_series_{$user->id}"))->toBeTrue();
+    expect(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_current_streak_series_{$user->id}")))->toBeTrue()
+        ->and(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_recent_reading_activity_series_{$user->id}")))->toBeTrue();
 
     $statisticsService->invalidateUserCache($user);
 
-    expect(Cache::has("user_current_streak_series_{$user->id}"))->toBeFalse()
-        ->and(Cache::has("user_recent_reading_activity_series_{$user->id}"))->toBeFalse();
+    expect(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_current_streak_series_{$user->id}")))->toBeFalse()
+        ->and(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_recent_reading_activity_series_{$user->id}")))->toBeFalse();
 });
 
 it('renders recent activity accessibility copy and exact values without streak era wording', function (): void {

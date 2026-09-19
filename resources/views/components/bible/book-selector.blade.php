@@ -37,7 +37,7 @@
     <select 
         id="{{ $selectId }}"
         name="{{ $name }}"
-        class="{{ $selectClasses }}"
+        class="{{ $selectClasses }} shadow-none"
         {{ $required ? 'required' : '' }}
         {{ $disabled ? 'disabled' : '' }}
         @if($hasError) aria-invalid="true" aria-describedby="{{ $selectId }}-error" @endif

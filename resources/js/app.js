@@ -281,16 +281,6 @@ if (typeof document !== 'undefined') {
             }
         };
 
-        const elementsFor = (root, selector) => {
-            const elements = Array.from(root.querySelectorAll(selector));
-
-            if (root instanceof Element && root.matches(selector)) {
-                elements.unshift(root);
-            }
-
-            return elements;
-        };
-
         const isIosLike = () => /iPad|iPhone|iPod/.test(navigator.userAgent)
             || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
@@ -328,92 +318,6 @@ if (typeof document !== 'undefined') {
             return outputArray;
         };
 
-        const initializeDeuterocanonicalSettings = (root = document) => {
-            elementsFor(root, '[data-deuterocanonical-setting]').forEach((setting) => {
-                if (setting.dataset.deuterocanonicalInitialized === 'true') {
-                    return;
-                }
-
-                setting.dataset.deuterocanonicalInitialized = 'true';
-
-                const toggle = setting.querySelector('[data-deuterocanonical-toggle]');
-                const label = setting.querySelector('[data-deuterocanonical-toggle-label]');
-                const status = setting.querySelector('[data-deuterocanonical-status]');
-                const url = setting.dataset.settingsUrl;
-
-                if (!toggle || !url) {
-                    return;
-                }
-
-                toggle.dataset.savedChecked = toggle.checked ? 'true' : 'false';
-
-                const setLabel = () => {
-                    if (label) {
-                        label.textContent = toggle.checked ? 'Enabled' : 'Disabled';
-                    }
-                };
-
-                const refreshPlansNavigation = (plansNavigationHtml) => {
-                    if (typeof plansNavigationHtml !== 'string' || plansNavigationHtml.length === 0) {
-                        return;
-                    }
-
-                    const template = document.createElement('template');
-                    template.innerHTML = plansNavigationHtml.trim();
-
-                    ['desktop-plans-link', 'mobile-plans-link'].forEach((id) => {
-                        const current = document.getElementById(id);
-                        const replacement = template.content.querySelector('#' + id);
-
-                        if (!current || !replacement) {
-                            return;
-                        }
-
-                        replacement.removeAttribute('hx-swap-oob');
-                        current.replaceWith(replacement);
-
-                        if (window.htmx && typeof window.htmx.process === 'function') {
-                            window.htmx.process(replacement);
-                        }
-                    });
-                };
-
-                toggle.addEventListener('change', async () => {
-                    const previousChecked = toggle.dataset.savedChecked === 'true';
-
-                    toggle.disabled = true;
-                    setLabel();
-                    showInlineStatus(status, 'Saving...');
-
-                    try {
-                        const response = await postJson(url, 'PATCH', {
-                            include_deuterocanonical: toggle.checked,
-                        });
-
-                        if (!response.ok) {
-                            throw new Error('Deuterocanonical preference could not be saved.');
-                        }
-
-                        const data = await response.json();
-
-                        toggle.checked = Boolean(data.include_deuterocanonical);
-                        toggle.dataset.savedChecked = toggle.checked ? 'true' : 'false';
-                        refreshPlansNavigation(data.plans_navigation_html);
-                        setLabel();
-                        showInlineStatus(status, 'Saved', 'success', 2200);
-                    } catch (error) {
-                        toggle.checked = previousChecked;
-                        setLabel();
-                        showInlineStatus(status, 'Could not save. Try again.', 'error');
-                    } finally {
-                        toggle.disabled = false;
-                    }
-                });
-            });
-        };
-
-        initializeDeuterocanonicalSettings();
-
         const reminderSettings = document.querySelector('[data-reading-reminders-settings]');
 
         if (reminderSettings) {
@@ -426,14 +330,8 @@ if (typeof document !== 'undefined') {
             const iosGuidance = reminderSettings.querySelector('[data-reading-reminders-ios-guidance]');
             const status = reminderSettings.querySelector('[data-reading-reminders-status]');
             const preferenceStatus = reminderSettings.querySelector('[data-reading-reminders-preferences-status]');
-            const timezoneInput = reminderSettings.querySelector('[data-push-timezone]');
-            const preferenceInputs = reminderSettings.querySelectorAll('[data-reading-reminders-preference]');
             const disconnectAllButton = reminderSettings.querySelector('[data-reading-reminders-disconnect-all]');
             let currentPushSubscription = null;
-
-            if (timezoneInput && Intl.DateTimeFormat().resolvedOptions().timeZone) {
-                timezoneInput.value = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            }
 
             const setStatus = (message = '', visible = false) => {
                 if (!status) {
@@ -456,19 +354,7 @@ if (typeof document !== 'undefined') {
                 }
             };
 
-            const setPreferenceState = (accountHasDevices, activateDefaults = false) => {
-                preferenceInputs.forEach((input) => {
-                    input.disabled = !accountHasDevices;
-
-                    if (activateDefaults && !input.checked) {
-                        input.checked = true;
-                    }
-
-                    input.dataset.savedChecked = input.checked ? 'true' : 'false';
-                });
-            };
-
-            const setEnabledState = (deviceEnabled, accountHasDevices = null, activateDefaults = false) => {
+            const setEnabledState = (deviceEnabled, accountHasDevices = null) => {
                 const hasDevices = accountHasDevices ?? (reminderSettings.dataset.accountHasDevices === 'true');
 
                 reminderSettings.dataset.deviceEnabled = deviceEnabled ? 'true' : 'false';
@@ -490,7 +376,6 @@ if (typeof document !== 'undefined') {
                     disconnectAllButton.hidden = !hasDevices;
                 }
 
-                setPreferenceState(hasDevices, activateDefaults);
 
                 setStatus();
             };
@@ -611,71 +496,8 @@ if (typeof document !== 'undefined') {
                 showInlineStatus(preferenceStatus, message, tone, clearAfter);
             };
 
-            const saveReminderPreference = async (input) => {
-                if (reminderSettings.dataset.accountHasDevices !== 'true') {
-                    return;
-                }
-
-                const previousChecked = input.dataset.savedChecked === 'true';
-                const preferenceName = input.dataset.readingRemindersPreference || input.name;
-
-                input.disabled = true;
-                setPreferenceStatus('Saving...');
-
-                try {
-                    const response = await postJson(reminderSettings.dataset.preferencesUrl, 'PATCH', {
-                        [preferenceName]: input.checked,
-                        timezone: timezoneInput?.value || Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Reminder preference could not be saved.');
-                    }
-
-                    const data = await response.json();
-
-                    if (Object.prototype.hasOwnProperty.call(data, preferenceName)) {
-                        input.checked = Boolean(data[preferenceName]);
-                    }
-
-                    input.dataset.savedChecked = input.checked ? 'true' : 'false';
-                    setPreferenceStatus('Saved', 'success', 2200);
-                } catch (error) {
-                    input.checked = previousChecked;
-                    setPreferenceStatus('Could not save. Try again.', 'error');
-                } finally {
-                    if (reminderSettings.dataset.accountHasDevices === 'true') {
-                        input.disabled = false;
-                    }
-                }
-            };
-
-            const applySubscriptionState = (data, activateDefaults = false) => {
-                if (Object.prototype.hasOwnProperty.call(data, 'daily_reading_reminder_enabled')) {
-                    const input = reminderSettings.querySelector('[data-reading-reminders-preference="daily_reading_reminder_enabled"]');
-
-                    if (input) {
-                        input.checked = Boolean(data.daily_reading_reminder_enabled);
-                    }
-                }
-
-                if (Object.prototype.hasOwnProperty.call(data, 'streak_warning_enabled')) {
-                    const input = reminderSettings.querySelector('[data-reading-reminders-preference="streak_warning_enabled"]');
-
-                    if (input) {
-                        input.checked = Boolean(data.streak_warning_enabled);
-                    }
-                }
-
-                if (timezoneInput && data.push_notification_timezone) {
-                    timezoneInput.value = data.push_notification_timezone;
-                }
-
-                setEnabledState(
-                    Boolean(data.device_enabled),
-                    Boolean(data.account_has_devices),
-                    activateDefaults,
-                );
+            const applySubscriptionState = (data) => {
+                setEnabledState(Boolean(data.device_enabled), Boolean(data.account_has_devices));
             };
 
             const getCurrentPushSubscription = async () => {
@@ -784,7 +606,6 @@ if (typeof document !== 'undefined') {
                             endpoint: subscription.endpoint,
                             keys: subscriptionJson.keys,
                             contentEncoding: 'aes128gcm',
-                            timezone: timezoneInput?.value || Intl.DateTimeFormat().resolvedOptions().timeZone,
                         });
 
                         if (!response.ok) {
@@ -792,7 +613,7 @@ if (typeof document !== 'undefined') {
                                 status: response.status,
                                 body: await response.text(),
                             });
-                            setEnabledState(false, previousAccountHasDevices, false);
+                            setEnabledState(false, previousAccountHasDevices);
                             showError(
                                 'Delight could not save this browser subscription. Refresh and try again.',
                                 'Subscription could not be saved.',
@@ -802,13 +623,13 @@ if (typeof document !== 'undefined') {
                         }
 
                         setNotice(null);
-                        applySubscriptionState(await response.json(), true);
+                        applySubscriptionState(await response.json());
                         setPreferenceStatus('Saved', 'success', 2200);
                     } catch (error) {
                         console.error('Reading reminder setup failed', error);
 
                         if (error?.name === 'NotAllowedError') {
-                            setEnabledState(false, previousAccountHasDevices, false);
+                            setEnabledState(false, previousAccountHasDevices);
                             showBlocked();
 
                             return;
@@ -817,7 +638,7 @@ if (typeof document !== 'undefined') {
                         if (error?.name === 'AbortError') {
                             const failureMessage = await getPushSubscriptionFailureMessage();
 
-                            setEnabledState(false, previousAccountHasDevices, false);
+                            setEnabledState(false, previousAccountHasDevices);
                             showError(
                                 failureMessage.message,
                                 failureMessage.statusMessage,
@@ -827,7 +648,7 @@ if (typeof document !== 'undefined') {
                         }
 
                         if (error?.message === 'The browser permission prompt did not finish.') {
-                            setEnabledState(false, previousAccountHasDevices, false);
+                            setEnabledState(false, previousAccountHasDevices);
                             showError(
                                 'Choose Allow in the browser permission prompt, then try again.',
                                 'Still waiting for browser permission.',
@@ -836,7 +657,7 @@ if (typeof document !== 'undefined') {
                             return;
                         }
 
-                        setEnabledState(false, previousAccountHasDevices, false);
+                        setEnabledState(false, previousAccountHasDevices);
                         showError(
                             'Notifications were allowed, but Delight could not finish setup. Refresh and try again.',
                             'Reminder setup did not finish.',
@@ -868,7 +689,7 @@ if (typeof document !== 'undefined') {
                         });
 
                         if (!response.ok) {
-                            setEnabledState(previousDeviceEnabled, previousAccountHasDevices, false);
+                            setEnabledState(previousDeviceEnabled, previousAccountHasDevices);
                             showError('Reminder preferences could not be updated. Try again.');
 
                             return;
@@ -883,7 +704,7 @@ if (typeof document !== 'undefined') {
                             showBlocked();
                         }
                     } catch (error) {
-                        setEnabledState(previousDeviceEnabled, previousAccountHasDevices, false);
+                        setEnabledState(previousDeviceEnabled, previousAccountHasDevices);
                         showError('Reminder preferences could not be updated. Try again.');
                     } finally {
                         setBusy(false);
@@ -898,12 +719,6 @@ if (typeof document !== 'undefined') {
                     }
 
                     await enableReminders();
-                });
-
-                preferenceInputs.forEach((input) => {
-                    input.addEventListener('change', () => {
-                        saveReminderPreference(input);
-                    });
                 });
 
                 disconnectAllButton?.addEventListener('click', async () => {
@@ -933,14 +748,5 @@ if (typeof document !== 'undefined') {
             }
         }
 
-        document.body.addEventListener('htmx:afterSwap', (event) => {
-            const target = event?.detail?.target;
-
-            if (!(target instanceof Element) || target.id !== 'page-container') {
-                return;
-            }
-
-            initializeDeuterocanonicalSettings(target);
-        });
     });
 }

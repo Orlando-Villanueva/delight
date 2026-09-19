@@ -32,7 +32,7 @@
         <select 
             id="{{ $selectId }}"
             name="{{ $name }}"
-            class="{{ $selectClasses }} pr-12 appearance-none"
+            class="{{ $selectClasses }} pr-12 appearance-none shadow-none"
             {{ $required ? 'required' : '' }}
             {{ $disabled ? 'disabled' : '' }}
             @if($hasError) aria-invalid="true" aria-describedby="{{ $selectId }}-error" @endif
@@ -80,4 +80,4 @@
             {{ $help }}
         </p>
     @endif
-</div> 
+</div>

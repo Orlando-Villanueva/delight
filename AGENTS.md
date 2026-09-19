@@ -48,6 +48,7 @@ These project-specific exceptions take precedence over the blanket test-change a
 - **UI Review Findings**: Before dismissing an automated or human UI-review comment, verify it against the rendered state and relevant design tokens. Treat concrete, inexpensive usability issues as actionable even when the visual intent is sound.
 
 ## Coding Style & Naming Conventions
+- Render form controls and their markup in Blade components. Prefer native controls when they meet the need; do not construct entire controls or custom dropdowns through imperative JavaScript DOM manipulation. Keep JavaScript focused on behavior in small component modules, with `app.js` limited to wiring those components.
 - Structure services as `App\Services\{Domain}Service`; keep action classes verb-oriented.
 - Group related routes when they share a controller, URI prefix, route-name prefix, or middleware. Keep routes separate when grouping would obscure meaningful differences or combine unrelated behavior.
 - Blade files should stay HTMX-first: prefer `hx-*` attributes and use **Blade Fragments** (`@fragment`) for partial page updates over separate partial files.

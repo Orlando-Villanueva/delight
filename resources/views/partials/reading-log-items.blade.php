@@ -1,7 +1,7 @@
 @props(['logs', 'includeEmptyToday' => false])
 
 @php
-    $today = today()->format('Y-m-d');
+    $today = $readingToday->format('Y-m-d');
 @endphp
 
 @if ($includeEmptyToday && !$logs->keys()->contains($today))
@@ -14,7 +14,7 @@
         {{-- Date Header --}}
         <div class="flex items-center gap-2 mb-4">
             <time class="text-sm font-semibold text-gray-900 dark:text-white">
-                {{ today()->format('M j, Y') }}
+                {{ $readingToday->format('M j, Y') }}
             </time>
             <span
                 class="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 text-xs font-medium px-2.5 py-0.5 rounded-full">
