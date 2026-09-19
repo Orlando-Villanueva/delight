@@ -48,9 +48,10 @@ it('stores a subscription and enables default reading reminder preferences', fun
 
     expect($freshUser->pushSubscriptions()->count())->toBe(1)
         ->and($freshUser->push_notifications_enabled_at)->not->toBeNull()
-        ->and($freshUser->daily_reading_reminder_enabled_at)->not->toBeNull()
-        ->and($freshUser->streak_warning_enabled_at)->not->toBeNull()
-        ->and($freshUser->push_notification_timezone)->toBe('America/Toronto');
+        ->and($freshUser->daily_reading_reminder_enabled_at)->toBeNull()
+        ->and($freshUser->streak_warning_enabled_at)->toBeNull()
+        ->and($freshUser->reading_timezone)->toBe('America/Toronto')
+        ->and($freshUser->push_notification_timezone)->toBeNull();
 });
 
 it('reports whether the current browser endpoint is connected to this account', function () {
@@ -206,12 +207,13 @@ it('updates reading reminder preferences independently', function () {
         ->assertJsonPath('enabled', true)
         ->assertJsonPath('daily_reading_reminder_enabled', false)
         ->assertJsonPath('streak_warning_enabled', true)
-        ->assertJsonPath('push_notification_timezone', 'America/New_York');
+        ->assertJsonPath('push_notification_timezone', 'America/Toronto');
 
     $freshUser = $user->fresh();
 
     expect($freshUser->hasDailyReadingReminderEnabled())->toBeFalse()
         ->and($freshUser->hasStreakWarningEnabled())->toBeTrue()
-        ->and($freshUser->push_notification_timezone)->toBe('America/New_York')
+        ->and($freshUser->reading_timezone)->toBe('America/Toronto')
+        ->and($freshUser->push_notification_timezone)->toBe('America/Toronto')
         ->and($freshUser->pushSubscriptions()->count())->toBe(1);
 });

@@ -6,6 +6,8 @@ use App\Http\Requests\UpdateSettingsRequest;
 use App\Services\AnnualRecapService;
 use App\Services\ReadingCalendarService;
 use App\Services\ReadingPlanService;
+use App\Services\UserStatisticsService;
+use DateTimeZone;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -16,7 +18,8 @@ class SettingsController extends Controller
 {
     public function __construct(
         private ReadingPlanService $readingPlanService,
-        private ReadingCalendarService $readingCalendar
+        private ReadingCalendarService $readingCalendar,
+        private UserStatisticsService $userStatistics
     ) {}
 
     /**
@@ -24,7 +27,20 @@ class SettingsController extends Controller
      */
     public function edit(): View
     {
-        return view('settings.edit');
+        $timezone = $this->readingCalendar->timezoneFor(auth()->user());
+        $timezones = array_unique([...DateTimeZone::listIdentifiers(), $timezone]);
+        sort($timezones);
+
+        $referenceTime = now()->toImmutable();
+
+        return view('settings.edit', [
+            'readingTimezone' => $timezone,
+            'readingTimezoneOptions' => array_combine($timezones, array_map(
+                fn (string $zone): string => str_replace('_', ' ', basename($zone))
+                    .' — '.$zone.' (UTC'.$referenceTime->setTimezone($zone)->format('P').')',
+                $timezones,
+            )),
+        ]);
     }
 
     /**
@@ -50,11 +66,17 @@ class SettingsController extends Controller
         }
 
         if (array_key_exists('push_notification_timezone', $validated)) {
-            $updates['push_notification_timezone'] = $validated['push_notification_timezone'] ?: $user->pushNotificationTimezone();
+            $this->readingCalendar->establishTimezone($user, $validated['push_notification_timezone']);
         }
 
         if ($updates !== []) {
             $user->forceFill($updates)->save();
+        }
+
+        if (array_key_exists('reading_timezone', $validated) && $user->reading_timezone !== $validated['reading_timezone']) {
+            $this->userStatistics->invalidateUserCache($user);
+            $this->readingCalendar->changeTimezone($user, $validated['reading_timezone']);
+            $this->userStatistics->invalidateUserCache($user);
         }
 
         Cache::forget($this->readingCalendar->cacheKey($user, "user_dashboard_stats_{$user->id}"));
@@ -77,6 +99,7 @@ class SettingsController extends Controller
                 'daily_reading_reminder_enabled' => $freshUser->hasDailyReadingReminderEnabled(),
                 'streak_warning_enabled' => $freshUser->hasStreakWarningEnabled(),
                 'push_notification_timezone' => $freshUser->pushNotificationTimezone(),
+                'reading_timezone' => $this->readingCalendar->timezoneFor($freshUser),
             ];
 
             if ($pausedCatholicCanonicalPlan) {

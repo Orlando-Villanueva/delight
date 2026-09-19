@@ -35,8 +35,8 @@ it('shows reading reminder settings with explicit enable control and support gui
         ->assertSee('Safari -> Add to Home Screen -> open Delight from the Home Screen icon -> enable notifications', false)
         ->assertDontSee('Schedule')
         ->assertDontSee('AMERICA/TORONTO')
-        ->assertDontSee('name="daily_reading_reminder_enabled" value="0"', false)
-        ->assertDontSee('name="streak_warning_enabled" value="0"', false)
+        ->assertSee('name="daily_reading_reminder_enabled" value="0"', false)
+        ->assertSee('name="streak_warning_enabled" value="0"', false)
         ->assertDontSee('Browser notifications can remind you at 09:00', false)
         ->assertDontSee('Both reminders are included when browser notifications are enabled.');
 });
@@ -61,7 +61,7 @@ it('updates reading reminder preferences without changing the deuterocanonical s
     expect($freshUser->includesDeuterocanonicalBooks())->toBeTrue()
         ->and($freshUser->daily_reading_reminder_enabled_at)->not->toBeNull()
         ->and($freshUser->streak_warning_enabled_at)->toBeNull()
-        ->and($freshUser->push_notification_timezone)->toBe('America/Toronto');
+        ->and($freshUser->reading_timezone)->toBe('America/Toronto');
 });
 
 it('keeps reminder preferences disabled when unchecked', function () {
@@ -85,7 +85,7 @@ it('keeps reminder preferences disabled when unchecked', function () {
 
     expect($freshUser->daily_reading_reminder_enabled_at)->toBeNull()
         ->and($freshUser->streak_warning_enabled_at)->toBeNull()
-        ->and($freshUser->push_notification_timezone)->toBe('America/Toronto');
+        ->and($freshUser->reading_timezone)->toBe('America/Toronto');
 });
 
 it('does not render this browser as enabled from the account-level connected marker', function () {
@@ -108,7 +108,7 @@ it('does not render this browser as enabled from the account-level connected mar
         ->assertDontSee('This browser can receive reading reminders.');
 });
 
-it('keeps the no-JS settings fallback submit in noscript', function () {
+it('shows the shared save button and confirmation with or without JavaScript', function () {
     $user = User::factory()->create();
 
     $this->withSession(['status' => 'Settings saved.'])
@@ -117,25 +117,24 @@ it('keeps the no-JS settings fallback submit in noscript', function () {
         ->assertSuccessful()
         ->assertSee('role="status"', false)
         ->assertSee('aria-live="polite"', false)
-        ->assertSee('<noscript>', false)
+        ->assertDontSee('<noscript>', false)
         ->assertSeeInOrder([
-            'data-push-timezone',
             'Settings saved.',
             'Save settings',
         ], false);
 });
 
-it('shows immediate-save hooks for settings controls', function () {
+it('renders account preferences without individual autosave hooks', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
         ->get(route('settings.edit'))
         ->assertSuccessful()
-        ->assertSee('data-deuterocanonical-setting', false)
-        ->assertSee('data-deuterocanonical-toggle', false)
+        ->assertDontSee('data-deuterocanonical-setting', false)
+        ->assertDontSee('data-deuterocanonical-toggle', false)
         ->assertSee('aria-label="Include deuterocanonical books"', false)
-        ->assertSee('data-deuterocanonical-toggle-label class="sr-only"', false)
-        ->assertSee('data-deuterocanonical-status hidden', false)
+        ->assertDontSee('data-deuterocanonical-toggle-label class="sr-only"', false)
+        ->assertDontSee('data-deuterocanonical-status hidden', false)
         ->assertSee('data-reading-reminders-preferences-status hidden', false)
         ->assertDontSee('min-w-20', false)
         ->assertDontSee('Settings saved.');
@@ -150,12 +149,7 @@ it('uses a single browser-state toggle for reminder visibility', function () {
         ->and($javascript)->not->toContain('Enable reading reminders for this browser')
         ->and($javascript)->not->toContain('Disable reading reminders for this browser')
         ->and($javascript)->toContain('Notifications are allowed. Turn this on to connect this browser to Delight reminders.')
-        ->and($javascript)->toContain('initializeDeuterocanonicalSettings')
-        ->and($javascript)->toContain('saveReminderPreference')
-        ->and($javascript)->toContain("showInlineStatus(status, 'Saved'")
         ->and($javascript)->toContain('showInlineStatus(preferenceStatus, message')
-        ->and($javascript)->toContain("document.body.addEventListener('htmx:afterSwap'")
-        ->and($javascript)->toContain("target.id !== 'page-container'")
         ->and($javascript)->toContain('requestPermissionWithTimeout')
         ->and($javascript)->toContain('readyServiceWorkerRegistration')
         ->and($javascript)->toContain('currentPushSubscription')

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateSettingsRequest extends FormRequest
@@ -17,7 +18,7 @@ class UpdateSettingsRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -26,6 +27,7 @@ class UpdateSettingsRequest extends FormRequest
             'daily_reading_reminder_enabled' => ['nullable', 'boolean'],
             'streak_warning_enabled' => ['nullable', 'boolean'],
             'push_notification_timezone' => ['nullable', 'timezone'],
+            'reading_timezone' => ['sometimes', 'required', 'string', 'timezone:all_with_bc'],
         ];
     }
 }

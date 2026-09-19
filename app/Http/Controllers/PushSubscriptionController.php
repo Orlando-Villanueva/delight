@@ -6,11 +6,14 @@ use App\Http\Requests\DeletePushSubscriptionRequest;
 use App\Http\Requests\PushSubscriptionStatusRequest;
 use App\Http\Requests\StorePushSubscriptionRequest;
 use App\Models\User;
+use App\Services\ReadingCalendarService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PushSubscriptionController extends Controller
 {
+    public function __construct(private ReadingCalendarService $readingCalendar) {}
+
     public function status(PushSubscriptionStatusRequest $request): JsonResponse
     {
         return response()->json($this->subscriptionState(
@@ -23,6 +26,7 @@ class PushSubscriptionController extends Controller
     {
         $user = $request->user();
         $validated = $request->validated();
+        $this->readingCalendar->establishTimezone($user, $validated['timezone'] ?? null);
 
         $user->updatePushSubscription(
             $validated['endpoint'],
@@ -33,9 +37,6 @@ class PushSubscriptionController extends Controller
 
         $user->forceFill([
             'push_notifications_enabled_at' => $user->push_notifications_enabled_at ?? now(),
-            'daily_reading_reminder_enabled_at' => $user->daily_reading_reminder_enabled_at ?? now(),
-            'streak_warning_enabled_at' => $user->streak_warning_enabled_at ?? now(),
-            'push_notification_timezone' => $validated['timezone'] ?? $user->pushNotificationTimezone(),
         ])->save();
 
         return response()->json($this->subscriptionState($user->fresh(), $validated['endpoint']));

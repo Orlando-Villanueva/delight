@@ -3,14 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdatePushPreferencesRequest;
+use App\Services\ReadingCalendarService;
 use Illuminate\Http\JsonResponse;
 
 class PushPreferenceController extends Controller
 {
+    public function __construct(private ReadingCalendarService $readingCalendar) {}
+
     public function update(UpdatePushPreferencesRequest $request): JsonResponse
     {
         $user = $request->user();
         $validated = $request->validated();
+        $this->readingCalendar->establishTimezone($user, $validated['timezone'] ?? null);
 
         $user->forceFill([
             'daily_reading_reminder_enabled_at' => array_key_exists('daily_reading_reminder_enabled', $validated)
@@ -19,7 +23,6 @@ class PushPreferenceController extends Controller
             'streak_warning_enabled_at' => array_key_exists('streak_warning_enabled', $validated)
                 ? ($request->boolean('streak_warning_enabled') ? now() : null)
                 : $user->streak_warning_enabled_at,
-            'push_notification_timezone' => $validated['timezone'] ?? $user->pushNotificationTimezone(),
         ])->save();
 
         $freshUser = $user->fresh();

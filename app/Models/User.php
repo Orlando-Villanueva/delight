@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Notifications\CustomResetPasswordNotification;
 use App\Services\EmailService;
+use App\Services\ReadingCalendarService;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -237,9 +238,12 @@ class User extends Authenticatable
         return $this->streak_warning_enabled_at !== null;
     }
 
+    /**
+     * Preserve the reminder response field while using the account calendar.
+     */
     public function pushNotificationTimezone(): string
     {
-        return $this->push_notification_timezone ?: config('app.timezone');
+        return app(ReadingCalendarService::class)->timezoneFor($this);
     }
 
     /**

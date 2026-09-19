@@ -6,6 +6,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use DateTimeZone;
+use InvalidArgumentException;
 
 class ReadingCalendarService
 {
@@ -41,6 +42,22 @@ class ReadingCalendarService
         }
 
         return $this->timezoneFor($user);
+    }
+
+    /**
+     * Change the account calendar only after an explicit settings choice.
+     */
+    public function changeTimezone(User $user, string $timezone): void
+    {
+        if (! $this->isValidTimezone($timezone)) {
+            throw new InvalidArgumentException('Invalid reading timezone.');
+        }
+
+        $user->refresh();
+
+        if ($user->reading_timezone !== $timezone) {
+            $user->forceFill(['reading_timezone' => $timezone])->save();
+        }
     }
 
     public function nowFor(User $user, ?CarbonInterface $referenceTime = null): CarbonImmutable
