@@ -59,9 +59,9 @@
                     <div class="flex items-start justify-between gap-4">
                         <div class="space-y-2">
                             <div class="flex flex-wrap items-center gap-2">
-                                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Reading reminders</h2>
+                                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Web reading reminders</h2>
                                 <span title="Beta: available as an opt-in while browser notification support is being tested."
-                                    class="inline-flex items-center rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700 dark:border-primary-900/60 dark:bg-primary-900/20 dark:text-primary-200">
+                                    class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                                     Beta
                                 </span>
                             </div>
@@ -104,7 +104,7 @@
                         Reminder setup could not finish. Refresh the page and try again.
                     </div>
 
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Connecting or disconnecting this browser takes effect immediately. Save the preferences below with Save settings. Reminders require a connected device.</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Connecting or disconnecting this browser takes effect immediately. Save the preferences below with Save settings. These are browser notifications for this device; mobile notifications are separate.</p>
 
                     <div>
                         <p data-reading-reminders-preferences-status hidden
@@ -137,10 +137,10 @@
                             </label>
                         </div>
 
-                        <div class="mt-4 flex justify-end">
+                        <div class="flex justify-end">
                             <button type="button" data-reading-reminders-disconnect-all
                                 @if (! $accountHasReminderDevices) hidden @endif
-                                class="text-sm font-medium text-gray-500 underline-offset-4 hover:text-gray-700 hover:underline dark:text-gray-400 dark:hover:text-gray-200">
+                                class="mt-4 text-sm font-medium text-gray-500 underline-offset-4 hover:text-gray-700 hover:underline dark:text-gray-400 dark:hover:text-gray-200">
                                 Turn off reminders everywhere
                             </button>
                         </div>

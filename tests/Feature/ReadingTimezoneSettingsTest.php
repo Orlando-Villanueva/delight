@@ -15,6 +15,7 @@ it('shows the saved timezone alongside other preferences in the same accessible 
 
     expect($xpath->query('//label[@for="reading_timezone"]')->item(0)->textContent)->toContain('Time zone');
     expect($xpath->query('//select[@name="reading_timezone"]/option[@selected]')->item(0)->getAttribute('value'))->toBe('Asia/Tokyo');
+    expect($xpath->query('//select[@name="reading_timezone" and contains(@class, "shadow-none")]')->length)->toBe(1);
     expect($xpath->query('//select[@name="reading_timezone"]/ancestor::form//input[@name="daily_reading_reminder_enabled" and @type="checkbox"]')->length)->toBe(1);
     expect($xpath->query('//input[@name="push_notification_timezone"]')->length)->toBe(0);
 });

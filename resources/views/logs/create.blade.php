@@ -173,7 +173,7 @@
                                         id="book_id"
                                         name="book_id"
                                         required
-                                        class="form-input -ml-px w-full rounded-s-none"
+                                        class="form-input -ml-px w-full rounded-s-none shadow-none"
                                         aria-label="Select Bible book"
                                         x-model="selectedBook"
                                         @change="updateChapterPlaceholder($event.target.value)"

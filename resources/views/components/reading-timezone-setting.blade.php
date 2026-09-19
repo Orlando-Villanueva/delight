@@ -13,7 +13,7 @@
     <select id="reading_timezone" name="reading_timezone" required
         aria-describedby="reading-timezone-help{{ $errors->has('reading_timezone') ? ' reading-timezone-error' : '' }}"
         @if ($errors->has('reading_timezone')) aria-invalid="true" @endif
-        class="form-input rounded-lg pr-10">
+        class="form-input rounded-lg pr-10 shadow-none">
         @foreach ($options as $value => $label)
             <option value="{{ $value }}" @selected(old('reading_timezone', $timezone) === $value)>{{ $label }}</option>
         @endforeach
