@@ -20,6 +20,7 @@ import {
 import { AndroidUpdateChecker } from '@/components/android-update-checker';
 import { environment } from '@/config/environment';
 import { getAndroidInstallerSource } from '@/native/installer-source';
+import { themeTokens } from '@/theme/tokens';
 
 jest.mock('@/api/client', () => ({ apiRequest: jest.fn() }));
 jest.mock('@/native/installer-source', () => ({ getAndroidInstallerSource: jest.fn() }));
@@ -53,7 +54,7 @@ jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) =
   return { remove: jest.fn() };
 });
 
-function renderChecker() {
+function renderChecker(insetBottom = 34) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { gcTime: 0, retry: false } },
   });
@@ -62,7 +63,7 @@ function renderChecker() {
     <SafeAreaProvider
       initialMetrics={{
         frame: { x: 0, y: 0, width: 390, height: 844 },
-        insets: { top: 47, left: 0, right: 0, bottom: 34 },
+        insets: { top: 47, left: 0, right: 0, bottom: insetBottom },
       }}
     >
       <QueryClientProvider client={queryClient}>
@@ -138,6 +139,31 @@ describe('Android update checker', () => {
       expect.stringContaining('"versionCode":10'),
     );
     expect(screen.queryByText('A newer Delight version is ready')).not.toBeOnTheScreen();
+  });
+
+  it('keeps gesture navigation spacing tight and adds room for a button bar', async () => {
+    mockedApiRequest.mockResolvedValue({
+      data: {
+        version: '0.2.0',
+        version_code: 10,
+        update_url: 'https://mydelight.app/android',
+      },
+    });
+
+    renderChecker(0);
+
+    await waitFor(() => expect(screen.getByLabelText('Download update')).toBeOnTheScreen());
+    expect(screen.getByLabelText('Download update').props.style).toEqual(
+      expect.objectContaining({ marginBottom: 0 }),
+    );
+
+    await cleanup();
+    renderChecker(48);
+
+    await waitFor(() => expect(screen.getByLabelText('Download update')).toBeOnTheScreen());
+    expect(screen.getByLabelText('Download update').props.style).toEqual(
+      expect.objectContaining({ marginBottom: themeTokens.spacing.section }),
+    );
   });
 
   it('does not prompt when the installed build is current', async () => {

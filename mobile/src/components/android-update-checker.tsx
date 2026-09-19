@@ -15,6 +15,7 @@ import {
   type AppStateStatus,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   androidUpdateCheckCooldownMs,
@@ -167,6 +168,7 @@ function AndroidUpdatePromptView({
   onDownload,
 }: Readonly<AndroidUpdatePrompt>): ReactElement {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <BottomSheet
@@ -205,7 +207,9 @@ function AndroidUpdatePromptView({
             minHeight: themeTokens.minimumTouchTarget,
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: themeTokens.spacing.section,
+            marginBottom: insets.bottom > themeTokens.spacing.screen
+              ? themeTokens.spacing.section
+              : 0,
             paddingHorizontal: 16,
             borderRadius: themeTokens.radius.control,
             backgroundColor: colors.accentAction,
