@@ -64,7 +64,7 @@
 
                             <div
                                 data-date-read-segmented-control
-                                class="grid grid-cols-2 overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-700"
+                                class="grid grid-cols-2 overflow-hidden rounded-lg border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-700"
                             >
                                 <div class="flex items-center">
                                     <input
@@ -114,7 +114,7 @@
                                     id="testament-button"
                                     data-dropdown-toggle="testament-dropdown"
                                     data-dropdown-placement="bottom-start"
-                                    class="z-10 inline-flex shrink-0 items-center rounded-s-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:z-10 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus:ring-primary-600"
+                                    class="z-10 inline-flex shrink-0 items-center rounded-s-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus:ring-primary-600"
                                     type="button"
                                 >
                                     <span x-text="testamentLabel"></span>
