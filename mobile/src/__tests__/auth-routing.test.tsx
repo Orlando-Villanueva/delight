@@ -84,6 +84,9 @@ jest.mock('@/auth/auth-context', () => ({
   },
   useAuth: jest.fn(),
 }));
+jest.mock('@/components/android-update-checker', () => ({
+  AndroidUpdateChecker: () => null,
+}));
 
 describe('authenticated route protection', () => {
   beforeEach(() => {

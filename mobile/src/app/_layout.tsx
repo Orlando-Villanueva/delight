@@ -6,8 +6,9 @@ import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 
-import { AuthProvider } from '@/auth/auth-context';
 import { shouldRetryQuery } from '@/api/retry-policy';
+import { AuthProvider } from '@/auth/auth-context';
+import { AndroidUpdateChecker } from '@/components/android-update-checker';
 import { useTheme } from '@/theme/use-theme';
 
 const queryClient = new QueryClient({
@@ -43,6 +44,7 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AndroidUpdateChecker />
       <AuthProvider>
         <ThemeProvider value={navigationTheme}>
           <View testID="app-background" style={{ flex: 1, backgroundColor: colors.background }}>

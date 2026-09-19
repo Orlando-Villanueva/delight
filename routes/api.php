@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AndroidReleaseController;
 use App\Http\Controllers\Api\V1\GoogleMobileTokenController;
 use App\Http\Controllers\Api\V1\MobileBootstrapController;
 use App\Http\Controllers\Api\V1\MobileTokenController;
@@ -23,6 +24,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
+    Route::get('/android/release', AndroidReleaseController::class)
+        ->middleware('cache.headers:public;max_age=300;s_maxage=300;stale_while_revalidate=600;etag')
+        ->name('android.release');
+
     Route::post('/auth/token', [MobileTokenController::class, 'store'])
         ->middleware('throttle:mobile-login')
         ->name('auth.token.store');

@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'update_url' => 'https://mydelight.app/android',
     'download_url' => 'https://github.com/Orlando-Villanueva/delight/releases/download/android-v0.1.0-10/delight-android.apk',
     'release_url' => 'https://github.com/Orlando-Villanueva/delight/releases/tag/android-v0.1.0-10',
 

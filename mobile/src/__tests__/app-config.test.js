@@ -35,6 +35,26 @@ function configForWithApiOverride(appVariant, apiUrl) {
   }
 }
 
+function configForWithUpdateChecker(appVariant, enabled) {
+  const previousCheckerSetting = process.env.EXPO_PUBLIC_ANDROID_UPDATE_CHECKER_ENABLED;
+
+  if (enabled === undefined) {
+    delete process.env.EXPO_PUBLIC_ANDROID_UPDATE_CHECKER_ENABLED;
+  } else {
+    process.env.EXPO_PUBLIC_ANDROID_UPDATE_CHECKER_ENABLED = String(enabled);
+  }
+
+  try {
+    return configFor(appVariant);
+  } finally {
+    if (previousCheckerSetting === undefined) {
+      delete process.env.EXPO_PUBLIC_ANDROID_UPDATE_CHECKER_ENABLED;
+    } else {
+      process.env.EXPO_PUBLIC_ANDROID_UPDATE_CHECKER_ENABLED = previousCheckerSetting;
+    }
+  }
+}
+
 function configForWithGoogle(appVariant, webClientId, iosUrlScheme) {
   const previousWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   const previousIosUrlScheme = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME;
@@ -128,6 +148,16 @@ describe('app configuration identities', () => {
     expect(configForWithApiOverride('production', 'https://local.example').extra.apiUrl).toBe('https://mydelight.app');
   });
 
+  it('enables the checker for production and only explicitly opted-in development builds', () => {
+    expect(configForWithUpdateChecker('production', false).extra.androidUpdateCheckerEnabled).toBe(true);
+    expect(configForWithUpdateChecker('development', true).extra.androidUpdateCheckerEnabled).toBe(true);
+    expect(configForWithUpdateChecker('development', false).extra.androidUpdateCheckerEnabled).toBe(false);
+  });
+
+  it('keeps the checker disabled for preview builds', () => {
+    expect(configForWithUpdateChecker('preview', true).extra.androidUpdateCheckerEnabled).toBe(false);
+  });
+
   it.each(['development', 'preview', 'production'])('links the %s variant to the existing EAS project', (appVariant) => {
     expect(configFor(appVariant).extra.eas.projectId).toBe('aa50d7fa-9028-4991-abb9-8f58d306cadf');
   });
@@ -153,6 +183,8 @@ describe('app configuration identities', () => {
     expect(config.android.package).not.toBe(configFor('production').android.package);
     expect(config.extra.apiUrl).toBe('https://delight-staging.laravel.cloud');
     expect(profile.env.EXPO_PUBLIC_API_URL).toBe(config.extra.apiUrl);
+    expect(profile.env.EXPO_PUBLIC_ANDROID_UPDATE_CHECKER_ENABLED).toBe('true');
+    expect(configForWithUpdateChecker('development', true).extra.androidUpdateCheckerEnabled).toBe(true);
   });
 
   it('resolves the Play profile to a production AAB without development overrides', () => {
