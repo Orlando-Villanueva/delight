@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AnnualRecap;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
@@ -89,6 +90,31 @@ it('disables the Catholic canon setting', function () {
 
     expect($user->fresh()->includesDeuterocanonicalBooks())->toBeFalse()
         ->and(Cache::has(AnnualRecapService::cacheKeyFor($user, now()->year)))->toBeFalse();
+});
+
+it('invalidates persisted recap snapshots when the Catholic canon changes', function () {
+    $user = User::factory()->create();
+    $currentYear = now()->year;
+    $recapYears = [$currentYear - 2, $currentYear - 1, $currentYear];
+
+    foreach ($recapYears as $year) {
+        AnnualRecap::create([
+            'user_id' => $user->id,
+            'year' => $year,
+            'snapshot' => ['top_books' => []],
+            'generated_at' => now(),
+        ]);
+        Cache::put(AnnualRecapService::cacheKeyFor($user, $year), ['cached' => true], 300);
+    }
+
+    $this->actingAs($user)
+        ->patch(route('settings.update'), ['include_deuterocanonical' => '1'])
+        ->assertRedirect(route('settings.edit'));
+
+    foreach ($recapYears as $year) {
+        $this->assertDatabaseMissing('annual_recaps', ['user_id' => $user->id, 'year' => $year]);
+        expect(Cache::has(AnnualRecapService::cacheKeyFor($user, $year)))->toBeFalse();
+    }
 });
 
 it('pauses the Catholic canonical plan when the Catholic canon setting is disabled', function () {

@@ -168,7 +168,7 @@ class DashboardControllerTest extends TestCase
     public function test_index_uses_the_account_timezone_for_the_recap_card()
     {
         $this->user->forceFill(['reading_timezone' => 'Asia/Tokyo'])->save();
-        $this->travelTo(Carbon::parse('2025-12-01 04:30:00', 'UTC'));
+        $this->travelTo(Carbon::parse('2025-11-30 15:30:00', 'UTC'));
 
         $response = $this->get('/dashboard');
 

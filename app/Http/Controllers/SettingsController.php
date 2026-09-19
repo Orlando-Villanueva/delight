@@ -100,6 +100,18 @@ class SettingsController extends Controller
                 ];
             }
 
+            if ($canonChanged) {
+                $persistedRecapYears = $freshUser->annualRecaps()
+                    ->pluck('year')
+                    ->map(fn (mixed $year): int => (int) $year)
+                    ->all();
+
+                $recapYears = array_values(array_unique([
+                    ...$persistedRecapYears,
+                    ...$recapYears,
+                ]));
+            }
+
             $this->annualRecapService->invalidateForYears(
                 $freshUser,
                 ...$recapYears
