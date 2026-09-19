@@ -27,7 +27,6 @@ it('requires authentication to correct the reading timezone', function () {
 it('corrects the account timezone without changing history or other preferences', function () {
     $user = User::factory()->create([
         'reading_timezone' => 'America/Toronto',
-        'push_notification_timezone' => 'America/Toronto',
         'daily_reading_reminder_enabled_at' => now()->subDay(),
         'deuterocanonical_books_enabled_at' => now()->subDay(),
     ]);
@@ -79,16 +78,14 @@ it('refreshes cached streaks when correcting the timezone and switching back', f
     expect($stats->getStreakStatistics($user->fresh())['current_streak'])->toBe(2);
 });
 
-it('keeps an explicit timezone when older reminder forms report a different browser timezone', function (string $route, string $field) {
+it('keeps an explicit timezone when a reminder form reports a different browser timezone', function () {
     $user = User::factory()->create(['reading_timezone' => 'Asia/Tokyo']);
-    $this->actingAs($user)->patchJson(route($route), [$field => 'America/Toronto', 'daily_reading_reminder_enabled' => true])
-        ->assertOk()->assertJsonPath('push_notification_timezone', 'Asia/Tokyo');
+    $this->actingAs($user)->patchJson(route('push.preferences.update'), [
+        'timezone' => 'America/Toronto',
+        'daily_reading_reminder_enabled' => true,
+    ])->assertOk()->assertJsonPath('reading_timezone', 'Asia/Tokyo');
     expect($user->fresh()->reading_timezone)->toBe('Asia/Tokyo');
-    expect($user->fresh()->push_notification_timezone)->toBeNull();
-})->with([
-    'settings form' => ['settings.update', 'push_notification_timezone'],
-    'reminder preferences' => ['push.preferences.update', 'timezone'],
-]);
+});
 
 it('does not overwrite the account timezone when connecting another browser', function () {
     $user = User::factory()->create(['reading_timezone' => 'Asia/Tokyo']);
@@ -96,9 +93,8 @@ it('does not overwrite the account timezone when connecting another browser', fu
         'endpoint' => 'https://example.com/tokyo-browser',
         'keys' => ['p256dh' => str_repeat('a', 88), 'auth' => str_repeat('b', 24)],
         'timezone' => 'America/Toronto',
-    ])->assertOk()->assertJsonPath('push_notification_timezone', 'Asia/Tokyo');
+    ])->assertOk()->assertJsonPath('reading_timezone', 'Asia/Tokyo');
     expect($user->fresh()->reading_timezone)->toBe('Asia/Tokyo');
-    expect($user->fresh()->push_notification_timezone)->toBeNull();
 });
 
 it('rejects invalid timezone changes through the calendar service', function () {

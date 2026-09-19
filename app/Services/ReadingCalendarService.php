@@ -12,10 +12,8 @@ class ReadingCalendarService
 {
     public function timezoneFor(User $user): string
     {
-        foreach ([$user->reading_timezone, $user->push_notification_timezone] as $timezone) {
-            if ($this->isValidTimezone($timezone)) {
-                return $timezone;
-            }
+        if ($this->isValidTimezone($user->reading_timezone)) {
+            return $user->reading_timezone;
         }
 
         return config('app.timezone');
@@ -29,19 +27,20 @@ class ReadingCalendarService
         $user->refresh();
 
         if ($user->reading_timezone === null) {
-            $timezone = $this->isValidTimezone($user->push_notification_timezone)
-                ? $user->push_notification_timezone
-                : $reportedTimezone;
-
-            if ($this->isValidTimezone($timezone)) {
+            if ($this->isValidTimezone($reportedTimezone)) {
                 User::query()->whereKey($user->id)->whereNull('reading_timezone')
-                    ->update(['reading_timezone' => $timezone]);
+                    ->update(['reading_timezone' => $reportedTimezone]);
 
                 $user->refresh();
             }
         }
 
         return $this->timezoneFor($user);
+    }
+
+    public function hasEstablishedTimezone(User $user): bool
+    {
+        return $this->isValidTimezone($user->reading_timezone);
     }
 
     /**

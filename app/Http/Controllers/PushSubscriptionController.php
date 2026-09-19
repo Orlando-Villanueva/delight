@@ -66,7 +66,7 @@ class PushSubscriptionController extends Controller
     }
 
     /**
-     * @return array{device_enabled: bool, account_has_devices: bool, subscription_count: int, daily_reading_reminder_enabled: bool, streak_warning_enabled: bool, push_notification_timezone: string}
+     * @return array{device_enabled: bool, account_has_devices: bool, subscription_count: int, daily_reading_reminder_enabled: bool, streak_warning_enabled: bool, reading_timezone: string}
      */
     private function subscriptionState(User $user, ?string $endpoint = null): array
     {
@@ -78,7 +78,7 @@ class PushSubscriptionController extends Controller
             'subscription_count' => $subscriptionCount,
             'daily_reading_reminder_enabled' => $user->hasDailyReadingReminderEnabled(),
             'streak_warning_enabled' => $user->hasStreakWarningEnabled(),
-            'push_notification_timezone' => $user->pushNotificationTimezone(),
+            'reading_timezone' => $this->readingCalendar->timezoneFor($user),
         ];
     }
 

@@ -26,7 +26,6 @@ class UpdateSettingsRequest extends FormRequest
             'include_deuterocanonical' => ['nullable', 'boolean'],
             'daily_reading_reminder_enabled' => ['nullable', 'boolean'],
             'streak_warning_enabled' => ['nullable', 'boolean'],
-            'push_notification_timezone' => ['nullable', 'timezone'],
             'reading_timezone' => ['sometimes', 'required', 'string', 'timezone:all_with_bc'],
         ];
     }

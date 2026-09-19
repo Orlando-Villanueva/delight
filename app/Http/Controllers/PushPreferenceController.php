@@ -32,7 +32,7 @@ class PushPreferenceController extends Controller
             'account_has_devices' => $freshUser->pushSubscriptions()->exists(),
             'daily_reading_reminder_enabled' => $freshUser->hasDailyReadingReminderEnabled(),
             'streak_warning_enabled' => $freshUser->hasStreakWarningEnabled(),
-            'push_notification_timezone' => $freshUser->pushNotificationTimezone(),
+            'reading_timezone' => $this->readingCalendar->timezoneFor($freshUser),
         ]);
     }
 }

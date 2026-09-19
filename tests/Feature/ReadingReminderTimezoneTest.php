@@ -18,7 +18,6 @@ function accountTimezoneReminderUser(string $timezone): User
 {
     $user = User::factory()->create([
         'reading_timezone' => $timezone,
-        'push_notification_timezone' => 'America/Toronto',
         'daily_reading_reminder_enabled_at' => now(),
         'streak_warning_enabled_at' => now(),
     ]);

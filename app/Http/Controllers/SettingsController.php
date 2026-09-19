@@ -65,10 +65,6 @@ class SettingsController extends Controller
             $updates['streak_warning_enabled_at'] = $request->boolean('streak_warning_enabled') ? now() : null;
         }
 
-        if (array_key_exists('push_notification_timezone', $validated)) {
-            $this->readingCalendar->establishTimezone($user, $validated['push_notification_timezone']);
-        }
-
         if ($updates !== []) {
             $user->forceFill($updates)->save();
         }
@@ -98,7 +94,6 @@ class SettingsController extends Controller
                 'include_deuterocanonical' => $freshUser->includesDeuterocanonicalBooks(),
                 'daily_reading_reminder_enabled' => $freshUser->hasDailyReadingReminderEnabled(),
                 'streak_warning_enabled' => $freshUser->hasStreakWarningEnabled(),
-                'push_notification_timezone' => $freshUser->pushNotificationTimezone(),
                 'reading_timezone' => $this->readingCalendar->timezoneFor($freshUser),
             ];
 

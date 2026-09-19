@@ -16,6 +16,10 @@ class ReadingReminderEligibilityService
 
     public function isEligible(User $user, string $reminderType, ?CarbonInterface $referenceTime = null): bool
     {
+        if (! $this->readingCalendar->hasEstablishedTimezone($user)) {
+            return false;
+        }
+
         $hasPushSubscription = $user->relationLoaded('pushSubscriptions')
             ? $user->pushSubscriptions->isNotEmpty()
             : $user->pushSubscriptions()->exists();

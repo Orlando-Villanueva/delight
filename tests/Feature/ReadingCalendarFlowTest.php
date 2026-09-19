@@ -60,7 +60,7 @@ it('renders and accepts the same web reading dates as mobile for accounts ahead 
     'Honolulu' => ['Pacific/Honolulu', '2026-09-10 05:00:00', '2026-09-09', '2026-09-08'],
 ]);
 
-it('keeps old clients and unusable timezone reports working with a provisional fallback', function (?string $timezone) {
+it('keeps the reading flow available for missing or unusable timezone reports', function (?string $timezone) {
     config(['app.timezone' => 'America/New_York']);
     $this->travelTo(Carbon::parse('2026-09-09 15:00:00', 'UTC'));
     $user = User::factory()->create();

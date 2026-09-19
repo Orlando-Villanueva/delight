@@ -24,7 +24,8 @@ class MobileBootstrapController extends Controller
     ): MobileBootstrapResource {
         /** @var User $user */
         $user = $request->user();
-        $today = $readingCalendar->todayFor($user);
+        $accountNow = $readingCalendar->nowFor($user);
+        $today = $accountNow->startOfDay();
         $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
         $recentBooks = $readingFormService->getRecentBooksForForm($user);
         $hasReadToday = $readingFormService->hasReadToday($user);
@@ -43,6 +44,7 @@ class MobileBootstrapController extends Controller
             'streak_state' => $streakStateService->determineStreakState(
                 currentStreak: $streaks['current_streak'],
                 hasReadToday: $hasReadToday,
+                currentTime: $accountNow,
             ),
             'reading_summary' => $userStatisticsService->getReadingSummary($user),
         ]);

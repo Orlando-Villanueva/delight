@@ -191,6 +191,28 @@ it('returns the server-computed state for an unread active streak at the warning
     'before 18:00' => ['17:59:00', 'active'],
 ]);
 
+it('uses the account timezone for the mobile streak warning threshold', function (
+    string $timezone,
+    string $instant,
+    string $today,
+    string $yesterday,
+): void {
+    Carbon::setTestNow(Carbon::parse($instant, 'UTC'));
+
+    $user = User::factory()->create(['reading_timezone' => $timezone]);
+    createBootstrapReading($user, 1, $yesterday, $yesterday.MOBILE_BOOTSTRAP_MORNING);
+
+    $this->withToken($user->createToken('Pixel', ['mobile'])->plainTextToken)
+        ->getJson(MOBILE_BOOTSTRAP_ENDPOINT)
+        ->assertSuccessful()
+        ->assertJsonPath('data.today', $today)
+        ->assertJsonPath('data.has_read_today', false)
+        ->assertJsonPath('data.streak_state', 'warning');
+})->with([
+    'Tokyo ahead of the server' => ['Asia/Tokyo', '2026-08-09 09:00:00', '2026-08-09', '2026-08-08'],
+    'Honolulu behind the server' => ['Pacific/Honolulu', '2026-08-10 04:00:00', '2026-08-09', '2026-08-08'],
+]);
+
 it('does not return warning after today has been read', function (): void {
     Carbon::setTestNow(Carbon::parse(MOBILE_BOOTSTRAP_TODAY.' 18:00:00', config('app.timezone')));
 

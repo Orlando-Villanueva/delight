@@ -4,7 +4,9 @@ use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\ReadingCalendarService;
 use Carbon\Carbon;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 it('establishes the first reported timezone without changing reading history or reminder preferences', function () {
     $user = User::factory()->create();
@@ -18,7 +20,6 @@ it('establishes the first reported timezone without changing reading history or 
     $this->assertDatabaseHas('users', [
         'id' => $user->id,
         'reading_timezone' => 'Asia/Tokyo',
-        'push_notification_timezone' => null,
     ]);
     expect(DB::table('reading_logs')->where('user_id', $user->id)->get()->toJson())->toBe($history);
 });
@@ -35,18 +36,9 @@ it('preserves the established calendar when another client reports a different t
     $this->assertDatabaseHas('users', ['id' => $user->id, 'reading_timezone' => 'Asia/Tokyo']);
 });
 
-it('prefers a saved reminder timezone when establishing a calendar', function () {
-    $user = User::factory()->create(['push_notification_timezone' => 'America/Toronto']);
-
-    $timezone = app(ReadingCalendarService::class)->establishTimezone($user, 'Asia/Tokyo');
-
-    expect($timezone)->toBe('America/Toronto');
-    $this->assertDatabaseHas('users', ['id' => $user->id, 'reading_timezone' => 'America/Toronto']);
-});
-
 it('keeps the fallback provisional until a usable timezone arrives', function (?string $reportedTimezone) {
     config(['app.timezone' => 'America/New_York']);
-    $user = User::factory()->create(['push_notification_timezone' => 'invalid/timezone']);
+    $user = User::factory()->create();
     $calendar = app(ReadingCalendarService::class);
 
     expect($calendar->establishTimezone($user, $reportedTimezone))->toBe('America/New_York');
@@ -75,18 +67,16 @@ it('uses the current instant in the saved timezone when no reference is supplied
         ->toBe('2026-09-10 00:00:00 Asia/Tokyo');
 });
 
-it('uses a valid reminder timezone or the application fallback for an invalid saved calendar', function (?string $reminderTimezone, string $expectedTimezone) {
+it('uses the application fallback for an invalid saved calendar', function (?string $savedTimezone, string $expectedTimezone) {
     config(['app.timezone' => 'America/New_York']);
     $user = User::factory()->make([
-        'reading_timezone' => 'invalid/timezone',
-        'push_notification_timezone' => $reminderTimezone,
+        'reading_timezone' => $savedTimezone,
     ]);
 
     expect(app(ReadingCalendarService::class)->timezoneFor($user))->toBe($expectedTimezone);
 })->with([
-    'valid reminder timezone' => ['Asia/Tokyo', 'Asia/Tokyo'],
-    'missing reminder timezone' => [null, 'America/New_York'],
-    'invalid reminder timezone' => ['invalid/timezone', 'America/New_York'],
+    'missing timezone' => [null, 'America/New_York'],
+    'invalid timezone' => ['invalid/timezone', 'America/New_York'],
 ]);
 
 it('uses the account timezone for today and yesterday across date boundaries', function (string $timezone, string $instant, string $today, string $yesterday) {
@@ -120,23 +110,27 @@ it('uses calendar days across daylight saving transitions', function (string $in
 ]);
 
 it('backfills only valid reminder timezones without modifying historical records or existing calendars', function () {
-    $user = User::factory()->create(['push_notification_timezone' => 'Asia/Tokyo']);
+    Schema::table('users', function (Blueprint $table): void {
+        $table->string('push_notification_timezone')->nullable();
+    });
+
+    $user = User::factory()->create();
+    DB::table('users')->where('id', $user->id)->update(['push_notification_timezone' => 'Asia/Tokyo']);
     $missing = User::factory()->create();
-    $invalid = User::factory()->create(['push_notification_timezone' => 'invalid/timezone']);
-    $established = User::factory()->create([
-        'reading_timezone' => 'America/Toronto',
-        'push_notification_timezone' => 'Asia/Tokyo',
-    ]);
+    $invalid = User::factory()->create();
+    DB::table('users')->where('id', $invalid->id)->update(['push_notification_timezone' => 'invalid/timezone']);
+    $established = User::factory()->create(['reading_timezone' => 'America/Toronto']);
+    DB::table('users')->where('id', $established->id)->update(['push_notification_timezone' => 'Asia/Tokyo']);
     ReadingLog::factory()->for($user)->create(['date_read' => '2026-09-08']);
     $history = DB::table('reading_logs')->get()->toJson();
     $migration = require database_path('migrations/2026_09_09_222011_backfill_reading_timezones_from_reminder_preferences.php');
 
-    $migration->up();
     $migration->up();
 
     $this->assertDatabaseHas('users', ['id' => $user->id, 'reading_timezone' => 'Asia/Tokyo']);
     $this->assertDatabaseHas('users', ['id' => $missing->id, 'reading_timezone' => null]);
     $this->assertDatabaseHas('users', ['id' => $invalid->id, 'reading_timezone' => null]);
     $this->assertDatabaseHas('users', ['id' => $established->id, 'reading_timezone' => 'America/Toronto']);
+    expect(Schema::hasColumn('users', 'push_notification_timezone'))->toBeFalse();
     expect(DB::table('reading_logs')->get()->toJson())->toBe($history);
 });

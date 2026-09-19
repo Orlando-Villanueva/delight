@@ -51,7 +51,7 @@ it('updates reading reminder preferences without changing the deuterocanonical s
         'include_deuterocanonical' => '1',
         'daily_reading_reminder_enabled' => '1',
         'streak_warning_enabled' => '0',
-        'push_notification_timezone' => 'America/Toronto',
+        'reading_timezone' => 'America/Toronto',
     ]);
 
     $response->assertRedirect(route('settings.edit'))
@@ -70,14 +70,13 @@ it('keeps reminder preferences disabled when unchecked', function () {
         'push_notifications_enabled_at' => now(),
         'daily_reading_reminder_enabled_at' => now(),
         'streak_warning_enabled_at' => now(),
-        'push_notification_timezone' => 'America/Toronto',
+        'reading_timezone' => 'America/Toronto',
     ]);
 
     $response = $this->actingAs($user)->patch(route('settings.update'), [
         'include_deuterocanonical' => '0',
         'daily_reading_reminder_enabled' => '0',
         'streak_warning_enabled' => '0',
-        'push_notification_timezone' => '',
     ]);
 
     $response->assertRedirect(route('settings.edit'));

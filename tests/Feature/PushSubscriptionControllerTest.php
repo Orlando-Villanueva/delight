@@ -50,8 +50,7 @@ it('stores a subscription and enables default reading reminder preferences', fun
         ->and($freshUser->push_notifications_enabled_at)->not->toBeNull()
         ->and($freshUser->daily_reading_reminder_enabled_at)->toBeNull()
         ->and($freshUser->streak_warning_enabled_at)->toBeNull()
-        ->and($freshUser->reading_timezone)->toBe('America/Toronto')
-        ->and($freshUser->push_notification_timezone)->toBeNull();
+        ->and($freshUser->reading_timezone)->toBe('America/Toronto');
 });
 
 it('reports whether the current browser endpoint is connected to this account', function () {
@@ -59,7 +58,7 @@ it('reports whether the current browser endpoint is connected to this account', 
         'push_notifications_enabled_at' => now(),
         'daily_reading_reminder_enabled_at' => now(),
         'streak_warning_enabled_at' => now(),
-        'push_notification_timezone' => 'America/Toronto',
+        'reading_timezone' => 'America/Toronto',
     ]);
     $user->updatePushSubscription('https://example.com/phone', 'key', 'token', 'aes128gcm');
 
@@ -73,7 +72,7 @@ it('reports whether the current browser endpoint is connected to this account', 
         ->assertJsonPath('subscription_count', 1)
         ->assertJsonPath('daily_reading_reminder_enabled', true)
         ->assertJsonPath('streak_warning_enabled', true)
-        ->assertJsonPath('push_notification_timezone', 'America/Toronto');
+        ->assertJsonPath('reading_timezone', 'America/Toronto');
 
     $this->actingAs($user)
         ->postJson(route('push.subscriptions.status'), [
@@ -102,7 +101,7 @@ it('stores a second device subscription without replacing the first one', functi
         ->assertJsonPath('device_enabled', true)
         ->assertJsonPath('account_has_devices', true)
         ->assertJsonPath('subscription_count', 2)
-        ->assertJsonPath('push_notification_timezone', 'America/New_York');
+        ->assertJsonPath('reading_timezone', 'America/New_York');
 
     expect($user->fresh()->pushSubscriptions()->pluck('endpoint')->all())->toContain(
         'https://example.com/phone',
@@ -194,7 +193,7 @@ it('updates reading reminder preferences independently', function () {
         'push_notifications_enabled_at' => now(),
         'daily_reading_reminder_enabled_at' => now(),
         'streak_warning_enabled_at' => now(),
-        'push_notification_timezone' => 'America/Toronto',
+        'reading_timezone' => 'America/Toronto',
     ]);
     $user->updatePushSubscription('https://example.com/subscription', 'key', 'token', 'aes128gcm');
 
@@ -207,13 +206,12 @@ it('updates reading reminder preferences independently', function () {
         ->assertJsonPath('enabled', true)
         ->assertJsonPath('daily_reading_reminder_enabled', false)
         ->assertJsonPath('streak_warning_enabled', true)
-        ->assertJsonPath('push_notification_timezone', 'America/Toronto');
+        ->assertJsonPath('reading_timezone', 'America/Toronto');
 
     $freshUser = $user->fresh();
 
     expect($freshUser->hasDailyReadingReminderEnabled())->toBeFalse()
         ->and($freshUser->hasStreakWarningEnabled())->toBeTrue()
         ->and($freshUser->reading_timezone)->toBe('America/Toronto')
-        ->and($freshUser->push_notification_timezone)->toBe('America/Toronto')
         ->and($freshUser->pushSubscriptions()->count())->toBe(1);
 });
