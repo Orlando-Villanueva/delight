@@ -13,7 +13,6 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('personal_access_token_id')->unique()->constrained()->cascadeOnDelete();
             $table->boolean('enabled')->default(false);
-            $table->string('timezone');
             $table->timestamps();
         });
     }

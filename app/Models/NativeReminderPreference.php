@@ -13,7 +13,7 @@ class NativeReminderPreference extends Model
     /** @use HasFactory<NativeReminderPreferenceFactory> */
     use HasFactory;
 
-    protected $fillable = ['personal_access_token_id', 'enabled', 'timezone'];
+    protected $fillable = ['personal_access_token_id', 'enabled'];
 
     protected $attributes = ['enabled' => false];
 

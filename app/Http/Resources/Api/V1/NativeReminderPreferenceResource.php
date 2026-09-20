@@ -7,12 +7,12 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class NativeReminderPreferenceResource extends JsonResource
 {
-    /** @return array{enabled: bool, timezone: ?string} */
+    /** @return array{enabled: bool, reading_timezone: string} */
     public function toArray(Request $request): array
     {
         return [
-            'enabled' => $this->resource->enabled,
-            'timezone' => $this->resource->timezone,
+            'enabled' => (bool) data_get($this->resource, 'enabled'),
+            'reading_timezone' => (string) data_get($this->resource, 'reading_timezone'),
         ];
     }
 }

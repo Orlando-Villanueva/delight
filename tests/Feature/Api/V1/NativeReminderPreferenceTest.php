@@ -25,36 +25,32 @@ it('defaults native reminders to off without inheriting web preferences or creat
     $user = User::factory()->create([
         'daily_reading_reminder_enabled_at' => now(),
         'streak_warning_enabled_at' => now(),
-        'push_notification_timezone' => 'Europe/Paris',
+        'reading_timezone' => 'Europe/Paris',
     ]);
 
     $this->withToken($user->createToken('Android', ['mobile'])->plainTextToken)
         ->getJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT)
         ->assertOk()
-        ->assertExactJson(['data' => ['enabled' => false, 'timezone' => null]]);
+        ->assertExactJson(['data' => ['enabled' => false, 'reading_timezone' => 'Europe/Paris']]);
 
     $this->assertDatabaseCount('native_reminder_preferences', 0);
 });
 
-it('persists enablement repeated saves timezone changes and disablement in one device session record', function (string $method): void {
-    $user = User::factory()->create();
+it('persists enablement and disablement in one device session record while using the account calendar', function (string $method): void {
+    $user = User::factory()->create(['reading_timezone' => 'America/Toronto']);
     $token = $user->createToken('Android', ['mobile'])->plainTextToken;
 
-    foreach ([
-        ['enabled' => true, 'timezone' => 'America/Toronto'],
-        ['enabled' => true, 'timezone' => 'America/Toronto'],
-        ['enabled' => true, 'timezone' => 'Europe/Paris'],
-        ['enabled' => false, 'timezone' => 'Europe/Paris'],
-    ] as $preference) {
+    foreach ([true, true, false] as $enabled) {
+        $preference = ['enabled' => $enabled];
         $this->withToken($token)->{$method}(NATIVE_REMINDER_PREFERENCES_ENDPOINT, $preference)
             ->assertSuccessful()
-            ->assertExactJson(['data' => $preference]);
+            ->assertExactJson(['data' => ['enabled' => $enabled, 'reading_timezone' => 'America/Toronto']]);
 
         $this->app['auth']->forgetGuards();
 
         $this->withToken($token)->getJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT)
             ->assertOk()
-            ->assertExactJson(['data' => $preference]);
+            ->assertExactJson(['data' => ['enabled' => $enabled, 'reading_timezone' => 'America/Toronto']]);
 
         $this->assertDatabaseCount('native_reminder_preferences', 1);
         $this->assertDatabaseHas('native_reminder_preferences', ['user_id' => $user->id, ...$preference]);
@@ -67,7 +63,7 @@ it('returns 422 for missing required preferences without saving', function (): v
     $this->withToken($user->createToken('Android', ['mobile'])->plainTextToken)
         ->putJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['enabled', 'timezone']);
+        ->assertJsonValidationErrors(['enabled']);
 
     $this->assertDatabaseCount('native_reminder_preferences', 0);
 });
@@ -83,7 +79,6 @@ it('returns 422 for invalid preferences without altering saved state', function 
     $this->withToken($token->plainTextToken)
         ->putJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [
             'enabled' => false,
-            'timezone' => 'Europe/Paris',
             ...$invalid,
         ])
         ->assertUnprocessable()
@@ -92,37 +87,35 @@ it('returns 422 for invalid preferences without altering saved state', function 
     $this->assertDatabaseHas('native_reminder_preferences', [
         'user_id' => $user->id,
         'enabled' => true,
-        'timezone' => 'America/Toronto',
     ]);
 })->with([
     'invalid toggle' => [['enabled' => 'yes'], 'enabled'],
     'null toggle' => [['enabled' => null], 'enabled'],
-    'invalid timezone' => [['timezone' => 'Not/AZone'], 'timezone'],
-    'null timezone' => [['timezone' => null], 'timezone'],
-    'non-string timezone' => [['timezone' => ['Europe/Paris']], 'timezone'],
 ]);
 
 it('reads and writes only the authenticated account even when another user id is supplied', function (): void {
-    $user = User::factory()->create();
-    $other = NativeReminderPreference::factory()->create(['enabled' => true, 'timezone' => 'Europe/Paris']);
+    $user = User::factory()->create(['reading_timezone' => 'America/Toronto']);
+    $other = NativeReminderPreference::factory()->create([
+        'enabled' => true,
+        'user_id' => User::factory()->create(['reading_timezone' => 'Europe/Paris'])->id,
+    ]);
     $token = $user->createToken('Android', ['mobile'])->plainTextToken;
 
     $this->withToken($token)
         ->getJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT.'?user_id='.$other->user_id)
         ->assertOk()
-        ->assertExactJson(['data' => ['enabled' => false, 'timezone' => null]]);
+        ->assertExactJson(['data' => ['enabled' => false, 'reading_timezone' => 'America/Toronto']]);
 
     $this->withToken($token)->putJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [
         'user_id' => $other->user_id,
         'enabled' => false,
-        'timezone' => 'America/Toronto',
     ])->assertSuccessful();
 
     $this->assertDatabaseHas('native_reminder_preferences', [
-        'user_id' => $user->id, 'enabled' => false, 'timezone' => 'America/Toronto',
+        'user_id' => $user->id, 'enabled' => false,
     ]);
     $this->assertDatabaseHas('native_reminder_preferences', [
-        'user_id' => $other->user_id, 'enabled' => true, 'timezone' => 'Europe/Paris',
+        'user_id' => $other->user_id, 'enabled' => true,
     ]);
 });
 
@@ -131,21 +124,19 @@ it('leaves web preferences and subscriptions unchanged when native preferences a
         'push_notifications_enabled_at' => now()->subDay(),
         'daily_reading_reminder_enabled_at' => now()->subDay(),
         'streak_warning_enabled_at' => null,
-        'push_notification_timezone' => 'Europe/Paris',
+        'reading_timezone' => 'Europe/Paris',
     ]);
     $user->updatePushSubscription('https://example.com/browser', 'key', 'token', 'aes128gcm');
     $webPreferences = $user->fresh()->only([
         'push_notifications_enabled_at', 'daily_reading_reminder_enabled_at',
-        'streak_warning_enabled_at', 'push_notification_timezone',
+        'streak_warning_enabled_at', 'reading_timezone',
     ]);
     $subscriptions = $user->pushSubscriptions()->get()->toArray();
 
     $this->withToken($user->createToken('Android', ['mobile'])->plainTextToken)
         ->putJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [
             'enabled' => $enabled,
-            'timezone' => 'America/Toronto',
             'daily_reading_reminder_enabled_at' => null,
-            'push_notification_timezone' => 'UTC',
         ])->assertSuccessful();
 
     expect($user->fresh()->only(array_keys($webPreferences)))->toEqual($webPreferences);
@@ -159,44 +150,43 @@ it('leaves native preferences unchanged when web settings are updated', function
         'include_deuterocanonical' => '0',
         'daily_reading_reminder_enabled' => '0',
         'streak_warning_enabled' => '0',
-        'push_notification_timezone' => 'Europe/Paris',
+        'reading_timezone' => 'Europe/Paris',
         'enabled' => false,
-        'timezone' => 'UTC',
     ])->assertRedirect(route('settings.edit'));
 
     $this->assertDatabaseHas('native_reminder_preferences', [
-        'user_id' => $preference->user_id, 'enabled' => true, 'timezone' => 'America/Toronto',
+        'user_id' => $preference->user_id, 'enabled' => true,
     ]);
 });
 
 it('keeps phone and tablet preferences independent for the same account', function (): void {
-    $user = User::factory()->create();
+    $user = User::factory()->create(['reading_timezone' => 'America/Toronto']);
     $phone = $user->createToken('Phone', ['mobile']);
     $tablet = $user->createToken('Tablet', ['mobile']);
 
     $this->withToken($phone->plainTextToken)->putJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [
-        'enabled' => true, 'timezone' => 'America/Toronto',
+        'enabled' => true,
     ])->assertSuccessful();
 
     $this->app['auth']->forgetGuards();
     $this->withToken($tablet->plainTextToken)->getJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT)
-        ->assertOk()->assertExactJson(['data' => ['enabled' => false, 'timezone' => null]]);
+        ->assertOk()->assertExactJson(['data' => ['enabled' => false, 'reading_timezone' => 'America/Toronto']]);
 
     $this->withToken($tablet->plainTextToken)->putJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [
-        'enabled' => true, 'timezone' => 'Europe/Paris',
+        'enabled' => true,
         'personal_access_token_id' => $phone->accessToken->id,
     ])->assertSuccessful();
 
     $this->app['auth']->forgetGuards();
     $this->withToken($phone->plainTextToken)->getJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT)
-        ->assertOk()->assertExactJson(['data' => ['enabled' => true, 'timezone' => 'America/Toronto']]);
+        ->assertOk()->assertExactJson(['data' => ['enabled' => true, 'reading_timezone' => 'America/Toronto']]);
     $this->withToken($phone->plainTextToken)->putJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [
-        'enabled' => false, 'timezone' => 'America/Toronto',
+        'enabled' => false,
     ])->assertSuccessful();
 
     $this->app['auth']->forgetGuards();
     $this->withToken($tablet->plainTextToken)->getJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT)
-        ->assertOk()->assertExactJson(['data' => ['enabled' => true, 'timezone' => 'Europe/Paris']]);
+        ->assertOk()->assertExactJson(['data' => ['enabled' => true, 'reading_timezone' => 'America/Toronto']]);
 
     $this->assertDatabaseCount('native_reminder_preferences', 2);
     $this->assertDatabaseHas('native_reminder_preferences', [
@@ -225,14 +215,14 @@ it('removes only the signed out session preference and leaves a new session opte
     $newPhone = $user->createToken('Phone', ['mobile']);
     $this->app['auth']->forgetGuards();
     $this->withToken($newPhone->plainTextToken)->getJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT)
-        ->assertOk()->assertExactJson(['data' => ['enabled' => false, 'timezone' => null]]);
+        ->assertOk()->assertExactJson(['data' => ['enabled' => false, 'reading_timezone' => config('app.timezone')]]);
 });
 
 it('returns 403 for cookie authentication without a persisted mobile session', function (string $method): void {
     $user = User::factory()->create();
 
     $this->actingAs($user)->{$method}(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [
-        'enabled' => true, 'timezone' => 'America/Toronto',
+        'enabled' => true,
     ])->assertForbidden();
 
     $this->assertDatabaseCount('native_reminder_preferences', 0);

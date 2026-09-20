@@ -16,7 +16,6 @@ class UpdateNativeReminderPreferenceRequest extends FormRequest
     {
         return [
             'enabled' => ['required', 'boolean'],
-            'timezone' => ['required', 'string', 'timezone'],
         ];
     }
 }
