@@ -64,6 +64,12 @@ module.exports = ({ config }) => {
     },
     plugins: [
       'expo-router',
+      [
+        'expo-notifications',
+        {
+          defaultChannel: 'reading-reminders',
+        },
+      ],
       'expo-secure-store',
       ...(googleIosUrlScheme
         ? [
