@@ -1,10 +1,10 @@
 <?php
 
 use App\Jobs\SendReadingReminderPush;
-use App\Models\PushReminderDelivery;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\User;
+use App\Models\WebPushReminderDelivery;
 use App\Notifications\ReadingReminderPushNotification;
 use Carbon\Carbon;
 use Illuminate\Contracts\Notifications\Dispatcher;
@@ -33,7 +33,7 @@ it('dispatch command creates due daily and streak reminder delivery rows once', 
         ->expectsOutput('Reading reminder pushes queued: 0 due, 2 skipped.')
         ->assertSuccessful();
 
-    expect(PushReminderDelivery::query()->where('user_id', $user->id)->count())->toBe(2);
+    expect(WebPushReminderDelivery::query()->where('user_id', $user->id)->count())->toBe(2);
 
 });
 
@@ -51,14 +51,14 @@ it('dispatch command uses subscription rows rather than the account connected ma
         ->expectsOutput('Reading reminder pushes queued: 1 due, 0 skipped.')
         ->assertSuccessful();
 
-    expect(PushReminderDelivery::query()->where('user_id', $user->id)->count())->toBe(1);
+    expect(WebPushReminderDelivery::query()->where('user_id', $user->id)->count())->toBe(1);
 
 });
 
 it('send job skips when user logged reading after delivery row was created', function () {
     Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
     $user = pushReminderUser();
-    $delivery = PushReminderDelivery::factory()->create([
+    $delivery = WebPushReminderDelivery::factory()->create([
         'user_id' => $user->id,
         'reminder_type' => 'daily_reading',
         'reminder_date' => '2026-05-26',
@@ -77,7 +77,7 @@ it('send job skips when user logged reading after delivery row was created', fun
 it('send job skips stale delivery rows from a previous reminder date', function () {
     Carbon::setTestNow(Carbon::parse('2026-05-27 09:05:00', 'America/Toronto'));
     $user = pushReminderUser();
-    $delivery = PushReminderDelivery::factory()->create([
+    $delivery = WebPushReminderDelivery::factory()->create([
         'user_id' => $user->id,
         'reminder_type' => 'daily_reading',
         'reminder_date' => '2026-05-26',
@@ -94,7 +94,7 @@ it('send job skips stale delivery rows from a previous reminder date', function 
 it('send job lets notification send exceptions bubble for queue retry', function () {
     Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
     $user = pushReminderUser();
-    $delivery = PushReminderDelivery::factory()->create([
+    $delivery = WebPushReminderDelivery::factory()->create([
         'user_id' => $user->id,
         'reminder_type' => 'daily_reading',
         'reminder_date' => '2026-05-26',
@@ -126,7 +126,7 @@ it('send job lets notification send exceptions bubble for queue retry', function
 
 it('records exhausted notification send failures through the queue failed hook', function () {
     Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
-    $delivery = PushReminderDelivery::factory()->create([
+    $delivery = WebPushReminderDelivery::factory()->create([
         'reminder_type' => 'daily_reading',
         'reminder_date' => '2026-05-26',
         'scheduled_for_at' => now(),
@@ -142,7 +142,7 @@ it('records exhausted notification send failures through the queue failed hook',
 });
 
 it('send job uses overlapping middleware keyed by delivery id', function () {
-    $delivery = PushReminderDelivery::factory()->create();
+    $delivery = WebPushReminderDelivery::factory()->create();
     $job = new SendReadingReminderPush($delivery->id);
 
     $middleware = $job->middleware();

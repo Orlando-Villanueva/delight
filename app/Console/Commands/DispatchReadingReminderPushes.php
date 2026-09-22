@@ -2,9 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\ReadingReminderType;
 use App\Jobs\SendReadingReminderPush;
-use App\Models\PushReminderDelivery;
 use App\Models\User;
+use App\Models\WebPushReminderDelivery;
 use App\Services\ReadingReminderEligibilityService;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -20,8 +21,8 @@ class DispatchReadingReminderPushes extends Command
         $dueCount = 0;
         $skippedCount = 0;
         $types = [
-            PushReminderDelivery::TYPE_DAILY_READING,
-            PushReminderDelivery::TYPE_STREAK_RISK,
+            ReadingReminderType::DailyReading->value,
+            ReadingReminderType::StreakRisk->value,
         ];
 
         User::query()
@@ -38,7 +39,7 @@ class DispatchReadingReminderPushes extends Command
 
                         $reminderDate = $eligibility->reminderDateFor($user, $referenceTime);
                         $reminderDateKey = CarbonImmutable::parse($reminderDate)->startOfDay();
-                        $delivery = PushReminderDelivery::query()->createOrFirst([
+                        $delivery = WebPushReminderDelivery::query()->createOrFirst([
                             'user_id' => $user->id,
                             'reminder_type' => $type,
                             'reminder_date' => $reminderDateKey,
@@ -48,7 +49,7 @@ class DispatchReadingReminderPushes extends Command
 
                         if (! $delivery->wasRecentlyCreated) {
                             // A skipped delivery may become due after a timezone correction.
-                            $requeued = PushReminderDelivery::query()->whereKey($delivery->id)
+                            $requeued = WebPushReminderDelivery::query()->whereKey($delivery->id)
                                 ->whereNotNull('skipped_at')
                                 ->whereNull('sent_at')
                                 ->whereNull('failed_at')

@@ -6,6 +6,8 @@ use Database\Factories\NativePushRegistrationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class NativePushRegistration extends Model
@@ -25,5 +27,15 @@ class NativePushRegistration extends Model
     public function personalAccessToken(): BelongsTo
     {
         return $this->belongsTo(PersonalAccessToken::class);
+    }
+
+    public function reminderPreference(): HasOne
+    {
+        return $this->hasOne(NativeReminderPreference::class, 'personal_access_token_id', 'personal_access_token_id');
+    }
+
+    public function reminderDeliveries(): HasMany
+    {
+        return $this->hasMany(NativePushReminderDelivery::class);
     }
 }

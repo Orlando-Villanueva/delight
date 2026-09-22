@@ -2,24 +2,22 @@
 
 namespace App\Services;
 
-use App\Models\PushReminderDelivery;
+use App\Enums\ReadingReminderType;
 use App\Models\User;
 use Carbon\CarbonInterface;
 
 class ReadingReminderEligibilityService
 {
-    public const string DAILY_TIME = '09:00';
+    public const string DAILY_TIME = ReadingReminderConditionService::DAILY_TIME;
 
-    public const string STREAK_WARNING_TIME = '18:00';
+    public const string STREAK_WARNING_TIME = ReadingReminderConditionService::STREAK_WARNING_TIME;
 
-    public function __construct(private ReadingCalendarService $readingCalendar) {}
+    public function __construct(
+        private ReadingReminderConditionService $conditions,
+    ) {}
 
     public function isEligible(User $user, string $reminderType, ?CarbonInterface $referenceTime = null): bool
     {
-        if (! $this->readingCalendar->hasEstablishedTimezone($user)) {
-            return false;
-        }
-
         $hasPushSubscription = $user->relationLoaded('pushSubscriptions')
             ? $user->pushSubscriptions->isNotEmpty()
             : $user->pushSubscriptions()->exists();
@@ -28,53 +26,19 @@ class ReadingReminderEligibilityService
             return false;
         }
 
+        if (! $this->conditions->isEligible($user, $reminderType, $referenceTime)) {
+            return false;
+        }
+
         return match ($reminderType) {
-            PushReminderDelivery::TYPE_DAILY_READING => $this->isDailyReadingReminderEligible($user, $referenceTime),
-            PushReminderDelivery::TYPE_STREAK_RISK => $this->isStreakRiskReminderEligible($user, $referenceTime),
+            ReadingReminderType::DailyReading->value => $user->hasDailyReadingReminderEnabled(),
+            ReadingReminderType::StreakRisk->value => $user->hasStreakWarningEnabled(),
             default => false,
         };
     }
 
     public function reminderDateFor(User $user, ?CarbonInterface $referenceTime = null): string
     {
-        return $this->readingCalendar->nowFor($user, $referenceTime)->toDateString();
-    }
-
-    private function isDailyReadingReminderEligible(User $user, ?CarbonInterface $referenceTime = null): bool
-    {
-        if (! $user->hasDailyReadingReminderEnabled()) {
-            return false;
-        }
-
-        $localNow = $this->readingCalendar->nowFor($user, $referenceTime);
-
-        return $this->isAfterLocalTime($localNow, self::DAILY_TIME)
-            && ! $this->hasReadOnLocalDate($user, $localNow->toDateString());
-    }
-
-    private function isStreakRiskReminderEligible(User $user, ?CarbonInterface $referenceTime = null): bool
-    {
-        if (! $user->hasStreakWarningEnabled()) {
-            return false;
-        }
-
-        $localNow = $this->readingCalendar->nowFor($user, $referenceTime);
-        $today = $localNow->toDateString();
-
-        return $this->isAfterLocalTime($localNow, self::STREAK_WARNING_TIME)
-            && ! $this->hasReadOnLocalDate($user, $today)
-            && $this->hasReadOnLocalDate($user, $localNow->copy()->subDay()->toDateString());
-    }
-
-    private function isAfterLocalTime(CarbonInterface $localNow, string $time): bool
-    {
-        return $localNow->greaterThanOrEqualTo($localNow->copy()->setTimeFromTimeString($time));
-    }
-
-    private function hasReadOnLocalDate(User $user, string $date): bool
-    {
-        return $user->readingLogs()
-            ->whereDate('date_read', $date)
-            ->exists();
+        return $this->conditions->reminderDateFor($user, $referenceTime);
     }
 }

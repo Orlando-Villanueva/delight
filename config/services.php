@@ -41,4 +41,12 @@ return [
         )),
     ],
 
+    'expo' => [
+        'push_url' => env('EXPO_PUSH_URL', 'https://exp.host/--/api/v2/push/send'),
+        'receipts_url' => env('EXPO_RECEIPTS_URL', 'https://exp.host/--/api/v2/push/getReceipts'),
+        'timeout' => (int) env('EXPO_PUSH_TIMEOUT', 10),
+        'connect_timeout' => (int) env('EXPO_PUSH_CONNECT_TIMEOUT', 5),
+        'receipt_delay_minutes' => (int) env('EXPO_PUSH_RECEIPT_DELAY_MINUTES', 15),
+    ],
+
 ];
