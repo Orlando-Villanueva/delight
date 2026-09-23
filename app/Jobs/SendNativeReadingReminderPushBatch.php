@@ -32,11 +32,17 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
      */
     public function middleware(): array
     {
-        return [
-            (new WithoutOverlapping('native-reading-reminder-batch-'.sha1(implode(',', $this->deliveryIds))))
+        $deliveryIds = array_values(array_unique($this->deliveryIds));
+        sort($deliveryIds, SORT_NUMERIC);
+
+        return array_map(
+            fn (int $deliveryId): WithoutOverlapping => (new WithoutOverlapping(
+                'native-reading-reminder-delivery-'.$deliveryId,
+            ))
                 ->releaseAfter(30)
                 ->expireAfter(300),
-        ];
+            $deliveryIds,
+        );
     }
 
     public function backoff(): array

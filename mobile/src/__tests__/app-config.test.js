@@ -1,4 +1,5 @@
 const { describe, expect, it } = require('@jest/globals');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const createAppConfig = require('../../app.config');
@@ -132,6 +133,23 @@ describe('app configuration identities', () => {
 
     expect(config.ios.bundleIdentifier).toBe(packageIdentifier);
     expect(config.android.package).toBe(packageIdentifier);
+  });
+
+  it.each([
+    ['development', 'com.orlandovillanueva.delight.preview'],
+    ['preview', 'com.orlandovillanueva.delight.preview'],
+    ['production', 'com.orlandovillanueva.delight'],
+  ])('configures Firebase for the %s Android app', (appVariant, packageIdentifier) => {
+    const config = configFor(appVariant);
+    const googleServicesPath = path.resolve(process.cwd(), 'google-services.json');
+    const googleServices = JSON.parse(fs.readFileSync(googleServicesPath, 'utf8'));
+    const configuredPackages = googleServices.client.map(
+      (client) => client.client_info.android_client_info.package_name,
+    );
+
+    expect(config.android.googleServicesFile).toBe('./google-services.json');
+    expect(fs.existsSync(googleServicesPath)).toBe(true);
+    expect(configuredPackages).toContain(packageIdentifier);
   });
 
   it.each([

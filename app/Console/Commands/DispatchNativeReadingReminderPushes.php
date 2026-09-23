@@ -13,6 +13,8 @@ use Illuminate\Console\Command;
 
 class DispatchNativeReadingReminderPushes extends Command
 {
+    private const int PENDING_RETRY_AFTER_MINUTES = 15;
+
     protected $signature = 'push:dispatch-native-reading-reminders';
 
     protected $description = 'Queue due native reading reminder pushes';
@@ -67,9 +69,14 @@ class DispatchNativeReadingReminderPushes extends Command
                                 ->whereKey($delivery->id)
                                 ->whereNull('sent_at')
                                 ->whereNull('failed_at')
-                                ->where(function ($query) use ($registration): void {
+                                ->where(function ($query) use ($registration, $referenceTime): void {
                                     $query->whereNotNull('skipped_at')
-                                        ->orWhere('token_hash', '!=', $registration->token_hash);
+                                        ->orWhere('token_hash', '!=', $registration->token_hash)
+                                        ->orWhere(
+                                            'updated_at',
+                                            '<=',
+                                            $referenceTime->copy()->subMinutes(self::PENDING_RETRY_AFTER_MINUTES),
+                                        );
                                 })
                                 ->update([
                                     'skipped_at' => null,

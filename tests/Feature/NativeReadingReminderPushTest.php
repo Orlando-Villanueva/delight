@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\ExpoPushService;
 use App\Services\ReadingReminderConditionService;
 use Carbon\Carbon;
+use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
@@ -86,6 +87,59 @@ it('queues one native delivery for each enabled device and remains idempotent', 
 
     expect(NativePushReminderDelivery::query()->count())->toBe(4);
     Queue::assertPushed(SendNativeReadingReminderPushBatch::class, 1);
+});
+
+it('recovers a pending delivery after queue dispatch fails', function (): void {
+    Carbon::setTestNow(Carbon::parse('2026-05-26 09:00:00', 'America/Toronto'));
+    $device = nativeReminderDevice();
+    ReadingLog::factory()->for($device['user'])->create(['date_read' => '2026-05-25']);
+    $originalDispatcher = $this->app->make(Dispatcher::class);
+    $dispatcher = Mockery::mock(Dispatcher::class);
+    $dispatcher->shouldReceive('dispatch')
+        ->once()
+        ->andThrow(new RuntimeException('Queue unavailable.'));
+    $this->app->instance(Dispatcher::class, $dispatcher);
+
+    expect(fn () => $this->artisan('push:dispatch-native-reading-reminders'))
+        ->toThrow(RuntimeException::class, 'Queue unavailable.');
+
+    $delivery = NativePushReminderDelivery::query()->sole();
+    expect($delivery->sent_at)->toBeNull()
+        ->and($delivery->failed_at)->toBeNull()
+        ->and($delivery->updated_at->equalTo(now()))->toBeTrue();
+
+    $this->app->instance(Dispatcher::class, $originalDispatcher);
+    Queue::fake();
+    Carbon::setTestNow(Carbon::parse('2026-05-26 09:15:00', 'America/Toronto'));
+
+    $this->artisan('push:dispatch-native-reading-reminders')
+        ->expectsOutput('Native reading reminder pushes queued: 1 due, 0 skipped.')
+        ->assertSuccessful();
+
+    expect($delivery->fresh()->updated_at->equalTo(now()))->toBeTrue();
+    Queue::assertPushed(SendNativeReadingReminderPushBatch::class, 1);
+
+    $this->artisan('push:dispatch-native-reading-reminders')
+        ->expectsOutput('Native reading reminder pushes queued: 0 due, 1 skipped.')
+        ->assertSuccessful();
+
+    Queue::assertPushed(SendNativeReadingReminderPushBatch::class, 1);
+});
+
+it('uses per-delivery overlap locks across batches with shared deliveries', function (): void {
+    $firstBatchLocks = (new SendNativeReadingReminderPushBatch([3, 8]))->middleware();
+    $secondBatchLocks = (new SendNativeReadingReminderPushBatch([8, 12]))->middleware();
+    $firstKeys = array_map(fn ($lock): string => $lock->key, $firstBatchLocks);
+    $secondKeys = array_map(fn ($lock): string => $lock->key, $secondBatchLocks);
+
+    expect($firstKeys)->toBe([
+        'native-reading-reminder-delivery-3',
+        'native-reading-reminder-delivery-8',
+    ])
+        ->and($secondKeys)->toBe([
+            'native-reading-reminder-delivery-8',
+            'native-reading-reminder-delivery-12',
+        ]);
 });
 
 it('uses native opt-in independently of web reminder preferences', function (): void {
