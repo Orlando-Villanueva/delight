@@ -28,7 +28,7 @@ The Android-first companion app is a standalone Expo and React Native package in
 
 - PHP 8.4 or newer with SQLite support (`pdo_sqlite`)
 - Composer
-- Node.js and npm
+- Node.js 20.19+ or 22.12+ and npm for the web frontend. The mobile package requires Node.js 22.13+.
 
 ### Setup
 
@@ -59,7 +59,7 @@ Then open [http://localhost:8000](http://localhost:8000). To compile frontend as
 
 ### Optional integrations
 
-- **Google sign-in:** add a Google OAuth client to `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`.
+- **Google sign-in:** set `APP_URL=http://localhost:8000` so the callback matches `php artisan serve`, register `http://localhost:8000/auth/google/callback` as an authorized redirect URI in Google, and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`.
 - **Web push reminders:** configure the VAPID settings shown in `.env.example`.
 - **Local email testing:** run Mailpit with SMTP on port `1025` and its web inbox on port `8025`.
 
