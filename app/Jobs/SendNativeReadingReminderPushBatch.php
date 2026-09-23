@@ -12,6 +12,7 @@ use App\Services\ReadingReminderConditionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
@@ -96,11 +97,23 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
         foreach ($eligibleDeliveries as $index => $delivery) {
             $ticket = $tickets[$index] ?? null;
             $ticketError = data_get($ticket, 'details.error');
+            $ticketMessage = data_get($ticket, 'message');
 
             if (! is_array($ticket) || ($ticket['status'] ?? null) !== 'ok' || ! is_string($ticket['id'] ?? null)) {
+                $expoPushToken = $delivery->nativePushRegistration?->expo_push_token;
+                $sanitizedTicketMessage = is_string($ticketMessage) ? $ticketMessage : null;
+
+                if ($sanitizedTicketMessage !== null && is_string($expoPushToken) && $expoPushToken !== '') {
+                    $sanitizedTicketMessage = str_replace($expoPushToken, '[redacted Expo push token]', $sanitizedTicketMessage);
+                }
+
                 $delivery->forceFill([
                     'failed_at' => now(),
                     'failure_reason' => 'Expo rejected the notification.',
+                    'expo_ticket_error_code' => is_string($ticketError) ? Str::limit($ticketError, 64, '') : null,
+                    'expo_ticket_error_message' => $sanitizedTicketMessage === null
+                        ? null
+                        : Str::limit($sanitizedTicketMessage, 1000, ''),
                     'expo_retry_at' => null,
                 ])->save();
 
@@ -116,6 +129,8 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
 
             $delivery->forceFill([
                 'expo_ticket_id' => $ticket['id'],
+                'expo_ticket_error_code' => null,
+                'expo_ticket_error_message' => null,
                 'expo_receipt_status' => NativePushReceiptStatus::Pending,
                 'expo_receipt_error' => null,
                 'expo_receipt_checked_at' => null,

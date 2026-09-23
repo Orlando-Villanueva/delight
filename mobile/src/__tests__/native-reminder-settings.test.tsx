@@ -4,6 +4,8 @@ import { Linking } from 'react-native';
 
 import { NativeReminderSettings } from '@/components/native-reminder-settings';
 import { useAuth, useAuthenticatedApi } from '@/auth/auth-context';
+import { themeTokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/use-theme';
 import {
   getNativeExpoPushToken,
   getNativeNotificationPermission,
@@ -29,9 +31,11 @@ jest.mock('@/notifications/native-reminders', () => ({
   getNativeNotificationPermission: jest.fn(),
   requestNativeNotificationPermission: jest.fn(),
 }));
+jest.mock('@/theme/use-theme', () => ({ useTheme: jest.fn() }));
 
 const mockedUseAuth = jest.mocked(useAuth);
 const mockedUseAuthenticatedApi = jest.mocked(useAuthenticatedApi);
+const mockedUseTheme = jest.mocked(useTheme);
 const mockedGetNativeExpoPushToken = jest.mocked(getNativeExpoPushToken);
 const mockedGetNativeNotificationPermission = jest.mocked(getNativeNotificationPermission);
 const mockedRequestNativeNotificationPermission = jest.mocked(requestNativeNotificationPermission);
@@ -66,6 +70,7 @@ describe('native reminder settings', () => {
     failPreferenceUpdate = false;
     failRegistration = false;
     failUnregistration = false;
+    mockedUseTheme.mockReturnValue({ colors: themeTokens.light, mode: 'light' });
     mockedUseAuth.mockReturnValue({ status: 'authenticated' } as ReturnType<typeof useAuth>);
     mockedUseAuthenticatedApi.mockReturnValue(request);
     request.mockImplementation(async (path: string, options?: { method?: string; body?: unknown }) => {
@@ -132,6 +137,34 @@ describe('native reminder settings', () => {
 
     expect(mockedRequestNativeNotificationPermission).not.toHaveBeenCalled();
     expect(mockedGetNativeNotificationPermission).toHaveBeenCalled();
+    expect(screen.getByLabelText('Reading reminders')).toHaveProp('value', false);
+  });
+
+  it('uses the native switch with theme colors in dark mode', async () => {
+    preferenceEnabled = true;
+    registrationPresent = true;
+    mockedUseTheme.mockReturnValue({ colors: themeTokens.dark, mode: 'dark' });
+    mockedGetNativeNotificationPermission.mockResolvedValue({
+      granted: true,
+      canAskAgain: true,
+      expires: 'never',
+      ios: undefined,
+      android: undefined,
+      status: 'granted' as NativeNotificationPermission['status'],
+    });
+    renderNativeReminderSettings();
+
+    await waitFor(() => expect(screen.getByLabelText('Reading reminders')).toHaveProp('value', true));
+    const reminderSwitch = screen.getByLabelText('Reading reminders');
+
+    expect(reminderSwitch).toHaveProp('accessibilityRole', 'switch');
+    expect(
+      reminderSwitch.props.trackColorForTrue
+      ?? reminderSwitch.props.onTintColor
+      ?? reminderSwitch.props.trackColor?.true,
+    ).toBe(themeTokens.dark.primarySubtle);
+    expect(reminderSwitch.props.thumbTintColor ?? reminderSwitch.props.thumbColor)
+      .toBe(themeTokens.dark.primary);
   });
 
   it('registers the address before enabling the backend preference', async () => {

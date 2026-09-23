@@ -20,6 +20,8 @@ class NativePushReminderDelivery extends Model
         'scheduled_for_at',
         'token_hash',
         'expo_ticket_id',
+        'expo_ticket_error_code',
+        'expo_ticket_error_message',
         'expo_receipt_status',
         'expo_receipt_error',
         'expo_receipt_checked_at',

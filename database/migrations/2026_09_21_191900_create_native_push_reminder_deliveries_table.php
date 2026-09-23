@@ -21,6 +21,8 @@ return new class extends Migration
             $table->timestamp('scheduled_for_at');
             $table->char('token_hash', 64);
             $table->string('expo_ticket_id')->nullable();
+            $table->string('expo_ticket_error_code', 64)->nullable();
+            $table->text('expo_ticket_error_message')->nullable();
             $table->string('expo_receipt_status', 16)->nullable();
             $table->string('expo_receipt_error')->nullable();
             $table->timestamp('expo_receipt_checked_at')->nullable();

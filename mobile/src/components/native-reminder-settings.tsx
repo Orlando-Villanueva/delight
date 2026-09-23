@@ -53,7 +53,7 @@ export function NativeReminderSettings() {
             <Switch
               accessibilityLabel="Reading reminders"
               accessibilityHint="Enables or disables native reading reminders on this device"
-              accessibilityState={{ disabled: isBusy, checked: enabled }}
+              accessibilityState={{ disabled: isBusy || hasQueryError, checked: enabled }}
               disabled={isBusy || hasQueryError}
               onValueChange={toggle}
               trackColor={{ false: colors.border, true: colors.primarySubtle }}

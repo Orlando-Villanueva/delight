@@ -145,6 +145,80 @@ it('rechecks reading state and sends a native reminder only while it is still du
     Http::assertSentCount(1);
 });
 
+it('synchronously retries one failed delivery and stores redacted Expo ticket diagnostics', function (): void {
+    Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
+    $pushToken = 'ExpoPushToken[device-secret]';
+    $device = nativeReminderDevice(address: $pushToken);
+    $delivery = NativePushReminderDelivery::factory()->create([
+        'native_push_registration_id' => $device['registration']->id,
+        'reminder_type' => 'daily_reading',
+        'reminder_date' => '2026-05-26',
+        'scheduled_for_at' => now()->subMinute(),
+        'token_hash' => $device['registration']->token_hash,
+        'failed_at' => now()->subMinute(),
+        'failure_reason' => 'Expo rejected the notification.',
+    ]);
+    $otherDevice = nativeReminderDevice();
+    $otherDelivery = NativePushReminderDelivery::factory()->create([
+        'native_push_registration_id' => $otherDevice['registration']->id,
+        'reminder_date' => '2026-05-26',
+        'scheduled_for_at' => now(),
+        'token_hash' => $otherDevice['registration']->token_hash,
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://exp.host/--/api/v2/push/send' => Http::response([
+            'data' => [[
+                'status' => 'error',
+                'message' => "Expo could not send to {$pushToken}.",
+                'details' => ['error' => 'InvalidCredentials'],
+            ]],
+        ]),
+    ]);
+
+    $this->artisan('push:test-native-reading-reminder-delivery', ['deliveryId' => $delivery->id])
+        ->expectsOutput("Retry attempt completed for native reminder delivery {$delivery->id}.")
+        ->assertSuccessful();
+
+    expect($delivery->fresh()->expo_ticket_error_code)->toBe('InvalidCredentials')
+        ->and($delivery->fresh()->expo_ticket_error_message)->toBe('Expo could not send to [redacted Expo push token].')
+        ->and($delivery->fresh()->failed_at)->not->toBeNull()
+        ->and($otherDelivery->fresh()->sent_at)->toBeNull()
+        ->and($otherDelivery->fresh()->failed_at)->toBeNull()
+        ->and(NativePushRegistration::query()->find($device['registration']->id))->not->toBeNull();
+    Http::assertSent(function ($request) use ($pushToken): bool {
+        return $request->url() === 'https://exp.host/--/api/v2/push/send'
+            && count($request->data()) === 1
+            && $request->data()[0]['to'] === $pushToken;
+    });
+});
+
+it('leaves an immediate retry failed when Expo cannot return a ticket response', function (): void {
+    Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
+    $device = nativeReminderDevice();
+    $delivery = NativePushReminderDelivery::factory()->create([
+        'native_push_registration_id' => $device['registration']->id,
+        'reminder_date' => '2026-05-26',
+        'scheduled_for_at' => now()->subMinute(),
+        'token_hash' => $device['registration']->token_hash,
+        'failed_at' => now()->subMinute(),
+        'failure_reason' => 'Expo rejected the notification.',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://exp.host/--/api/v2/push/send' => Http::response(['message' => 'Unavailable'], 503),
+    ]);
+
+    $this->artisan('push:test-native-reading-reminder-delivery', ['deliveryId' => $delivery->id])
+        ->expectsOutput('The immediate Expo retry failed before a ticket response was saved.')
+        ->assertExitCode(1);
+
+    expect($delivery->fresh()->failed_at)->not->toBeNull()
+        ->and($delivery->fresh()->failure_reason)->toBe('Expo push service request failed.')
+        ->and($delivery->fresh()->expo_ticket_error_code)->toBeNull()
+        ->and($delivery->fresh()->expo_ticket_error_message)->toBeNull();
+});
+
 it('removes a registration when Expo immediately rejects its token as unregistered', function (): void {
     Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
     $device = nativeReminderDevice(address: 'ExpoPushToken[invalid]');
