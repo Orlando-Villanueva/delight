@@ -1,192 +1,118 @@
 # Delight
 
-A web application designed to help users build and maintain a consistent Bible reading habit through tracking, streaks, and visual progress indicators.
+Delight is a free Bible reading tracker for building a steady reading rhythm. Log chapters, follow a reading plan, and see your reading history and progress on the web or in the Android companion app.
 
-## Features
+[Visit mydelight.app](https://mydelight.app) · [Get the Android app](https://mydelight.app/android)
 
-### MVP (Phase 1) Features
-- **Daily Reading Log**: Track your daily Bible reading with a structured book/chapter selector
-- **Streak Tracking**: Maintain reading streaks with a 1-day grace period
-- **Book Completion Grid**: Visual representation of reading progress across all Bible books
-- **Basic Statistics**: 
-  - Current streak counter
-  - All-time longest streak
-  - Total chapters read
-  - Books started vs. completed count
-  - Calendar view of reading activity
-- **Multilingual Support**: English and French language options
-- **Caching**: Redis-based caching for frequently accessed data
+![Delight dashboard](public/images/screenshots/desktop-v3.png)
 
-### Post-MVP (Phase 2) Features
-- Advanced statistics with weekly analysis
-- Reading pattern insights
-- Expanded visualizations
-- Additional language support
+## What you can do
 
-## Technical Overview
+- Log Bible chapters by day, add notes, and browse your reading history.
+- Track current and longest streaks, reading activity, and progress through Bible books.
+- Follow a daily plan, including canonical, chronological, M’Cheyne, and Catholic canonical plans.
+- Earn reading achievements and revisit your year in an annual recap.
+- Choose whether to include Deuterocanonical books in your Bible and plan selectors.
+- Set your reading time zone and use optional web push reminders.
+- Install the web app as a PWA, or use the Android app to log readings and view your dashboard and history.
 
-- **Framework**: Laravel (PHP)
-- **Architecture**: Service Layer Pattern for clean separation of concerns and high testability
-- **Database**: 
-  - **Local Development**: SQLite for simplicity and ease of setup
-  - **Production**: Laravel Cloud's Serverless Postgres (PostgreSQL 17) with denormalized BookProgress table for efficient tracking
-- **Frontend**: HTMX + Alpine.js for server-driven interactivity, using Laravel Blade Fragments for efficient partial updates
-- **Caching**: Redis (in production)
-- **Bible Reference System**: Static configuration approach via config files
-- **Internationalization**: Laravel's built-in localization system
-- **Testing**: Comprehensive test suite covering critical components
+## How it is built
 
-## Setup Instructions
+The web application uses PHP 8.4+ and Laravel 12. Its interface is rendered with Blade, with HTMX for partial page updates; frontend assets use Tailwind CSS, Flowbite, Alpine.js, and Vite. Domain workflows live in `app/Services`, and the HTTP entry points are in `routes/web.php` and `routes/api.php`.
 
-### Prerequisites
-- PHP 8.1+
+The Android-first companion app is a standalone Expo and React Native package in `mobile/`. It uses the Laravel versioned API; it is not part of the root npm package.
+
+## Run the web app locally
+
+### Requirements
+
+- PHP 8.4 or newer with SQLite support (`pdo_sqlite`)
 - Composer
-- Node.js and npm
-- SQLite (for local development)
-- [Optional] Redis server (for production caching)
+- Node.js 20.19+ or 22.12+ and npm for the web frontend. The mobile package requires Node.js 22.13+.
 
-### Local Development with Laravel Herd
+### Setup
 
-Laravel Herd is a fast, native Laravel development environment for macOS and Windows. It simplifies running Laravel projects locally without manual server configuration.
-
-#### Installation
-
-- **macOS:**  
-  Download and install from [herd.laravel.com](https://herd.laravel.com/).
-- **Windows:**  
-  Download and install from [herd.laravel.com](https://herd.laravel.com/).
-
-#### Usage
-
-1. **Open Herd and add your project directory**  
-   Click "Add Project" and select your cloned `delight` directory.
-
-2. **Set up your local domain (optional but recommended):**  
-   Herd can automatically configure a `.test` domain (e.g., http://delight.test).
-   Update your `.env`:
-   ```
-   APP_URL=http://delight.test
-   ```
-
-3. **Database Configuration:**  
-   By default, local development uses SQLite. Ensure your `.env` has:
-   ```
-   DB_CONNECTION=sqlite
-   DB_DATABASE=absolute_path_to_your_project/database/database.sqlite
-   ```
-   On Windows, use:
-   ```
-   DB_DATABASE=W:/Projects/Herd/delight/database/database.sqlite
-   ```
-
-4. **Run migrations and seeders:**  
-   ```bash
-   php artisan migrate --seed
-   ```
-
-5. **Access your app:**  
-   Open http://delight.test in your browser.
-
-#### Notes
-
-- Herd automatically handles PHP versions and web server configuration.
-- For more details, see the [Laravel Herd documentation](https://herd.laravel.com/docs).
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone [repository-url]
-   cd delight
-   ```
-
-2. **Install PHP dependencies**
-   ```bash
-   composer install
-   ```
-
-3. **Install JavaScript dependencies**
-   ```bash
-   npm install
-   ```
-
-4. **Set up SQLite database**
-   ```bash
-   # Create SQLite database file
-   touch database/database.sqlite
-   
-   # Update .env for SQLite
-   # DB_CONNECTION=sqlite
-   # DB_DATABASE=/absolute/path/to/your/project/database/database.sqlite
-   ```
-   
-   On Windows, use the full path in .env:
-   ```
-   DB_DATABASE=W:/Projects/Herd/delight/database/database.sqlite
-   ```
-
-5. **Environment Setup**
-   ```bash
-   cp .env.example .env
-   php artisan key:generate
-   ```
-
-6. **Run migrations and seeders**
-   ```bash
-   php artisan migrate --seed
-   ```
-
-7. **Build frontend assets**
-   ```bash
-   npm run dev
-   ```
-
-8. **Access the application**
-   ```bash
-   php artisan serve
-   ```
-   - Access at http://localhost:8000
-   - Or use Laravel Herd: open http://delight.test (if configured)
-
-## Production Setup (Laravel Cloud)
-
-1. **Database**: Laravel Cloud automatically provisions a Serverless Postgres database (PostgreSQL 17)
-2. **Environment Variables**: Database credentials are automatically injected
-3. **Migrations**: Run migrations via Laravel Cloud's CLI or deployment pipeline
-   ```bash
-   php artisan migrate --force
-   ```
-
-## Local Development Tips
-
-- **SQLite**: Default for local development (fast, file-based, no server required)
-- **PostgreSQL**: Optional for local development (matches production environment)
-  - Install PostgreSQL and update `.env` with PostgreSQL credentials
-  - Run migrations after switching database types
-- **Environment Files**: Keep sensitive credentials in `.env` (never commit this file)
-- **Debugging**: Set `APP_DEBUG=true` in development for detailed error messages
-
-### Additional Configuration
-
-- **Redis Setup**: Ensure Redis server is running for caching functionality
-- **Language Settings**: Default language can be configured in `config/app.php`
-- **Bible Reference Data**: 
-  - Configuration: `config/bible.php` (book structure, chapter counts)
-  - Translations: `lang/en/bible.php`, `lang/fr/bible.php` (localized book names)
-
-## Testing
-
-Run the test suite with:
 ```bash
-php artisan test
+git clone https://github.com/Orlando-Villanueva/delight.git
+cd delight
+composer install
+npm ci
+cp .env.example .env
+touch database/database.sqlite
+php artisan key:generate
+php artisan migrate --seed
 ```
 
-## Project Identity
+The example environment uses SQLite and Mailpit for local email. The seed command adds reading plans and sample development data. Keep real credentials in `.env`; do not commit that file.
 
-Delight is an independent product created and maintained by Orlando Villanueva. Contributions are welcome, and the source code remains available under GPLv3.
+Start these in separate terminals from the repository root:
+
+```bash
+npm run dev
+```
+
+```bash
+php artisan serve
+```
+
+Then open [http://localhost:8000](http://localhost:8000). To compile frontend assets without Vite's development server, run `npm run build`.
+
+### Optional integrations
+
+- **Google sign-in:** set `APP_URL=http://localhost:8000` so the callback matches `php artisan serve`, register `http://localhost:8000/auth/google/callback` as an authorized redirect URI in Google, and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`.
+- **Web push reminders:** configure the VAPID settings shown in `.env.example`.
+- **Local email testing:** run Mailpit with SMTP on port `1025` and its web inbox on port `8025`.
+
+## Run the mobile app
+
+The mobile app has its own dependencies and environment file. For a limited Expo Go UI workflow:
+
+```bash
+cd mobile
+cp .env.example .env.local
+npm ci
+npm start
+```
+
+Native Google sign-in and the full device workflow require a development build. See [`mobile/README.md`](mobile/README.md) for device setup, environment details, and mobile checks.
+
+## Tests and checks
+
+From the repository root:
+
+```bash
+php artisan test
+npm run build
+```
+
+The mobile package has its own lint, typecheck, configuration, and Jest commands. Run them from `mobile/`; see its [README](mobile/README.md).
+
+## Project structure
+
+| Path | Contents |
+| --- | --- |
+| `app/` | Laravel controllers, models, services, and actions |
+| `resources/` | Blade views, JavaScript, and CSS |
+| `routes/` | Web and versioned API routes |
+| `database/data/reading-plans/` | Reading-plan schedules |
+| `mobile/` | Standalone Expo and React Native app |
+| `tests/` | Laravel feature and unit tests |
+| `docs/` | Feature and operations documentation |
+
+## More documentation
+
+- [Contributing](CONTRIBUTING.md)
+- [Mobile app setup](mobile/README.md)
+- [Reading plans](docs/reading-plans/README.md)
+- [Annual recap](docs/annual-recap/README.md)
+- [Manual testing checklist](manual-testing-checklist.md)
+
+## Project identity
+
+Delight is an independent product created and maintained by Orlando Villanueva. Contributions are welcome, and the source code is available under GPLv3.
 
 The Delight name, logo, visual identity, and official service at [mydelight.app](https://mydelight.app) remain associated with the original project. Forks and modified versions should use distinct branding and must not imply that they are official Delight releases or services.
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
