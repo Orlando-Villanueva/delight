@@ -12,13 +12,6 @@ use Illuminate\Support\Str;
 class RouteServiceProvider extends ServiceProvider
 {
     /**
-     * The path to your application's "home" route.
-     *
-     * Typically, users are redirected here after authentication.
-     */
-    public const HOME = '/dashboard';
-
-    /**
      * Define your route model bindings, pattern filters, and other route configuration.
      */
     public function boot(): void

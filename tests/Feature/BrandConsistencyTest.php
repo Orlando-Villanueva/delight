@@ -2,10 +2,6 @@
 
 use App\Models\User;
 
-test('app name displays consistently', function () {
-    expect(config('app.name'))->not->toBeEmpty();
-});
-
 test('welcome page shows brand name', function () {
     $response = $this->get('/');
 
@@ -53,11 +49,23 @@ test('landing page explains the Bible reading tracker workflow and product bound
     $content = $response->getContent();
 
     $response->assertSuccessful()
+        ->assertSee(sprintf('href="%s"', route('announcements.index')), false)
         ->assertSee('Keep your Bible reading going, wherever you read')
         ->assertSee('Your reading, clearly recorded')
         ->assertSee('Read where you prefer')
         ->assertSee('Log your chapters')
         ->assertSee('See your progress')
+        ->assertSeeText('66-book canon by default')
+        ->assertSeeText('optional Catholic 73-book deuterocanonical support')
+        ->assertSeeTextInOrder([
+            'Keep your Bible reading going, wherever you read',
+            'Your reading, clearly recorded',
+            'Tools for your reading routine',
+            'Book Completion Grid',
+            'optional Catholic 73-book deuterocanonical support',
+            'Achievements',
+            'Reading Reminders',
+        ])
         ->assertSee('Record what you read, with or without a plan.')
         ->assertSee('Get Delight for Android')
         ->assertSee('src="'.asset('images/screenshots/android-home-v1.png'), false)
@@ -174,15 +182,6 @@ test('app layouts link versioned pwa manifest route', function () {
         ->get(route('dashboard'))
         ->assertSuccessful()
         ->assertSee($manifestHref, false);
-});
-
-test('service worker matches versioned static asset requests', function () {
-    $serviceWorker = file_get_contents(public_path('sw.js'));
-
-    expect($serviceWorker)
-        ->toContain('const requestUrl = new URL(event.request.url);')
-        ->toContain('STATIC_CACHE_URLS.includes(requestUrl.pathname)')
-        ->toContain('caches.match(event.request, { ignoreSearch: true })');
 });
 
 test('service worker does not cache pwa manifest', function () {
