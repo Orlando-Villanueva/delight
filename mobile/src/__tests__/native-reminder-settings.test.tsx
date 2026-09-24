@@ -303,6 +303,75 @@ describe('native reminder settings', () => {
     jest.restoreAllMocks();
   });
 
+  it('does not restore a registration when opt-out races with foreground refresh', async () => {
+    preferenceEnabled = true;
+    registrationPresent = true;
+    let appStateListener: ((state: 'active' | 'background') => void) | undefined;
+    let resolveExpoToken: (token: string) => void = () => {};
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
+      appStateListener = listener as (state: 'active' | 'background') => void;
+
+      return { remove: jest.fn() };
+    });
+    mockedGetNativeNotificationPermission.mockResolvedValue({
+      granted: true,
+      canAskAgain: true,
+      expires: 'never',
+      ios: undefined,
+      android: undefined,
+      status: 'granted' as NativeNotificationPermission['status'],
+    });
+    mockedGetNativeExpoPushToken.mockImplementation(() => new Promise((resolve) => {
+      resolveExpoToken = resolve;
+    }));
+
+    renderNativeReminderSettings();
+    await waitFor(() => expect(screen.getByLabelText('Reading reminders')).toHaveProp('value', true));
+
+    registrationPresent = false;
+    await act(async () => {
+      appStateListener?.('active');
+    });
+    await waitFor(() => expect(mockedGetNativeExpoPushToken).toHaveBeenCalledTimes(1));
+
+    await fireEvent(screen.getByLabelText('Reading reminders'), 'valueChange', false);
+    await waitFor(() => expect(request).toHaveBeenCalledWith(
+      '/api/v1/native-reminder-preferences',
+      { method: 'PUT', body: { enabled: false } },
+    ));
+    expect(request).not.toHaveBeenCalledWith(
+      '/api/v1/native-push-registration',
+      { method: 'DELETE' },
+    );
+
+    await act(async () => {
+      resolveExpoToken('ExpoPushToken[test-address]');
+    });
+
+    await waitFor(() => expect(request).toHaveBeenCalledWith(
+      '/api/v1/native-push-registration',
+      { method: 'DELETE' },
+    ));
+    expect(request).not.toHaveBeenCalledWith(
+      '/api/v1/native-push-registration',
+      { method: 'PUT', body: { expo_push_token: 'ExpoPushToken[test-address]' } },
+    );
+
+    const preferenceOffIndex = request.mock.calls.findIndex(([path, options]) => (
+      path === '/api/v1/native-reminder-preferences'
+      && options?.method === 'PUT'
+      && (options.body as { enabled?: boolean })?.enabled === false
+    ));
+    const unregistrationIndex = request.mock.calls.findIndex(([path, options]) => (
+      path === '/api/v1/native-push-registration' && options?.method === 'DELETE'
+    ));
+
+    expect(preferenceOffIndex).toBeGreaterThanOrEqual(0);
+    expect(unregistrationIndex).toBeGreaterThan(preferenceOffIndex);
+    expect(preferenceEnabled).toBe(false);
+    expect(registrationPresent).toBe(false);
+  });
+
   it('surfaces cleanup when a disabled preference still has a registration', async () => {
     preferenceEnabled = false;
     registrationPresent = true;

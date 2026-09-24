@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, AppState, Linking, type AppStateStatus } from 'react-native';
 
 import {
@@ -65,6 +65,9 @@ export function useNativeReminderSettings() {
   const [permissionLoaded, setPermissionLoaded] = useState(false);
   const [cleanupPending, setCleanupPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const refreshGeneration = useRef(0);
+  const togglePending = useRef(false);
+  const pendingAutomaticRegistration = useRef<Promise<void> | null>(null);
 
   const preferenceQuery = useQuery({
     queryKey: preferenceQueryKey,
@@ -97,11 +100,16 @@ export function useNativeReminderSettings() {
   }, []);
 
   const refreshQueries = useCallback(async (): Promise<void> => {
+    const generation = refreshGeneration.current;
     const [preferenceResult, registrationResult, nextPermission] = await Promise.all([
       refetchPreference(),
       refetchRegistration(),
       refreshPermission(),
     ]);
+
+    if (generation !== refreshGeneration.current || togglePending.current) {
+      return;
+    }
 
     if (preferenceResult.data && registrationResult.data) {
       const cleanupNeeded = !preferenceResult.data.enabled && registrationResult.data.registered;
@@ -117,12 +125,31 @@ export function useNativeReminderSettings() {
       && nextPermission?.granted
       && !registrationResult.data?.registered
     ) {
-      try {
+      const isRefreshCurrent = (): boolean => (
+        generation === refreshGeneration.current && !togglePending.current
+      );
+      const registrationAttempt = pendingAutomaticRegistration.current ?? (async (): Promise<void> => {
         const expoPushToken = await getNativeExpoPushToken();
+
+        if (!isRefreshCurrent()) {
+          return;
+        }
+
         await registerNativePush(request, expoPushToken);
         await refetchRegistration();
+      })();
+      pendingAutomaticRegistration.current = registrationAttempt;
+
+      try {
+        await registrationAttempt;
       } catch (registrationError) {
-        setError(errorMessage(registrationError));
+        if (isRefreshCurrent()) {
+          setError(errorMessage(registrationError));
+        }
+      } finally {
+        if (pendingAutomaticRegistration.current === registrationAttempt) {
+          pendingAutomaticRegistration.current = null;
+        }
       }
     }
   }, [refetchPreference, refetchRegistration, refreshPermission, request]);
@@ -147,6 +174,7 @@ export function useNativeReminderSettings() {
     mutationFn: async (enabled: boolean): Promise<void> => {
       if (!enabled) {
         await updateNativeReminderPreference(request, false);
+        await pendingAutomaticRegistration.current?.catch(() => undefined);
 
         try {
           await unregisterNativePush(request);
@@ -179,15 +207,11 @@ export function useNativeReminderSettings() {
         throw enableError;
       }
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       setCleanupPending(false);
       setError(null);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: preferenceQueryKey }),
-        queryClient.invalidateQueries({ queryKey: registrationQueryKey }),
-      ]);
     },
-    onError: async (mutationError) => {
+    onError: (mutationError) => {
       if (mutationError instanceof NativeReminderCleanupError) {
         setCleanupPending(true);
       }
@@ -197,10 +221,16 @@ export function useNativeReminderSettings() {
           ? 'Notifications were not enabled. Allow notifications in system settings and try again.'
           : errorMessage(mutationError),
       );
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: preferenceQueryKey }),
-        queryClient.invalidateQueries({ queryKey: registrationQueryKey }),
-      ]);
+    },
+    onSettled: async () => {
+      try {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: preferenceQueryKey }),
+          queryClient.invalidateQueries({ queryKey: registrationQueryKey }),
+        ]);
+      } finally {
+        togglePending.current = false;
+      }
     },
   });
 
@@ -253,6 +283,8 @@ export function useNativeReminderSettings() {
     retryLoading,
     toggle: (nextEnabled: boolean) => {
       setError(null);
+      refreshGeneration.current++;
+      togglePending.current = true;
       toggleMutation.mutate(nextEnabled);
     },
   };
