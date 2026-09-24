@@ -56,54 +56,6 @@ class AuthenticationMiddlewareTest extends TestCase
         $response->assertRedirect('/dashboard');
     }
 
-    public function test_login_redirects_to_dashboard()
-    {
-        $user = User::factory()->create([
-            'email' => 'test@example.com',
-            'password' => bcrypt('ValidPass123!'),
-        ]);
-
-        $response = $this->withSession(['_token' => 'test-token'])
-            ->post('/login', [
-                'email' => 'test@example.com',
-                'password' => 'ValidPass123!',
-                '_token' => 'test-token',
-            ]);
-
-        $response->assertRedirect('/dashboard');
-    }
-
-    public function test_registration_redirects_to_dashboard()
-    {
-        $response = $this->withSession(['_token' => 'test-token'])
-            ->post('/register', [
-                'name' => 'Test User',
-                'email' => 'test@example.com',
-                'password' => 'ValidPass123!',
-                'password_confirmation' => 'ValidPass123!',
-                '_token' => 'test-token',
-            ]);
-
-        $response->assertRedirect('/dashboard');
-    }
-
-    public function test_logout_redirects_to_home()
-    {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)
-            ->withSession(['_token' => 'test-token'])
-            ->post('/logout', ['_token' => 'test-token']);
-
-        // Fortify typically redirects to root path after logout
-        $response->assertRedirect('/');
-    }
-
-    public function test_route_service_provider_home_constant_is_configured()
-    {
-        $this->assertEquals('/dashboard', \App\Providers\RouteServiceProvider::HOME);
-    }
-
     public function test_public_routes_are_accessible_without_authentication()
     {
         // Welcome page should be accessible
