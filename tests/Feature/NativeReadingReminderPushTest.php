@@ -199,7 +199,7 @@ it('rechecks reading state and sends a native reminder only while it is still du
     Http::assertSentCount(1);
 });
 
-it('synchronously retries one failed delivery and stores redacted Expo ticket diagnostics', function (): void {
+it('stores redacted Expo ticket diagnostics for a failed delivery', function (): void {
     Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
     $pushToken = 'ExpoPushToken[device-secret]';
     $device = nativeReminderDevice(address: $pushToken);
@@ -209,8 +209,6 @@ it('synchronously retries one failed delivery and stores redacted Expo ticket di
         'reminder_date' => '2026-05-26',
         'scheduled_for_at' => now()->subMinute(),
         'token_hash' => $device['registration']->token_hash,
-        'failed_at' => now()->subMinute(),
-        'failure_reason' => 'Expo rejected the notification.',
     ]);
     $otherDevice = nativeReminderDevice();
     $otherDelivery = NativePushReminderDelivery::factory()->create([
@@ -230,9 +228,10 @@ it('synchronously retries one failed delivery and stores redacted Expo ticket di
         ]),
     ]);
 
-    $this->artisan('push:test-native-reading-reminder-delivery', ['deliveryId' => $delivery->id])
-        ->expectsOutput("Retry attempt completed for native reminder delivery {$delivery->id}.")
-        ->assertSuccessful();
+    (new SendNativeReadingReminderPushBatch([$delivery->id]))->handle(
+        app(ExpoPushService::class),
+        app(ReadingReminderConditionService::class),
+    );
 
     expect($delivery->fresh()->expo_ticket_error_code)->toBe('InvalidCredentials')
         ->and($delivery->fresh()->expo_ticket_error_message)->toBe('Expo could not send to [redacted Expo push token].')
@@ -247,7 +246,7 @@ it('synchronously retries one failed delivery and stores redacted Expo ticket di
     });
 });
 
-it('leaves an immediate retry failed when Expo cannot return a ticket response', function (): void {
+it('marks a delivery failed after Expo requests fail without a ticket response', function (): void {
     Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
     $device = nativeReminderDevice();
     $delivery = NativePushReminderDelivery::factory()->create([
@@ -255,17 +254,9 @@ it('leaves an immediate retry failed when Expo cannot return a ticket response',
         'reminder_date' => '2026-05-26',
         'scheduled_for_at' => now()->subMinute(),
         'token_hash' => $device['registration']->token_hash,
-        'failed_at' => now()->subMinute(),
-        'failure_reason' => 'Expo rejected the notification.',
     ]);
-    Http::preventStrayRequests();
-    Http::fake([
-        'https://exp.host/--/api/v2/push/send' => Http::response(['message' => 'Unavailable'], 503),
-    ]);
-
-    $this->artisan('push:test-native-reading-reminder-delivery', ['deliveryId' => $delivery->id])
-        ->expectsOutput('The immediate Expo retry failed before a ticket response was saved.')
-        ->assertExitCode(1);
+    (new SendNativeReadingReminderPushBatch([$delivery->id]))
+        ->failed(new RuntimeException('Expo transport failure.'));
 
     expect($delivery->fresh()->failed_at)->not->toBeNull()
         ->and($delivery->fresh()->failure_reason)->toBe('Expo push service request failed.')
