@@ -222,6 +222,11 @@ class User extends Authenticatable
         return $this->deuterocanonical_books_enabled_at !== null;
     }
 
+    public function nativeReminderPreferences(): HasMany
+    {
+        return $this->hasMany(NativeReminderPreference::class);
+    }
+
     public function hasPushNotificationsEnabled(): bool
     {
         return $this->pushSubscriptions()->exists();

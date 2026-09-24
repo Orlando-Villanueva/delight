@@ -21,6 +21,8 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
 
         // Telescope::night();
 
+        Telescope::hideRequestParameters(['expo_push_token']);
+
         $this->hideSensitiveRequestDetails();
 
         Telescope::filter(function (IncomingEntry $entry) {

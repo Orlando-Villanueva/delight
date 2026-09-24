@@ -38,7 +38,7 @@ class PushReminderDeliveryReport extends Model
 
     public function delivery(): BelongsTo
     {
-        return $this->belongsTo(PushReminderDelivery::class, 'push_reminder_delivery_id');
+        return $this->belongsTo(WebPushReminderDelivery::class, 'push_reminder_delivery_id');
     }
 
     public function user(): BelongsTo

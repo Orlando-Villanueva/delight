@@ -36,6 +36,24 @@ describe('typed API client', () => {
     );
   });
 
+  it('sends PUT requests for preference updates', async () => {
+    mockedFetch.mockResolvedValue(response(200, { data: { enabled: true } }));
+
+    await expect(apiRequest('/api/v1/native-reminder-preferences', {
+      method: 'PUT',
+      body: { enabled: true },
+      token: 'secret',
+    })).resolves.toEqual({ data: { enabled: true } });
+
+    expect(mockedFetch).toHaveBeenCalledWith(
+      'https://delight-staging.laravel.cloud/api/v1/native-reminder-preferences',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ enabled: true }),
+      }),
+    );
+  });
+
   afterEach(() => jest.restoreAllMocks());
 
   it('reports the device timezone on authenticated requests', async () => {

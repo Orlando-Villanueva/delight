@@ -1,43 +1,16 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
-import { type ReactNode, useState } from 'react';
+import { useState } from 'react';
 import { AccessibilityInfo, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { NativeReminderSettings } from '@/components/native-reminder-settings';
+import { SettingsSection } from '@/components/settings-section';
 import { getWebBaseUrl } from '@/config/web-environment';
 import { themeTokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
 const supportEmail = 'orlando@mg.mydelight.app';
 const externalResourceError = 'That resource could not be opened. Try again.';
-
-type SettingsSectionProps = {
-  title: string;
-  children: ReactNode;
-};
-
-function SettingsSection({ title, children }: Readonly<SettingsSectionProps>) {
-  const { colors } = useTheme();
-
-  return (
-    <View style={{ gap: 8 }}>
-      <Text selectable style={{ color: colors.mutedText, fontSize: 13, fontWeight: '700' }}>
-        {title}
-      </Text>
-      <View
-        style={{
-          overflow: 'hidden',
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderRadius: themeTokens.radius.card,
-          borderCurve: 'continuous',
-          backgroundColor: colors.surface,
-        }}
-      >
-        {children}
-      </View>
-    </View>
-  );
-}
 
 type SettingsLinkProps = {
   accessibilityHint: string;
@@ -122,6 +95,8 @@ export function SettingsScreen() {
       <Text selectable style={{ color: colors.mutedText, fontSize: 15, lineHeight: 22 }}>
         Manage your Delight preferences, support resources, and account.
       </Text>
+
+      <NativeReminderSettings />
 
       {errorMessage ? (
         <Text

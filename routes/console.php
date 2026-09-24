@@ -1,6 +1,8 @@
 <?php
 
+use App\Console\Commands\DispatchNativeReadingReminderPushes;
 use App\Console\Commands\DispatchReadingReminderPushes;
+use App\Console\Commands\ProcessNativeReadingReminderReceipts;
 use App\Console\Commands\SendOnboardingReminders;
 use App\Console\Commands\SendPublishedAnnouncementEmails;
 use Illuminate\Foundation\Inspiring;
@@ -23,6 +25,16 @@ Schedule::command('churn:send-recovery')
     ->withoutOverlapping();
 
 Schedule::command(DispatchReadingReminderPushes::class)
+    ->everyFifteenMinutes()
+    ->onOneServer()
+    ->withoutOverlapping();
+
+Schedule::command(DispatchNativeReadingReminderPushes::class)
+    ->everyFifteenMinutes()
+    ->onOneServer()
+    ->withoutOverlapping();
+
+Schedule::command(ProcessNativeReadingReminderReceipts::class)
     ->everyFifteenMinutes()
     ->onOneServer()
     ->withoutOverlapping();

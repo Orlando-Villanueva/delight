@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "345815648097",
+    "project_id": "delight-6ee58",
+    "storage_bucket": "delight-6ee58.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:345815648097:android:d51d7ade4aef5709386720",
+        "android_client_info": {
+          "package_name": "com.orlandovillanueva.delight"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATBzCt2Cd1Vz-2LMawtsMi1BwhDLil94w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:345815648097:android:77254ebbedf9f550386720",
+        "android_client_info": {
+          "package_name": "com.orlandovillanueva.delight.preview"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATBzCt2Cd1Vz-2LMawtsMi1BwhDLil94w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

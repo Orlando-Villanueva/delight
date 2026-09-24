@@ -1,9 +1,9 @@
 <?php
 
 use App\Jobs\SendReadingReminderPush;
-use App\Models\PushReminderDelivery;
 use App\Models\ReadingLog;
 use App\Models\User;
+use App\Models\WebPushReminderDelivery;
 use App\Notifications\ReadingReminderPushNotification;
 use App\Services\ReadingReminderEligibilityService;
 use Carbon\Carbon;
@@ -46,7 +46,7 @@ it('reconsiders a queued reminder at the new local due time without sending twic
     $this->travelTo(Carbon::parse($instant, 'UTC'));
     $user = accountTimezoneReminderUser('America/Toronto');
     ReadingLog::factory()->for($user)->create(['date_read' => '2026-09-09']);
-    $delivery = PushReminderDelivery::factory()->for($user)->create([
+    $delivery = WebPushReminderDelivery::factory()->for($user)->create([
         'reminder_type' => $type, 'reminder_date' => '2026-09-10', 'scheduled_for_at' => now(),
     ]);
     $this->actingAs($user)->patchJson(route('settings.update'), ['reading_timezone' => 'America/Chicago'])->assertOk();
@@ -63,7 +63,7 @@ it('reconsiders a queued reminder at the new local due time without sending twic
     Notification::assertSentToTimes($user, ReadingReminderPushNotification::class, 1);
     expect($delivery->fresh()->sent_at)->not->toBeNull();
     $this->artisan('push:dispatch-reading-reminders')->assertSuccessful();
-    expect(PushReminderDelivery::where('user_id', $user->id)->where('reminder_type', $type)->count())->toBe(1);
+    expect(WebPushReminderDelivery::where('user_id', $user->id)->where('reminder_type', $type)->count())->toBe(1);
 })->with([
     'morning' => ['daily_reading', '2026-09-10 13:05:00', '2026-09-10 14:00:00'],
     'evening' => ['streak_risk', '2026-09-10 22:05:00', '2026-09-10 23:00:00'],
@@ -72,13 +72,13 @@ it('reconsiders a queued reminder at the new local due time without sending twic
 it('sends a newly due reminder after correction without skipping the change day', function () {
     $this->travelTo(Carbon::parse('2026-09-10 01:00:00', 'UTC'));
     $user = accountTimezoneReminderUser('America/Toronto');
-    $oldDelivery = PushReminderDelivery::factory()->for($user)->create([
+    $oldDelivery = WebPushReminderDelivery::factory()->for($user)->create([
         'reminder_type' => 'daily_reading', 'reminder_date' => '2026-09-09', 'sent_at' => now()->subHours(5),
     ]);
     $this->actingAs($user)->patchJson(route('settings.update'), ['reading_timezone' => 'Asia/Tokyo'])->assertOk();
     $this->artisan('push:dispatch-reading-reminders')->assertSuccessful();
     Notification::assertSentToTimes($user, ReadingReminderPushNotification::class, 1);
-    expect(PushReminderDelivery::where('user_id', $user->id)->whereDate('reminder_date', '2026-09-10')->first()->sent_at)->not->toBeNull();
+    expect(WebPushReminderDelivery::where('user_id', $user->id)->whereDate('reminder_date', '2026-09-10')->first()->sent_at)->not->toBeNull();
 
     $this->patchJson(route('settings.update'), ['reading_timezone' => 'America/Toronto'])->assertOk();
     $this->artisan('push:dispatch-reading-reminders')->assertSuccessful();
@@ -89,7 +89,7 @@ it('sends a newly due reminder after correction without skipping the change day'
 it('suppresses an old queued date and uses the corrected calendar reading log before sending', function () {
     $this->travelTo(Carbon::parse('2026-09-10 01:00:00', 'UTC'));
     $user = accountTimezoneReminderUser('America/Toronto');
-    $oldDelivery = PushReminderDelivery::factory()->for($user)->create([
+    $oldDelivery = WebPushReminderDelivery::factory()->for($user)->create([
         'reminder_type' => 'daily_reading', 'reminder_date' => '2026-09-09',
     ]);
     $this->actingAs($user)->patchJson(route('settings.update'), ['reading_timezone' => 'Asia/Tokyo'])->assertOk();
@@ -98,13 +98,13 @@ it('suppresses an old queued date and uses the corrected calendar reading log be
     ReadingLog::factory()->for($user)->create(['date_read' => '2026-09-10']);
     $this->artisan('push:dispatch-reading-reminders')->assertSuccessful();
     Notification::assertNothingSent();
-    expect(PushReminderDelivery::where('user_id', $user->id)->count())->toBe(1);
+    expect(WebPushReminderDelivery::where('user_id', $user->id)->count())->toBe(1);
 });
 
 it('does not reopen exhausted or already sent deliveries', function (string $status) {
     $this->travelTo(Carbon::parse('2026-09-10 01:00:00', 'UTC'));
     $user = accountTimezoneReminderUser('Asia/Tokyo');
-    $delivery = PushReminderDelivery::factory()->for($user)->create([
+    $delivery = WebPushReminderDelivery::factory()->for($user)->create([
         'reminder_type' => 'daily_reading', 'reminder_date' => '2026-09-10', $status => now(),
     ]);
     $this->artisan('push:dispatch-reading-reminders')->assertSuccessful();

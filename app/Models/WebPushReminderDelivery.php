@@ -6,13 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class PushReminderDelivery extends Model
+class WebPushReminderDelivery extends Model
 {
     use HasFactory;
 
-    public const string TYPE_DAILY_READING = 'daily_reading';
-
-    public const string TYPE_STREAK_RISK = 'streak_risk';
+    protected $table = 'push_reminder_deliveries';
 
     protected $fillable = [
         'user_id',

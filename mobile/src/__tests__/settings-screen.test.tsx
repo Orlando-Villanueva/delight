@@ -5,6 +5,9 @@ import { AccessibilityInfo } from 'react-native';
 import { SettingsScreen } from '@/components/settings-screen';
 
 jest.mock('expo-linking', () => ({ openURL: jest.fn() }));
+jest.mock('@/components/native-reminder-settings', () => ({
+  NativeReminderSettings: () => null,
+}));
 jest.mock('@/config/web-environment', () => ({
   getWebBaseUrl: () => 'https://delight-staging.laravel.cloud',
 }));

@@ -1,9 +1,10 @@
 <?php
 
+use App\Enums\ReadingReminderType;
 use App\Listeners\RecordPushReminderDeliveryReport;
-use App\Models\PushReminderDelivery;
 use App\Models\PushReminderDeliveryReport;
 use App\Models\User;
+use App\Models\WebPushReminderDelivery;
 use App\Notifications\ReadingReminderPushNotification;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
@@ -26,7 +27,7 @@ it('records successful webpush reports for a reminder delivery subscription', fu
 
     expect($report->push_reminder_delivery_id)->toBe($delivery->id)
         ->and($report->user_id)->toBe($user->id)
-        ->and($report->reminder_type)->toBe(PushReminderDelivery::TYPE_DAILY_READING)
+        ->and($report->reminder_type)->toBe(ReadingReminderType::DailyReading->value)
         ->and($report->reminder_date->toDateString())->toBe('2026-06-01')
         ->and($report->push_subscription_id)->toBe($subscription->id)
         ->and($report->endpoint_host)->toBe('fcm.googleapis.com')
@@ -135,7 +136,7 @@ it('links reports by user and reminder metadata when the payload has no delivery
 
     expect($report->push_reminder_delivery_id)->toBe($delivery->id)
         ->and($report->user_id)->toBe($user->id)
-        ->and($report->reminder_type)->toBe(PushReminderDelivery::TYPE_DAILY_READING)
+        ->and($report->reminder_type)->toBe(ReadingReminderType::DailyReading->value)
         ->and($report->reminder_date->toDateString())->toBe('2026-06-01');
 });
 
@@ -146,7 +147,7 @@ it('includes reminder delivery metadata in the webpush payload', function () {
     $message = reminderMessageFor($user, $delivery)->toArray();
 
     expect($message['data']['deliveryId'])->toBe($delivery->id)
-        ->and($message['data']['reminderType'])->toBe(PushReminderDelivery::TYPE_DAILY_READING)
+        ->and($message['data']['reminderType'])->toBe(ReadingReminderType::DailyReading->value)
         ->and($message['data']['reminderDate'])->toBe('2026-06-01');
 });
 
@@ -155,16 +156,16 @@ function pushSubscriptionFor(User $user, string $endpoint): PushSubscription
     return $user->updatePushSubscription($endpoint, 'public-key', 'auth-token', 'aes128gcm');
 }
 
-function pushDeliveryFor(User $user): PushReminderDelivery
+function pushDeliveryFor(User $user): WebPushReminderDelivery
 {
-    return PushReminderDelivery::factory()->for($user)->create([
-        'reminder_type' => PushReminderDelivery::TYPE_DAILY_READING,
+    return WebPushReminderDelivery::factory()->for($user)->create([
+        'reminder_type' => ReadingReminderType::DailyReading->value,
         'reminder_date' => '2026-06-01',
         'scheduled_for_at' => '2026-06-01 09:00:08',
     ]);
 }
 
-function reminderMessageFor(User $user, PushReminderDelivery $delivery): WebPushMessage
+function reminderMessageFor(User $user, WebPushReminderDelivery $delivery): WebPushMessage
 {
     $notification = new ReadingReminderPushNotification(
         $delivery->reminder_type,

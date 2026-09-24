@@ -1,0 +1,258 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Enums\NativePushReceiptStatus;
+use App\Enums\ReadingReminderType;
+use App\Models\NativePushRegistration;
+use App\Models\NativePushReminderDelivery;
+use App\Models\User;
+use App\Services\ExpoPushService;
+use App\Services\NativePushRateLimitRetryService;
+use App\Services\ReadingReminderConditionService;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use RuntimeException;
+use Throwable;
+
+class SendNativeReadingReminderPushBatch implements ShouldQueue
+{
+    use Queueable;
+
+    public int $tries = 3;
+
+    /**
+     * @param  array<int, int>  $deliveryIds
+     */
+    public function __construct(private array $deliveryIds) {}
+
+    /**
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        $deliveryIds = array_values(array_unique($this->deliveryIds));
+        sort($deliveryIds, SORT_NUMERIC);
+
+        return array_map(
+            fn (int $deliveryId): WithoutOverlapping => (new WithoutOverlapping(
+                'native-reading-reminder-delivery-'.$deliveryId,
+            ))
+                ->releaseAfter(30)
+                ->expireAfter(300),
+            $deliveryIds,
+        );
+    }
+
+    public function backoff(): array
+    {
+        return [30, 120];
+    }
+
+    public function handle(
+        ExpoPushService $expo,
+        ReadingReminderConditionService $conditions,
+        NativePushRateLimitRetryService $rateLimitRetries,
+    ): void {
+        $deliveries = NativePushReminderDelivery::query()
+            ->with([
+                'nativePushRegistration.reminderPreference',
+                'nativePushRegistration.personalAccessToken.tokenable',
+            ])
+            ->whereIn('id', $this->deliveryIds)
+            ->get()
+            ->keyBy('id');
+        $messages = [];
+        $eligibleDeliveries = [];
+
+        foreach ($this->deliveryIds as $deliveryId) {
+            /** @var NativePushReminderDelivery|null $delivery */
+            $delivery = $deliveries->get($deliveryId);
+
+            if (! $delivery || $delivery->sent_at || $delivery->skipped_at || $delivery->failed_at) {
+                continue;
+            }
+
+            $registration = $delivery->nativePushRegistration;
+            $session = $registration?->personalAccessToken;
+            $user = $session?->tokenable;
+
+            if (! $user instanceof User || ! $this->isDeliverable($delivery, $user, $session, $conditions)) {
+                $delivery->forceFill([
+                    'skipped_at' => now(),
+                    'expo_retry_at' => null,
+                ])->save();
+
+                continue;
+            }
+
+            $messages[] = $this->payloadFor($delivery, $registration->expo_push_token);
+            $eligibleDeliveries[] = $delivery;
+        }
+
+        if ($messages === []) {
+            return;
+        }
+
+        $sendAttemptAt = now();
+
+        DB::transaction(function () use ($eligibleDeliveries, $sendAttemptAt): void {
+            foreach ($eligibleDeliveries as $delivery) {
+                $delivery->forceFill([
+                    'failed_at' => $sendAttemptAt,
+                    'failure_reason' => 'Expo send outcome is unknown; not retried to avoid duplicate notifications.',
+                    'expo_retry_at' => null,
+                ])->save();
+            }
+        });
+
+        try {
+            $tickets = $expo->send($messages);
+
+            if (count($tickets) !== count($eligibleDeliveries)) {
+                throw new RuntimeException('Expo push service returned an unexpected ticket count.');
+            }
+        } catch (RuntimeException $exception) {
+            Log::warning('Native reminder send outcome is unknown; retry suppressed to prevent duplicates.', [
+                'delivery_ids' => array_map(fn (NativePushReminderDelivery $delivery): int => $delivery->id, $eligibleDeliveries),
+                'exception_type' => $exception::class,
+            ]);
+
+            return;
+        }
+
+        foreach ($eligibleDeliveries as $index => $delivery) {
+            $ticket = $tickets[$index] ?? null;
+            $ticketError = data_get($ticket, 'details.error');
+            $ticketMessage = data_get($ticket, 'message');
+
+            if (! is_array($ticket) || ($ticket['status'] ?? null) !== 'ok' || ! is_string($ticket['id'] ?? null)) {
+                $expoPushToken = $delivery->nativePushRegistration?->expo_push_token;
+                $sanitizedTicketMessage = is_string($ticketMessage) ? $ticketMessage : null;
+
+                if ($sanitizedTicketMessage !== null && is_string($expoPushToken) && $expoPushToken !== '') {
+                    $sanitizedTicketMessage = str_replace($expoPushToken, '[redacted Expo push token]', $sanitizedTicketMessage);
+                }
+
+                $retryDelayMinutes = $ticketError === NativePushRateLimitRetryService::ERROR_CODE
+                    ? $rateLimitRetries->delayMinutes($delivery->expo_retry_count)
+                    : null;
+
+                if ($retryDelayMinutes !== null) {
+                    $checkedAt = now();
+                    $delivery->forceFill([
+                        'expo_ticket_error_code' => NativePushRateLimitRetryService::ERROR_CODE,
+                        'expo_ticket_error_message' => $sanitizedTicketMessage === null
+                            ? null
+                            : Str::limit($sanitizedTicketMessage, 1000, ''),
+                        'expo_receipt_status' => NativePushReceiptStatus::RetryPending,
+                        'expo_receipt_error' => NativePushRateLimitRetryService::ERROR_CODE,
+                        'expo_receipt_checked_at' => $checkedAt,
+                        'expo_retry_count' => $delivery->expo_retry_count + 1,
+                        'expo_retry_at' => $checkedAt->copy()->addMinutes($retryDelayMinutes),
+                        'sent_at' => null,
+                        'failed_at' => null,
+                        'failure_reason' => null,
+                    ])->save();
+
+                    continue;
+                }
+
+                $delivery->forceFill([
+                    'failed_at' => now(),
+                    'failure_reason' => 'Expo rejected the notification.',
+                    'expo_ticket_error_code' => is_string($ticketError) ? Str::limit($ticketError, 64, '') : null,
+                    'expo_ticket_error_message' => $sanitizedTicketMessage === null
+                        ? null
+                        : Str::limit($sanitizedTicketMessage, 1000, ''),
+                    'expo_retry_at' => null,
+                ])->save();
+
+                if ($ticketError === 'DeviceNotRegistered') {
+                    NativePushRegistration::query()
+                        ->whereKey($delivery->native_push_registration_id)
+                        ->where('token_hash', $delivery->token_hash)
+                        ->delete();
+                }
+
+                continue;
+            }
+
+            $delivery->forceFill([
+                'expo_ticket_id' => $ticket['id'],
+                'expo_ticket_error_code' => null,
+                'expo_ticket_error_message' => null,
+                'expo_receipt_status' => NativePushReceiptStatus::Pending,
+                'expo_receipt_error' => null,
+                'expo_receipt_checked_at' => null,
+                'expo_retry_at' => null,
+                'sent_at' => now(),
+                'failed_at' => null,
+                'failure_reason' => null,
+            ])->save();
+        }
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        NativePushReminderDelivery::query()
+            ->whereIn('id', $this->deliveryIds)
+            ->whereNull('sent_at')
+            ->whereNull('skipped_at')
+            ->whereNull('failed_at')
+            ->update([
+                'failed_at' => now(),
+                'failure_reason' => 'Expo push service request failed.',
+                'expo_retry_at' => null,
+                'updated_at' => now(),
+            ]);
+    }
+
+    private function isDeliverable(
+        NativePushReminderDelivery $delivery,
+        User $user,
+        mixed $session,
+        ReadingReminderConditionService $conditions,
+    ): bool {
+        $registration = $delivery->nativePushRegistration;
+
+        if (! $registration
+            || ! $registration->reminderPreference?->enabled
+            || ! hash_equals($delivery->token_hash, $registration->token_hash)
+            || ($session?->expires_at && $session->expires_at->isPast())) {
+            return false;
+        }
+
+        $referenceTime = now();
+
+        return $delivery->reminder_date->toDateString() === $conditions->reminderDateFor($user, $referenceTime)
+            && $conditions->isEligible($user, $delivery->reminder_type, $referenceTime);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function payloadFor(NativePushReminderDelivery $delivery, string $expoPushToken): array
+    {
+        $isStreakRisk = $delivery->reminder_type === ReadingReminderType::StreakRisk->value;
+
+        return [
+            'to' => $expoPushToken,
+            'title' => $isStreakRisk ? 'Your reading streak is at risk' : "Time for today's reading",
+            'body' => $isStreakRisk
+                ? 'Open Delight and read one chapter to keep your streak going.'
+                : 'Open Delight and log one chapter when you are ready.',
+            'sound' => 'default',
+            'channelId' => 'reading-reminders',
+            'data' => [
+                'reminder_type' => $delivery->reminder_type,
+                'reminder_date' => $delivery->reminder_date->toDateString(),
+                'target' => 'reading-log',
+            ],
+        ];
+    }
+}

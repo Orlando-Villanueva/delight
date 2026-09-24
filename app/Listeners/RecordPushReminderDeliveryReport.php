@@ -2,8 +2,8 @@
 
 namespace App\Listeners;
 
-use App\Models\PushReminderDelivery;
 use App\Models\PushReminderDeliveryReport;
+use App\Models\WebPushReminderDelivery;
 use Illuminate\Support\Str;
 use NotificationChannels\WebPush\Events\NotificationFailed;
 use NotificationChannels\WebPush\Events\NotificationSent;
@@ -46,12 +46,12 @@ class RecordPushReminderDeliveryReport
     /**
      * @param  array<string, mixed>  $data
      */
-    private function deliveryFrom(array $data, ?int $userId): ?PushReminderDelivery
+    private function deliveryFrom(array $data, ?int $userId): ?WebPushReminderDelivery
     {
         $deliveryId = $data['deliveryId'] ?? null;
 
         if (is_int($deliveryId) || is_string($deliveryId)) {
-            return PushReminderDelivery::query()->find($deliveryId);
+            return WebPushReminderDelivery::query()->find($deliveryId);
         }
 
         $reminderType = $this->nullableString($data['reminderType'] ?? null);
@@ -61,7 +61,7 @@ class RecordPushReminderDeliveryReport
             return null;
         }
 
-        return PushReminderDelivery::query()
+        return WebPushReminderDelivery::query()
             ->where('user_id', $userId)
             ->where('reminder_type', $reminderType)
             ->whereDate('reminder_date', $reminderDate)

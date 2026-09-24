@@ -2,14 +2,15 @@
 
 namespace Database\Factories;
 
-use App\Models\PushReminderDelivery;
+use App\Enums\ReadingReminderType;
 use App\Models\User;
+use App\Models\WebPushReminderDelivery;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\PushReminderDelivery>
+ * @extends Factory<WebPushReminderDelivery>
  */
-class PushReminderDeliveryFactory extends Factory
+class WebPushReminderDeliveryFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -20,7 +21,7 @@ class PushReminderDeliveryFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'reminder_type' => PushReminderDelivery::TYPE_DAILY_READING,
+            'reminder_type' => ReadingReminderType::DailyReading->value,
             'reminder_date' => today()->toDateString(),
             'scheduled_for_at' => now(),
         ];

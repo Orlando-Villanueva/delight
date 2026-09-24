@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\PushReminderDelivery;
 use App\Models\User;
+use App\Models\WebPushReminderDelivery;
 use App\Notifications\ReadingReminderPushNotification;
 use App\Services\ReadingReminderEligibilityService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -33,7 +33,7 @@ class SendReadingReminderPush implements ShouldQueue
     {
         $eligibility ??= app(ReadingReminderEligibilityService::class);
 
-        $delivery = PushReminderDelivery::query()->with('user')->find($this->deliveryId);
+        $delivery = WebPushReminderDelivery::query()->with('user')->find($this->deliveryId);
 
         if (! $delivery || $delivery->sent_at || $delivery->skipped_at || $delivery->failed_at) {
             return;
@@ -62,7 +62,7 @@ class SendReadingReminderPush implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        $delivery = PushReminderDelivery::query()->find($this->deliveryId);
+        $delivery = WebPushReminderDelivery::query()->find($this->deliveryId);
 
         if (! $delivery || $delivery->sent_at || $delivery->skipped_at || $delivery->failed_at) {
             return;
