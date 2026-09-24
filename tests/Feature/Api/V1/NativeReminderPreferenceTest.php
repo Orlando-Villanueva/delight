@@ -63,12 +63,13 @@ it('returns 422 for missing required preferences without saving', function (): v
     $this->withToken($user->createToken('Android', ['mobile'])->plainTextToken)
         ->putJson(NATIVE_REMINDER_PREFERENCES_ENDPOINT, [])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['enabled']);
+        ->assertJsonValidationErrors(['enabled'])
+        ->assertJsonPath('errors.enabled.0', 'Choose whether reading reminders are on for this device.');
 
     $this->assertDatabaseCount('native_reminder_preferences', 0);
 });
 
-it('returns 422 for invalid preferences without altering saved state', function (array $invalid, string $field): void {
+it('returns 422 for invalid preferences without altering saved state', function (array $invalid, string $field, string $message): void {
     $user = User::factory()->create();
     $token = $user->createToken('Android', ['mobile']);
     NativeReminderPreference::factory()->for($user)->create([
@@ -82,15 +83,16 @@ it('returns 422 for invalid preferences without altering saved state', function 
             ...$invalid,
         ])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors([$field]);
+        ->assertJsonValidationErrors([$field])
+        ->assertJsonPath('errors.enabled.0', $message);
 
     $this->assertDatabaseHas('native_reminder_preferences', [
         'user_id' => $user->id,
         'enabled' => true,
     ]);
 })->with([
-    'invalid toggle' => [['enabled' => 'yes'], 'enabled'],
-    'null toggle' => [['enabled' => null], 'enabled'],
+    'invalid toggle' => [['enabled' => 'yes'], 'enabled', 'The reminder setting must be on or off.'],
+    'null toggle' => [['enabled' => null], 'enabled', 'Choose whether reading reminders are on for this device.'],
 ]);
 
 it('reads and writes only the authenticated account even when another user id is supplied', function (): void {

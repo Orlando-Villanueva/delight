@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { AccessibilityInfo, Linking } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { AccessibilityInfo, AppState, Linking, type AppStateStatus } from 'react-native';
 
 import {
   fetchNativePushRegistration,
@@ -131,6 +131,18 @@ export function useNativeReminderSettings() {
     void refreshQueries();
   }, [refreshQueries]));
 
+  useEffect(() => {
+    function refreshWhenForegrounded(nextAppState: AppStateStatus): void {
+      if (nextAppState === 'active') {
+        void refreshQueries();
+      }
+    }
+
+    const subscription = AppState.addEventListener('change', refreshWhenForegrounded);
+
+    return () => subscription.remove();
+  }, [refreshQueries]);
+
   const toggleMutation = useMutation({
     mutationFn: async (enabled: boolean): Promise<void> => {
       if (!enabled) {
@@ -218,13 +230,12 @@ export function useNativeReminderSettings() {
   const openNotificationSettings = useCallback(async (): Promise<void> => {
     try {
       await Linking.openSettings();
-      await refreshQueries();
     } catch (settingsError) {
       const message = errorMessage(settingsError);
       setError(message);
       AccessibilityInfo.announceForAccessibility(message);
     }
-  }, [refreshQueries]);
+  }, []);
 
   return {
     cleanupPending,

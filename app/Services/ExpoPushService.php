@@ -24,7 +24,7 @@ class ExpoPushService
             throw new RuntimeException('Expo push batches may contain at most 100 messages.');
         }
 
-        return $this->post('push_url', $messages);
+        return $this->post('push_url', $messages, retryConnectionErrors: false);
     }
 
     /**
@@ -57,7 +57,7 @@ class ExpoPushService
      * @param  array<string, mixed>  $payload
      * @return array<int|string, mixed>
      */
-    private function post(string $configKey, array $payload): array
+    private function post(string $configKey, array $payload, bool $retryConnectionErrors = true): array
     {
         try {
             $response = Http::acceptJson()
@@ -67,7 +67,7 @@ class ExpoPushService
                 ->retry(
                     [250, 500, 1000],
                     0,
-                    fn (Throwable $exception): bool => $this->shouldRetry($exception),
+                    fn (Throwable $exception): bool => $this->shouldRetry($exception, $retryConnectionErrors),
                 )
                 ->post((string) config('services.expo.'.$configKey), $payload);
 
@@ -85,10 +85,10 @@ class ExpoPushService
         return $data;
     }
 
-    private function shouldRetry(Throwable $exception): bool
+    private function shouldRetry(Throwable $exception, bool $retryConnectionErrors): bool
     {
         if ($exception instanceof ConnectionException) {
-            return true;
+            return $retryConnectionErrors;
         }
 
         if (! $exception instanceof RequestException || ! $exception->response) {

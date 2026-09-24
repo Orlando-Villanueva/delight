@@ -8,9 +8,11 @@ use App\Models\NativeReminderPreference;
 use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\ExpoPushService;
+use App\Services\NativePushRateLimitRetryService;
 use App\Services\ReadingReminderConditionService;
 use Carbon\Carbon;
 use Illuminate\Contracts\Bus\Dispatcher;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
@@ -67,6 +69,34 @@ it('retries transient Expo failures but rejects oversized batches', function ():
 
     expect(fn () => app(ExpoPushService::class)->send(array_fill(0, 101, ['to' => 'ExpoPushToken[x]'])))
         ->toThrow(RuntimeException::class, 'at most 100 messages');
+});
+
+it('does not retry ambiguous Expo sends while receipt lookups remain retryable', function (): void {
+    $sendAttempts = 0;
+    $receiptAttempts = 0;
+    Http::preventStrayRequests();
+    Http::fake(function ($request) use (&$sendAttempts, &$receiptAttempts) {
+        if ($request->url() === 'https://exp.host/--/api/v2/push/send') {
+            $sendAttempts++;
+
+            throw new ConnectionException('Read timed out.');
+        }
+
+        $receiptAttempts++;
+
+        if ($receiptAttempts === 1) {
+            throw new ConnectionException('Connection timed out.');
+        }
+
+        return Http::response(['data' => ['ticket-1' => ['status' => 'ok']]]);
+    });
+
+    expect(fn () => app(ExpoPushService::class)->send([['to' => 'ExpoPushToken[first]']]))
+        ->toThrow(RuntimeException::class, 'Expo push service request failed.');
+    expect(app(ExpoPushService::class)->receipts(['ticket-1']))
+        ->toBe(['ticket-1' => ['status' => 'ok']]);
+    expect($sendAttempts)->toBe(1)
+        ->and($receiptAttempts)->toBe(2);
 });
 
 it('queues one native delivery for each enabled device and remains idempotent', function (): void {
@@ -126,6 +156,35 @@ it('recovers a pending delivery after queue dispatch fails', function (): void {
     Queue::assertPushed(SendNativeReadingReminderPushBatch::class, 1);
 });
 
+it('does not requeue a rate-limited delivery before its scheduled retry time', function (): void {
+    Queue::fake();
+    Carbon::setTestNow(Carbon::parse('2026-05-26 09:16:00', 'America/Toronto'));
+    $device = nativeReminderDevice();
+    ReadingLog::factory()->for($device['user'])->create(['date_read' => '2026-05-25']);
+    $delivery = NativePushReminderDelivery::factory()->create([
+        'native_push_registration_id' => $device['registration']->id,
+        'reminder_type' => 'daily_reading',
+        'reminder_date' => '2026-05-26',
+        'scheduled_for_at' => now()->subMinutes(16),
+        'token_hash' => $device['registration']->token_hash,
+        'expo_receipt_status' => NativePushReceiptStatus::RetryPending,
+        'expo_receipt_error' => NativePushRateLimitRetryService::ERROR_CODE,
+        'expo_retry_count' => 1,
+        'expo_retry_at' => now()->addMinutes(30),
+    ]);
+    NativePushReminderDelivery::query()->whereKey($delivery->id)->update([
+        'updated_at' => now()->subMinutes(16),
+    ]);
+
+    $this->artisan('push:dispatch-native-reading-reminders')
+        ->expectsOutput('Native reading reminder pushes queued: 0 due, 1 skipped.')
+        ->assertSuccessful();
+
+    expect($delivery->fresh()->expo_receipt_status)->toBe(NativePushReceiptStatus::RetryPending)
+        ->and($delivery->fresh()->expo_retry_at->toDateTimeString())->toBe(now()->addMinutes(30)->toDateTimeString());
+    Queue::assertNothingPushed();
+});
+
 it('uses per-delivery overlap locks across batches with shared deliveries', function (): void {
     $firstBatchLocks = (new SendNativeReadingReminderPushBatch([3, 8]))->middleware();
     $secondBatchLocks = (new SendNativeReadingReminderPushBatch([8, 12]))->middleware();
@@ -174,6 +233,7 @@ it('rechecks reading state and sends a native reminder only while it is still du
     (new SendNativeReadingReminderPushBatch([$delivery->id]))->handle(
         app(ExpoPushService::class),
         app(ReadingReminderConditionService::class),
+        app(NativePushRateLimitRetryService::class),
     );
 
     expect($delivery->fresh()->sent_at)->not->toBeNull()
@@ -193,6 +253,7 @@ it('rechecks reading state and sends a native reminder only while it is still du
     (new SendNativeReadingReminderPushBatch([$suppressed->id]))->handle(
         app(ExpoPushService::class),
         app(ReadingReminderConditionService::class),
+        app(NativePushRateLimitRetryService::class),
     );
 
     expect($suppressed->fresh()->skipped_at)->not->toBeNull();
@@ -231,6 +292,7 @@ it('stores redacted Expo ticket diagnostics for a failed delivery', function ():
     (new SendNativeReadingReminderPushBatch([$delivery->id]))->handle(
         app(ExpoPushService::class),
         app(ReadingReminderConditionService::class),
+        app(NativePushRateLimitRetryService::class),
     );
 
     expect($delivery->fresh()->expo_ticket_error_code)->toBe('InvalidCredentials')
@@ -244,6 +306,108 @@ it('stores redacted Expo ticket diagnostics for a failed delivery', function ():
             && count($request->data()) === 1
             && $request->data()[0]['to'] === $pushToken;
     });
+});
+
+it('retries rate-limited push tickets with bounded backoff without losing other batch results', function (int $retryCount, ?int $expectedDelayMinutes): void {
+    Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
+    $device = nativeReminderDevice();
+    $rateLimitedDelivery = NativePushReminderDelivery::factory()->create([
+        'native_push_registration_id' => $device['registration']->id,
+        'reminder_type' => 'daily_reading',
+        'reminder_date' => '2026-05-26',
+        'scheduled_for_at' => now(),
+        'token_hash' => $device['registration']->token_hash,
+        'expo_retry_count' => $retryCount,
+    ]);
+    $otherDevice = nativeReminderDevice();
+    $successfulDelivery = NativePushReminderDelivery::factory()->create([
+        'native_push_registration_id' => $otherDevice['registration']->id,
+        'reminder_type' => 'daily_reading',
+        'reminder_date' => '2026-05-26',
+        'scheduled_for_at' => now(),
+        'token_hash' => $otherDevice['registration']->token_hash,
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://exp.host/--/api/v2/push/send' => Http::response([
+            'data' => [
+                [
+                    'status' => 'error',
+                    'message' => 'The device is receiving messages too frequently.',
+                    'details' => ['error' => NativePushRateLimitRetryService::ERROR_CODE],
+                ],
+                ['status' => 'ok', 'id' => 'ticket-successful-delivery'],
+            ],
+        ]),
+    ]);
+
+    (new SendNativeReadingReminderPushBatch([$rateLimitedDelivery->id, $successfulDelivery->id]))->handle(
+        app(ExpoPushService::class),
+        app(ReadingReminderConditionService::class),
+        app(NativePushRateLimitRetryService::class),
+    );
+
+    $rateLimitedDelivery->refresh();
+    $successfulDelivery->refresh();
+
+    if ($expectedDelayMinutes !== null) {
+        expect($rateLimitedDelivery->expo_receipt_status)->toBe(NativePushReceiptStatus::RetryPending)
+            ->and($rateLimitedDelivery->expo_retry_count)->toBe($retryCount + 1)
+            ->and($rateLimitedDelivery->expo_retry_at->toDateTimeString())
+            ->toBe(now()->addMinutes($expectedDelayMinutes)->toDateTimeString())
+            ->and($rateLimitedDelivery->failed_at)->toBeNull();
+    } else {
+        expect($rateLimitedDelivery->failed_at)->not->toBeNull()
+            ->and($rateLimitedDelivery->expo_retry_at)->toBeNull()
+            ->and($rateLimitedDelivery->expo_retry_count)->toBe($retryCount);
+    }
+
+    expect($successfulDelivery->sent_at)->not->toBeNull()
+        ->and($successfulDelivery->expo_ticket_id)->toBe('ticket-successful-delivery');
+    Http::assertSentCount(1);
+})->with([
+    'schedules the second retry' => [1, 30],
+    'stops after the retry limit' => [3, null],
+]);
+
+it('does not resend a batch after an ambiguous Expo send timeout', function (): void {
+    Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
+    $device = nativeReminderDevice();
+    $delivery = NativePushReminderDelivery::factory()->create([
+        'native_push_registration_id' => $device['registration']->id,
+        'reminder_type' => 'daily_reading',
+        'reminder_date' => '2026-05-26',
+        'scheduled_for_at' => now(),
+        'token_hash' => $device['registration']->token_hash,
+    ]);
+    Http::preventStrayRequests();
+    $sendAttempts = 0;
+    Http::fake([
+        'https://exp.host/--/api/v2/push/send' => function () use (&$sendAttempts) {
+            $sendAttempts++;
+
+            throw new ConnectionException('Read timed out.');
+        },
+    ]);
+    $batch = new SendNativeReadingReminderPushBatch([$delivery->id]);
+
+    $batch->handle(
+        app(ExpoPushService::class),
+        app(ReadingReminderConditionService::class),
+        app(NativePushRateLimitRetryService::class),
+    );
+
+    expect($delivery->fresh()->failed_at)->not->toBeNull()
+        ->and($delivery->fresh()->failure_reason)
+        ->toBe('Expo send outcome is unknown; not retried to avoid duplicate notifications.');
+
+    $batch->handle(
+        app(ExpoPushService::class),
+        app(ReadingReminderConditionService::class),
+        app(NativePushRateLimitRetryService::class),
+    );
+
+    expect($sendAttempts)->toBe(1);
 });
 
 it('marks a delivery failed after Expo requests fail without a ticket response', function (): void {
@@ -286,6 +450,7 @@ it('removes a registration when Expo immediately rejects its token as unregister
     (new SendNativeReadingReminderPushBatch([$delivery->id]))->handle(
         app(ExpoPushService::class),
         app(ReadingReminderConditionService::class),
+        app(NativePushRateLimitRetryService::class),
     );
 
     expect(NativePushRegistration::query()->find($device['registration']->id))->toBeNull()
@@ -323,6 +488,7 @@ it('preserves a rotated registration when an old ticket reports DeviceNotRegiste
     (new SendNativeReadingReminderPushBatch([$delivery->id]))->handle(
         app(ExpoPushService::class),
         app(ReadingReminderConditionService::class),
+        app(NativePushRateLimitRetryService::class),
     );
 
     expect($device['registration']->fresh()->token_hash)->toBe($rotatedTokenHash)
@@ -557,6 +723,7 @@ it('skips a queued delivery when the address was rotated before sending', functi
     (new SendNativeReadingReminderPushBatch([$delivery->id]))->handle(
         app(ExpoPushService::class),
         app(ReadingReminderConditionService::class),
+        app(NativePushRateLimitRetryService::class),
     );
 
     expect($delivery->fresh()->skipped_at)->not->toBeNull();
@@ -603,6 +770,7 @@ it('skips a queued delivery when the native preference was disabled before sendi
     (new SendNativeReadingReminderPushBatch([$delivery->id]))->handle(
         app(ExpoPushService::class),
         app(ReadingReminderConditionService::class),
+        app(NativePushRateLimitRetryService::class),
     );
 
     expect($delivery->fresh()->skipped_at)->not->toBeNull();

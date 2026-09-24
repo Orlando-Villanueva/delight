@@ -72,11 +72,14 @@ class DispatchNativeReadingReminderPushes extends Command
                                 ->where(function ($query) use ($registration, $referenceTime): void {
                                     $query->whereNotNull('skipped_at')
                                         ->orWhere('token_hash', '!=', $registration->token_hash)
-                                        ->orWhere(
-                                            'updated_at',
-                                            '<=',
-                                            $referenceTime->copy()->subMinutes(self::PENDING_RETRY_AFTER_MINUTES),
-                                        );
+                                        ->orWhere(function ($query) use ($referenceTime): void {
+                                            $query->whereNull('expo_retry_at')
+                                                ->where(
+                                                    'updated_at',
+                                                    '<=',
+                                                    $referenceTime->copy()->subMinutes(self::PENDING_RETRY_AFTER_MINUTES),
+                                                );
+                                        });
                                 })
                                 ->update([
                                     'skipped_at' => null,

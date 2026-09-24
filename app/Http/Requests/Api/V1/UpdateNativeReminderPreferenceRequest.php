@@ -18,4 +18,13 @@ class UpdateNativeReminderPreferenceRequest extends FormRequest
             'enabled' => ['required', 'boolean'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'enabled.required' => 'Choose whether reading reminders are on for this device.',
+            'enabled.boolean' => 'The reminder setting must be on or off.',
+        ];
+    }
 }

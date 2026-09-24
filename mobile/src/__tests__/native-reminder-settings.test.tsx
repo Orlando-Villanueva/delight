@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { Linking } from 'react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { AppState, Linking } from 'react-native';
 
 import { NativeReminderSettings } from '@/components/native-reminder-settings';
 import { useAuth, useAuthenticatedApi } from '@/auth/auth-context';
@@ -130,6 +130,10 @@ describe('native reminder settings', () => {
     mockedGetNativeExpoPushToken.mockResolvedValue('ExpoPushToken[test-address]');
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('does not prompt for permission while loading the Settings screen', async () => {
     renderNativeReminderSettings();
 
@@ -251,6 +255,51 @@ describe('native reminder settings', () => {
     jest.spyOn(Linking, 'openSettings').mockResolvedValue(undefined);
     await fireEvent.press(screen.getByLabelText('Open notification settings'));
     expect(Linking.openSettings).toHaveBeenCalledTimes(1);
+    jest.restoreAllMocks();
+  });
+
+  it('refreshes permission and restores registration when the app returns from system settings', async () => {
+    preferenceEnabled = true;
+    registrationPresent = false;
+    let appStateListener: ((state: 'active' | 'background') => void) | undefined;
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
+      appStateListener = listener as (state: 'active' | 'background') => void;
+
+      return { remove: jest.fn() };
+    });
+    mockedGetNativeNotificationPermission
+      .mockResolvedValueOnce({
+        granted: false,
+        canAskAgain: true,
+        expires: 'never',
+        ios: undefined,
+        android: undefined,
+        status: 'denied' as NativeNotificationPermission['status'],
+      })
+      .mockResolvedValueOnce({
+        granted: true,
+        canAskAgain: true,
+        expires: 'never',
+        ios: undefined,
+        android: undefined,
+        status: 'granted' as NativeNotificationPermission['status'],
+      });
+
+    renderNativeReminderSettings();
+
+    const warning = 'Reminders are enabled, but system notifications are blocked. Open system settings to restore delivery.';
+    await waitFor(() => expect(screen.getByText(warning)).toBeOnTheScreen());
+
+    await act(async () => {
+      appStateListener?.('active');
+    });
+
+    await waitFor(() => expect(screen.queryByText(warning)).toBeNull());
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/native-push-registration',
+      { method: 'PUT', body: { expo_push_token: 'ExpoPushToken[test-address]' } },
+    );
+    expect(screen.getByLabelText('Reading reminders')).toHaveProp('value', true);
     jest.restoreAllMocks();
   });
 

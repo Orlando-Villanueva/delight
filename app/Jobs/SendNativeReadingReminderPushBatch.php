@@ -8,10 +8,13 @@ use App\Models\NativePushRegistration;
 use App\Models\NativePushReminderDelivery;
 use App\Models\User;
 use App\Services\ExpoPushService;
+use App\Services\NativePushRateLimitRetryService;
 use App\Services\ReadingReminderConditionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -53,6 +56,7 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
     public function handle(
         ExpoPushService $expo,
         ReadingReminderConditionService $conditions,
+        NativePushRateLimitRetryService $rateLimitRetries,
     ): void {
         $deliveries = NativePushReminderDelivery::query()
             ->with([
@@ -94,10 +98,31 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
             return;
         }
 
-        $tickets = $expo->send($messages);
+        $sendAttemptAt = now();
 
-        if (count($tickets) !== count($eligibleDeliveries)) {
-            throw new RuntimeException('Expo push service returned an unexpected ticket count.');
+        DB::transaction(function () use ($eligibleDeliveries, $sendAttemptAt): void {
+            foreach ($eligibleDeliveries as $delivery) {
+                $delivery->forceFill([
+                    'failed_at' => $sendAttemptAt,
+                    'failure_reason' => 'Expo send outcome is unknown; not retried to avoid duplicate notifications.',
+                    'expo_retry_at' => null,
+                ])->save();
+            }
+        });
+
+        try {
+            $tickets = $expo->send($messages);
+
+            if (count($tickets) !== count($eligibleDeliveries)) {
+                throw new RuntimeException('Expo push service returned an unexpected ticket count.');
+            }
+        } catch (RuntimeException $exception) {
+            Log::warning('Native reminder send outcome is unknown; retry suppressed to prevent duplicates.', [
+                'delivery_ids' => array_map(fn (NativePushReminderDelivery $delivery): int => $delivery->id, $eligibleDeliveries),
+                'exception_type' => $exception::class,
+            ]);
+
+            return;
         }
 
         foreach ($eligibleDeliveries as $index => $delivery) {
@@ -111,6 +136,30 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
 
                 if ($sanitizedTicketMessage !== null && is_string($expoPushToken) && $expoPushToken !== '') {
                     $sanitizedTicketMessage = str_replace($expoPushToken, '[redacted Expo push token]', $sanitizedTicketMessage);
+                }
+
+                $retryDelayMinutes = $ticketError === NativePushRateLimitRetryService::ERROR_CODE
+                    ? $rateLimitRetries->delayMinutes($delivery->expo_retry_count)
+                    : null;
+
+                if ($retryDelayMinutes !== null) {
+                    $checkedAt = now();
+                    $delivery->forceFill([
+                        'expo_ticket_error_code' => NativePushRateLimitRetryService::ERROR_CODE,
+                        'expo_ticket_error_message' => $sanitizedTicketMessage === null
+                            ? null
+                            : Str::limit($sanitizedTicketMessage, 1000, ''),
+                        'expo_receipt_status' => NativePushReceiptStatus::RetryPending,
+                        'expo_receipt_error' => NativePushRateLimitRetryService::ERROR_CODE,
+                        'expo_receipt_checked_at' => $checkedAt,
+                        'expo_retry_count' => $delivery->expo_retry_count + 1,
+                        'expo_retry_at' => $checkedAt->copy()->addMinutes($retryDelayMinutes),
+                        'sent_at' => null,
+                        'failed_at' => null,
+                        'failure_reason' => null,
+                    ])->save();
+
+                    continue;
                 }
 
                 $delivery->forceFill([
@@ -142,6 +191,8 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
                 'expo_receipt_checked_at' => null,
                 'expo_retry_at' => null,
                 'sent_at' => now(),
+                'failed_at' => null,
+                'failure_reason' => null,
             ])->save();
         }
     }

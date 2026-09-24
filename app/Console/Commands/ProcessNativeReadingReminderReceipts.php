@@ -7,15 +7,12 @@ use App\Jobs\SendNativeReadingReminderPushBatch;
 use App\Models\NativePushRegistration;
 use App\Models\NativePushReminderDelivery;
 use App\Services\ExpoPushService;
+use App\Services\NativePushRateLimitRetryService;
 use Illuminate\Console\Command;
 
 class ProcessNativeReadingReminderReceipts extends Command
 {
     private const int RECEIPT_RETENTION_HOURS = 24;
-
-    private const int MAX_RATE_LIMIT_RETRIES = 3;
-
-    private const int BASE_RATE_LIMIT_RETRY_MINUTES = 15;
 
     private const int RETRY_QUEUE_LEASE_MINUTES = 15;
 
@@ -23,7 +20,7 @@ class ProcessNativeReadingReminderReceipts extends Command
 
     protected $description = 'Process Expo receipts for native reading reminders';
 
-    public function handle(ExpoPushService $expo): int
+    public function handle(ExpoPushService $expo, NativePushRateLimitRetryService $rateLimitRetries): int
     {
         $processedCount = 0;
         $unavailableCount = 0;
@@ -60,7 +57,7 @@ class ProcessNativeReadingReminderReceipts extends Command
             ->where('sent_at', '<=', $cutoff)
             ->where('sent_at', '>', $receiptExpiredBefore)
             ->orderBy('id')
-            ->chunkById(1000, function ($deliveries) use ($expo, &$processedCount): void {
+            ->chunkById(1000, function ($deliveries) use ($expo, $rateLimitRetries, &$processedCount): void {
                 $ticketIds = $deliveries->pluck('expo_ticket_id')->filter()->values()->all();
                 $receipts = $expo->receipts($ticketIds);
 
@@ -87,9 +84,11 @@ class ProcessNativeReadingReminderReceipts extends Command
                     $error = data_get($receipt, 'details.error');
                     $errorCode = is_string($error) ? $error : 'Expo rejected the notification.';
 
-                    if ($errorCode === 'MessageRateExceeded'
-                        && $delivery->expo_retry_count < self::MAX_RATE_LIMIT_RETRIES) {
-                        $retryDelayMinutes = self::BASE_RATE_LIMIT_RETRY_MINUTES * (2 ** $delivery->expo_retry_count);
+                    $retryDelayMinutes = $errorCode === NativePushRateLimitRetryService::ERROR_CODE
+                        ? $rateLimitRetries->delayMinutes($delivery->expo_retry_count)
+                        : null;
+
+                    if ($retryDelayMinutes !== null) {
                         $checkedAt = now();
 
                         $delivery->forceFill([

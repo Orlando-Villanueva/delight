@@ -23,15 +23,27 @@ fi'''
 script = '''
 set -e
 
-cd "$CODEX_WORKTREE_PATH"
+cd "${CODEX_WORKTREE_PATH:?CODEX_WORKTREE_PATH is not set}"
 
 composer install --no-interaction --no-progress
 
 if [ -f package-lock.json ]; then
     npm ci --no-audit --no-fund
+    npm run build
 fi
 
 if [ ! -f .env ]; then
     cp .env.example .env
     php artisan key:generate --no-interaction
-fi'''
+fi
+
+if [ ! -f database/database.sqlite ]; then
+    touch database/database.sqlite
+fi
+
+php artisan migrate --no-interaction
+
+site_name="delight-$(basename "$(dirname "$PWD")")"
+herd link "$site_name" --update-env
+
+printf '\nOpen http://%s.test\n' "$site_name"'''
