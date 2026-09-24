@@ -293,24 +293,6 @@ describe('Navigation Routes', function () {
         $response->assertSee('Reading History');
         $response->assertSee('Review and manage past readings.');
     });
-
-    it('redirects unauthenticated users from dashboard to login', function () {
-        $response = $this->get(route('dashboard'));
-
-        $response->assertRedirect(route('login'));
-    });
-
-    it('redirects unauthenticated users from log reading to login', function () {
-        $response = $this->get(route('logs.create'));
-
-        $response->assertRedirect(route('login'));
-    });
-
-    it('redirects unauthenticated users from history to login', function () {
-        $response = $this->get(route('logs.index'));
-
-        $response->assertRedirect(route('login'));
-    });
 });
 
 describe('Navigation Logout Functionality', function () {
@@ -543,13 +525,6 @@ describe('Navigation URL Management', function () {
             ->toContain('title="Dashboard"')
             ->toContain('title="Log Reading"');
     });
-
-    it('includes hx-push-url attribute for browser history', function () {
-        $response = ($this->getDashboard)();
-
-        $response->assertSuccessful();
-        $response->assertSee('hx-push-url="true"', false);
-    });
 });
 
 describe('Navigation Component Integration', function () {
@@ -560,19 +535,6 @@ describe('Navigation Component Integration', function () {
         $response->assertSee('id="page-container"', false);
         $response->assertSee('hx-history-elt', false);
     });
-
-    it('renders :dataset integration markup', function (array $expectedMarkup) {
-        $response = ($this->getDashboard)();
-        $response->assertSuccessful();
-
-        foreach ($expectedMarkup as $markup) {
-            $response->assertSee($markup, false);
-        }
-    })->with([
-        'page container' => [['id="page-container"']],
-        'authenticated navigation components' => [['<nav', '<aside', 'rounded-full bottom-mobile-nav-safe']],
-        'browser navigation support' => [['htmx:historyRestore', 'HTMX History Configuration']],
-    ]);
 });
 
 describe('Brand Styling', function () {

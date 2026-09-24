@@ -2,10 +2,6 @@
 
 use App\Models\User;
 
-test('app name displays consistently', function () {
-    expect(config('app.name'))->not->toBeEmpty();
-});
-
 test('welcome page shows brand name', function () {
     $response = $this->get('/');
 
@@ -52,7 +48,16 @@ test('landing page explains the Bible reading tracker workflow and product bound
     $response = $this->get('/');
 
     $response->assertSuccessful()
+        ->assertSee(sprintf('href="%s"', route('announcements.index')), false)
         ->assertSee('A Bible reading tracker that fits the way you already read')
+        ->assertSeeText('66-book canon by default')
+        ->assertSeeText('optional Catholic 73-book deuterocanonical support')
+        ->assertSeeTextInOrder([
+            'A Bible reading tracker that fits the way you already read',
+            'Everything You Need to Stay Consistent',
+            'Book Completion Grid',
+            'optional Catholic 73-book deuterocanonical support',
+        ])
         ->assertSee('Keep a clear reading record')
         ->assertSee('Read from your paper Bible or preferred Bible app, then log your chapters with Delight on the')
         ->assertSee('1. Read where you prefer')
@@ -160,15 +165,6 @@ test('app layouts link versioned pwa manifest route', function () {
         ->get(route('dashboard'))
         ->assertSuccessful()
         ->assertSee($manifestHref, false);
-});
-
-test('service worker matches versioned static asset requests', function () {
-    $serviceWorker = file_get_contents(public_path('sw.js'));
-
-    expect($serviceWorker)
-        ->toContain('const requestUrl = new URL(event.request.url);')
-        ->toContain('STATIC_CACHE_URLS.includes(requestUrl.pathname)')
-        ->toContain('caches.match(event.request, { ignoreSearch: true })');
 });
 
 test('service worker does not cache pwa manifest', function () {

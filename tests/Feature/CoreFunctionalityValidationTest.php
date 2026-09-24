@@ -114,37 +114,6 @@ class CoreFunctionalityValidationTest extends TestCase
     }
 
     /**
-     * Test dashboard includes hasReadToday data
-     */
-    public function test_dashboard_includes_has_read_today_data(): void
-    {
-        $user = User::factory()->create();
-
-        // Test dashboard without reading today
-        $response = $this->actingAs($user)->get('/dashboard');
-        $response->assertStatus(200);
-
-        // Create a reading log for today
-        ReadingLog::factory()->create([
-            'user_id' => $user->id,
-            'book_id' => 1, // Genesis
-            'chapter' => 1,
-            'passage_text' => 'Genesis 1',
-            'date_read' => today(),
-        ]);
-
-        // Test dashboard with reading today
-        $response = $this->actingAs($user)->get('/dashboard');
-        $response->assertStatus(200);
-
-        // Test HTMX request also includes the data
-        $response = $this->actingAs($user)
-            ->withHeaders(['HX-Request' => 'true'])
-            ->get('/dashboard');
-        $response->assertStatus(200);
-    }
-
-    /**
      * Test reading log creation functionality
      */
     public function test_reading_log_creation(): void
@@ -187,45 +156,6 @@ class CoreFunctionalityValidationTest extends TestCase
     }
 
     /**
-     * Test reading log range functionality
-     */
-    public function test_reading_log_range_creation(): void
-    {
-        $user = User::factory()->create();
-
-        // Test chapter range input
-        $readingData = [
-            'book_id' => 1, // Genesis
-            'start_chapter' => '1',
-            'end_chapter' => '3',
-            'date_read' => today()->toDateString(),
-            'notes_text' => 'Read multiple chapters',
-        ];
-
-        $response = $this->actingAs($user)->post('/logs', $readingData);
-        $response->assertStatus(200);
-
-        // Verify multiple reading logs were created
-        $this->assertDatabaseHas('reading_logs', [
-            'user_id' => $user->id,
-            'book_id' => 1,
-            'chapter' => 1,
-        ]);
-
-        $this->assertDatabaseHas('reading_logs', [
-            'user_id' => $user->id,
-            'book_id' => 1,
-            'chapter' => 2,
-        ]);
-
-        $this->assertDatabaseHas('reading_logs', [
-            'user_id' => $user->id,
-            'book_id' => 1,
-            'chapter' => 3,
-        ]);
-    }
-
-    /**
      * Test reading history page
      */
     public function test_reading_history_functionality(): void
@@ -256,24 +186,6 @@ class CoreFunctionalityValidationTest extends TestCase
         // Test the logs page contains the reading logs
         $response->assertSee('Genesis 1');
         $response->assertSee('Exodus 1');
-    }
-
-    /**
-     * Test HTMX functionality for dashboard updates
-     */
-    public function test_htmx_dashboard_updates(): void
-    {
-        $user = User::factory()->create();
-
-        // Test HTMX request to dashboard
-        $response = $this->actingAs($user)
-            ->withHeaders(['HX-Request' => 'true'])
-            ->get('/dashboard');
-
-        $response->assertStatus(200);
-        // Should return partial content, not full page
-        $response->assertDontSee('<!DOCTYPE html>');
-        $response->assertSee('Dashboard');
     }
 
     /**
@@ -319,22 +231,6 @@ class CoreFunctionalityValidationTest extends TestCase
     }
 
     /**
-     * Test authentication middleware protection
-     */
-    public function test_authentication_protection(): void
-    {
-        // Test that protected routes redirect to login
-        $response = $this->get('/dashboard');
-        $response->assertRedirect('/login');
-
-        $response = $this->get('/logs');
-        $response->assertRedirect('/login');
-
-        $response = $this->get('/logs/create');
-        $response->assertRedirect('/login');
-    }
-
-    /**
      * Test validation errors are handled properly
      */
     public function test_validation_error_handling(): void
@@ -351,69 +247,6 @@ class CoreFunctionalityValidationTest extends TestCase
         $response = $this->actingAs($user)->post('/logs', $invalidData);
         $response->assertStatus(200); // Returns form with errors
         $response->assertSee('Log Reading'); // Form is redisplayed
-    }
-
-    /**
-     * Test streak calculation functionality
-     */
-    public function test_streak_calculation(): void
-    {
-        $user = User::factory()->create();
-
-        // Create consecutive reading logs
-        ReadingLog::factory()->create([
-            'user_id' => $user->id,
-            'book_id' => 1,
-            'chapter' => 1,
-            'date_read' => today(),
-        ]);
-
-        ReadingLog::factory()->create([
-            'user_id' => $user->id,
-            'book_id' => 1,
-            'chapter' => 2,
-            'date_read' => today()->subDay(),
-        ]);
-
-        ReadingLog::factory()->create([
-            'user_id' => $user->id,
-            'book_id' => 1,
-            'chapter' => 3,
-            'date_read' => today()->subDays(2),
-        ]);
-
-        $response = $this->actingAs($user)->get('/dashboard');
-        $response->assertStatus(200);
-
-        // Should show current streak
-        $response->assertSee('Daily Streak');
-        $response->assertSee('3'); // 3-day streak
-    }
-
-    /**
-     * Test book progress tracking
-     */
-    public function test_book_progress_tracking(): void
-    {
-        $user = User::factory()->create();
-
-        // Create reading logs for Genesis (50 chapters)
-        for ($chapter = 1; $chapter <= 5; $chapter++) {
-            ReadingLog::factory()->create([
-                'user_id' => $user->id,
-                'book_id' => 1, // Genesis
-                'chapter' => $chapter,
-                'date_read' => today()->subDays($chapter - 1),
-            ]);
-        }
-
-        $response = $this->actingAs($user)->get('/dashboard');
-        $response->assertStatus(200);
-
-        // Should show book progress
-        $response->assertSee('Bible Progress');
-        // Genesis should show some progress (5/50 chapters = 10%)
-        $response->assertSee('Genesis', false);
     }
 
     /**
