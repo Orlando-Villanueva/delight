@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\BookProgress;
 use App\Models\ReadingLog;
 use App\Models\User;
 use App\Models\UserAchievement;
@@ -63,17 +62,21 @@ function achievementExpectDashboardMilestone(
     expect($milestone)->toMatchArray($expected);
 }
 
-function achievement_progress(User $user, int $bookId, string $bookName, int $totalChapters, array $chaptersRead): BookProgress
+function achievement_progress(User $user, int $bookId, string $bookName, array $chaptersRead): void
 {
-    return BookProgress::factory()->for($user)->create([
-        'book_id' => $bookId,
-        'book_name' => $bookName,
-        'total_chapters' => $totalChapters,
-        'chapters_read' => $chaptersRead,
-        'completion_percent' => round((count($chaptersRead) / $totalChapters) * 100, 2),
-        'is_completed' => count($chaptersRead) >= $totalChapters,
-        'last_updated' => now(),
-    ]);
+    $readingDate = $user->readingLogs()->orderBy('date_read')->value('date_read') ?? today()->toDateString();
+
+    foreach ($chaptersRead as $chapter) {
+        $user->readingLogs()->firstOrCreate(
+            [
+                'book_id' => $bookId,
+                'chapter' => $chapter,
+                'date_read' => $readingDate,
+            ],
+            ['passage_text' => "{$bookName} {$chapter}"]
+        );
+    }
+
 }
 
 function achievement_spread_bible_progress(User $user, int $chaptersToRead): void
@@ -92,7 +95,7 @@ function achievement_spread_bible_progress(User $user, int $chaptersToRead): voi
         $chaptersRead = range(1, max(1, $readCount));
         $remaining -= count($chaptersRead);
 
-        achievement_progress($user, $book['id'], $book['name'], $book['chapters'], $chaptersRead);
+        achievement_progress($user, $book['id'], $book['name'], $chaptersRead);
     });
 }
 
@@ -103,12 +106,12 @@ it('awards milestone achievements idempotently with stable context keys', functi
         achievement_log_reading($user, today()->subDays(29 - $offset)->toDateString(), $offset + 1);
     }
 
-    achievement_progress($user, 1, 'Genesis', 50, range(1, 50));
-    achievement_progress($user, 2, 'Exodus', 40, range(1, 40));
-    achievement_progress($user, 19, 'Psalms', 150, range(1, 150));
-    achievement_progress($user, 43, 'John', 21, range(1, 21));
-    achievement_progress($user, 44, 'Acts', 28, range(1, 28));
-    achievement_progress($user, 45, 'Romans', 16, range(1, 16));
+    achievement_progress($user, 1, 'Genesis', range(1, 50));
+    achievement_progress($user, 2, 'Exodus', range(1, 40));
+    achievement_progress($user, 19, 'Psalms', range(1, 150));
+    achievement_progress($user, 43, 'John', range(1, 21));
+    achievement_progress($user, 44, 'Acts', range(1, 28));
+    achievement_progress($user, 45, 'Romans', range(1, 16));
 
     $firstRun = app(AchievementService::class)->evaluateAndAward($user);
     $secondRun = app(AchievementService::class)->evaluateAndAward($user);
@@ -142,17 +145,25 @@ it('awards milestone achievements idempotently with stable context keys', functi
         ]);
 });
 
-it('does not award first week for seven distinct non consecutive reading days', function () {
+it('shows weekly rhythm for nonconsecutive reading days without awarding a streak', function () {
     $user = User::factory()->create();
 
-    foreach (range(0, 6) as $offset) {
-        achievement_log_reading($user, today()->subDays($offset * 2)->toDateString(), $offset + 1);
+    foreach ([2, 3, 6, 8, 10, 12, 14] as $index => $offset) {
+        achievement_log_reading($user, today()->subDays($offset)->toDateString(), $index + 1);
     }
 
-    app(AchievementService::class)->evaluateAndAward($user);
+    $service = app(AchievementService::class);
+    $service->evaluateAndAward($user);
+    $milestone = $service->getDashboardMilestone($user)['milestone'];
 
-    expect($user->achievements()->where('achievement_key', 'first_week')->exists())->toBeFalse()
-        ->and($user->achievements()->where('achievement_key', 'reading_streak_7')->exists())->toBeFalse();
+    expect($user->achievements()->where('achievement_key', 'reading_streak_7')->exists())->toBeFalse();
+
+    expect($milestone)->toMatchArray([
+        'achievement_key' => 'weekly_rhythm',
+        'display_name' => '4 days this week',
+        'current' => 2,
+        'target' => 4,
+    ]);
 });
 
 it('does not persist or surface a personal best for a first uninterrupted streak', function () {
@@ -279,25 +290,10 @@ it('chooses the active streak threshold as the primary dashboard milestone', fun
     ]);
 });
 
-it('chooses weekly rhythm when the week is active but the daily streak is broken', function () {
-    $user = User::factory()->create();
-    achievement_log_reading($user, '2026-05-03', 1);
-    achievement_log_reading($user, '2026-05-04', 2);
-
-    $milestone = app(AchievementService::class)->getDashboardMilestone($user)['milestone'];
-
-    expect($milestone)->toMatchArray([
-        'achievement_key' => 'weekly_rhythm',
-        'display_name' => '4 days this week',
-        'current' => 2,
-        'target' => 4,
-    ]);
-});
-
 it('chooses a nearly finished book over low progress catalog goals', function () {
     $user = User::factory()->create();
     achievement_log_reading($user, '2026-04-01', 1);
-    achievement_progress($user, 43, 'John', 21, array_values(array_diff(range(1, 21), [20, 21])));
+    achievement_progress($user, 43, 'John', array_values(array_diff(range(1, 21), [20, 21])));
 
     achievementExpectDashboardMilestone($user, 'book_completed', 'Finish John', 19, 21, 'book:43');
 });
@@ -305,7 +301,7 @@ it('chooses a nearly finished book over low progress catalog goals', function ()
 it('chooses a one chapter book goal over a far away yearly streak milestone', function () {
     $user = User::factory()->create();
     achievementLogConsecutiveReadings($user, 112);
-    achievement_progress($user, 15, 'Ezra', 10, range(1, 9));
+    achievement_progress($user, 15, 'Ezra', range(1, 9));
 
     app(AchievementService::class)->evaluateAndAward($user);
 
@@ -324,7 +320,7 @@ it('keeps a near streak threshold eligible when no closer book goal exists', fun
 it('chooses a nearer streak threshold over a less close book goal', function () {
     $user = User::factory()->create();
     achievementLogConsecutiveReadings($user, 99);
-    achievement_progress($user, 43, 'John', 21, range(1, 16));
+    achievement_progress($user, 43, 'John', range(1, 16));
 
     app(AchievementService::class)->evaluateAndAward($user);
 
@@ -351,7 +347,7 @@ it('chooses nearly completed testament progress when it is close', function () {
     $books = collect(app(BibleReferenceService::class)->listBibleBooks('new'));
 
     $books->take($books->count() - 4)->each(function (array $book) use ($user): void {
-        achievement_progress($user, $book['id'], $book['name'], $book['chapters'], range(1, $book['chapters']));
+        achievement_progress($user, $book['id'], $book['name'], range(1, $book['chapters']));
     });
 
     $milestone = app(AchievementService::class)->getDashboardMilestone($user)['milestone'];
@@ -404,9 +400,9 @@ it('builds curated next goals with almost finished books first', function () {
     $user = User::factory()->create();
 
     achievement_log_reading($user, today()->toDateString(), 1);
-    achievement_progress($user, 1, 'Genesis', 50, array_values(array_diff(range(1, 50), [7, 19, 28, 41])));
-    achievement_progress($user, 2, 'Exodus', 40, [1, 2, 3]);
-    achievement_progress($user, 43, 'John', 21, array_values(array_diff(range(1, 21), [20, 21])));
+    achievement_progress($user, 1, 'Genesis', array_values(array_diff(range(1, 50), [7, 19, 28, 41])));
+    achievement_progress($user, 2, 'Exodus', [1, 2, 3]);
+    achievement_progress($user, 43, 'John', array_values(array_diff(range(1, 21), [20, 21])));
 
     app(AchievementService::class)->evaluateAndAward($user);
 
@@ -498,18 +494,18 @@ it('keeps earned deuterocanonical achievements visible after opt out but does no
     ]);
 
     achievement_log_reading($optedIn, today()->toDateString(), 1);
-    achievement_progress($optedIn, 67, 'Tobit', 14, range(1, 14));
+    achievement_progress($optedIn, 67, 'Tobit', range(1, 14));
 
     app(AchievementService::class)->evaluateAndAward($optedIn);
     $optedIn->forceFill(['deuterocanonical_books_enabled_at' => null])->save();
 
     $earnedShelf = app(AchievementService::class)->getShelfData($optedIn);
 
-    expect($earnedShelf['earned']->flatten(1)->pluck('display_name')->all())->toContain('Completed Tobit');
+    expect($earnedShelf['earned']->flatten(1)->pluck('achievement.display_name')->all())->toContain('Completed Tobit');
 
     $optedOut = User::factory()->create();
     achievement_log_reading($optedOut, today()->toDateString(), 1);
-    achievement_progress($optedOut, 67, 'Tobit', 14, range(1, 14));
+    achievement_progress($optedOut, 67, 'Tobit', range(1, 14));
 
     app(AchievementService::class)->evaluateAndAward($optedOut);
 

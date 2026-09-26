@@ -83,7 +83,7 @@
 
                                 <!-- Summary Stats - broader progress -->
                                 <div class="order-3 col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-2 2xl:col-span-1">
-                                    <x-ui.summary-stats :daysRead="$stats['reading_summary']['total_reading_days']" :totalChapters="$stats['reading_summary']['total_readings']" :bibleProgress="$stats['book_progress']['overall_progress_percent']"
+                                    <x-ui.summary-stats :daysRead="$stats['reading_summary']['total_reading_days']" :totalChapters="$stats['reading_summary']['total_readings']" :bookCompletions="$stats['book_progress']['book_completions']"
                                         :averageChaptersPerDay="$stats['reading_summary']['average_chapters_per_day']" class="h-full" />
                                 </div>
 
@@ -114,7 +114,7 @@
                             <x-ui.card
                                 class="bg-white dark:bg-gray-800 border border-[#D1D7E0] dark:border-gray-700 transition-colors shadow-lg">
                                 <div class="p-4 lg:p-3 xl:p-4">
-                                    <h3 class="font-semibold text-[#4A5568] dark:text-gray-200 mb-3">Recent Activity</h3>
+                                    <h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-3">Recent Activity</h3>
                                     <div class="space-y-2">
                                         @forelse (array_slice($stats['recent_activity'], 0, 10) as $reading)
                                             <div class="text-sm">

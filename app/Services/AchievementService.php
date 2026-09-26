@@ -26,7 +26,8 @@ class AchievementService
 
     public function __construct(
         private BibleReferenceService $bibleReferenceService,
-        private ReadingCalendarService $readingCalendar
+        private ReadingCalendarService $readingCalendar,
+        private BookProgressService $bookProgressService
     ) {}
 
     /**
@@ -145,7 +146,7 @@ class AchievementService
     }
 
     /**
-     * @return array{earned: Collection<string, Collection<int, UserAchievement>>, locked: Collection<int, array<string, mixed>>, next_goals: array{books: Collection<int, array<string, mixed>>, progress: Collection<int, array<string, mixed>>}, recent: Collection<int, UserAchievement>}
+     * @return array{earned: Collection<string, Collection<int, array{achievement: UserAchievement, count: int}>>, locked: Collection<int, array<string, mixed>>, next_goals: array{books: Collection<int, array<string, mixed>>, progress: Collection<int, array<string, mixed>>}, recent: Collection<int, UserAchievement>}
      */
     public function getShelfData(User $user): array
     {
@@ -153,25 +154,42 @@ class AchievementService
             ->orderByDesc('earned_at')
             ->orderBy('sort_order')
             ->get();
+        $overallProgress = $this->bookProgressService->getOverallProgress($user);
+        $locked = $this->getLockedAchievements($user, $earned, $overallProgress);
 
         return [
-            'earned' => $earned->groupBy('category'),
-            'locked' => $this->getLockedAchievements($user, $earned),
-            'next_goals' => $this->nextGoals($user, $earned),
+            'earned' => $earned
+                ->groupBy('category')
+                ->map(fn (Collection $categoryAchievements): Collection => $categoryAchievements
+                    ->groupBy(fn (UserAchievement $achievement): string => $this->earnedAchievementGroupKey($achievement))
+                    ->map(fn (Collection $group): array => [
+                        'achievement' => $group->first(),
+                        'count' => $group->count(),
+                    ])
+                    ->values()),
+            'locked' => $locked,
+            'next_goals' => $this->nextGoals($overallProgress, $locked),
             'recent' => $earned->take(3),
         ];
     }
 
     /**
-     * @param  Collection<int, UserAchievement>  $earned
+     * @param  array<string, mixed>  $overallProgress
+     * @param  Collection<int, array<string, mixed>>  $lockedAchievements
      * @return array{books: Collection<int, array<string, mixed>>, progress: Collection<int, array<string, mixed>>}
      */
-    private function nextGoals(User $user, Collection $earned): array
+    private function nextGoals(array $overallProgress, Collection $lockedAchievements): array
     {
+        $nextBibleProgressAchievement = $lockedAchievements
+            ->first(fn (array $achievement): bool => str_starts_with($achievement['achievement_key'], 'bible_progress_'));
+        $nextBibleProgressAchievementKey = $nextBibleProgressAchievement['achievement_key'] ?? null;
+
         return [
-            'books' => $this->almostFinishedBooks($user),
-            'progress' => $this->getLockedAchievements($user, $earned)
+            'books' => $this->almostFinishedBooks($overallProgress),
+            'progress' => $lockedAchievements
                 ->filter(fn (array $achievement): bool => (int) $achievement['current'] > 0)
+                ->reject(fn (array $achievement): bool => str_starts_with($achievement['achievement_key'], 'bible_progress_')
+                    && $achievement['achievement_key'] !== $nextBibleProgressAchievementKey)
                 ->sortByDesc(fn (array $achievement): int|float => $achievement['progress_percent'])
                 ->take(4)
                 ->values(),
@@ -179,44 +197,30 @@ class AchievementService
     }
 
     /**
+     * @param  array<string, mixed>  $overallProgress
      * @return Collection<int, array<string, mixed>>
      */
-    private function almostFinishedBooks(User $user): Collection
+    private function almostFinishedBooks(array $overallProgress): Collection
     {
-        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
-
-        return $user->bookProgress()
-            ->inProgress()
-            ->get()
-            ->filter(fn ($progress): bool => $progress->book_id <= 66 || $includeDeuterocanonical)
-            ->map(function ($progress): array {
-                $chaptersRead = collect($progress->chapters_read ?? [])
-                    ->map(fn ($chapter): int => (int) $chapter)
-                    ->filter(fn (int $chapter): bool => $chapter >= 1 && $chapter <= $progress->total_chapters)
-                    ->unique()
-                    ->sort()
-                    ->values()
-                    ->all();
-                $missingChapters = array_values(array_diff(range(1, $progress->total_chapters), $chaptersRead));
-                $chaptersReadCount = count($chaptersRead);
-                $chaptersRemaining = count($missingChapters);
-                $progressPercent = $progress->total_chapters > 0
-                    ? round(($chaptersReadCount / $progress->total_chapters) * 100)
-                    : 0;
+        return $this->includedTestaments($overallProgress)
+            ->flatMap(fn (array $testament): Collection => $testament['progress']['processed_books'])
+            ->map(function (array $book): array {
+                $chaptersRemaining = $book['chapter_count'] - $book['next_completion_chapters'];
 
                 return [
-                    'book_id' => $progress->book_id,
-                    'book_name' => $progress->book_name,
-                    'chapters_read' => $chaptersReadCount,
-                    'total_chapters' => $progress->total_chapters,
+                    'book_id' => $book['book_id'],
+                    'book_name' => $book['name'],
+                    'chapters_read' => $book['next_completion_chapters'],
+                    'total_chapters' => $book['chapter_count'],
                     'chapters_remaining' => $chaptersRemaining,
-                    'missing_chapters' => $chaptersRemaining <= 10 ? $missingChapters : [],
-                    'progress_percent' => $progressPercent,
+                    'missing_chapters' => $chaptersRemaining <= 10 ? $book['next_completion_missing_chapters'] : [],
+                    'completed_count' => $book['completed_count'],
+                    'progress_percent' => round($book['next_completion_progress_percent']),
                     'icon' => 'book-open',
                     'style' => 'success',
                 ];
             })
-            ->filter(fn (array $goal): bool => $goal['chapters_remaining'] <= 5 || $goal['progress_percent'] >= 75)
+            ->filter(fn (array $goal): bool => $goal['chapters_read'] > 0 && ($goal['chapters_remaining'] <= 5 || $goal['progress_percent'] >= 75))
             ->sortBy(fn (array $goal): array => [$goal['chapters_remaining'], -$goal['progress_percent']])
             ->take(3)
             ->values();
@@ -268,7 +272,8 @@ class AchievementService
         $earnedContexts = $this->earnedContextLookup($earned);
         $candidates = collect();
         $currentStreak = $this->currentStreak($readingDates, $user);
-        $bibleProgress = $this->bibleProgress($user);
+        $overallProgress = $this->bookProgressService->getOverallProgress($user);
+        $bibleProgress = $this->bibleProgress($overallProgress);
 
         $streakMilestone = $this->nextStreakDashboardMilestone($currentStreak, $earnedContexts);
         if ($streakMilestone !== null) {
@@ -300,12 +305,17 @@ class AchievementService
             $candidates->push($bibleProgressMilestone);
         }
 
-        $this->almostFinishedBooks($user)
+        $bibleCompletionMilestone = $this->nextBibleCompletionDashboardMilestone($overallProgress);
+        if ($bibleCompletionMilestone !== null) {
+            $candidates->push($bibleCompletionMilestone);
+        }
+
+        $this->almostFinishedBooks($overallProgress)
             ->each(fn (array $book): mixed => $candidates->push($this->dashboardPayload(
                 key: 'book_completed',
                 contextKey: 'book:'.$book['book_id'],
-                displayName: 'Finish '.$book['book_name'],
-                description: $book['chapters_remaining'].' '.str('chapter')->plural($book['chapters_remaining']).' left to complete '.$book['book_name'].'.',
+                displayName: $book['completed_count'] > 0 ? 'Complete '.$book['book_name'].' again' : 'Finish '.$book['book_name'],
+                description: $book['chapters_remaining'].' '.str('chapter')->plural($book['chapters_remaining']).' left to '.($book['completed_count'] > 0 ? 'complete '.$book['book_name'].' again' : 'complete '.$book['book_name']).'.',
                 icon: $book['icon'],
                 style: $book['style'],
                 current: $book['chapters_read'],
@@ -314,7 +324,7 @@ class AchievementService
                 sortOrder: 100 + (int) $book['book_id']
             )));
 
-        $this->testamentProgressGoals($user)
+        $this->testamentProgressGoals($overallProgress)
             ->each(fn (array $testament): mixed => $candidates->push($this->dashboardPayload(
                 key: 'testament_completed',
                 contextKey: 'testament:'.$testament['testament'],
@@ -329,7 +339,7 @@ class AchievementService
             )));
 
         if ($candidates->isEmpty()) {
-            return $this->getLockedAchievements($user, $earned)
+            return $this->getLockedAchievements($user, $earned, $overallProgress)
                 ->first();
         }
 
@@ -362,8 +372,8 @@ class AchievementService
         $distinctReadingDays = $readingDates->count();
         $longestStreak = $this->longestStreak($readingDates);
         $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
-        $bookProgress = $user->bookProgress()->get()->keyBy('book_id');
-        $bibleProgress = $this->bibleProgress($user, $bookProgress, $includeDeuterocanonical);
+        $overallProgress = $this->bookProgressService->getOverallProgress($user);
+        $bibleProgress = $this->bibleProgress($overallProgress);
         $candidates = collect();
 
         if ($distinctReadingDays >= 1) {
@@ -397,8 +407,9 @@ class AchievementService
             }
         }
 
-        $this->bookCompletionCandidates($user, $bookProgress, $includeDeuterocanonical)->each(fn (array $candidate) => $candidates->push($candidate));
-        $this->testamentCompletionCandidates($user, $bookProgress, $includeDeuterocanonical)->each(fn (array $candidate) => $candidates->push($candidate));
+        $this->bookCompletionCandidates($overallProgress, $includeDeuterocanonical)->each(fn (array $candidate) => $candidates->push($candidate));
+        $this->testamentCompletionCandidates($overallProgress)->each(fn (array $candidate) => $candidates->push($candidate));
+        $this->bibleCompletionCandidates($overallProgress, $includeDeuterocanonical)->each(fn (array $candidate) => $candidates->push($candidate));
 
         return $candidates->sortBy([
             ['sort_order', 'asc'],
@@ -481,28 +492,34 @@ class AchievementService
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function bookCompletionCandidates(User $user, ?Collection $bookProgress = null, ?bool $includeDeuterocanonical = null): Collection
+    private function bookCompletionCandidates(array $overallProgress, bool $includeDeuterocanonical): Collection
     {
-        $includeDeuterocanonical ??= $user->includesDeuterocanonicalBooks();
-        $progress = $bookProgress ?? $user->bookProgress()->get()->keyBy('book_id');
-
-        return $progress
-            ->filter(fn ($progress): bool => (bool) $progress->is_completed)
-            ->filter(fn ($progress): bool => $progress->book_id <= 66 || $includeDeuterocanonical)
-            ->map(function ($progress) use ($includeDeuterocanonical) {
+        return $this->includedTestaments($overallProgress)
+            ->flatMap(fn (array $testament): Collection => $testament['progress']['processed_books'])
+            ->filter(fn (array $book): bool => $book['completed_count'] > 0)
+            ->flatMap(function (array $book) use ($includeDeuterocanonical): Collection {
                 $bookName = $this->bibleReferenceService->getLocalizedBookName(
-                    $progress->book_id,
-                    includeDeuterocanonical: $includeDeuterocanonical || $progress->book_id > 66
+                    $book['book_id'],
+                    includeDeuterocanonical: $includeDeuterocanonical || $book['book_id'] > 66
                 );
 
-                return $this->candidate('book_completed', 'book:'.$progress->book_id, [
-                    'book_id' => $progress->book_id,
-                    'book_name' => $bookName,
-                ], [
-                    'display_name' => "Completed {$bookName}",
-                    'description' => "You completed {$bookName}.",
-                    'sort_order' => 100 + $progress->book_id,
-                ]);
+                return collect(range(1, (int) $book['completed_count']))
+                    ->map(fn (int $completionNumber): array => $this->candidate(
+                        'book_completed',
+                        $completionNumber === 1
+                            ? 'book:'.$book['book_id']
+                            : "book:{$book['book_id']}:completion:{$completionNumber}",
+                        [
+                            'book_id' => $book['book_id'],
+                            'book_name' => $bookName,
+                            'completion_number' => $completionNumber,
+                        ],
+                        [
+                            'display_name' => "Completed {$bookName}",
+                            'description' => "You completed {$bookName}.",
+                            'sort_order' => 100 + $book['book_id'],
+                        ]
+                    ));
             })
             ->values();
     }
@@ -510,104 +527,91 @@ class AchievementService
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function testamentCompletionCandidates(User $user, ?Collection $bookProgress = null, ?bool $includeDeuterocanonical = null): Collection
+    private function testamentCompletionCandidates(array $overallProgress): Collection
     {
-        $includeDeuterocanonical ??= $user->includesDeuterocanonicalBooks();
-
-        return collect([
-            'old' => 'Old Testament',
-            'new' => 'New Testament',
-            'deuterocanonical' => 'Deuterocanonical books',
-        ])
-            ->filter(fn (string $label, string $testament): bool => $testament !== 'deuterocanonical' || $includeDeuterocanonical)
-            ->filter(fn (string $label, string $testament): bool => $this->isTestamentCompleted($user, $testament, $bookProgress, $includeDeuterocanonical))
-            ->map(function (string $label, string $testament) {
-                return $this->candidate('testament_completed', "testament:{$testament}", [
-                    'testament' => $testament,
-                    'label' => $label,
-                ], [
-                    'display_name' => "Completed the {$label}",
-                    'description' => "You completed every book in the {$label}.",
-                ]);
+        return $this->includedTestaments($overallProgress)
+            ->filter(fn (array $testament): bool => $testament['progress']['testament_completions'] > 0)
+            ->flatMap(function (array $testament): Collection {
+                return collect(range(1, (int) $testament['progress']['testament_completions']))
+                    ->map(fn (int $completionNumber): array => $this->candidate(
+                        'testament_completed',
+                        $completionNumber === 1
+                            ? 'testament:'.$testament['key']
+                            : "testament:{$testament['key']}:completion:{$completionNumber}",
+                        [
+                            'testament' => $testament['key'],
+                            'label' => $testament['label'],
+                            'completion_number' => $completionNumber,
+                        ],
+                        [
+                            'display_name' => "Completed the {$testament['label']}",
+                            'description' => "You completed every book in the {$testament['label']}.",
+                        ]
+                    ));
             })
             ->values();
     }
 
-    private function isTestamentCompleted(User $user, string $testament, ?Collection $bookProgress = null, ?bool $includeDeuterocanonical = null): bool
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function bibleCompletionCandidates(array $overallProgress, bool $includeDeuterocanonical): Collection
     {
-        $includeDeuterocanonical ??= $user->includesDeuterocanonicalBooks();
-        $books = collect($this->bibleReferenceService->listBibleBooks($testament, includeDeuterocanonical: $includeDeuterocanonical));
+        $completions = (int) $overallProgress['bible_completions'];
 
-        if ($books->isEmpty()) {
-            return false;
+        if ($completions === 0) {
+            return collect();
         }
 
-        $progress = $bookProgress ?? $user->bookProgress()->get()->keyBy('book_id');
+        $collectionKey = $includeDeuterocanonical ? 'with-deuterocanonical' : 'canonical';
+        $collectionLabel = $includeDeuterocanonical ? 'Bible with Deuterocanonical books' : 'Bible';
 
-        return $books->every(function (array $book) use ($progress): bool {
-            $bookProgress = $progress->get($book['id']);
+        return collect(range(1, $completions))
+            ->map(fn (int $completionNumber): array => $this->candidate(
+                'bible_completed',
+                "bible:{$collectionKey}:completion:{$completionNumber}",
+                [
+                    'collection_key' => $collectionKey,
+                    'completion_number' => $completionNumber,
+                ],
+                [
+                    'display_name' => "Completed the {$collectionLabel}",
+                    'description' => "You completed the {$collectionLabel}.",
+                ]
+            ));
+    }
 
-            if (! $bookProgress) {
-                return false;
-            }
-
-            $chaptersRead = collect($bookProgress->chapters_read ?? [])
-                ->filter(fn (int $chapter): bool => $chapter >= 1 && $chapter <= (int) $book['chapters'])
-                ->unique()
-                ->count();
-
-            return $chaptersRead >= (int) $book['chapters'];
-        });
+    private function earnedAchievementGroupKey(UserAchievement $achievement): string
+    {
+        return match ($achievement->achievement_key) {
+            'book_completed' => 'book:'.($achievement->metadata['book_id'] ?? $achievement->context_key),
+            'testament_completed' => 'testament:'.($achievement->metadata['testament'] ?? $achievement->context_key),
+            'bible_completed' => 'bible:'.($achievement->metadata['collection_key'] ?? $achievement->context_key),
+            default => $achievement->achievement_key.':'.$achievement->context_key,
+        };
     }
 
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function testamentProgressGoals(User $user): Collection
+    private function testamentProgressGoals(array $overallProgress): Collection
     {
-        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
-        $progress = $user->bookProgress()->get()->keyBy('book_id');
-
-        return collect([
-            'old' => 'Old Testament',
-            'new' => 'New Testament',
-            'deuterocanonical' => 'Deuterocanonical books',
-        ])
-            ->filter(fn (string $label, string $testament): bool => $testament !== 'deuterocanonical' || $includeDeuterocanonical)
-            ->map(function (string $label, string $testament) use ($includeDeuterocanonical, $progress): ?array {
-                $books = collect($this->bibleReferenceService->listBibleBooks($testament, includeDeuterocanonical: $includeDeuterocanonical));
-
-                if ($books->isEmpty()) {
-                    return null;
-                }
-
-                $completed = $books->filter(function (array $book) use ($progress): bool {
-                    $bookProgress = $progress->get($book['id']);
-
-                    if (! $bookProgress) {
-                        return false;
-                    }
-
-                    return collect($bookProgress->chapters_read ?? [])
-                        ->filter(fn (int $chapter): bool => $chapter >= 1 && $chapter <= (int) $book['chapters'])
-                        ->unique()
-                        ->count() >= (int) $book['chapters'];
-                })->count();
-
-                $total = $books->count();
+        return $this->includedTestaments($overallProgress)
+            ->map(function (array $testament): array {
+                $progress = $testament['progress'];
+                $total = $progress['total_books'];
+                $completed = $progress['completed_books'];
                 $remaining = $total - $completed;
-                $progressPercent = $total > 0 ? round(($completed / $total) * 100) : 0;
 
                 return [
-                    'testament' => $testament,
-                    'label' => $label,
+                    'testament' => $testament['key'],
+                    'label' => $testament['label'],
                     'books_completed' => $completed,
                     'total_books' => $total,
                     'books_remaining' => $remaining,
-                    'progress_percent' => $progressPercent,
+                    'progress_percent' => $total > 0 ? round(($completed / $total) * 100) : 0,
                 ];
             })
-            ->filter()
             ->filter(fn (array $goal): bool => $goal['books_remaining'] > 0)
             ->filter(fn (array $goal): bool => $goal['books_remaining'] <= 5 || $goal['progress_percent'] >= 75)
             ->sortBy(fn (array $goal): array => [$goal['books_remaining'], -$goal['progress_percent']])
@@ -617,37 +621,25 @@ class AchievementService
     /**
      * @return array{percentage: float, chapters_read: int, total_chapters: int}
      */
-    private function bibleProgress(User $user, ?Collection $bookProgress = null, ?bool $includeDeuterocanonical = null): array
+    private function bibleProgress(array $overallProgress): array
     {
-        $includeDeuterocanonical ??= $user->includesDeuterocanonicalBooks();
-        $books = collect($this->bibleReferenceService->listBibleBooks(includeDeuterocanonical: $includeDeuterocanonical))
-            ->keyBy('id');
-        $progress = $bookProgress
-            ? $bookProgress->only($books->keys()->all())
-            : $user->bookProgress()
-                ->whereIn('book_id', $books->keys()->all())
-                ->get();
-
-        $chaptersRead = $progress->sum(function ($bookProgress) use ($books): int {
-            $book = $books->get($bookProgress->book_id);
-
-            if (! $book) {
-                return 0;
-            }
-
-            return collect($bookProgress->chapters_read ?? [])
-                ->filter(fn (int $chapter): bool => $chapter >= 1 && $chapter <= (int) $book['chapters'])
-                ->unique()
-                ->count();
-        });
-
-        $totalChapters = $books->sum(fn (array $book): int => (int) $book['chapters']);
-
         return [
-            'percentage' => $totalChapters > 0 ? round(($chaptersRead / $totalChapters) * 100, 2) : 0.0,
-            'chapters_read' => $chaptersRead,
-            'total_chapters' => $totalChapters,
+            'percentage' => $overallProgress['first_coverage_percent'],
+            'chapters_read' => $overallProgress['first_coverage_chapters'],
+            'total_chapters' => $overallProgress['next_completion_target'],
         ];
+    }
+
+    /**
+     * @return Collection<int, array{key: string, label: string, progress: array<string, mixed>}>
+     */
+    private function includedTestaments(array $overallProgress): Collection
+    {
+        return collect([
+            ['key' => 'old', 'label' => 'Old Testament', 'progress' => $overallProgress['old_testament']],
+            ['key' => 'new', 'label' => 'New Testament', 'progress' => $overallProgress['new_testament']],
+            ['key' => 'deuterocanonical', 'label' => 'Deuterocanonical books', 'progress' => $overallProgress['deuterocanonical']],
+        ])->filter(fn (array $testament): bool => $testament['progress'] !== null)->values();
     }
 
     /**
@@ -727,7 +719,7 @@ class AchievementService
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function getLockedAchievements(User $user, Collection $earned): Collection
+    private function getLockedAchievements(User $user, Collection $earned, ?array $overallProgress = null): Collection
     {
         $earnedContexts = $earned
             ->map(fn (UserAchievement $achievement): string => $achievement->achievement_key.'|'.$achievement->context_key)
@@ -736,7 +728,8 @@ class AchievementService
         $readingDates = $this->readingDates($user);
         $readingDays = $readingDates->count();
         $longestStreak = $this->longestStreak($readingDates);
-        $bibleProgress = $this->bibleProgress($user);
+        $overallProgress ??= $this->bookProgressService->getOverallProgress($user);
+        $bibleProgress = $this->bibleProgress($overallProgress);
 
         $locked = collect([
             $this->lockedPayload('first_reading', 'first-reading', min($readingDays, 1), 1),
@@ -881,6 +874,37 @@ class AchievementService
         }
 
         return null;
+    }
+
+    /**
+     * Build a dashboard-only goal for progress toward the next lifetime Bible completion.
+     *
+     * @param  array<string, mixed>  $overallProgress
+     * @return array<string, mixed>|null
+     */
+    private function nextBibleCompletionDashboardMilestone(array $overallProgress): ?array
+    {
+        $completions = (int) $overallProgress['bible_completions'];
+
+        if ($completions === 0) {
+            return null;
+        }
+
+        $nextCompletion = $completions + 1;
+        $totalChapters = (int) $overallProgress['next_completion_target'];
+
+        return $this->dashboardPayload(
+            key: 'bible_completion',
+            contextKey: "bible:completion:{$nextCompletion}",
+            displayName: 'Complete the Bible again',
+            description: "Read all {$totalChapters} chapters again to reach Bible completion {$nextCompletion}.",
+            icon: 'book-open',
+            style: 'success',
+            current: (int) $overallProgress['next_completion_chapters'],
+            target: $totalChapters,
+            priority: 30,
+            sortOrder: 440
+        );
     }
 
     /**

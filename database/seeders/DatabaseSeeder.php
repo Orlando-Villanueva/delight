@@ -198,7 +198,64 @@ MD;
             }
         }
 
+        $this->ensureSampleBookCompletions($user, $bibleService);
+
         $this->command->info("Created reading history from launch date (Aug 1, 2025) for {$user->name}");
+    }
+
+    /**
+     * Ensure the primary seed reader has representative single and repeat book completions.
+     */
+    private function ensureSampleBookCompletions(User $user, BibleReferenceService $bibleService): void
+    {
+        $bookCompletionTargets = [
+            1 => 2,
+            2 => 1,
+        ];
+        $chapterDates = $user->readingLogs()
+            ->whereIn('book_id', array_keys($bookCompletionTargets))
+            ->get(['book_id', 'chapter', 'date_read'])
+            ->groupBy(fn (ReadingLog $reading): string => "{$reading->book_id}:{$reading->chapter}")
+            ->map(fn ($readings): array => $readings
+                ->pluck('date_read')
+                ->map(fn ($date): string => Carbon::parse($date)->toDateString())
+                ->all());
+
+        foreach ($bookCompletionTargets as $bookId => $targetOccurrences) {
+            $chapterCount = $bibleService->getBookChapterCount($bookId);
+
+            for ($chapter = 1; $chapter <= $chapterCount; $chapter++) {
+                $chapterKey = "{$bookId}:{$chapter}";
+                $dates = $chapterDates->get($chapterKey, []);
+
+                for ($occurrence = count($dates); $occurrence < $targetOccurrences; $occurrence++) {
+                    $readingDate = Carbon::today()->subDays(180 - ($occurrence * 60));
+
+                    while (in_array($readingDate->toDateString(), $dates, true)) {
+                        $readingDate->subDay();
+                    }
+
+                    $dateString = $readingDate->toDateString();
+                    $loggedAt = $readingDate->copy()->setTime(12, 0);
+
+                    ReadingLog::create([
+                        'user_id' => $user->id,
+                        'book_id' => $bookId,
+                        'chapter' => $chapter,
+                        'passage_text' => $bibleService->formatBibleReference($bookId, $chapter),
+                        'date_read' => $dateString,
+                        'created_at' => $loggedAt,
+                        'updated_at' => $loggedAt,
+                    ]);
+
+                    $dates[] = $dateString;
+                }
+
+                $chapterDates->put($chapterKey, $dates);
+            }
+        }
+
+        $this->command->info("Ensured sample book completions for {$user->name}.");
     }
 
     /**
