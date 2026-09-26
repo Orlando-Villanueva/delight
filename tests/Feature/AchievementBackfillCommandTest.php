@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\BookProgress;
 use App\Models\ReadingLog;
 use App\Models\User;
 use Carbon\Carbon;
@@ -20,22 +19,14 @@ function achievement_backfill_user_with_john(): User
 {
     $user = User::factory()->create();
 
-    ReadingLog::factory()->for($user)->create([
-        'book_id' => 43,
-        'chapter' => 1,
-        'passage_text' => 'John 1',
-        'date_read' => today()->toDateString(),
-    ]);
-
-    BookProgress::factory()->for($user)->create([
-        'book_id' => 43,
-        'book_name' => 'John',
-        'total_chapters' => 21,
-        'chapters_read' => range(1, 21),
-        'completion_percent' => 100,
-        'is_completed' => true,
-        'last_updated' => now(),
-    ]);
+    foreach (range(1, 21) as $chapter) {
+        ReadingLog::factory()->for($user)->create([
+            'book_id' => 43,
+            'chapter' => $chapter,
+            'passage_text' => "John {$chapter}",
+            'date_read' => today()->subDays(30)->toDateString(),
+        ]);
+    }
 
     return $user;
 }

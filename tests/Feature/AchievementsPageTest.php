@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\BookProgress;
 use App\Models\ReadingLog;
 use App\Models\User;
 use App\Models\UserAchievement;
@@ -20,35 +19,34 @@ afterEach(function () {
 
 function achievement_page_completed_john(User $user): void
 {
-    ReadingLog::factory()->for($user)->create([
-        'book_id' => 43,
-        'chapter' => 1,
-        'passage_text' => 'John 1',
-        'date_read' => today()->toDateString(),
-    ]);
+    foreach (range(1, 21) as $chapter) {
+        $user->readingLogs()->firstOrCreate(
+            [
+                'book_id' => 43,
+                'chapter' => $chapter,
+                'date_read' => today()->toDateString(),
+            ],
+            ['passage_text' => "John {$chapter}"]
+        );
+    }
 
-    BookProgress::factory()->for($user)->create([
-        'book_id' => 43,
-        'book_name' => 'John',
-        'total_chapters' => 21,
-        'chapters_read' => range(1, 21),
-        'completion_percent' => 100,
-        'is_completed' => true,
-        'last_updated' => now(),
-    ]);
 }
 
-function achievement_page_book_progress(User $user, int $bookId, string $bookName, int $totalChapters, array $chaptersRead): void
+function achievement_page_read_chapters(User $user, int $bookId, string $bookName, array $chaptersRead): void
 {
-    BookProgress::factory()->for($user)->create([
-        'book_id' => $bookId,
-        'book_name' => $bookName,
-        'total_chapters' => $totalChapters,
-        'chapters_read' => $chaptersRead,
-        'completion_percent' => round((count($chaptersRead) / $totalChapters) * 100, 2),
-        'is_completed' => count($chaptersRead) >= $totalChapters,
-        'last_updated' => now(),
-    ]);
+    $readingDate = $user->readingLogs()->orderBy('date_read')->value('date_read') ?? today()->toDateString();
+
+    foreach ($chaptersRead as $chapter) {
+        $user->readingLogs()->firstOrCreate(
+            [
+                'book_id' => $bookId,
+                'chapter' => $chapter,
+                'date_read' => $readingDate,
+            ],
+            ['passage_text' => "{$bookName} {$chapter}"]
+        );
+    }
+
 }
 
 function achievement_page_complete_dashboard_teaser_goals(User $user): void
@@ -91,8 +89,18 @@ it('requires authentication for the trophy shelf', function () {
 it('renders earned achievements and curated next goals on the trophy shelf', function () {
     $user = User::factory()->create();
     achievement_page_completed_john($user);
-    achievement_page_book_progress($user, 1, 'Genesis', 50, array_values(array_diff(range(1, 50), [7, 19, 28, 41])));
-    achievement_page_book_progress($user, 2, 'Exodus', 40, [1, 2, 3]);
+
+    foreach (range(1, 18) as $chapter) {
+        $user->readingLogs()->create([
+            'book_id' => 43,
+            'chapter' => $chapter,
+            'passage_text' => "John {$chapter}",
+            'date_read' => today()->subDay()->toDateString(),
+        ]);
+    }
+
+    achievement_page_read_chapters($user, 1, 'Genesis', array_values(array_diff(range(1, 50), [7, 19, 28, 41])));
+    achievement_page_read_chapters($user, 2, 'Exodus', [1, 2, 3]);
 
     app(AchievementService::class)->evaluateAndAward($user);
 
@@ -107,6 +115,7 @@ it('renders earned achievements and curated next goals on the trophy shelf', fun
         ->assertSee('Genesis')
         ->assertSee('46/50 chapters')
         ->assertSee('4 left')
+        ->assertSee('Completion 2 · 18/21 chapters · 3 left')
         ->assertSee('Missing 7, 19, 28, 41')
         ->assertDontSee('Exodus')
         ->assertDontSee('Latest wins')

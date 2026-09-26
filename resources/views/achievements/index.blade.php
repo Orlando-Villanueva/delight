@@ -37,9 +37,15 @@
                                                         {{ $goal['chapters_read'] }}/{{ $goal['total_chapters'] }}
                                                     </span>
                                                 </div>
-                                                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                                                    {{ $goal['chapters_read'] }}/{{ $goal['total_chapters'] }} chapters · {{ $goal['chapters_remaining'] }} left
-                                                </p>
+                                                @if ($goal['completed_count'] > 0)
+                                                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                                        Completion {{ $goal['completed_count'] + 1 }} · {{ $goal['chapters_read'] }}/{{ $goal['total_chapters'] }} chapters · {{ $goal['chapters_remaining'] }} left
+                                                    </p>
+                                                @else
+                                                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                                        {{ $goal['chapters_read'] }}/{{ $goal['total_chapters'] }} chapters · {{ $goal['chapters_remaining'] }} left
+                                                    </p>
+                                                @endif
                                                 @if (! empty($goal['missing_chapters']))
                                                     <p class="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">
                                                         Missing {{ implode(', ', $goal['missing_chapters']) }}
@@ -47,7 +53,7 @@
                                                 @endif
                                             </div>
                                         </div>
-                                        <div class="mt-3 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700" aria-label="{{ $goal['book_name'] }} completion progress">
+                                        <div class="mt-3 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700" aria-label="{{ $goal['book_name'] }} completion {{ $goal['completed_count'] + 1 }} progress">
                                             <div class="h-full rounded-full bg-blue-600 dark:bg-blue-400" style="width: {{ $goal['progress_percent'] }}%"></div>
                                         </div>
                                     </article>
@@ -90,11 +96,14 @@
                             {{ $categoryLabels[$category] ?? Str::headline($category) }}
                         </h2>
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                            @foreach ($achievements as $achievement)
-                                <article class="rounded-xl border border-[#D1D7E0] bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                            @foreach ($achievements as $group)
+                                @php
+                                    $achievement = $group['achievement'];
+                                @endphp
+                                <article class="relative rounded-xl border border-[#D1D7E0] bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
                                     <div class="flex items-start gap-3">
                                         <x-achievements.badge :icon="$achievement->icon" :label="$achievement->display_name" size="md" />
-                                        <div class="min-w-0">
+                                        <div class="min-w-0 flex-1 {{ $group['count'] > 1 ? 'pr-8' : '' }}">
                                             <h3 class="font-semibold text-gray-900 dark:text-white">{{ $achievement->display_name }}</h3>
                                             @if (($achievement->metadata['passage'] ?? null) && ($achievement->metadata['date_read'] ?? null))
                                                 <p class="mt-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
@@ -107,6 +116,11 @@
                                             </p>
                                         </div>
                                     </div>
+                                    @if ($group['count'] > 1)
+                                        <span class="absolute right-3 top-3 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold leading-none text-gray-800 ring-1 ring-gray-300 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-500"
+                                            aria-hidden="true">×{{ $group['count'] }}</span>
+                                        <span class="sr-only">Earned {{ $group['count'] }} times</span>
+                                    @endif
                                 </article>
                             @endforeach
                         </div>

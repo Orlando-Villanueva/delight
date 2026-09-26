@@ -33,9 +33,23 @@ it('backfills achievements only for seeded users', function () {
     $seedUser = User::query()->where('email', 'seed.user@example.com')->firstOrFail();
     $seedUserTwo = User::query()->where('email', 'seed.user2@example.com')->firstOrFail();
     $newSeedUser = User::query()->where('email', 'seed.user.new@example.com')->firstOrFail();
+    $genesisChapterReadings = $seedUser->readingLogs()->where('book_id', 1)->get()->groupBy('chapter');
+    $exodusChapterReadings = $seedUser->readingLogs()->where('book_id', 2)->get()->groupBy('chapter');
 
     expect($seedUser->achievements()->count())->toBeGreaterThan(0)
         ->and($seedUserTwo->achievements()->count())->toBeGreaterThan(0)
         ->and($newSeedUser->achievements()->count())->toBe(0)
-        ->and($existingUser->achievements()->count())->toBe(0);
+        ->and($existingUser->achievements()->count())->toBe(0)
+        ->and($genesisChapterReadings->count())->toBe(50)
+        ->and($genesisChapterReadings->every(fn ($readings): bool => $readings
+            ->pluck('date_read')
+            ->map(fn ($date): string => $date->toDateString())
+            ->unique()
+            ->count() === 2))->toBeTrue()
+        ->and($exodusChapterReadings->count())->toBe(40)
+        ->and($exodusChapterReadings->every(fn ($readings): bool => $readings
+            ->pluck('date_read')
+            ->map(fn ($date): string => $date->toDateString())
+            ->unique()
+            ->count() === 1))->toBeTrue();
 });
