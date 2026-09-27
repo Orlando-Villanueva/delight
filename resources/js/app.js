@@ -1,6 +1,7 @@
 import './bootstrap';
 import confetti from 'canvas-confetti';
 import { authenticatedShell } from './components/authenticated-shell.js';
+import { initAchievementHistory } from './components/achievement-history.js';
 
 globalThis.confetti = confetti;
 globalThis.authenticatedShell = authenticatedShell;
@@ -46,6 +47,12 @@ const initFlowbiteWithPatches = () => {
 };
 
 if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAchievementHistory, { once: true });
+    } else {
+        initAchievementHistory();
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         initFlowbiteWithPatches();
 

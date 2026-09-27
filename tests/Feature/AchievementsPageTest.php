@@ -123,7 +123,9 @@ it('renders earned achievements and curated next goals on the trophy shelf', fun
         ->assertSee('Completed John')
         ->assertSee('images/achievements/badge-book-completed.png')
         ->assertSee('images/achievements/badge-streak.png')
-        ->assertSee('Earned May 6, 2026')
+        ->assertSee('Completed on May 6, 2026')
+        ->assertDontSee('View 1 completions')
+        ->assertSee('Read on May 5, 2026')
         ->assertSee('7-day reading streak')
         ->assertSee('25% Bible progress')
         ->assertSee('In progress')
@@ -133,6 +135,106 @@ it('renders earned achievements and curated next goals on the trophy shelf', fun
         ->assertDontSee('Locked');
 
     expect(substr_count($response->getContent(), 'You completed John.'))->toBe(1);
+});
+
+it('shows the first reading date with its passage without repeating the award date', function () {
+    $user = User::factory()->create();
+    UserAchievement::factory()->for($user)->create([
+        'metadata' => ['passage' => 'Genesis 1', 'date_read' => '2025-05-01'],
+        'earned_at' => '2026-05-06',
+    ]);
+
+    $this->actingAs($user)->get(route('achievements.index'))
+        ->assertSee('Genesis 1 · Read on May 1, 2025')
+        ->assertDontSee('Earned May 6, 2026');
+});
+
+it('summarizes grouped book completions and keeps their full history available', function () {
+    $user = User::factory()->create();
+
+    foreach ([
+        ['number' => 1, 'completed_on' => null, 'earned_at' => '2025-05-01'],
+        ['number' => 2, 'completed_on' => '2026-03-12', 'earned_at' => '2026-05-06'],
+        ['number' => 3, 'completed_on' => '2026-05-06', 'earned_at' => '2026-05-06'],
+    ] as $completion) {
+        UserAchievement::factory()->for($user)->create([
+            'achievement_key' => 'book_completed',
+            'context_key' => $completion['number'] === 1
+                ? 'book:1'
+                : "book:1:completion:{$completion['number']}",
+            'category' => 'books',
+            'display_name' => 'Completed Genesis',
+            'description' => 'You completed Genesis.',
+            'metadata' => [
+                'book_id' => 1,
+                'book_name' => 'Genesis',
+                'completion_number' => $completion['number'],
+            ],
+            'earned_at' => $completion['earned_at'],
+            'completed_on' => $completion['completed_on'],
+        ]);
+    }
+
+    $response = $this->actingAs($user)->get(route('achievements.index'));
+
+    $response->assertSee('Latest completion: May 6, 2026')
+        ->assertSee('History')
+        ->assertSee('aria-label="View all 3 completions for Completed Genesis"', false)
+        ->assertSee('data-achievement-history-dialog', false)
+        ->assertSee('role="dialog"', false)
+        ->assertSee('aria-modal="false"', false)
+        ->assertSee('aria-hidden="true"', false)
+        ->assertSee('aria-haspopup="dialog"', false)
+        ->assertSee('aria-expanded="false"', false)
+        ->assertSee('Completed Genesis history')
+        ->assertSee('data-achievement-history-close', false)
+        ->assertSee('data-achievement-history-backdrop', false)
+        ->assertDontSee('×3')
+        ->assertDontSee('<details', false)
+        ->assertSeeInOrder([
+            'Completed Genesis',
+            'You completed Genesis.',
+            'Latest completion: May 6, 2026',
+            'History',
+            'Completed Genesis history',
+            'Earned May 1, 2025',
+            'Completed on March 12, 2026',
+            'Completed on May 6, 2026',
+        ]);
+
+    expect(substr_count($response->getContent(), 'You completed Genesis.'))->toBe(1);
+});
+
+it('shows completion histories for grouped testament and Bible awards', function () {
+    $user = User::factory()->create();
+
+    foreach ([
+        ['key' => 'testament_completed', 'context' => 'testament:old', 'metadata' => ['testament' => 'old'], 'name' => 'Completed Old Testament'],
+        ['key' => 'bible_completed', 'context' => 'bible:standard', 'metadata' => ['collection_key' => 'standard'], 'name' => 'Completed Bible'],
+    ] as $type) {
+        foreach ([1, 2] as $number) {
+            UserAchievement::factory()->for($user)->create([
+                'achievement_key' => $type['key'],
+                'context_key' => "{$type['context']}:completion:{$number}",
+                'category' => 'completions',
+                'display_name' => $type['name'],
+                'metadata' => [...$type['metadata'], 'completion_number' => $number],
+                'earned_at' => '2026-05-06',
+                'completed_on' => $number === 1 ? '2025-05-01' : '2026-05-06',
+            ]);
+        }
+    }
+
+    $response = $this->actingAs($user)->get(route('achievements.index'));
+
+    $response->assertSee('Completed Old Testament')
+        ->assertSee('Completed Bible')
+        ->assertSee('aria-label="View all 2 completions for Completed Old Testament"', false)
+        ->assertSee('aria-label="View all 2 completions for Completed Bible"', false)
+        ->assertSee('Completed on May 1, 2025')
+        ->assertSee('Latest completion: May 6, 2026');
+
+    expect(substr_count($response->getContent(), 'data-achievement-history-open='))->toBe(2);
 });
 
 it('returns the achievements content fragment for htmx navigation', function () {

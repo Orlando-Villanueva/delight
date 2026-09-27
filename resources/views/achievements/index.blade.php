@@ -99,28 +99,42 @@
                             @foreach ($achievements as $group)
                                 @php
                                     $achievement = $group['achievement'];
+                                    $hasReadingDetails = ($achievement->metadata['passage'] ?? null) && ($achievement->metadata['date_read'] ?? null);
+                                    $latestCompletion = $group['completion_dates']->last();
                                 @endphp
                                 <article class="relative rounded-xl border border-[#D1D7E0] bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
                                     <div class="flex items-start gap-3">
                                         <x-achievements.badge :icon="$achievement->icon" :label="$achievement->display_name" size="md" />
-                                        <div class="min-w-0 flex-1 {{ $group['count'] > 1 ? 'pr-8' : '' }}">
+                                        <div class="min-w-0 flex-1">
                                             <h3 class="font-semibold text-gray-900 dark:text-white">{{ $achievement->display_name }}</h3>
-                                            @if (($achievement->metadata['passage'] ?? null) && ($achievement->metadata['date_read'] ?? null))
+                                            @if ($hasReadingDetails)
                                                 <p class="mt-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
-                                                    {{ $achievement->metadata['passage'] }} · {{ \Carbon\Carbon::parse($achievement->metadata['date_read'])->format('F j, Y') }}
+                                                    {{ $achievement->metadata['passage'] }} · Read on {{ \Carbon\Carbon::parse($achievement->metadata['date_read'])->format('F j, Y') }}
                                                 </p>
                                             @endif
                                             <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{{ $achievement->description }}</p>
-                                            <p class="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                                                Earned {{ $achievement->earned_at->format('F j, Y') }}
-                                            </p>
+                                            @if ($latestCompletion !== null)
+                                                <div class="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                                    @if ($latestCompletion['completed_on'] !== null)
+                                                        {{ $group['count'] > 1 ? 'Latest completion:' : 'Completed on' }} {{ $latestCompletion['completed_on']->format('F j, Y') }}
+                                                    @else
+                                                        {{ $group['count'] > 1 ? 'Latest award:' : 'Earned' }} {{ $latestCompletion['earned_at']->format('F j, Y') }}
+                                                    @endif
+                                                    @if ($group['count'] > 1)
+                                                        <span aria-hidden="true"> · </span>
+                                                        <x-achievements.completion-history-popover
+                                                            :achievement-id="$achievement->id"
+                                                            :achievement-name="$achievement->display_name"
+                                                            :completion-dates="$group['completion_dates']" />
+                                                    @endif
+                                                </div>
+                                            @elseif (! $hasReadingDetails)
+                                                <p class="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                                    Earned {{ $achievement->earned_at->format('F j, Y') }}
+                                                </p>
+                                            @endif
                                         </div>
                                     </div>
-                                    @if ($group['count'] > 1)
-                                        <span class="absolute right-3 top-3 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold leading-none text-gray-800 ring-1 ring-gray-300 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-500"
-                                            aria-hidden="true">×{{ $group['count'] }}</span>
-                                        <span class="sr-only">Earned {{ $group['count'] }} times</span>
-                                    @endif
                                 </article>
                             @endforeach
                         </div>

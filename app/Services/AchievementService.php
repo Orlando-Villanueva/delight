@@ -166,7 +166,7 @@ class AchievementService
     }
 
     /**
-     * @return array{earned: Collection<string, Collection<int, array{achievement: UserAchievement, count: int}>>, locked: Collection<int, array<string, mixed>>, next_goals: array{books: Collection<int, array<string, mixed>>, progress: Collection<int, array<string, mixed>>}, recent: Collection<int, UserAchievement>}
+     * @return array{earned: Collection<string, Collection<int, array{achievement: UserAchievement, count: int, completion_dates: Collection<int, array{completed_on: ?Carbon, earned_at: ?Carbon}>}>>, locked: Collection<int, array<string, mixed>>, next_goals: array{books: Collection<int, array<string, mixed>>, progress: Collection<int, array<string, mixed>>}, recent: Collection<int, UserAchievement>}
      */
     public function getShelfData(User $user): array
     {
@@ -182,10 +182,26 @@ class AchievementService
                 ->groupBy('category')
                 ->map(fn (Collection $categoryAchievements): Collection => $categoryAchievements
                     ->groupBy(fn (UserAchievement $achievement): string => $this->earnedAchievementGroupKey($achievement))
-                    ->map(fn (Collection $group): array => [
-                        'achievement' => $group->first(),
-                        'count' => $group->count(),
-                    ])
+                    ->map(function (Collection $group): array {
+                        $achievement = $group->first();
+
+                        $completionDates = match ($achievement->achievement_key) {
+                            'book_completed', 'testament_completed', 'bible_completed' => $group
+                                ->sortBy(fn (UserAchievement $completion): int => (int) ($completion->metadata['completion_number'] ?? 1))
+                                ->map(fn (UserAchievement $completion): array => [
+                                    'completed_on' => $completion->completed_on,
+                                    'earned_at' => $completion->earned_at,
+                                ])
+                                ->values(),
+                            default => collect(),
+                        };
+
+                        return [
+                            'achievement' => $achievement,
+                            'count' => $group->count(),
+                            'completion_dates' => $completionDates,
+                        ];
+                    })
                     ->values()),
             'locked' => $locked,
             'next_goals' => $this->nextGoals($overallProgress, $locked),
