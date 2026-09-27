@@ -8,7 +8,30 @@ use App\Services\BibleReferenceService;
 use App\Services\BookProgressService;
 use App\Services\BookProgressSyncService;
 use App\Services\ReadingLogService;
+use App\View\Components\Bible\BookCompletionGrid;
 use Illuminate\Support\Facades\DB;
+
+it('uses supplied dashboard progress and serializes only the overall summary for the bar', function () {
+    $progress = [
+        'old_testament' => ['processed_books' => [['book_id' => 1, 'name' => 'Genesis']]],
+        'new_testament' => ['processed_books' => [['book_id' => 40, 'name' => 'Matthew']]],
+        'deuterocanonical' => null,
+        'bible_completions' => 2,
+        'book_completions' => 3,
+        'first_coverage_percent' => 100.0,
+        'next_completion_progress_percent' => 12.5,
+    ];
+
+    $viewData = (new BookCompletionGrid($progress))->render()->getData();
+
+    expect($viewData['oldData'])->toBe($progress['old_testament'])
+        ->and($viewData['newData'])->toBe($progress['new_testament'])
+        ->and($viewData['overallData'])->toBe([
+            'bible_completions' => 2,
+            'first_coverage_percent' => 100.0,
+            'next_completion_progress_percent' => 12.5,
+        ]);
+});
 
 it('uses canonical progress totals by default', function () {
     $user = User::factory()->create();

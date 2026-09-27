@@ -95,7 +95,7 @@
                             </div>
 
                             <!-- Book Progress Visualization -->
-                            <x-bible.book-completion-grid testament="Old" />
+                            <x-bible.book-completion-grid :progress="$stats['book_progress']" testament="Old" />
                         </div>
 
                         <!-- Right Column - Desktop Sidebar (responsive width) -->

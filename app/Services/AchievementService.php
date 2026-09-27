@@ -8,6 +8,7 @@ use App\Models\UserAchievement;
 use Carbon\Carbon;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class AchievementService
 {
@@ -263,9 +264,10 @@ class AchievementService
     }
 
     /**
+     * @param  array<string, mixed>|null  $overallProgress
      * @return array{latest: ?UserAchievement, milestone: ?array<string, mixed>}
      */
-    public function getDashboardMilestone(User $user): array
+    public function getDashboardMilestone(User $user, ?array $overallProgress = null): array
     {
         $latest = $user->achievements()
             ->where('achievement_key', '!=', 'personal_best_streak')
@@ -277,15 +279,16 @@ class AchievementService
 
         return [
             'latest' => $latest,
-            'milestone' => $this->dashboardMilestone($user, $earned),
+            'milestone' => $this->dashboardMilestone($user, $earned, $overallProgress),
         ];
     }
 
     /**
      * @param  Collection<int, UserAchievement>  $earned
+     * @param  array<string, mixed>|null  $overallProgress
      * @return array<string, mixed>|null
      */
-    private function dashboardMilestone(User $user, Collection $earned): ?array
+    private function dashboardMilestone(User $user, Collection $earned, ?array $overallProgress): ?array
     {
         $readingDates = $this->readingDates($user);
         $readingDays = $readingDates->count();
@@ -308,7 +311,7 @@ class AchievementService
         $earnedContexts = $this->earnedContextLookup($earned);
         $candidates = collect();
         $currentStreak = $this->currentStreak($readingDates, $user);
-        $overallProgress = $this->bookProgressService->getOverallProgress($user);
+        $overallProgress ??= $this->bookProgressService->getOverallProgress($user);
         $bibleProgress = $this->bibleProgress($overallProgress);
 
         $streakMilestone = $this->nextStreakDashboardMilestone($currentStreak, $earnedContexts);
@@ -409,8 +412,12 @@ class AchievementService
         $longestStreak = $this->longestStreak($readingDates);
         $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
         $overallProgress = $this->bookProgressService->getOverallProgress($user);
-        $completionDateBookIds = $this->completionDateBookIds($overallProgress, $includeDeuterocanonical, $existingContexts);
-        $completionDates = $this->completionDatesByChapter($user, $completionDateBookIds);
+        $completionDateRequirements = $this->completionDateRequirements($overallProgress, $includeDeuterocanonical, $existingContexts);
+        $completionDates = $this->completionDatesByChapter(
+            $user,
+            $completionDateRequirements['book_ids'],
+            $completionDateRequirements['completion_numbers']
+        );
         $bibleProgress = $this->bibleProgress($overallProgress);
         $candidates = collect();
 
@@ -717,11 +724,12 @@ class AchievementService
     }
 
     /**
-     * @return Collection<int, int>
+     * @return array{book_ids: Collection<int, int>, completion_numbers: Collection<int, int>}
      */
-    private function completionDateBookIds(array $overallProgress, bool $includeDeuterocanonical, Collection $existingContexts): Collection
+    private function completionDateRequirements(array $overallProgress, bool $includeDeuterocanonical, Collection $existingContexts): array
     {
         $bookIds = collect();
+        $completionNumbers = collect();
         $testaments = $this->includedTestaments($overallProgress);
 
         foreach ($testaments as $testament) {
@@ -735,6 +743,7 @@ class AchievementService
 
                     if ($this->completionDateIsNeeded($existingContexts, 'book_completed', $contextKey)) {
                         $bookIds->push((int) $book['book_id']);
+                        $completionNumbers->push($completionNumber);
                     }
                 }
             }
@@ -746,6 +755,7 @@ class AchievementService
 
                 if ($this->completionDateIsNeeded($existingContexts, 'testament_completed', $contextKey)) {
                     $bookIds->push(...$books->pluck('book_id')->all());
+                    $completionNumbers->push($completionNumber);
                 }
             }
         }
@@ -760,31 +770,42 @@ class AchievementService
                     ->flatMap(fn (array $testament): Collection => collect($testament['progress']['processed_books']))
                     ->pluck('book_id')
                     ->all());
+                $completionNumbers->push($completionNumber);
             }
         }
 
-        return $bookIds->unique()->values();
+        return [
+            'book_ids' => $bookIds->unique()->values(),
+            'completion_numbers' => $completionNumbers->unique()->values(),
+        ];
     }
 
     /**
      * @param  Collection<int, int>  $bookIds
+     * @param  Collection<int, int>  $completionNumbers
      * @return Collection<string, Collection<int, Carbon>>
      */
-    private function completionDatesByChapter(User $user, Collection $bookIds): Collection
+    private function completionDatesByChapter(User $user, Collection $bookIds, Collection $completionNumbers): Collection
     {
-        if ($bookIds->isEmpty()) {
+        if ($bookIds->isEmpty() || $completionNumbers->isEmpty()) {
             return collect();
         }
 
-        return $user->readingLogs()
+        $rankedReadings = $user->readingLogs()
             ->whereIn('book_id', $bookIds)
-            ->orderBy('date_read')
-            ->orderBy('id')
-            ->get(['book_id', 'chapter', 'date_read'])
-            ->groupBy(fn (ReadingLog $reading): string => $this->completionChapterKey((int) $reading->book_id, (int) $reading->chapter))
-            ->map(fn (Collection $readings): Collection => $readings
-                ->map(fn (ReadingLog $reading): Carbon => Carbon::parse($reading->date_read)->startOfDay())
-                ->values());
+            ->select(['book_id', 'chapter', 'date_read'])
+            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY book_id, chapter ORDER BY date_read, id) AS completion_number');
+
+        return DB::query()
+            ->fromSub($rankedReadings, 'ranked_readings')
+            ->whereIn('completion_number', $completionNumbers)
+            ->get(['book_id', 'chapter', 'completion_number', 'date_read'])
+            ->groupBy(fn (object $reading): string => $this->completionChapterKey((int) $reading->book_id, (int) $reading->chapter))
+            ->map(fn (Collection $readings): Collection => $readings->mapWithKeys(
+                fn (object $reading): array => [
+                    (int) $reading->completion_number => Carbon::parse($reading->date_read)->startOfDay(),
+                ]
+            ));
     }
 
     private function completionDateIsNeeded(Collection $existingContexts, string $achievementKey, string $contextKey): bool
@@ -829,7 +850,7 @@ class AchievementService
             foreach (range(1, (int) $book['chapter_count']) as $chapter) {
                 $chapterDate = $completionDates
                     ->get($this->completionChapterKey((int) $book['book_id'], $chapter))
-                    ?->get($completionNumber - 1);
+                    ?->get($completionNumber);
 
                 if ($chapterDate === null) {
                     return null;

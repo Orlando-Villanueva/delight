@@ -2,31 +2,31 @@
 
 namespace App\View\Components\Bible;
 
-use App\Services\BookProgressService;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Arr;
 use Illuminate\View\Component;
 
 class BookCompletionGrid extends Component
 {
-    public function __construct(
-        private BookProgressService $bookProgressService
-    ) {}
+    /**
+     * @param  array<string, mixed>  $progress
+     */
+    public function __construct(public array $progress, public string $testament = 'Old') {}
 
     /**
      * Get the view / contents that represent the component.
      */
     public function render(): View
     {
-        $user = Auth::user();
-        $progress = $this->bookProgressService->getOverallProgress($user);
-
         return view('components.bible.book-completion-grid', [
-            'oldData' => $progress['old_testament'],
-            'newData' => $progress['new_testament'],
-            'deuterocanonicalData' => $progress['deuterocanonical'],
-            'overallData' => $progress,
-            'testament' => 'Old',
+            'oldData' => $this->progress['old_testament'],
+            'newData' => $this->progress['new_testament'],
+            'deuterocanonicalData' => $this->progress['deuterocanonical'],
+            'overallData' => Arr::only($this->progress, [
+                'bible_completions',
+                'first_coverage_percent',
+                'next_completion_progress_percent',
+            ]),
         ]);
     }
 }

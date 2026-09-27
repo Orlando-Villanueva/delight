@@ -5,6 +5,8 @@ use App\Models\User;
 use App\Models\UserAchievement;
 use App\Services\AchievementService;
 use App\Services\BibleReferenceService;
+use App\Services\BookProgressService;
+use App\Services\ReadingCalendarService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -98,6 +100,23 @@ function achievement_spread_bible_progress(User $user, int $chaptersToRead): voi
         achievement_progress($user, $book['id'], $book['name'], $chaptersRead);
     });
 }
+
+it('reuses supplied progress when choosing a dashboard milestone', function () {
+    $user = User::factory()->create();
+    achievement_log_reading($user, today()->toDateString(), 1);
+    $progress = app(BookProgressService::class)->getOverallProgress($user);
+    $bookProgressService = Mockery::mock(BookProgressService::class);
+    $bookProgressService->shouldNotReceive('getOverallProgress');
+    $service = new AchievementService(
+        app(BibleReferenceService::class),
+        app(ReadingCalendarService::class),
+        $bookProgressService
+    );
+
+    $milestone = $service->getDashboardMilestone($user, $progress)['milestone'];
+
+    expect($milestone)->not->toBeNull();
+});
 
 it('awards milestone achievements idempotently with stable context keys', function () {
     $user = User::factory()->create();

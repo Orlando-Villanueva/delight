@@ -23,7 +23,7 @@ class UserStatisticsService
     public function getDashboardStatistics(User $user): array
     {
         return Cache::remember(
-            $this->readingCalendar->cacheKey($user, "user_dashboard_stats_{$user->id}"),
+            $this->readingCalendar->dashboardStatisticsCacheKey($user),
             300, // 5 minutes TTL
             fn () => [
                 'streaks' => $this->getStreakStatistics($user),
@@ -448,7 +448,7 @@ class UserStatisticsService
         $currentMonth = $this->readingCalendar->nowFor($user)->format('Y-m');
 
         // Clear all user-specific caches
-        Cache::forget($this->readingCalendar->cacheKey($user, "user_dashboard_stats_{$user->id}"));
+        Cache::forget($this->readingCalendar->dashboardStatisticsCacheKey($user));
         Cache::forget($this->readingCalendar->cacheKey($user, "user_current_streak_{$user->id}"));
         Cache::forget($this->readingCalendar->cacheKey($user, "user_longest_streak_{$user->id}"));
         Cache::forget($this->readingCalendar->cacheKey($user, "user_current_streak_series_{$user->id}"));

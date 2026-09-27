@@ -6,7 +6,9 @@ use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
+use App\Services\ReadingCalendarService;
 use App\Services\StreakStateService;
+use App\Services\UserStatisticsService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -39,6 +41,22 @@ class DashboardControllerTest extends TestCase
         $response->assertViewHas('hasReadToday');
         $response->assertViewHas('streakState');
         $response->assertViewHas('stats');
+    }
+
+    public function test_index_ignores_a_stale_dashboard_cache_payload_after_progress_shape_changes(): void
+    {
+        $calendar = app(ReadingCalendarService::class);
+        $statistics = app(UserStatisticsService::class)->getDashboardStatistics($this->user);
+        unset($statistics['book_progress']['book_completions']);
+
+        Cache::put(
+            $calendar->cacheKey($this->user, "user_dashboard_stats_{$this->user->id}"),
+            $statistics,
+            300
+        );
+        Cache::forget($calendar->dashboardStatisticsCacheKey($this->user));
+
+        $this->get('/dashboard')->assertOk();
     }
 
     public function test_index_returns_fragment_for_htmx_request()
