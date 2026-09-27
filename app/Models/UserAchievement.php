@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\UserAchievementFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UserAchievement extends Model
 {
-    /** @use HasFactory<\Database\Factories\UserAchievementFactory> */
+    /** @use HasFactory<UserAchievementFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -23,6 +24,7 @@ class UserAchievement extends Model
         'sort_order',
         'metadata',
         'earned_at',
+        'completed_on',
     ];
 
     /**
@@ -35,6 +37,7 @@ class UserAchievement extends Model
         return [
             'metadata' => 'array',
             'earned_at' => 'datetime',
+            'completed_on' => 'date',
             'sort_order' => 'integer',
         ];
     }

@@ -378,6 +378,50 @@ it('builds celebration payload with earned achievements and relevant locked prog
         ]);
 });
 
+it('names repeated book completions in celebrations without changing the first award copy', function () {
+    $user = User::factory()->create();
+    achievement_log_reading($user, today()->toDateString(), 1);
+    $log = $user->readingLogs()->first();
+
+    $firstCompletion = UserAchievement::factory()->for($user)->create([
+        'achievement_key' => 'book_completed',
+        'context_key' => 'book:1',
+        'display_name' => 'Completed Genesis',
+        'description' => 'You completed Genesis.',
+        'metadata' => [
+            'book_id' => 1,
+            'book_name' => 'Genesis',
+            'completion_number' => 1,
+        ],
+    ]);
+    $fourthCompletion = UserAchievement::factory()->for($user)->create([
+        'achievement_key' => 'book_completed',
+        'context_key' => 'book:1:completion:4',
+        'display_name' => 'Completed Genesis',
+        'description' => 'You completed Genesis.',
+        'metadata' => [
+            'book_id' => 1,
+            'book_name' => 'Genesis',
+            'completion_number' => 4,
+        ],
+    ]);
+
+    $service = app(AchievementService::class);
+    $firstPayload = $service->getCelebrationPayload($user, collect([$firstCompletion]), $log, false);
+    $fourthPayload = $service->getCelebrationPayload($user, collect([$fourthCompletion]), $log, false);
+
+    expect($firstPayload['earned'][0])->toMatchArray([
+        'display_name' => 'Completed Genesis',
+        'description' => 'You completed Genesis.',
+    ])
+        ->and($fourthPayload['earned'][0])->toMatchArray([
+            'display_name' => 'Completed Genesis for the 4th time',
+            'description' => 'Every chapter has been read 4 times.',
+        ]);
+
+    expect($fourthCompletion->display_name)->toBe('Completed Genesis');
+});
+
 it('stores first reading context on the first reading achievement', function () {
     $user = User::factory()->create();
 

@@ -31,45 +31,57 @@ class AchievementService
     ) {}
 
     /**
-     * @return array{awarded: int, skipped_duplicates: int, would_award: int, candidates: Collection<int, array<string, mixed>>, awarded_achievements: Collection<int, UserAchievement>}
+     * @return array{awarded: int, skipped_duplicates: int, updated_completion_dates: int, would_award: int, would_award_by_key: array<string, int>, would_update_completion_dates: int, would_update_completion_dates_by_key: array<string, int>, candidates: Collection<int, array<string, mixed>>, awarded_achievements: Collection<int, UserAchievement>}
      */
     public function evaluateAndAward(User $user, bool $dryRun = false): array
     {
-        $candidates = $this->buildAwardCandidates($user);
         $existingContexts = $user->achievements()
-            ->get(['achievement_key', 'context_key'])
+            ->get(['id', 'achievement_key', 'context_key', 'earned_at', 'completed_on', 'metadata'])
             ->mapWithKeys(fn (UserAchievement $achievement): array => [
-                $achievement->achievement_key.'|'.$achievement->context_key => true,
+                $achievement->achievement_key.'|'.$achievement->context_key => $achievement,
             ]);
+        $candidates = $this->buildAwardCandidates($user, $existingContexts);
         $awardedAchievements = collect();
         $awarded = 0;
         $skippedDuplicates = 0;
+        $updatedCompletionDates = 0;
         $wouldAward = 0;
+        $wouldAwardByKey = [];
+        $wouldUpdateCompletionDates = 0;
+        $wouldUpdateCompletionDatesByKey = [];
 
         foreach ($candidates as $candidate) {
             $contextKey = $candidate['achievement_key'].'|'.$candidate['context_key'];
+            $existingAchievement = $existingContexts->get($contextKey);
 
-            if ($dryRun) {
-                if ($existingContexts->has($contextKey)) {
-                    $skippedDuplicates++;
-
-                    continue;
+            if ($existingAchievement instanceof UserAchievement) {
+                if ($this->completedOnMissing($existingAchievement, $candidate)) {
+                    if ($dryRun) {
+                        $wouldUpdateCompletionDates++;
+                        $wouldUpdateCompletionDatesByKey[$candidate['achievement_key']] = ($wouldUpdateCompletionDatesByKey[$candidate['achievement_key']] ?? 0) + 1;
+                    } else {
+                        $existingAchievement->completed_on = $candidate['completed_on'];
+                        $existingAchievement->save();
+                        $updatedCompletionDates++;
+                    }
                 }
 
-                $wouldAward++;
-
-                continue;
-            }
-
-            if ($existingContexts->has($contextKey)) {
                 $skippedDuplicates++;
 
                 continue;
             }
 
+            if ($dryRun) {
+                $wouldAward++;
+                $wouldAwardByKey[$candidate['achievement_key']] = ($wouldAwardByKey[$candidate['achievement_key']] ?? 0) + 1;
+
+                continue;
+            }
+
             try {
-                $awardedAchievements->push($user->achievements()->create($candidate));
-                $existingContexts->put($contextKey, true);
+                $achievement = $user->achievements()->create($candidate);
+                $awardedAchievements->push($achievement);
+                $existingContexts->put($contextKey, $achievement);
                 $awarded++;
             } catch (UniqueConstraintViolationException $exception) {
                 $exists = $user->achievements()
@@ -89,7 +101,11 @@ class AchievementService
         return [
             'awarded' => $awarded,
             'skipped_duplicates' => $skippedDuplicates,
+            'updated_completion_dates' => $updatedCompletionDates,
             'would_award' => $wouldAward,
+            'would_award_by_key' => $wouldAwardByKey,
+            'would_update_completion_dates' => $wouldUpdateCompletionDates,
+            'would_update_completion_dates_by_key' => $wouldUpdateCompletionDatesByKey,
             'candidates' => $candidates,
             'awarded_achievements' => $awardedAchievements,
         ];
@@ -106,15 +122,19 @@ class AchievementService
                 ['sort_order', 'asc'],
                 ['earned_at', 'asc'],
             ])
-            ->map(fn (UserAchievement $achievement): array => [
-                'id' => $achievement->id,
-                'display_name' => $achievement->display_name,
-                'description' => $achievement->description,
-                'icon' => $achievement->icon,
-                'style' => $achievement->style,
-                'category' => $achievement->category,
-                'earned_at' => $achievement->earned_at?->format('M j, Y'),
-            ])
+            ->map(function (UserAchievement $achievement): array {
+                $celebrationCopy = $this->celebrationCopy($achievement);
+
+                return [
+                    'id' => $achievement->id,
+                    'display_name' => $celebrationCopy['display_name'],
+                    'description' => $celebrationCopy['description'],
+                    'icon' => $achievement->icon,
+                    'style' => $achievement->style,
+                    'category' => $achievement->category,
+                    'earned_at' => $achievement->earned_at?->format('M j, Y'),
+                ];
+            })
             ->values()
             ->all();
 
@@ -365,7 +385,7 @@ class AchievementService
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function buildAwardCandidates(User $user): Collection
+    private function buildAwardCandidates(User $user, Collection $existingContexts): Collection
     {
         $definitions = $this->definitions();
         $readingDates = $this->readingDates($user);
@@ -373,6 +393,8 @@ class AchievementService
         $longestStreak = $this->longestStreak($readingDates);
         $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
         $overallProgress = $this->bookProgressService->getOverallProgress($user);
+        $completionDateBookIds = $this->completionDateBookIds($overallProgress, $includeDeuterocanonical, $existingContexts);
+        $completionDates = $this->completionDatesByChapter($user, $completionDateBookIds);
         $bibleProgress = $this->bibleProgress($overallProgress);
         $candidates = collect();
 
@@ -407,9 +429,9 @@ class AchievementService
             }
         }
 
-        $this->bookCompletionCandidates($overallProgress, $includeDeuterocanonical)->each(fn (array $candidate) => $candidates->push($candidate));
-        $this->testamentCompletionCandidates($overallProgress)->each(fn (array $candidate) => $candidates->push($candidate));
-        $this->bibleCompletionCandidates($overallProgress, $includeDeuterocanonical)->each(fn (array $candidate) => $candidates->push($candidate));
+        $this->bookCompletionCandidates($overallProgress, $includeDeuterocanonical, $completionDates, $existingContexts)->each(fn (array $candidate) => $candidates->push($candidate));
+        $this->testamentCompletionCandidates($overallProgress, $completionDates, $existingContexts)->each(fn (array $candidate) => $candidates->push($candidate));
+        $this->bibleCompletionCandidates($overallProgress, $includeDeuterocanonical, $completionDates, $existingContexts)->each(fn (array $candidate) => $candidates->push($candidate));
 
         return $candidates->sortBy([
             ['sort_order', 'asc'],
@@ -431,8 +453,43 @@ class AchievementService
             'style' => $definition['style'] ?? 'primary',
             'sort_order' => $definition['sort_order'] ?? 0,
             'metadata' => $metadata,
-            'earned_at' => now(),
+            'earned_at' => $overrides['earned_at'] ?? now(),
+            'completed_on' => $overrides['completed_on'] ?? null,
         ];
+    }
+
+    /**
+     * @return array{display_name: string, description: string}
+     */
+    private function celebrationCopy(UserAchievement $achievement): array
+    {
+        $completionNumber = (int) ($achievement->metadata['completion_number'] ?? 1);
+
+        if ($achievement->achievement_key !== 'book_completed' || $completionNumber < 2) {
+            return [
+                'display_name' => $achievement->display_name,
+                'description' => $achievement->description,
+            ];
+        }
+
+        return [
+            'display_name' => "{$achievement->display_name} for the {$this->ordinal($completionNumber)} time",
+            'description' => "Every chapter has been read {$completionNumber} times.",
+        ];
+    }
+
+    private function ordinal(int $number): string
+    {
+        $lastTwoDigits = $number % 100;
+        $suffix = match (true) {
+            $lastTwoDigits >= 11 && $lastTwoDigits <= 13 => 'th',
+            $number % 10 === 1 => 'st',
+            $number % 10 === 2 => 'nd',
+            $number % 10 === 3 => 'rd',
+            default => 'th',
+        };
+
+        return "{$number}{$suffix}";
     }
 
     /**
@@ -492,34 +549,53 @@ class AchievementService
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function bookCompletionCandidates(array $overallProgress, bool $includeDeuterocanonical): Collection
+    private function bookCompletionCandidates(array $overallProgress, bool $includeDeuterocanonical, Collection $completionDates, Collection $existingContexts): Collection
     {
         return $this->includedTestaments($overallProgress)
             ->flatMap(fn (array $testament): Collection => $testament['progress']['processed_books'])
             ->filter(fn (array $book): bool => $book['completed_count'] > 0)
-            ->flatMap(function (array $book) use ($includeDeuterocanonical): Collection {
+            ->flatMap(function (array $book) use ($includeDeuterocanonical, $completionDates, $existingContexts): Collection {
                 $bookName = $this->bibleReferenceService->getLocalizedBookName(
                     $book['book_id'],
                     includeDeuterocanonical: $includeDeuterocanonical || $book['book_id'] > 66
                 );
 
                 return collect(range(1, (int) $book['completed_count']))
-                    ->map(fn (int $completionNumber): array => $this->candidate(
-                        'book_completed',
-                        $completionNumber === 1
+                    ->map(function (int $completionNumber) use ($book, $bookName, $completionDates, $existingContexts): ?array {
+                        $contextKey = $completionNumber === 1
                             ? 'book:'.$book['book_id']
-                            : "book:{$book['book_id']}:completion:{$completionNumber}",
-                        [
-                            'book_id' => $book['book_id'],
-                            'book_name' => $bookName,
-                            'completion_number' => $completionNumber,
-                        ],
-                        [
-                            'display_name' => "Completed {$bookName}",
-                            'description' => "You completed {$bookName}.",
-                            'sort_order' => 100 + $book['book_id'],
-                        ]
-                    ));
+                            : "book:{$book['book_id']}:completion:{$completionNumber}";
+                        $completedOn = $this->completionDateForCandidate(
+                            'book_completed',
+                            $contextKey,
+                            collect([$book]),
+                            $completionNumber,
+                            $completionDates,
+                            $existingContexts
+                        );
+
+                        if ($completedOn === null) {
+                            return null;
+                        }
+
+                        return $this->candidate(
+                            'book_completed',
+                            $contextKey,
+                            [
+                                'book_id' => $book['book_id'],
+                                'book_name' => $bookName,
+                                'completion_number' => $completionNumber,
+                            ],
+                            [
+                                'display_name' => "Completed {$bookName}",
+                                'description' => "You completed {$bookName}.",
+                                'sort_order' => 100 + $book['book_id'],
+                                'completed_on' => $completedOn->toDateString(),
+                            ]
+                        );
+                    })
+                    ->filter()
+                    ->values();
             })
             ->values();
     }
@@ -527,27 +603,47 @@ class AchievementService
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function testamentCompletionCandidates(array $overallProgress): Collection
+    private function testamentCompletionCandidates(array $overallProgress, Collection $completionDates, Collection $existingContexts): Collection
     {
         return $this->includedTestaments($overallProgress)
             ->filter(fn (array $testament): bool => $testament['progress']['testament_completions'] > 0)
-            ->flatMap(function (array $testament): Collection {
+            ->flatMap(function (array $testament) use ($completionDates, $existingContexts): Collection {
                 return collect(range(1, (int) $testament['progress']['testament_completions']))
-                    ->map(fn (int $completionNumber): array => $this->candidate(
-                        'testament_completed',
-                        $completionNumber === 1
+                    ->map(function (int $completionNumber) use ($testament, $completionDates, $existingContexts): ?array {
+                        $books = collect($testament['progress']['processed_books']);
+                        $contextKey = $completionNumber === 1
                             ? 'testament:'.$testament['key']
-                            : "testament:{$testament['key']}:completion:{$completionNumber}",
-                        [
-                            'testament' => $testament['key'],
-                            'label' => $testament['label'],
-                            'completion_number' => $completionNumber,
-                        ],
-                        [
-                            'display_name' => "Completed the {$testament['label']}",
-                            'description' => "You completed every book in the {$testament['label']}.",
-                        ]
-                    ));
+                            : "testament:{$testament['key']}:completion:{$completionNumber}";
+                        $completedOn = $this->completionDateForCandidate(
+                            'testament_completed',
+                            $contextKey,
+                            $books,
+                            $completionNumber,
+                            $completionDates,
+                            $existingContexts
+                        );
+
+                        if ($completedOn === null) {
+                            return null;
+                        }
+
+                        return $this->candidate(
+                            'testament_completed',
+                            $contextKey,
+                            [
+                                'testament' => $testament['key'],
+                                'label' => $testament['label'],
+                                'completion_number' => $completionNumber,
+                            ],
+                            [
+                                'display_name' => "Completed the {$testament['label']}",
+                                'description' => "You completed every book in the {$testament['label']}.",
+                                'completed_on' => $completedOn->toDateString(),
+                            ]
+                        );
+                    })
+                    ->filter()
+                    ->values();
             })
             ->values();
     }
@@ -555,7 +651,7 @@ class AchievementService
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function bibleCompletionCandidates(array $overallProgress, bool $includeDeuterocanonical): Collection
+    private function bibleCompletionCandidates(array $overallProgress, bool $includeDeuterocanonical, Collection $completionDates, Collection $existingContexts): Collection
     {
         $completions = (int) $overallProgress['bible_completions'];
 
@@ -566,19 +662,186 @@ class AchievementService
         $collectionKey = $includeDeuterocanonical ? 'with-deuterocanonical' : 'canonical';
         $collectionLabel = $includeDeuterocanonical ? 'Bible with Deuterocanonical books' : 'Bible';
 
+        $books = $this->includedTestaments($overallProgress)
+            ->flatMap(fn (array $testament): Collection => $testament['progress']['processed_books'])
+            ->values();
+
         return collect(range(1, $completions))
-            ->map(fn (int $completionNumber): array => $this->candidate(
-                'bible_completed',
-                "bible:{$collectionKey}:completion:{$completionNumber}",
-                [
-                    'collection_key' => $collectionKey,
-                    'completion_number' => $completionNumber,
-                ],
-                [
-                    'display_name' => "Completed the {$collectionLabel}",
-                    'description' => "You completed the {$collectionLabel}.",
-                ]
-            ));
+            ->map(function (int $completionNumber) use ($books, $collectionKey, $collectionLabel, $completionDates, $existingContexts): ?array {
+                $contextKey = "bible:{$collectionKey}:completion:{$completionNumber}";
+                $completedOn = $this->completionDateForCandidate(
+                    'bible_completed',
+                    $contextKey,
+                    $books,
+                    $completionNumber,
+                    $completionDates,
+                    $existingContexts
+                );
+
+                if ($completedOn === null) {
+                    return null;
+                }
+
+                return $this->candidate(
+                    'bible_completed',
+                    $contextKey,
+                    [
+                        'collection_key' => $collectionKey,
+                        'completion_number' => $completionNumber,
+                    ],
+                    [
+                        'display_name' => "Completed the {$collectionLabel}",
+                        'description' => "You completed the {$collectionLabel}.",
+                        'completed_on' => $completedOn->toDateString(),
+                    ]
+                );
+            })
+            ->filter()
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, int>
+     */
+    private function completionDateBookIds(array $overallProgress, bool $includeDeuterocanonical, Collection $existingContexts): Collection
+    {
+        $bookIds = collect();
+        $testaments = $this->includedTestaments($overallProgress);
+
+        foreach ($testaments as $testament) {
+            $books = collect($testament['progress']['processed_books']);
+
+            foreach ($books->filter(fn (array $book): bool => $book['completed_count'] > 0) as $book) {
+                foreach (range(1, (int) $book['completed_count']) as $completionNumber) {
+                    $contextKey = $completionNumber === 1
+                        ? 'book:'.$book['book_id']
+                        : "book:{$book['book_id']}:completion:{$completionNumber}";
+
+                    if ($this->completionDateIsNeeded($existingContexts, 'book_completed', $contextKey)) {
+                        $bookIds->push((int) $book['book_id']);
+                    }
+                }
+            }
+
+            for ($completionNumber = 1; $completionNumber <= (int) $testament['progress']['testament_completions']; $completionNumber++) {
+                $contextKey = $completionNumber === 1
+                    ? 'testament:'.$testament['key']
+                    : "testament:{$testament['key']}:completion:{$completionNumber}";
+
+                if ($this->completionDateIsNeeded($existingContexts, 'testament_completed', $contextKey)) {
+                    $bookIds->push(...$books->pluck('book_id')->all());
+                }
+            }
+        }
+
+        $collectionKey = $includeDeuterocanonical ? 'with-deuterocanonical' : 'canonical';
+
+        for ($completionNumber = 1; $completionNumber <= (int) $overallProgress['bible_completions']; $completionNumber++) {
+            $contextKey = "bible:{$collectionKey}:completion:{$completionNumber}";
+
+            if ($this->completionDateIsNeeded($existingContexts, 'bible_completed', $contextKey)) {
+                $bookIds->push(...$testaments
+                    ->flatMap(fn (array $testament): Collection => collect($testament['progress']['processed_books']))
+                    ->pluck('book_id')
+                    ->all());
+            }
+        }
+
+        return $bookIds->unique()->values();
+    }
+
+    /**
+     * @param  Collection<int, int>  $bookIds
+     * @return Collection<string, Collection<int, Carbon>>
+     */
+    private function completionDatesByChapter(User $user, Collection $bookIds): Collection
+    {
+        if ($bookIds->isEmpty()) {
+            return collect();
+        }
+
+        return $user->readingLogs()
+            ->whereIn('book_id', $bookIds)
+            ->orderBy('date_read')
+            ->orderBy('id')
+            ->get(['book_id', 'chapter', 'date_read'])
+            ->groupBy(fn (ReadingLog $reading): string => $this->completionChapterKey((int) $reading->book_id, (int) $reading->chapter))
+            ->map(fn (Collection $readings): Collection => $readings
+                ->map(fn (ReadingLog $reading): Carbon => Carbon::parse($reading->date_read)->startOfDay())
+                ->values());
+    }
+
+    private function completionDateIsNeeded(Collection $existingContexts, string $achievementKey, string $contextKey): bool
+    {
+        $existingAchievement = $existingContexts->get($achievementKey.'|'.$contextKey);
+
+        return ! ($existingAchievement instanceof UserAchievement && $existingAchievement->completed_on !== null);
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $books
+     * @param  Collection<string, Collection<int, Carbon>>  $completionDates
+     */
+    private function completionDateForCandidate(
+        string $achievementKey,
+        string $contextKey,
+        Collection $books,
+        int $completionNumber,
+        Collection $completionDates,
+        Collection $existingContexts
+    ): ?Carbon {
+        $existingAchievement = $existingContexts->get($achievementKey.'|'.$contextKey);
+
+        if ($existingAchievement instanceof UserAchievement && $existingAchievement->completed_on !== null) {
+            return Carbon::parse($existingAchievement->completed_on)->startOfDay();
+        }
+
+        return $this->completionEarnedAt($books, $completionNumber, $completionDates);
+    }
+
+    /**
+     * Return the date the nth whole pass finished: the latest nth-reading date among its chapters.
+     *
+     * @param  Collection<int, array<string, mixed>>  $books
+     * @param  Collection<string, Collection<int, Carbon>>  $completionDates
+     */
+    private function completionEarnedAt(Collection $books, int $completionNumber, Collection $completionDates): ?Carbon
+    {
+        $latestChapterDate = null;
+
+        foreach ($books as $book) {
+            foreach (range(1, (int) $book['chapter_count']) as $chapter) {
+                $chapterDate = $completionDates
+                    ->get($this->completionChapterKey((int) $book['book_id'], $chapter))
+                    ?->get($completionNumber - 1);
+
+                if ($chapterDate === null) {
+                    return null;
+                }
+
+                if ($latestChapterDate === null || $chapterDate->greaterThan($latestChapterDate)) {
+                    $latestChapterDate = $chapterDate;
+                }
+            }
+        }
+
+        return $latestChapterDate;
+    }
+
+    /**
+     * @param  array<string, mixed>  $candidate
+     */
+    private function completedOnMissing(UserAchievement $achievement, array $candidate): bool
+    {
+        $candidateCompletedOn = $candidate['completed_on'] ?? null;
+
+        return is_string($candidateCompletedOn)
+            && $achievement->completed_on === null;
+    }
+
+    private function completionChapterKey(int $bookId, int $chapter): string
+    {
+        return "{$bookId}:{$chapter}";
     }
 
     private function earnedAchievementGroupKey(UserAchievement $achievement): string
