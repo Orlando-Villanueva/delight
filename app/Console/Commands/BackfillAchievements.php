@@ -49,7 +49,7 @@ class BackfillAchievements extends Command
         ];
 
         foreach ($users as $user) {
-            $result = $achievementService->evaluateAndAward($user, $dryRun);
+            $result = $achievementService->evaluateAndAward($user, $dryRun, reconcileExistingCompletionDates: true);
             $totals['users_scanned']++;
             $totals['awarded'] += $result['awarded'];
             $totals['skipped_duplicates'] += $result['skipped_duplicates'];
