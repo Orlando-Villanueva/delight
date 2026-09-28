@@ -200,22 +200,17 @@ it('falls back to the latest trophy on the dashboard when no milestone remains',
         ->assertDontSee('First milestone');
 });
 
-it('advertises the simplified milestone and achievement model on the landing page', function () {
+it('advertises achievements alongside the other landing page features', function () {
     $response = $this->get('/');
     $content = $response->getContent();
 
     $response->assertSuccessful()
-        ->assertSee('Next Milestone')
         ->assertSee('Next Milestone Guidance')
-        ->assertSee('Finish Amos')
-        ->assertSee('One chapter completes the book.')
-        ->assertSee('8/9')
-        ->assertSee('Permanent Achievements')
-        ->assertSee('A trophy shelf that never rewinds')
+        ->assertSee('Achievements')
+        ->assertSee('Keep the milestones you earn')
         ->assertSee('Streaks')
         ->assertSee('Books')
         ->assertSee('Progress')
-        ->assertSee('from-amber-50 to-white border border-amber-100', false)
         ->assertSee('daily streak, next milestone, summary stats, calendar, and reading progress grid')
         ->assertDontSee('Weekly Journey')
         ->assertDontSee('weekly journey')
@@ -225,9 +220,9 @@ it('advertises the simplified milestone and achievement model on the landing pag
     expect($content)
         ->toMatch('/<li class="order-1">.*Daily Reading Log/s')
         ->toMatch('/<li class="order-2">.*Daily Streak Tracking/s')
-        ->toMatch('/<li class="order-3">.*Next Milestone/s')
+        ->toMatch('/<li class="order-3">.*Reading Reminders/s')
         ->toMatch('/<li class="order-4">.*Book Completion Grid/s')
-        ->toMatch('/<li class="order-5">.*Permanent Achievements.*>New<\/span>/s')
+        ->toMatch('/<li class="order-5">.*Achievements/s')
         ->toMatch('/<li class="order-6">.*Reading Plans/s');
 });
 
