@@ -615,7 +615,7 @@ class ReadingLogService
         $currentMonth = $this->readingCalendar->nowFor($user)->format('Y-m');
 
         // Always invalidate - these change on every reading
-        Cache::forget($this->readingCalendar->cacheKey($user, "user_dashboard_stats_{$user->id}"));
+        Cache::forget($this->readingCalendar->dashboardStatisticsCacheKey($user));
         Cache::forget($this->readingCalendar->cacheKey($user, "user_calendar_{$user->id}_{$currentYear}"));
         Cache::forget($this->readingCalendar->cacheKey($user, "user_calendar_{$user->id}_{$previousYear}"));
         Cache::forget($this->readingCalendar->cacheKey($user, "user_monthly_calendar_{$user->id}_{$currentMonth}"));

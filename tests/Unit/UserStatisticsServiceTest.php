@@ -3,6 +3,8 @@
 namespace Tests\Unit;
 
 use App\Contracts\ReadingLogInterface;
+use App\Services\BibleReferenceService;
+use App\Services\BookProgressService;
 use App\Services\ReadingCalendarService;
 use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
@@ -21,7 +23,8 @@ class UserStatisticsServiceTest extends TestCase
         $this->readingLogService = $this->createMock(ReadingLogService::class);
         $this->service = new UserStatisticsService(
             $this->readingLogService,
-            new ReadingCalendarService
+            new ReadingCalendarService,
+            new BookProgressService(new BibleReferenceService)
         );
     }
 

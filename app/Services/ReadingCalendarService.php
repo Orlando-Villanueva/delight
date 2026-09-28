@@ -79,6 +79,11 @@ class ReadingCalendarService
         return $key.':'.$this->timezoneFor($user).':'.$this->todayFor($user)->toDateString();
     }
 
+    public function dashboardStatisticsCacheKey(User $user): string
+    {
+        return $this->cacheKey($user, "user_dashboard_stats_v2_{$user->id}");
+    }
+
     private function isValidTimezone(?string $timezone): bool
     {
         return $timezone !== null && in_array($timezone, DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC), true);

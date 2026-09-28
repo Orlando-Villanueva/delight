@@ -78,7 +78,7 @@ class SettingsController extends Controller
             $this->userStatistics->invalidateUserCache($user);
         }
 
-        Cache::forget($this->readingCalendar->cacheKey($user, "user_dashboard_stats_{$user->id}"));
+        Cache::forget($this->readingCalendar->dashboardStatisticsCacheKey($user));
 
         $freshUser = $user->fresh();
         $pausedCatholicCanonicalPlan = false;

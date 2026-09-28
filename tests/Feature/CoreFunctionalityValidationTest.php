@@ -104,7 +104,7 @@ class CoreFunctionalityValidationTest extends TestCase
         $response->assertSee('Daily Streak');
         $response->assertSee('Days Read');
         $response->assertSee('Total Chapters');
-        $response->assertSee('Bible Progress');
+        $response->assertSee('Book Completions');
         $response->assertSee('Avg/Day');
 
         // Check for recent readings
@@ -411,7 +411,7 @@ class CoreFunctionalityValidationTest extends TestCase
         $response->assertStatus(200);
 
         // Should show book progress
-        $response->assertSee('Bible Progress');
+        $response->assertSee('Bible Reading Progress');
         // Genesis should show some progress (5/50 chapters = 10%)
         $response->assertSee('Genesis', false);
     }

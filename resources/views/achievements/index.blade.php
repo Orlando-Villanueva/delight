@@ -27,7 +27,7 @@
                             <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Almost finished</h3>
                             <div class="grid grid-cols-1 gap-3 2xl:grid-cols-2">
                                 @foreach ($nextGoals['books'] as $goal)
-                                    <article class="rounded-xl border border-[#D1D7E0] bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                                    <article class="rounded-xl border border-[#D1D7E0] bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
                                         <div class="flex items-start gap-3">
                                             <x-achievements.badge :icon="$goal['icon']" :label="$goal['book_name']" size="md" state="muted" />
                                             <div class="min-w-0 flex-1">
@@ -37,9 +37,15 @@
                                                         {{ $goal['chapters_read'] }}/{{ $goal['total_chapters'] }}
                                                     </span>
                                                 </div>
-                                                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                                                    {{ $goal['chapters_read'] }}/{{ $goal['total_chapters'] }} chapters · {{ $goal['chapters_remaining'] }} left
-                                                </p>
+                                                @if ($goal['completed_count'] > 0)
+                                                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                                        Completion {{ $goal['completed_count'] + 1 }} · {{ $goal['chapters_read'] }}/{{ $goal['total_chapters'] }} chapters · {{ $goal['chapters_remaining'] }} left
+                                                    </p>
+                                                @else
+                                                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                                        {{ $goal['chapters_read'] }}/{{ $goal['total_chapters'] }} chapters · {{ $goal['chapters_remaining'] }} left
+                                                    </p>
+                                                @endif
                                                 @if (! empty($goal['missing_chapters']))
                                                     <p class="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">
                                                         Missing {{ implode(', ', $goal['missing_chapters']) }}
@@ -47,7 +53,7 @@
                                                 @endif
                                             </div>
                                         </div>
-                                        <div class="mt-3 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700" aria-label="{{ $goal['book_name'] }} completion progress">
+                                        <div class="mt-3 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700" aria-label="{{ $goal['book_name'] }} completion {{ $goal['completed_count'] + 1 }} progress">
                                             <div class="h-full rounded-full bg-blue-600 dark:bg-blue-400" style="width: {{ $goal['progress_percent'] }}%"></div>
                                         </div>
                                     </article>
@@ -61,7 +67,7 @@
                             <h3 class="text-sm font-semibold text-gray-900 dark:text-white">In progress</h3>
                             <div class="grid grid-cols-1 gap-3 2xl:grid-cols-2">
                                 @foreach ($nextGoals['progress'] as $achievement)
-                                    <article class="rounded-xl border border-[#D1D7E0] bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                                    <article class="rounded-xl border border-[#D1D7E0] bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
                                         <div class="flex items-start gap-3">
                                             <x-achievements.badge :icon="$achievement['icon']" :label="$achievement['display_name']" size="md" state="muted" />
                                             <div class="min-w-0 flex-1">
@@ -90,21 +96,43 @@
                             {{ $categoryLabels[$category] ?? Str::headline($category) }}
                         </h2>
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                            @foreach ($achievements as $achievement)
-                                <article class="rounded-xl border border-[#D1D7E0] bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                            @foreach ($achievements as $group)
+                                @php
+                                    $achievement = $group['achievement'];
+                                    $hasReadingDetails = ($achievement->metadata['passage'] ?? null) && ($achievement->metadata['date_read'] ?? null);
+                                    $latestCompletion = $group['completion_dates']->last();
+                                @endphp
+                                <article class="relative rounded-xl border border-[#D1D7E0] bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
                                     <div class="flex items-start gap-3">
                                         <x-achievements.badge :icon="$achievement->icon" :label="$achievement->display_name" size="md" />
-                                        <div class="min-w-0">
+                                        <div class="min-w-0 flex-1">
                                             <h3 class="font-semibold text-gray-900 dark:text-white">{{ $achievement->display_name }}</h3>
-                                            @if (($achievement->metadata['passage'] ?? null) && ($achievement->metadata['date_read'] ?? null))
+                                            @if ($hasReadingDetails)
                                                 <p class="mt-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
-                                                    {{ $achievement->metadata['passage'] }} · {{ \Carbon\Carbon::parse($achievement->metadata['date_read'])->format('F j, Y') }}
+                                                    {{ $achievement->metadata['passage'] }} · Read on {{ \Carbon\Carbon::parse($achievement->metadata['date_read'])->format('F j, Y') }}
                                                 </p>
                                             @endif
                                             <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{{ $achievement->description }}</p>
-                                            <p class="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                                                Earned {{ $achievement->earned_at->format('F j, Y') }}
-                                            </p>
+                                            @if ($latestCompletion !== null)
+                                                <div class="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                                    @if ($latestCompletion['completed_on'] !== null)
+                                                        {{ $group['count'] > 1 ? 'Latest completion:' : 'Completed on' }} {{ $latestCompletion['completed_on']->format('F j, Y') }}
+                                                    @else
+                                                        {{ $group['count'] > 1 ? 'Latest award:' : 'Earned' }} {{ $latestCompletion['earned_at']->format('F j, Y') }}
+                                                    @endif
+                                                    @if ($group['count'] > 1)
+                                                        <span aria-hidden="true"> · </span>
+                                                        <x-achievements.completion-history-popover
+                                                            :achievement-id="$achievement->id"
+                                                            :achievement-name="$achievement->display_name"
+                                                            :completion-dates="$group['completion_dates']" />
+                                                    @endif
+                                                </div>
+                                            @elseif (! $hasReadingDetails)
+                                                <p class="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                                    Earned {{ $achievement->earned_at->format('F j, Y') }}
+                                                </p>
+                                            @endif
                                         </div>
                                     </div>
                                 </article>
@@ -112,7 +140,7 @@
                         </div>
                     </div>
                 @empty
-                    <div class="rounded-xl border border-dashed border-[#D1D7E0] bg-white p-6 text-center shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    <div class="rounded-xl border border-dashed border-[#D1D7E0] bg-white p-6 text-center dark:border-gray-700 dark:bg-gray-800">
                         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">No trophies yet</h2>
                         <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
                             Your first achievement appears here after you log a reading.

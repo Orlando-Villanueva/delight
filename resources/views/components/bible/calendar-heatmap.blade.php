@@ -11,8 +11,8 @@
     <div class="p-4 lg:p-3 xl:p-4">
         <!-- Header -->
         <div class="pb-3 border-b border-[#D1D7E0] dark:border-gray-600 mb-4 lg:mb-3">
-            <h4 class="text-lg lg:text-base xl:text-lg font-semibold text-[#4A5568] dark:text-gray-200 leading-[1.5]">Reading Calendar</h4>
-            <p class="text-sm lg:text-xs xl:text-sm text-gray-600 dark:text-gray-400 leading-[1.5]">{{ $monthName }}</p>
+            <h4 class="text-lg lg:text-base xl:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-[1.5]">Reading Calendar</h4>
+            <p class="text-sm lg:text-xs xl:text-sm text-gray-600 dark:text-gray-300 leading-[1.5]">{{ $monthName }}</p>
         </div>
         
         <!-- Calendar Grid -->
@@ -86,4 +86,4 @@
             </div>
         </div>
     </div>
-</x-ui.card> 
+</x-ui.card>

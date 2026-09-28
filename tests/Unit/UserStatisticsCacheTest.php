@@ -34,7 +34,7 @@ class UserStatisticsCacheTest extends TestCase
         $firstResult = $this->service->getDashboardStatistics($this->user);
 
         // Verify cache key exists
-        $this->assertTrue(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_dashboard_stats_{$this->user->id}")));
+        $this->assertTrue(Cache::has(app(ReadingCalendarService::class)->dashboardStatisticsCacheKey($this->user)));
 
         // Second call should return cached results
         $secondResult = $this->service->getDashboardStatistics($this->user);
@@ -80,7 +80,7 @@ class UserStatisticsCacheTest extends TestCase
         $this->service->getCalendarData($this->user, $previousYear);
 
         // Verify caches exist
-        $this->assertTrue(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_dashboard_stats_{$this->user->id}")));
+        $this->assertTrue(Cache::has(app(ReadingCalendarService::class)->dashboardStatisticsCacheKey($this->user)));
         $this->assertTrue(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_current_streak_{$this->user->id}")));
         $this->assertTrue(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_longest_streak_{$this->user->id}")));
         $this->assertTrue(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_calendar_{$this->user->id}_{$currentYear}")));
@@ -92,7 +92,7 @@ class UserStatisticsCacheTest extends TestCase
         $this->service->invalidateUserCache($this->user);
 
         // Verify all caches are cleared
-        $this->assertFalse(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_dashboard_stats_{$this->user->id}")));
+        $this->assertFalse(Cache::has(app(ReadingCalendarService::class)->dashboardStatisticsCacheKey($this->user)));
         $this->assertFalse(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_current_streak_{$this->user->id}")));
         $this->assertFalse(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_longest_streak_{$this->user->id}")));
         $this->assertFalse(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_calendar_{$this->user->id}_{$currentYear}")));
@@ -111,7 +111,7 @@ class UserStatisticsCacheTest extends TestCase
         $this->service->getCalendarData($this->user);
 
         // All caches should exist after creation
-        $this->assertTrue(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_dashboard_stats_{$this->user->id}")));
+        $this->assertTrue(Cache::has(app(ReadingCalendarService::class)->dashboardStatisticsCacheKey($this->user)));
         $this->assertTrue(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_current_streak_{$this->user->id}")));
         $this->assertTrue(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_longest_streak_{$this->user->id}")));
         $this->assertTrue(Cache::has(app(ReadingCalendarService::class)->cacheKey($this->user, "user_calendar_{$this->user->id}_".now()->year)));

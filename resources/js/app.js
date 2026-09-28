@@ -1,9 +1,12 @@
 import './bootstrap';
 import confetti from 'canvas-confetti';
 import { authenticatedShell } from './components/authenticated-shell.js';
+import { initAchievementHistory } from './components/achievement-history.js';
+import { bookProgressComponent } from './components/book-progress.js';
 
 globalThis.confetti = confetti;
 globalThis.authenticatedShell = authenticatedShell;
+globalThis.bookProgressComponent = bookProgressComponent;
 
 const applyFlowbiteBackdropPatch = () => {
     if (typeof window === 'undefined' || !window.Modal || window.Modal.__backdropPatched) {
@@ -46,6 +49,12 @@ const initFlowbiteWithPatches = () => {
 };
 
 if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAchievementHistory, { once: true });
+    } else {
+        initAchievementHistory();
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         initFlowbiteWithPatches();
 

@@ -58,7 +58,7 @@ These project-specific exceptions take precedence over the blanket test-change a
 ## Commit & Pull Request Guidelines
 - Messages start with the Linear ticket: `[DEL-###] Short imperative summary`; keep bodies intent-focused.
 - Squash noisy WIP commits before pushing and rebase onto `main` for clean history.
-- Pull requests include problem statement, implementation notes, verification steps from Laravel Boost rules, and UI screenshots for Blade updates.
+- Pull requests include a problem statement, implementation notes, and verification steps from Laravel Boost rules.
 - Link related documentation updates or call out the `docs/` references consulted so reviewers can trace decisions.
 
 ## Environment & Configuration Tips

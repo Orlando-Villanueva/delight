@@ -75,7 +75,7 @@ class DashboardController extends Controller
 
         // Check if user needs onboarding
         $showOnboarding = $user->needsOnboarding();
-        $dashboardMilestone = $this->achievementService->getDashboardMilestone($user);
+        $dashboardMilestone = $this->achievementService->getDashboardMilestone($user, $stats['book_progress']);
 
         // Return appropriate view based on request type
         return response()->htmx('dashboard', 'dashboard-content', compact(

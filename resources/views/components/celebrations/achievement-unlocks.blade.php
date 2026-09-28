@@ -14,7 +14,9 @@
         ? ($earned->count() === 1 ? 'Achievement unlocked' : 'Achievements unlocked')
         : ($record['eyebrow'] ?? 'Personal best');
     $title = $hasEarned
-        ? ($earned->count() === 1 ? $earned->first()['display_name'] : $earned->count().' achievements unlocked')
+        ? ($earned->count() === 1
+            ? (($earned->first()['is_repeat_book_completion'] ?? false) ? 'Book completed again!' : $earned->first()['display_name'])
+            : $earned->count().' achievements unlocked')
         : ($record['title'] ?? '');
 @endphp
 

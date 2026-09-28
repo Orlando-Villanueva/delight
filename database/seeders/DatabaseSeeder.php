@@ -52,7 +52,7 @@ class DatabaseSeeder extends Seeder
         $stats2 = $syncService->syncBookProgressForUser($seedUser2);
         $this->command->info("Synced {$stats2['processed_logs']} reading logs and updated {$stats2['updated_books_count']} books with book progress.");
 
-        $this->backfillSeededAchievements([$seedUser, $seedUser2]);
+        $this->seedAchievementRecords([$seedUser, $seedUser2]);
 
         // Clear all caches to ensure fresh statistics
         $this->command->info('Clearing application caches...');
@@ -123,8 +123,19 @@ MD;
         $launchDate = Carbon::parse('2025-08-01');
         $bibleService = app(BibleReferenceService::class);
 
-        // Books to bias towards (e.g., Psalms, Matthew, Genesis)
-        $favoriteBooks = [19, 40, 1];
+        // Follow a small, readable selection instead of scattering chapters across the Bible.
+        $sampleBookOrder = [19, 40, 43, 20, 45, 50, 32];
+        $chaptersReadByBook = $user->readingLogs()
+            ->get(['book_id', 'chapter'])
+            ->groupBy('book_id')
+            ->map(fn ($readings): array => $readings
+                ->pluck('chapter')
+                ->map(fn ($chapter): int => (int) $chapter)
+                ->unique()
+                ->values()
+                ->all())
+            ->all();
+        $sampleBookIndex = 0;
 
         // Calculate days since launch (or 0 if before launch)
         $daysSinceLaunch = max(0, $launchDate->diffInDays($today));
@@ -138,67 +149,120 @@ MD;
                 break;
             }
 
-            // 70% chance to read on any given day (creates streaks and gaps)
-            if ($faker->boolean(70)) {
-                $logsForDay = $faker->numberBetween(1, 5); // 1-5 chapters per sitting
+            // Model a steady but imperfect reading habit with plenty of room for growth.
+            if ($faker->boolean(25)) {
+                $logsForDay = $faker->numberBetween(1, 2); // 1-2 chapters per sitting
 
                 // Occasional "Deep Dive" days (e.g., Sundays)
                 if ($readingDate->isSunday()) {
-                    $logsForDay = $faker->numberBetween(5, 10);
+                    $logsForDay = $faker->numberBetween(2, 4);
                 }
 
-                $combos = [];
-                $attempts = 0;
+                while (isset($sampleBookOrder[$sampleBookIndex])
+                    && count($chaptersReadByBook[$sampleBookOrder[$sampleBookIndex]] ?? [])
+                        >= $bibleService->getBookChapterCount($sampleBookOrder[$sampleBookIndex])) {
+                    $sampleBookIndex++;
+                }
 
-                while (count($combos) < $logsForDay && $attempts < 50) {
-                    $attempts++;
+                if (! isset($sampleBookOrder[$sampleBookIndex])) {
+                    break;
+                }
 
-                    // 50% chance to pick a favorite book, otherwise random
-                    if ($faker->boolean(50)) {
-                        $bookId = $faker->randomElement($favoriteBooks);
-                    } else {
-                        $bookId = $faker->numberBetween(1, 66);
-                    }
+                $bookId = $sampleBookOrder[$sampleBookIndex];
+                $chaptersRead = $chaptersReadByBook[$bookId] ?? [];
+                $remainingChapters = array_values(array_diff(
+                    range(1, $bibleService->getBookChapterCount($bookId)),
+                    $chaptersRead,
+                ));
+                $chaptersForDay = array_slice($remainingChapters, 0, $logsForDay);
 
-                    $maxChapters = $bibleService->getBookChapterCount($bookId);
-                    $chapter = $faker->numberBetween(1, $maxChapters);
+                foreach ($chaptersForDay as $chapter) {
+                    $loggedAt = $readingDate->copy()
+                        ->addHours($faker->numberBetween(6, 22))
+                        ->addMinutes($faker->numberBetween(0, 59));
 
-                    $key = "{$bookId}-{$chapter}";
+                    ReadingLog::create([
+                        'user_id' => $user->id,
+                        'book_id' => $bookId,
+                        'chapter' => $chapter,
+                        'passage_text' => $bibleService->formatBibleReference($bookId, $chapter),
+                        'date_read' => $readingDate->toDateString(),
+                        'notes_text' => $faker->optional(0.2)->sentence(), // 20% chance of notes
+                        'created_at' => $loggedAt,
+                        'updated_at' => $loggedAt,
+                    ]);
 
-                    // Check if this specific chapter has been read by user EVER (simulate progress)
-                    // For simplicity in seeder, we just check local combos to avoid dups in same day
-                    if (! in_array($key, $combos)) {
-
-                        // Check uniqueness against DB to avoid constraint violation if seeding multiple batches
-                        $exists = ReadingLog::where('user_id', $user->id)
-                            ->where('book_id', $bookId)
-                            ->where('chapter', $chapter)
-                            ->exists();
-
-                        if (! $exists) {
-                            $combos[] = $key;
-
-                            $loggedAt = $readingDate->copy()
-                                ->addHours($faker->numberBetween(6, 22))
-                                ->addMinutes($faker->numberBetween(0, 59));
-
-                            ReadingLog::create([
-                                'user_id' => $user->id,
-                                'book_id' => $bookId,
-                                'chapter' => $chapter,
-                                'passage_text' => $bibleService->formatBibleReference($bookId, $chapter),
-                                'date_read' => $readingDate->toDateString(),
-                                'notes_text' => $faker->optional(0.2)->sentence(), // 20% chance of notes
-                                'created_at' => $loggedAt,
-                                'updated_at' => $loggedAt,
-                            ]);
-                        }
-                    }
+                    $chaptersReadByBook[$bookId][] = $chapter;
                 }
             }
         }
 
+        $this->ensureSampleBookCompletions($user, $bibleService);
+
         $this->command->info("Created reading history from launch date (Aug 1, 2025) for {$user->name}");
+    }
+
+    /**
+     * Ensure the primary seed reader has representative single and repeat book completions.
+     */
+    private function ensureSampleBookCompletions(User $user, BibleReferenceService $bibleService): void
+    {
+        $bookCompletionTargets = [
+            1 => 2,
+            2 => 1,
+        ];
+        $chapterDates = $user->readingLogs()
+            ->whereIn('book_id', array_keys($bookCompletionTargets))
+            ->get(['book_id', 'chapter', 'date_read'])
+            ->groupBy(fn (ReadingLog $reading): string => "{$reading->book_id}:{$reading->chapter}")
+            ->map(fn ($readings): array => $readings
+                ->pluck('date_read')
+                ->map(fn ($date): string => Carbon::parse($date)->toDateString())
+                ->unique()
+                ->values()
+                ->all());
+
+        foreach ($bookCompletionTargets as $bookId => $targetOccurrences) {
+            $chapterCount = $bibleService->getBookChapterCount($bookId);
+
+            for ($chapter = 1; $chapter <= $chapterCount; $chapter++) {
+                $chapterKey = "{$bookId}:{$chapter}";
+                $dates = $chapterDates->get($chapterKey, []);
+
+                for ($occurrence = count($dates); $occurrence < $targetOccurrences; $occurrence++) {
+                    $startOffsetDays = match ($bookId) {
+                        1 => [270, 120][$occurrence],
+                        2 => 200,
+                    };
+                    $readingDate = Carbon::today()
+                        ->subDays($startOffsetDays)
+                        ->addDays(intdiv($chapter - 1, 2) * 2);
+
+                    while (in_array($readingDate->toDateString(), $dates, true)) {
+                        $readingDate->subDay();
+                    }
+
+                    $dateString = $readingDate->toDateString();
+                    $loggedAt = $readingDate->copy()->setTime(12, 0);
+
+                    ReadingLog::create([
+                        'user_id' => $user->id,
+                        'book_id' => $bookId,
+                        'chapter' => $chapter,
+                        'passage_text' => $bibleService->formatBibleReference($bookId, $chapter),
+                        'date_read' => $dateString,
+                        'created_at' => $loggedAt,
+                        'updated_at' => $loggedAt,
+                    ]);
+
+                    $dates[] = $dateString;
+                }
+
+                $chapterDates->put($chapterKey, $dates);
+            }
+        }
+
+        $this->command->info("Ensured sample book completions for {$user->name}.");
     }
 
     /**
@@ -264,24 +328,18 @@ MD;
     /**
      * @param  array<int, User>  $users
      */
-    private function backfillSeededAchievements(array $users): void
+    private function seedAchievementRecords(array $users): void
     {
         $achievementService = app(AchievementService::class);
-        $awarded = 0;
-        $skippedDuplicates = 0;
 
         foreach ($users as $user) {
             if (! $user->readingLogs()->exists()) {
                 continue;
             }
 
-            $result = $achievementService->evaluateAndAward($user);
-            $awarded += $result['awarded'];
-            $skippedDuplicates += $result['skipped_duplicates'];
+            $achievementService->evaluateAndAward($user);
         }
 
-        $this->command->info('Backfilled achievements for '.count($users).' seeded users.');
-        $this->command->info("Achievements awarded: {$awarded}");
-        $this->command->info("Skipped duplicate achievements: {$skippedDuplicates}");
+        $this->command->info('Prepared achievement records for seeded users.');
     }
 }

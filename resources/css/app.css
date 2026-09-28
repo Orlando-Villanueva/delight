@@ -64,6 +64,37 @@
     --color-destructive-950: #450a0a;
 }
 
+/* The frame owns the perimeter. Cells draw right and bottom dividers inside it. */
+@media (width < 40rem) {
+    .book-completion-grid > div:nth-of-type(2n) { border-right: 0; }
+    .book-completion-grid > div:nth-of-type(2n+1):nth-last-of-type(-n+2),
+    .book-completion-grid > div:nth-of-type(2n+1):nth-last-of-type(-n+2) ~ div { border-bottom: 0; }
+}
+
+@media (40rem <= width < 48rem) {
+    .book-completion-grid > div:nth-of-type(3n) { border-right: 0; }
+    .book-completion-grid > div:nth-of-type(3n+1):nth-last-of-type(-n+3),
+    .book-completion-grid > div:nth-of-type(3n+1):nth-last-of-type(-n+3) ~ div { border-bottom: 0; }
+}
+
+@media (48rem <= width < 64rem) {
+    .book-completion-grid > div:nth-of-type(4n) { border-right: 0; }
+    .book-completion-grid > div:nth-of-type(4n+1):nth-last-of-type(-n+4),
+    .book-completion-grid > div:nth-of-type(4n+1):nth-last-of-type(-n+4) ~ div { border-bottom: 0; }
+}
+
+@media (64rem <= width < 80rem) {
+    .book-completion-grid > div:nth-of-type(5n) { border-right: 0; }
+    .book-completion-grid > div:nth-of-type(5n+1):nth-last-of-type(-n+5),
+    .book-completion-grid > div:nth-of-type(5n+1):nth-last-of-type(-n+5) ~ div { border-bottom: 0; }
+}
+
+@media (width >= 80rem) {
+    .book-completion-grid > div:nth-of-type(6n) { border-right: 0; }
+    .book-completion-grid > div:nth-of-type(6n+1):nth-last-of-type(-n+6),
+    .book-completion-grid > div:nth-of-type(6n+1):nth-last-of-type(-n+6) ~ div { border-bottom: 0; }
+}
+
 /* Performance optimizations */
 html {
     scroll-behavior: smooth;

@@ -5,6 +5,7 @@ return [
         'firsts' => 'First milestones',
         'books' => 'Books completed',
         'testaments' => 'Testaments completed',
+        'bible' => 'Bible completions',
         'streaks' => 'Reading streaks',
         'progress' => 'Bible progress',
     ],
@@ -42,6 +43,14 @@ return [
             'icon' => 'library',
             'style' => 'warning',
             'sort_order' => 200,
+        ],
+        'bible_completed' => [
+            'category' => 'bible',
+            'display_name' => 'Bible completed',
+            'description' => 'You completed your included Bible collection.',
+            'icon' => 'book-open',
+            'style' => 'success',
+            'sort_order' => 250,
         ],
         'reading_streak_7' => [
             'category' => 'streaks',
