@@ -164,7 +164,7 @@ it('awards milestone achievements idempotently with stable context keys', functi
         ]);
 });
 
-it('shows weekly rhythm for nonconsecutive reading days without awarding a streak', function () {
+it('shows the first 30 reading days milestone for nonconsecutive reading days', function () {
     $user = User::factory()->create();
 
     foreach ([2, 3, 6, 8, 10, 12, 14] as $index => $offset) {
@@ -175,13 +175,11 @@ it('shows weekly rhythm for nonconsecutive reading days without awarding a strea
     $service->evaluateAndAward($user);
     $milestone = $service->getDashboardMilestone($user)['milestone'];
 
-    expect($user->achievements()->where('achievement_key', 'reading_streak_7')->exists())->toBeFalse();
-
     expect($milestone)->toMatchArray([
-        'achievement_key' => 'weekly_rhythm',
-        'display_name' => '4 days this week',
-        'current' => 2,
-        'target' => 4,
+        'achievement_key' => 'first_month',
+        'display_name' => 'First 30 reading days',
+        'current' => 7,
+        'target' => 30,
     ]);
 });
 

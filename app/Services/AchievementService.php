@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\DB;
 
 class AchievementService
 {
-    private const int WEEKLY_TARGET_DAYS = 4;
-
     private const array STREAK_THRESHOLDS = [7, 30, 100, 365];
 
     private const array DASHBOARD_STREAK_WINDOWS = [
@@ -323,11 +321,6 @@ class AchievementService
         $streakMilestone = $this->nextStreakDashboardMilestone($currentStreak, $earnedContexts);
         if ($streakMilestone !== null) {
             $candidates->push($streakMilestone);
-        }
-
-        $weeklyRhythmMilestone = $this->weeklyRhythmDashboardMilestone($readingDates, $user);
-        if ($weeklyRhythmMilestone !== null) {
-            $candidates->push($weeklyRhythmMilestone);
         }
 
         if (! $earnedContexts->has('first_month|reading-days:30')) {
@@ -1267,32 +1260,6 @@ class AchievementService
         }
 
         return $milestone;
-    }
-
-    private function weeklyRhythmDashboardMilestone(Collection $readingDates, User $user): ?array
-    {
-        $weekStart = $this->readingCalendar->todayFor($user)->toMutable()->startOfWeek(Carbon::SUNDAY);
-        $weekEnd = $weekStart->copy()->addDays(6)->endOfDay();
-        $current = $readingDates
-            ->filter(fn (Carbon $date): bool => $date->toDateString() >= $weekStart->toDateString() && $date->toDateString() <= $weekEnd->toDateString())
-            ->count();
-
-        if ($current <= 0 || $current >= self::WEEKLY_TARGET_DAYS) {
-            return null;
-        }
-
-        return $this->dashboardPayload(
-            key: 'weekly_rhythm',
-            contextKey: 'weekly-rhythm:'.self::WEEKLY_TARGET_DAYS,
-            displayName: '4 days this week',
-            description: 'Build a steady weekly rhythm without chasing another streak.',
-            icon: 'target',
-            style: 'primary',
-            current: $current,
-            target: self::WEEKLY_TARGET_DAYS,
-            priority: 20,
-            sortOrder: 390
-        );
     }
 
     private function nextBibleProgressDashboardMilestone(array $bibleProgress, Collection $earnedContexts): ?array
