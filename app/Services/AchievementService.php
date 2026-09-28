@@ -938,6 +938,10 @@ class AchievementService
             // Legacy book and Old Testament awards do not record which canon earned them.
             // Allow a day for the difference between an account's reading date and the UTC award timestamp.
             $latestPossibleAwardDate = $requirement['award']->earned_at->copy()->addDay()->toDateString();
+            if ($completionDate->toDateString() > $latestPossibleAwardDate) {
+                return null;
+            }
+
             if ($catholicDate !== null && ! $completionDate->equalTo($catholicDate)
                 && $catholicDate->toDateString() <= $latestPossibleAwardDate) {
                 return null;
