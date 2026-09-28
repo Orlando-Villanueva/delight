@@ -9,8 +9,8 @@
     $desktopScreenshot = $versionedAsset('images/screenshots/desktop-v3.png');
     $androidScreenshot = $versionedAsset('images/screenshots/android-home-v1.png');
     $linkPreviewScreenshot = $versionedAsset('images/screenshots/link-preview.png');
-    $landingDescription = 'Delight is a free Bible reading tracker for logging chapters, building a consistent reading rhythm, and keeping your progress synchronized across the web and Android.';
-    $landingShareDescription = 'A free Bible reading tracker for logging chapters and keeping your reading history synchronized across the web and Android.';
+    $landingDescription = 'Track Bible chapters, see your progress, and choose optional native reading reminders in Delight for Android. Browser reminders are available on supported web devices.';
+    $landingShareDescription = 'A free Bible reading tracker with progress, streaks, and optional native Android reminders. Browser reminders are available on supported devices.';
     $structuredData = [
         '@context' => 'https://schema.org',
         '@type' => 'WebApplication',
@@ -40,6 +40,7 @@
             'Reading Plans',
             'Daily Streak Tracking',
             'Daily Reading Log',
+            'Optional Native Android and Browser Reading Reminders',
             'Book Completion Grid',
             'Optional Catholic 73-Book Support',
             'Reading Statistics',
@@ -168,19 +169,18 @@
     <!-- Main Content -->
     <main class="pt-16" id="main-content" role="main">
         <!-- Hero Section -->
-        <section class="relative bg-gradient-to-bl from-blue-50 to-white py-20 lg:py-32"
+        <section class="relative bg-gradient-to-bl from-blue-50 to-white py-12 sm:py-20 lg:py-32"
             aria-labelledby="hero-heading">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="grid lg:grid-cols-2 gap-2 items-center">
                     <!-- Hero Content -->
                     <div class="text-center lg:text-left lg:pr-24">
                         <h1 id="hero-heading" class="text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-6">
-                            A Bible reading tracker that fits the way you already read
+                            Keep your Bible reading going, wherever you read
                         </h1>
                         <p class="text-xl text-gray-600 mb-6 leading-relaxed">
-                            Read from your paper Bible or preferred Bible app, then log your chapters with Delight on the
-                            web or Android. Your personal progress, streaks, and reading history stay synchronized wherever
-                            you use it.
+                            Read from your Bible or favorite app. Log chapters in Delight, see your progress, and choose a
+                            gentle reminder when you need one.
                         </p>
 
                         <!-- Primary CTA -->
@@ -212,8 +212,8 @@
 
                         <!-- Mobile Screenshot - Shown on mobile -->
                         <div class="lg:hidden flex justify-center mt-8">
-                            <div class="bg-white rounded-2xl shadow-2xl p-0 max-w-xs w-full">
-                                <div class="rounded-lg overflow-hidden">
+                            <div class="w-full max-w-60 rounded-2xl border-4 border-gray-950 bg-white shadow-2xl">
+                                <div class="rounded-xl overflow-hidden">
                                     <img src="{{ $androidScreenshot }}"
                                         alt="Delight native Android home screen showing a logged reading, reading streak, and 14-day reading rhythm"
                                         class="w-full h-auto" width="1080" height="2183" loading="lazy"
@@ -224,7 +224,7 @@
 
                         <!-- Mobile Screenshot - Floating (Desktop only) -->
                         <div
-                            class="hidden lg:block absolute -bottom-6 -right-6 w-36 sm:w-40 lg:w-48 bg-white rounded-xl shadow-xl p-0 transform rotate-6">
+                            class="hidden lg:block absolute -bottom-6 -right-6 w-36 sm:w-40 lg:w-48 rounded-xl border-4 border-gray-950 bg-white shadow-xl transform rotate-6">
                             <div class="rounded-lg overflow-hidden">
                                 <img src="{{ $androidScreenshot }}"
                                     alt="Delight native Android home screen showing a logged reading, reading streak, and 14-day reading rhythm"
@@ -237,65 +237,31 @@
             </div>
         </section>
 
-        <!-- Positioning and product boundaries -->
-        <section class="py-20 bg-white" aria-labelledby="fit-heading">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="max-w-3xl mx-auto text-center mb-12">
-                    <h2 id="fit-heading" class="text-3xl md:text-4xl font-bold text-gray-900">
-                        Keep a clear reading record
-                    </h2>
-                    <p class="mt-4 text-xl leading-relaxed text-gray-600">
-                        Delight is for readers who want to remember what they have read and see the progress add up. It is a
-                        companion for your reading, not a Bible text or a replacement for the tools you already prefer.
-                    </p>
+        <!-- Simple routine -->
+        <section class="bg-white py-12 sm:py-20" aria-labelledby="steps-heading">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="mx-auto max-w-3xl text-center">
+                    <h2 id="steps-heading" class="text-3xl font-bold text-gray-900 md:text-4xl">Your reading, clearly recorded</h2>
+                    <p class="mt-4 text-lg leading-relaxed text-gray-600">Keep using the Bible you love. Delight helps you remember what you read and see your progress grow.</p>
                 </div>
-
-                <ol class="grid gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 md:grid-cols-3"
-                    aria-label="How Delight fits your existing reading routine">
-                    <li class="relative flex items-center gap-4 bg-white p-5 sm:p-6 md:p-7">
-                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-primary-700"
-                            aria-hidden="true">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 6.03v13m0-13C9.181 5.199 7.285 4.954 3.971 5.007A.99.99 0 0 0 3 6v11c0 .563.466 1.014 1.03 1.007 3.122-.043 5.018.212 7.97 1.023m0-13c2.819-.831 4.715-1.076 8.029-1.023A.99.99 0 0 1 21 6v11c0 .563-.466 1.014-1.03 1.007-3.122-.043-5.018.212-7.97 1.023" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-sm font-semibold text-primary-700">1. Read where you prefer</p>
-                            <p class="mt-1.5 leading-relaxed text-gray-600">Use a paper Bible or another Bible app.</p>
-                        </div>
+                <ol class="mt-10 grid gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 md:grid-cols-3" aria-label="How Delight works">
+                    <li class="bg-white p-6 md:p-7">
+                        <span class="text-sm font-bold text-primary-700">01</span>
+                        <h3 class="mt-3 text-xl font-semibold text-gray-900">Read where you prefer</h3>
+                        <p class="mt-2 leading-relaxed text-gray-600">Use your paper Bible or favorite Bible app.</p>
                     </li>
-                    <li class="relative flex items-center gap-4 bg-white p-5 sm:p-6 md:p-7">
-                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-100 text-accent-600"
-                            aria-hidden="true">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="m9 12 2 2 4-4m5.5-3.5v11a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2h11" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-sm font-semibold text-accent-700">2. Log your chapters</p>
-                            <p class="mt-1.5 leading-relaxed text-gray-600">Record what you read, with or without a plan.</p>
-                        </div>
+                    <li class="bg-white p-6 md:p-7">
+                        <span class="text-sm font-bold text-accent-700">02</span>
+                        <h3 class="mt-3 text-xl font-semibold text-gray-900">Log your chapters</h3>
+                        <p class="mt-2 leading-relaxed text-gray-600">Record what you read, with or without a plan.</p>
                     </li>
-                    <li class="relative flex items-center gap-4 bg-white p-5 sm:p-6 md:p-7">
-                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-success-100 text-success-700"
-                            aria-hidden="true">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M3 3v18h18M7 16l4-5 3 3 5-7" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-sm font-semibold text-success-700">3. See your progress</p>
-                            <p class="mt-1.5 leading-relaxed text-gray-600">Return to your history, streaks, and milestones.</p>
-                        </div>
+                    <li class="bg-white p-6 md:p-7">
+                        <span class="text-sm font-bold text-success-700">03</span>
+                        <h3 class="mt-3 text-xl font-semibold text-gray-900">See your progress</h3>
+                        <p class="mt-2 leading-relaxed text-gray-600">Return to your history, streaks, and milestones.</p>
                     </li>
                 </ol>
-                <p class="mt-6 text-center leading-relaxed text-gray-600">
-                    Read from a paper Bible?
-                    <a href="{{ route('guides.paper-bible') }}" class="inline-block font-semibold text-blue-700 underline underline-offset-4 hover:text-blue-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">See how to track your reading <span aria-hidden="true">→</span></a>
-                </p>
+                <p class="mt-6 text-center leading-relaxed text-gray-600">Reading from a paper Bible? <a href="{{ route('guides.paper-bible') }}" class="font-semibold text-blue-700 underline underline-offset-4 hover:text-blue-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">See how to track it</a>.</p>
             </div>
         </section>
 
@@ -304,19 +270,19 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-16">
                     <h2 id="features-heading" class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                        Everything You Need to Stay Consistent
+                        Tools for your reading routine
                     </h2>
                     <p class="text-xl text-gray-600 max-w-3xl mx-auto">
-                        Tools designed to help you build and maintain a meaningful Bible reading habit.
+                        Log what you read, see your progress, and get encouragement when it helps.
                     </p>
                 </div>
 
                 <!-- Features Grid -->
                 <ul class="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
                     aria-label="Key features of Delight">
-                    <!-- Feature 1: Daily Streak Tracking (Featured) -->
+                    <!-- Feature 1: Daily streak tracking -->
                     <li class="order-2">
-                        <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
+                        <x-ui.card class="h-full shadow-none">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center gap-3">
                                     <div class="flex items-center gap-3">
@@ -333,12 +299,12 @@
                                 <p class="text-gray-400 text-xs">Watch consistency grow</p>
 
                                 <!-- Mini preview: mirrors streak-counter component states -->
-                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2 shadow-sm"
+                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2"
                                     aria-label="Preview of daily streak widget">
                                     <div class="flex items-center justify-between text-sm text-gray-800">
                                         <span class="font-semibold">43 days</span>
                                         <span
-                                            class="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-gradient-to-r from-accent-500 to-amber-400 px-2 py-1 rounded-full shadow-sm">Record</span>
+                                            class="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-gradient-to-r from-accent-500 to-amber-400 px-2 py-1 rounded-full">Record</span>
                                     </div>
                                     <div class="relative h-12 overflow-hidden">
                                         <div class="absolute inset-x-0 bottom-2 h-1 bg-orange-200/70 rounded-full">
@@ -352,8 +318,8 @@
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    Build momentum with daily reading streaks. See your current and longest streaks to
-                                    stay motivated and celebrate consistency.
+                                    See your current and longest streaks as your reading days add up. Keep your reading
+                                    rhythm in view and celebrate the consistency you build.
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
@@ -361,7 +327,7 @@
 
                     <!-- Feature 2: Reading Plans (Featured) -->
                     <li class="order-6">
-                        <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
+                        <x-ui.card class="h-full shadow-none">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center gap-3">
                                     <span class="shrink-0 text-indigo-500" aria-hidden="true">
@@ -377,7 +343,7 @@
                                 <p class="text-gray-400 text-xs">Structured daily guidance</p>
 
                                 <!-- Mini preview: reading plan progress -->
-                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2 shadow-sm"
+                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2"
                                     aria-label="Preview of reading plans feature">
                                     <div class="flex items-center justify-between text-sm text-gray-800">
                                         <span class="font-semibold">Day 42</span>
@@ -409,7 +375,7 @@
 
                     <!-- Feature 3: Daily Reading Log -->
                     <li class="order-1">
-                        <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
+                        <x-ui.card class="h-full shadow-none">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center gap-3">
                                     <span class="shrink-0 text-gray-800" aria-hidden="true">
@@ -425,7 +391,7 @@
                                 <p class="text-gray-400 text-xs">Never lose your place</p>
 
                                 <!-- Mini preview: compact form footprint -->
-                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2 shadow-sm"
+                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2"
                                     aria-label="Preview of reading log form">
                                     <div class="grid grid-cols-2 gap-2 text-sm text-gray-700">
                                         <div class="rounded-lg border border-gray-200 px-3 py-2 bg-gray-50">Book</div>
@@ -437,7 +403,7 @@
                                             class="flex-1 rounded-lg border border-gray-200 px-3 py-2 bg-white text-sm text-gray-500">
                                             Notes (optional)</div>
                                         <span
-                                            class="inline-flex items-center justify-center text-white bg-accent-500 hover:bg-accent-600 focus:outline-none focus:ring-4 focus:ring-accent-300 font-medium rounded-full text-sm px-5 py-2 shadow dark:bg-accent-600 dark:hover:bg-accent-700 dark:focus:ring-accent-800">
+                                            class="inline-flex items-center justify-center text-white bg-accent-500 hover:bg-accent-600 focus:outline-none focus:ring-4 focus:ring-accent-300 font-medium rounded-full text-sm px-5 py-2 dark:bg-accent-600 dark:hover:bg-accent-700 dark:focus:ring-accent-800">
                                             Log
                                         </span>
                                     </div>
@@ -453,7 +419,7 @@
 
                     <!-- Feature 4: Book Completion Grid -->
                     <li class="order-4">
-                        <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full">
+                        <x-ui.card class="h-full shadow-none">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center gap-3">
                                     <span class="shrink-0 text-gray-800" aria-hidden="true">
@@ -469,7 +435,7 @@
                                 <p class="text-gray-400 text-xs">Journey comes alive visually</p>
 
                                 <!-- Mini preview: mirrors book-progress cards -->
-                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2 shadow-sm"
+                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2"
                                     aria-label="Preview of book completion grid">
                                     <div class="grid grid-cols-6 gap-1">
                                         @php
@@ -503,31 +469,26 @@
                         </x-ui.card>
                     </li>
 
-                    <!-- Feature 5: Permanent Achievements -->
+                    <!-- Feature 5: Achievements -->
                     <li class="order-5">
-                        <x-ui.card
-                            class="bg-gradient-to-br from-amber-50 to-white border border-amber-100 shadow-lg/20 hover:shadow-xl transition-shadow h-full">
+                        <x-ui.card class="h-full shadow-none">
                             <x-ui.card-content class="space-y-3">
-                                <div class="flex items-center justify-between gap-3">
-                                    <div class="flex items-center gap-3">
-                                        <span class="shrink-0 text-amber-600" aria-hidden="true">
-                                            <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" width="24"
-                                                height="24" fill="none" viewBox="0 0 24 24">
-                                                <circle cx="12" cy="8" r="6" stroke="currentColor" stroke-width="2" />
-                                                <path stroke="currentColor" stroke-linecap="round"
-                                                    stroke-linejoin="round" stroke-width="2"
-                                                    d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
-                                            </svg>
-                                        </span>
-                                        <x-ui.card-title class="mb-0">Permanent Achievements</x-ui.card-title>
-                                    </div>
-                                    <span
-                                        class="text-[11px] font-semibold text-amber-700 bg-white/70 border border-amber-100 px-2 py-1 rounded-full">New</span>
+                                <div class="flex items-center gap-3">
+                                    <span class="shrink-0 text-amber-600" aria-hidden="true">
+                                        <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" width="24"
+                                            height="24" fill="none" viewBox="0 0 24 24">
+                                            <circle cx="12" cy="8" r="6" stroke="currentColor" stroke-width="2" />
+                                            <path stroke="currentColor" stroke-linecap="round"
+                                                stroke-linejoin="round" stroke-width="2"
+                                                d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+                                        </svg>
+                                    </span>
+                                    <x-ui.card-title class="mb-0">Achievements</x-ui.card-title>
                                 </div>
-                                <p class="text-amber-700 text-xs">A trophy shelf that never rewinds</p>
+                                <p class="text-gray-400 text-xs">Keep the milestones you earn</p>
 
                                 <!-- Mini preview: mirrors the durable achievement shelf categories -->
-                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-3 shadow-sm"
+                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-3"
                                     aria-label="Preview of permanent achievements">
                                     <div class="grid grid-cols-3 gap-2">
                                         <div class="rounded-lg border border-gray-100 bg-gray-50 p-3 text-center">
@@ -559,57 +520,37 @@
                         </x-ui.card>
                     </li>
 
-                    <!-- Feature 6: Next Milestone Widget -->
+                    <!-- Feature 6: Reading reminders -->
                     <li class="order-3">
-                        <x-ui.card elevated class="hover:shadow-xl transition-shadow h-full flex flex-col">
+                        <x-ui.card class="h-full shadow-none">
                             <x-ui.card-content class="space-y-3">
                                 <div class="flex items-center gap-3">
-                                    <span class="shrink-0 text-gray-800" aria-hidden="true">
-                                        <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" width="24"
-                                            height="24" fill="currentColor" viewBox="0 0 24 24">
-                                            <path fill-rule="evenodd"
-                                                d="M12 2a1 1 0 0 1 .894.553l2.447 4.96 5.473.795a1 1 0 0 1 .554 1.706l-3.96 3.86.935 5.451a1 1 0 0 1-1.451 1.054L12 17.807l-4.892 2.572a1 1 0 0 1-1.451-1.054l.935-5.451-3.96-3.86a1 1 0 0 1 .554-1.706l5.473-.795 2.447-4.96A1 1 0 0 1 12 2Z"
-                                                clip-rule="evenodd" />
+                                    <span class="shrink-0 text-primary-600" aria-hidden="true">
+                                        <svg class="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" />
                                         </svg>
                                     </span>
-                                    <x-ui.card-title class="mb-0">Next Milestone</x-ui.card-title>
+                                    <x-ui.card-title class="mb-0">Reading Reminders</x-ui.card-title>
                                 </div>
-                                <p class="text-gray-400 text-xs">Know what to aim for next</p>
+                                <p class="text-gray-400 text-xs">A nudge when you need one</p>
 
-                                <!-- Compact preview of the dashboard milestone card -->
-                                <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2 shadow-sm"
-                                    aria-label="Preview of the Next Milestone widget">
-                                    <div class="flex items-start gap-3">
-                                        <div
-                                            class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600">
-                                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none"
-                                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round"
-                                                aria-hidden="true">
-                                                <path d="M12 7v14" />
-                                                <path
-                                                    d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
-                                            </svg>
-                                        </div>
-                                        <div class="min-w-0">
-                                            <p class="text-sm font-semibold text-gray-900">Finish Amos</p>
-                                            <p class="text-xs leading-5 text-gray-500">One chapter completes the book.</p>
-                                        </div>
+                                <div class="space-y-2 rounded-xl border border-gray-100 bg-white p-3"
+                                    aria-label="When reading reminders can help">
+                                    <div class="flex items-center justify-between gap-3 rounded-lg bg-primary-50 px-3 py-2 text-sm">
+                                        <span class="font-semibold text-gray-800">Morning</span>
+                                        <span class="text-right text-gray-600">No reading logged today</span>
                                     </div>
-                                    <div class="space-y-1.5">
-                                        <div class="flex items-center justify-between text-xs text-gray-500">
-                                            <span>Progress</span>
-                                            <span>8/9</span>
-                                        </div>
-                                        <div class="h-2 overflow-hidden rounded-full bg-gray-100">
-                                            <div class="h-full w-[89%] rounded-full bg-blue-600"></div>
-                                        </div>
+                                    <div class="flex items-center justify-between gap-3 rounded-lg bg-primary-50 px-3 py-2 text-sm">
+                                        <span class="font-semibold text-gray-800">Evening</span>
+                                        <span class="text-right text-gray-600">Active streak at risk</span>
                                     </div>
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    See the most useful live goal for your current season: a streak threshold, a nearly
-                                    finished book, or the next Bible progress milestone.
+                                    Opt into native notifications in Delight for Android. Browser reminders are also
+                                    available in beta on supported devices. Both follow your reading timezone.
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
@@ -618,67 +559,12 @@
             </div>
         </section>
 
-        <!-- Steps Section -->
-        <section class="py-20 bg-gray-50" aria-labelledby="steps-heading">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-16">
-                    <h2 id="steps-heading" class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                        How Delight Works
-                    </h2>
-                    <p class="text-xl text-gray-600">
-                        Record the reading you already do in three simple steps.
-                    </p>
-                </div>
-
-                <!-- Steps Grid -->
-                <ol class="grid md:grid-cols-3 gap-8" role="list" aria-label="How to use the Bible habit tracker">
-                    <!-- Step 1 -->
-                    <li class="text-center">
-                        <div class="bg-accent-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6"
-                            aria-hidden="true">
-                            <span class="text-2xl font-bold text-accent-600">1</span>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-900 mb-3">Read & Log</h3>
-                        <p class="text-gray-600 leading-relaxed">
-                            Read from the Bible or app you prefer, then log the book and chapter in Delight. You can also
-                            choose yesterday when you forgot to record it.
-                        </p>
-                    </li>
-
-                    <!-- Step 2 -->
-                    <li class="text-center">
-                        <div class="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6"
-                            aria-hidden="true">
-                            <span class="text-2xl font-bold text-blue-600">2</span>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-900 mb-3">See Progress</h3>
-                        <p class="text-gray-600 leading-relaxed">
-                            Watch your personal history, daily streaks, and book completion grid grow as you add the
-                            chapters you read.
-                        </p>
-                    </li>
-
-                    <!-- Step 3 -->
-                    <li class="text-center">
-                        <div class="bg-green-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6"
-                            aria-hidden="true">
-                            <span class="text-2xl font-bold text-green-600">3</span>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-900 mb-3">Stay Motivated</h3>
-                        <p class="text-gray-600 leading-relaxed">
-                            Use the next milestone and optional achievements as encouragement when they are useful to you.
-                        </p>
-                    </li>
-                </ol>
-            </div>
-        </section>
-
         <!-- Practical questions -->
         <section class="py-20 bg-white" aria-labelledby="questions-heading">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center">
                     <h2 id="questions-heading" class="text-3xl md:text-4xl font-bold text-gray-900">Frequently asked questions</h2>
-                    <p class="mt-4 text-lg text-gray-600">The practical details of using Delight as your Bible reading tracker.</p>
+                    <p class="mt-4 text-lg text-gray-600">A few practical details before you get started.</p>
                 </div>
 
                 <div class="mt-12 overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -713,6 +599,15 @@
                     </details>
                     <details class="group border-t border-gray-200 open:bg-primary-50/40">
                         <summary class="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-lg font-semibold text-gray-900 marker:content-none hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset group-open:hover:bg-primary-50/40">
+                            Where do reading reminders work?
+                            <svg class="h-5 w-5 shrink-0 text-primary-600 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
+                            </svg>
+                        </summary>
+                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">Native reminders are available in the Android app. Optional browser reminders are in beta on supported web devices. On iPhone and iPad, web notifications require adding Delight to the Home Screen from Safari. You can enable reminders in Settings after creating an account.</p>
+                    </details>
+                    <details class="group border-t border-gray-200 open:bg-primary-50/40">
+                        <summary class="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-lg font-semibold text-gray-900 marker:content-none hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset group-open:hover:bg-primary-50/40">
                             What should I expect when I am offline?
                             <svg class="h-5 w-5 shrink-0 text-primary-600 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
@@ -728,10 +623,10 @@
         <section class="py-20 bg-gradient-to-br from-[#3366CC] to-[#2952A3]" aria-labelledby="final-cta-heading">
             <div class="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
                 <h2 id="final-cta-heading" class="text-3xl md:text-4xl font-bold text-white mb-6">
-                    Ready to keep your Bible reading record in one place?
+                    Ready to keep a clearer reading record?
                 </h2>
                 <p class="text-xl text-white mb-8">
-                    Create a free account, log the chapters you already read, and see your progress over time.
+                    Create a free account, log what you read, and watch your progress grow. Reminders are there if you want them.
                 </p>
                 <x-ui.button variant="accent" size="lg" href="{{ route('register') }}">
                     Create Your Free Account

@@ -50,21 +50,17 @@ test('landing page does not claim an unsupported aggregate rating', function () 
 
 test('landing page explains the Bible reading tracker workflow and product boundaries', function () {
     $response = $this->get('/');
+    $content = $response->getContent();
 
     $response->assertSuccessful()
-        ->assertSee('A Bible reading tracker that fits the way you already read')
-        ->assertSee('Keep a clear reading record')
-        ->assertSee('Read from your paper Bible or preferred Bible app, then log your chapters with Delight on the')
-        ->assertSee('1. Read where you prefer')
-        ->assertSee('2. Log your chapters')
-        ->assertSee('3. See your progress')
+        ->assertSee('Keep your Bible reading going, wherever you read')
+        ->assertSee('Your reading, clearly recorded')
+        ->assertSee('Read where you prefer')
+        ->assertSee('Log your chapters')
+        ->assertSee('See your progress')
         ->assertSee('Record what you read, with or without a plan.')
-        ->assertDontSee('Core habit')
-        ->assertDontSee('Start building life-changing Bible reading habits')
         ->assertSee('Get Delight for Android')
-        ->assertSee('Your personal progress, streaks, and reading history stay synchronized wherever')
         ->assertSee('src="'.asset('images/screenshots/android-home-v1.png'), false)
-        ->assertDontSee('Explore the Dashboard')
         ->assertSee('Delight is currently free to use.')
         ->assertSee('Frequently asked questions')
         ->assertSee('Android users can also')
@@ -73,7 +69,22 @@ test('landing page explains the Bible reading tracker workflow and product bound
         ->assertSee('Create an account to save your reading history.')
         ->assertSee('Delight needs a connection to load your readings and save new logs.')
         ->assertSee('<div class="mt-12 overflow-hidden rounded-xl border border-gray-200 bg-white">', false)
-        ->assertSee('content="Delight is a free Bible reading tracker for logging chapters, building a consistent reading rhythm, and keeping your progress synchronized across the web and Android."', false);
+        ->assertSee('content="Track Bible chapters, see your progress, and choose optional native reading reminders in Delight for Android. Browser reminders are available on supported web devices."', false);
+
+    expect(strpos($content, 'id="steps-heading"'))->toBeLessThan(strpos($content, 'id="features-heading"'));
+});
+
+test('landing page presents optional Android and web reminders accurately', function () {
+    $response = $this->get('/');
+
+    $response->assertSuccessful()
+        ->assertSee('Reading Reminders')
+        ->assertSee('No reading logged today')
+        ->assertSee('Active streak at risk')
+        ->assertSee('Opt into native notifications in Delight for Android.')
+        ->assertSee('available in beta on supported devices.')
+        ->assertSee('On iPhone and iPad, web notifications require adding Delight to the Home Screen from Safari.')
+        ->assertDontSee('id="reminders-heading"', false);
 });
 
 test('landing page publishes valid web and Android structured data', function () {
@@ -88,10 +99,13 @@ test('landing page publishes valid web and Android structured data', function ()
 
     expect($structuredData['name'])->toBe('Delight - Bible Reading Tracker')
         ->and($structuredData['operatingSystem'])->toBe('Web Browser, Android 7.0+')
+        ->and($structuredData['featureList'])->toContain('Optional Native Android and Browser Reading Reminders')
         ->and($structuredData['screenshot'])->toBe([
             $desktopScreenshot,
             $androidScreenshot,
         ]);
+
+    $response->assertSee('content="A free Bible reading tracker with progress, streaks, and optional native Android reminders. Browser reminders are available on supported devices."', false);
 });
 
 test('landing page uses versioned brand assets', function () {
