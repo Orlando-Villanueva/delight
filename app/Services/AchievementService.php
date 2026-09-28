@@ -133,16 +133,18 @@ class AchievementService
                     'icon' => $achievement->icon,
                     'style' => $achievement->style,
                     'category' => $achievement->category,
+                    'is_repeat_book_completion' => $achievement->achievement_key === 'book_completed'
+                        && (int) ($achievement->metadata['completion_number'] ?? 1) > 1,
                     'earned_at' => $achievement->earned_at?->format('M j, Y'),
                 ];
             })
             ->values()
             ->all();
 
-        $progress = $this->getLockedAchievements($user, $user->achievements()->get())
-            ->filter(fn (array $achievement): bool => (int) $achievement['current'] > 0)
-            ->sortByDesc(fn (array $achievement): int|float => $achievement['progress_percent'])
-            ->take(3)
+        $progress = $this->nearestLockedGoalsByCategory(
+            $this->getLockedAchievements($user, $user->achievements()->get()),
+            3
+        )
             ->map(fn (array $achievement): array => [
                 'display_name' => $achievement['display_name'],
                 'description' => $achievement['description'],
@@ -217,20 +219,24 @@ class AchievementService
      */
     private function nextGoals(array $overallProgress, Collection $lockedAchievements): array
     {
-        $nextBibleProgressAchievement = $lockedAchievements
-            ->first(fn (array $achievement): bool => str_starts_with($achievement['achievement_key'], 'bible_progress_'));
-        $nextBibleProgressAchievementKey = $nextBibleProgressAchievement['achievement_key'] ?? null;
-
         return [
             'books' => $this->almostFinishedBooks($overallProgress),
-            'progress' => $lockedAchievements
-                ->filter(fn (array $achievement): bool => (int) $achievement['current'] > 0)
-                ->reject(fn (array $achievement): bool => str_starts_with($achievement['achievement_key'], 'bible_progress_')
-                    && $achievement['achievement_key'] !== $nextBibleProgressAchievementKey)
-                ->sortByDesc(fn (array $achievement): int|float => $achievement['progress_percent'])
-                ->take(4)
-                ->values(),
+            'progress' => $this->nearestLockedGoalsByCategory($lockedAchievements, 4),
         ];
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $lockedAchievements
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function nearestLockedGoalsByCategory(Collection $lockedAchievements, int $limit): Collection
+    {
+        return $lockedAchievements
+            ->filter(fn (array $achievement): bool => (int) $achievement['current'] > 0)
+            ->unique('category')
+            ->sortByDesc(fn (array $achievement): int|float => $achievement['progress_percent'])
+            ->take($limit)
+            ->values();
     }
 
     /**

@@ -27,7 +27,7 @@
                             <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Almost finished</h3>
                             <div class="grid grid-cols-1 gap-3 2xl:grid-cols-2">
                                 @foreach ($nextGoals['books'] as $goal)
-                                    <article class="rounded-xl border border-[#D1D7E0] bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                                    <article class="rounded-xl border border-[#D1D7E0] bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
                                         <div class="flex items-start gap-3">
                                             <x-achievements.badge :icon="$goal['icon']" :label="$goal['book_name']" size="md" state="muted" />
                                             <div class="min-w-0 flex-1">
@@ -67,7 +67,7 @@
                             <h3 class="text-sm font-semibold text-gray-900 dark:text-white">In progress</h3>
                             <div class="grid grid-cols-1 gap-3 2xl:grid-cols-2">
                                 @foreach ($nextGoals['progress'] as $achievement)
-                                    <article class="rounded-xl border border-[#D1D7E0] bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                                    <article class="rounded-xl border border-[#D1D7E0] bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
                                         <div class="flex items-start gap-3">
                                             <x-achievements.badge :icon="$achievement['icon']" :label="$achievement['display_name']" size="md" state="muted" />
                                             <div class="min-w-0 flex-1">
@@ -102,7 +102,7 @@
                                     $hasReadingDetails = ($achievement->metadata['passage'] ?? null) && ($achievement->metadata['date_read'] ?? null);
                                     $latestCompletion = $group['completion_dates']->last();
                                 @endphp
-                                <article class="relative rounded-xl border border-[#D1D7E0] bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                                <article class="relative rounded-xl border border-[#D1D7E0] bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
                                     <div class="flex items-start gap-3">
                                         <x-achievements.badge :icon="$achievement->icon" :label="$achievement->display_name" size="md" />
                                         <div class="min-w-0 flex-1">
@@ -140,7 +140,7 @@
                         </div>
                     </div>
                 @empty
-                    <div class="rounded-xl border border-dashed border-[#D1D7E0] bg-white p-6 text-center shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    <div class="rounded-xl border border-dashed border-[#D1D7E0] bg-white p-6 text-center dark:border-gray-700 dark:bg-gray-800">
                         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">No trophies yet</h2>
                         <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
                             Your first achievement appears here after you log a reading.
