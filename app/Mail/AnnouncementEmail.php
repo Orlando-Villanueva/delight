@@ -5,6 +5,7 @@ namespace App\Mail;
 use App\Models\Announcement;
 use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
+use App\Services\AnnouncementEmailContentRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -27,7 +28,8 @@ class AnnouncementEmail extends Mailable
     public function __construct(
         public Announcement $announcement,
         public User $user,
-        public AnnouncementEmailDelivery $delivery
+        public AnnouncementEmailDelivery $delivery,
+        private AnnouncementEmailContentRenderer $contentRenderer = new AnnouncementEmailContentRenderer,
     ) {
         $this->unsubscribeUrl = URL::signedRoute(
             'marketing.unsubscribe',
@@ -62,6 +64,7 @@ class AnnouncementEmail extends Mailable
         return new Content(
             view: 'emails.announcement',
             with: [
+                'announcementHtml' => $this->contentRenderer->render($this->announcement),
                 'announcementUrl' => $this->announcementUrl,
                 'heroImageUrl' => $this->announcement->heroImageUrl(),
                 'unsubscribeUrl' => $this->unsubscribeUrl,

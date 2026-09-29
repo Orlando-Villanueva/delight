@@ -12,7 +12,7 @@
 @endif
 
 <div class="message">
-    {!! Str::markdown($announcement->content) !!}
+    {!! $announcementHtml !!}
 </div>
 
 <div class="button-container">
