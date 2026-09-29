@@ -175,3 +175,25 @@ it('preserves image decoration while replacing conflicting sizing styles', funct
     expect($document->querySelector('img')->getAttribute('style'))
         ->toBe('border-radius: 12px; max-width: 100%; width: auto; height: auto;');
 });
+
+it('renders a test draft using the shared email content without live unsubscribe actions', function () {
+    $draft = Announcement::factory()->draft()->make([
+        'slug' => 'draft-review',
+        'title' => 'Draft review',
+        'content' => '[Dashboard](/dashboard) ![History](/images/updates/book-completions-history.png)',
+        'hero_image_path' => 'images/updates/example.png',
+    ]);
+    $mail = AnnouncementEmail::forTest($draft);
+
+    $html = $mail->render();
+
+    expect($mail->envelope()->subject)->toBe('[TEST] Draft review');
+    expect($mail->headers()->text)->toBe([]);
+    expect($html)->toContain(route('admin.announcements.preview', 'draft-review'))
+        ->toContain(url('/dashboard'))
+        ->toContain(asset('images/updates/example.png'))
+        ->toContain('max-width: 100%; width: auto; height: auto;')
+        ->toContain('Test email for draft review.')
+        ->not->toContain('Unsubscribe from these emails')
+        ->not->toContain('/marketing/unsubscribe');
+});
