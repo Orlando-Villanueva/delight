@@ -4,6 +4,8 @@ use App\Mail\AnnouncementEmail;
 use App\Models\Announcement;
 use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
+use App\Services\AnnouncementEmailContentRenderer;
+use Dom\HTMLDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 
@@ -120,4 +122,56 @@ it('preserves unicode and inline markup while resolving links', function () {
 
     expect($html)->toContain('Découvrez <strong>la fidélité</strong>.')
         ->and($html)->toContain('title="Continuer la lecture"');
+});
+
+it('renders inline images with absolute sources and responsive dimensions', function (string $content, string $source) {
+    $announcement = Announcement::factory()->create(['content' => $content]);
+    $user = User::factory()->create();
+    $delivery = AnnouncementEmailDelivery::factory()->create([
+        'announcement_id' => $announcement->id,
+        'user_id' => $user->id,
+    ]);
+
+    $html = (new AnnouncementEmail($announcement, $user, $delivery))->render();
+    $document = HTMLDocument::createFromString($html, LIBXML_NOERROR, 'UTF-8');
+    $image = $document->querySelector('.message img');
+
+    expect($image->getAttribute('src'))->toBe($source)
+        ->and($image->getAttribute('alt'))->toBe('Reading history')
+        ->and($image->getAttribute('style'))->toBe('max-width: 100%; width: auto; height: auto;')
+        ->and($image->hasAttribute('width'))->toBeFalse()
+        ->and($image->hasAttribute('height'))->toBeFalse();
+})->with([
+    'Markdown site image' => ['![Reading history](/images/updates/book-completions-history.png)', fn () => url('/images/updates/book-completions-history.png')],
+    'article relative image' => ['![Reading history](../images/updates/book-completions-history.png)', fn () => url('/images/updates/book-completions-history.png')],
+    'external image with conflicting dimensions' => ['<img src="https://example.org/history.png" alt="Reading history" width="1375" height="800" style="width: 1375px !important; height: 800px;">', 'https://example.org/history.png'],
+]);
+
+it('preserves the link around an inline image', function () {
+    $announcement = Announcement::factory()->create([
+        'content' => '[![Reading history](/images/updates/book-completions-history.png)](/achievements)',
+    ]);
+    $user = User::factory()->create();
+    $delivery = AnnouncementEmailDelivery::factory()->create([
+        'announcement_id' => $announcement->id,
+        'user_id' => $user->id,
+    ]);
+
+    $html = (new AnnouncementEmail($announcement, $user, $delivery))->render();
+    $document = HTMLDocument::createFromString($html, LIBXML_NOERROR, 'UTF-8');
+
+    expect($document->querySelector('.message a')->getAttribute('href'))->toBe(url('/achievements'))
+        ->and($document->querySelector('.message a img'))->not->toBeNull();
+});
+
+it('preserves image decoration while replacing conflicting sizing styles', function () {
+    $announcement = Announcement::factory()->make([
+        'content' => '<img src="/images/logo-64.png" alt="Logo" style="border-radius: 12px; WIDTH: 1375px !important; height: 800px; min-width: 900px; max-height: 40px;">',
+    ]);
+
+    $html = (new AnnouncementEmailContentRenderer)->render($announcement);
+    $document = HTMLDocument::createFromString($html, LIBXML_NOERROR, 'UTF-8');
+
+    expect($document->querySelector('img')->getAttribute('style'))
+        ->toBe('border-radius: 12px; max-width: 100%; width: auto; height: auto;');
 });

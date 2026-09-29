@@ -30,6 +30,26 @@ class AnnouncementEmailContentRenderer
             $anchor->setAttribute('href', (string) UriResolver::resolve($articleUrl, new Uri($href)));
         }
 
+        foreach ($document->querySelectorAll('img') as $image) {
+            if ($image->hasAttribute('src')) {
+                $src = trim($image->getAttribute('src'));
+
+                if (! preg_match('/^[a-z][a-z0-9+.-]*:/i', $src)) {
+                    $image->setAttribute('src', (string) UriResolver::resolve($articleUrl, new Uri($src)));
+                }
+            }
+
+            $image->removeAttribute('width');
+            $image->removeAttribute('height');
+            $style = preg_replace(
+                '/(?:^|;)\s*(?:(?:min|max)-)?(?:width|height)\s*:[^;]*(?=;|$)/i',
+                ';',
+                $image->getAttribute('style') ?? '',
+            );
+            $style = trim($style, " \t\n\r\0\x0B;");
+            $image->setAttribute('style', ($style !== '' ? $style.'; ' : '').'max-width: 100%; width: auto; height: auto;');
+        }
+
         return $document->body->innerHTML;
     }
 }
