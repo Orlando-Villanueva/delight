@@ -97,3 +97,16 @@ it('returns failure when the transport rejects a test', function () {
     $this->assertDatabaseCount('announcement_email_deliveries', 0);
     expect($draft->fresh()->is_draft)->toBeTrue();
 });
+
+it('reports invalid links without sending a test email', function () {
+    $draft = Announcement::factory()->draft()->create(['content' => '[Broken](https://)']);
+    Mail::fake();
+
+    $this->artisan('announcements:test-email', ['draft' => $draft->slug, '--yes' => true])
+        ->expectsOutput('Link "Broken" (https://): Malformed URL.')
+        ->assertFailed();
+
+    Mail::assertNothingSent();
+    expect($draft->fresh()->is_draft)->toBeTrue();
+    $this->assertDatabaseCount('announcement_email_deliveries', 0);
+});

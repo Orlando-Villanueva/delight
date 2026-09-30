@@ -18,25 +18,14 @@ class AnnouncementEmailContentRenderer
             LIBXML_NOERROR,
             'UTF-8',
         );
-        $articleUrl = new Uri(route('announcements.show', $announcement->slug));
 
         foreach ($document->querySelectorAll('a[href]') as $anchor) {
-            $href = trim($anchor->getAttribute('href'));
-
-            if (preg_match('/^[a-z][a-z0-9+.-]*:/i', $href)) {
-                continue;
-            }
-
-            $anchor->setAttribute('href', (string) UriResolver::resolve($articleUrl, new Uri($href)));
+            $anchor->setAttribute('href', $this->resolveUrl($anchor->getAttribute('href'), $announcement));
         }
 
         foreach ($document->querySelectorAll('img') as $image) {
             if ($image->hasAttribute('src')) {
-                $src = trim($image->getAttribute('src'));
-
-                if (! preg_match('/^[a-z][a-z0-9+.-]*:/i', $src)) {
-                    $image->setAttribute('src', (string) UriResolver::resolve($articleUrl, new Uri($src)));
-                }
+                $image->setAttribute('src', $this->resolveUrl($image->getAttribute('src'), $announcement));
             }
 
             $image->removeAttribute('width');
@@ -51,5 +40,19 @@ class AnnouncementEmailContentRenderer
         }
 
         return $document->body->innerHTML;
+    }
+
+    public function resolveUrl(string $reference, Announcement $announcement): string
+    {
+        $reference = trim($reference);
+
+        if (preg_match('/^[a-z][a-z0-9+.-]*:/i', $reference)) {
+            return $reference;
+        }
+
+        return (string) UriResolver::resolve(
+            new Uri(route('announcements.show', $announcement->slug)),
+            new Uri($reference),
+        );
     }
 }

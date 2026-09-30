@@ -4,10 +4,12 @@ namespace App\Console\Commands;
 
 use App\Mail\AnnouncementEmail;
 use App\Models\Announcement;
+use App\Services\AnnouncementEmailLinkValidator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class SendAnnouncementTestEmail extends Command
@@ -19,7 +21,7 @@ class SendAnnouncementTestEmail extends Command
 
     protected $description = 'Send an optional announcement draft test email only to the configured admin inbox';
 
-    public function handle(): int
+    public function handle(AnnouncementEmailLinkValidator $linkValidator): int
     {
         $announcement = Announcement::query()
             ->where('slug', Str::slug((string) $this->argument('draft')))
@@ -27,6 +29,16 @@ class SendAnnouncementTestEmail extends Command
 
         if (! $announcement || ! $announcement->is_draft) {
             $this->error('Only an existing draft announcement can be tested.');
+
+            return self::FAILURE;
+        }
+
+        try {
+            $linkValidator->validate($announcement);
+        } catch (ValidationException $exception) {
+            foreach ($exception->errors()['content'] as $message) {
+                $this->error($message);
+            }
 
             return self::FAILURE;
         }
