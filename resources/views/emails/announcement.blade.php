@@ -12,7 +12,7 @@
 @endif
 
 <div class="message">
-    {!! Str::markdown($announcement->content) !!}
+    {!! $announcementHtml !!}
 </div>
 
 <div class="button-container">
@@ -21,7 +21,11 @@
 @endsection
 
 @section('footer-extra')
+@if ($isTest)
+<p class="footer-text">Test email for draft review. This announcement has not been published.</p>
+@else
 <p class="footer-text">
     <a href="{{ $unsubscribeUrl }}" class="link">Unsubscribe from these emails</a>
 </p>
+@endif
 @endsection

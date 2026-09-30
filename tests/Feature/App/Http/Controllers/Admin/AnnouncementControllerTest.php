@@ -667,3 +667,18 @@ it('blocks non-admins and guests from retrying failed announcement emails', func
 
     $this->post($route)->assertRedirect(route('login'));
 });
+
+it('returns content errors without publishing a malformed announcement link', function () {
+    Mail::fake();
+
+    $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
+        'title' => 'Broken link review',
+        'slug' => 'broken-link-review',
+        'content' => '[Broken](https://)',
+        'hero_image_path' => 'images/updates/example.png',
+        'starts_at' => now()->toDateTimeString(),
+    ])->assertSessionHasErrors(['content' => 'Link "Broken" (https://): Malformed URL.']);
+
+    $this->assertDatabaseMissing('announcements', ['slug' => 'broken-link-review']);
+    Mail::assertNothingSent();
+});

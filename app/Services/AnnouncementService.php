@@ -8,6 +8,8 @@ use LogicException;
 
 class AnnouncementService
 {
+    public function __construct(private AnnouncementEmailLinkValidator $linkValidator) {}
+
     /**
      * @param  array<string, mixed>  $validated
      */
@@ -21,6 +23,8 @@ class AnnouncementService
      */
     public function createPublishedOrScheduled(array $validated): Announcement
     {
+        $this->linkValidator->validate(new Announcement($validated));
+
         return $this->create($validated, isDraft: false);
     }
 
@@ -55,6 +59,8 @@ class AnnouncementService
         if (! $announcement->is_draft) {
             throw new LogicException('Only draft announcements can be published.');
         }
+
+        $this->linkValidator->validate($announcement);
 
         $announcement->update([
             'is_draft' => false,

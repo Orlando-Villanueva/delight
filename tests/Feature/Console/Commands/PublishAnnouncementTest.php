@@ -133,3 +133,19 @@ it('rejects repeated publication without changing the original authorization', f
 
     expect($draft->fresh()->getAttributes())->toBe($published);
 });
+
+it('reports invalid links before publication or dry run without changing the draft', function (bool $dryRun) {
+    $draft = Announcement::factory()->draft()->create(['content' => '[Broken](https://)']);
+    $original = $draft->fresh()->getAttributes();
+    Mail::fake();
+
+    expect(Artisan::call('announcements:publish', [
+        'draft' => $draft->slug, '--yes' => true, '--json' => true, '--dry-run' => $dryRun,
+    ]))->toBe(1);
+
+    expect(json_decode(Artisan::output(), true)['errors']['content'])
+        ->toBe(['Link "Broken" (https://): Malformed URL.']);
+    expect($draft->fresh()->getAttributes())->toBe($original);
+    $this->assertDatabaseCount('announcement_email_deliveries', 0);
+    Mail::assertNothingSent();
+})->with([true, false]);

@@ -4,10 +4,12 @@ namespace App\Console\Commands;
 
 use App\Models\Announcement;
 use App\Services\AnnouncementEmailDeliveryService;
+use App\Services\AnnouncementEmailLinkValidator;
 use App\Services\AnnouncementService;
 use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PublishAnnouncement extends Command
 {
@@ -35,6 +37,7 @@ class PublishAnnouncement extends Command
     public function handle(
         AnnouncementService $announcementService,
         AnnouncementEmailDeliveryService $deliveryService,
+        AnnouncementEmailLinkValidator $linkValidator,
     ): int {
         $announcement = Announcement::query()
             ->where('slug', Str::slug((string) $this->argument('draft')))
@@ -42,6 +45,12 @@ class PublishAnnouncement extends Command
 
         if (! $announcement || ! $announcement->is_draft) {
             return $this->renderFailure(['draft' => ['Only an existing draft announcement can be published.']]);
+        }
+
+        try {
+            $linkValidator->validate($announcement);
+        } catch (ValidationException $exception) {
+            return $this->renderFailure($exception->errors());
         }
 
         $startsAt = $this->publicationTime($announcement);
