@@ -75,8 +75,10 @@ class AnnouncementEmailLinkValidator
                 return 'Malformed URL.';
             }
         } elseif ($scheme === 'mailto') {
-            if (filter_var(rawurldecode($uri->getPath()), FILTER_VALIDATE_EMAIL) === false) {
-                return 'Malformed email address.';
+            foreach (explode(',', $uri->getPath()) as $recipient) {
+                if (filter_var(rawurldecode($recipient), FILTER_VALIDATE_EMAIL) === false) {
+                    return 'Malformed email address.';
+                }
             }
         } elseif (! preg_match('/^\+?[0-9(). -]+$/', $uri->getPath()) || ! preg_match('/[0-9]/', $uri->getPath())) {
             return 'Malformed telephone number.';

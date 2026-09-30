@@ -21,10 +21,20 @@ class AnnouncementEmailContentRenderer
         );
 
         foreach ($document->querySelectorAll('a[href]') as $anchor) {
-            $anchor->setAttribute('href', $this->resolveUrl($anchor->getAttribute('href'), $announcement));
+            try {
+                $anchor->setAttribute('href', $this->resolveUrl($anchor->getAttribute('href'), $announcement));
+            } catch (InvalidArgumentException) {
+                $anchor->removeAttribute('href');
+            }
+        }
+
+        foreach ($document->querySelectorAll('picture source') as $source) {
+            $source->remove();
         }
 
         foreach ($document->querySelectorAll('img') as $image) {
+            $image->removeAttribute('srcset');
+            $image->removeAttribute('sizes');
             if ($image->hasAttribute('src')) {
                 try {
                     $image->setAttribute('src', $this->resolveUrl($image->getAttribute('src'), $announcement));
@@ -35,15 +45,27 @@ class AnnouncementEmailContentRenderer
                 }
             }
 
+            $authoredStyle = $image->getAttribute('style') ?? '';
+            $width = 'auto';
+            $attributeWidth = $image->getAttribute('width') ?? '';
+
+            if (preg_match('/^\d+(?:\.\d+)?$/', $attributeWidth) && (float) $attributeWidth > 0) {
+                $width = $attributeWidth.'px';
+            }
+
+            if (preg_match_all('/(?:^|;)\s*width\s*:\s*(\d+(?:\.\d+)?(?:px|%))\s*(?:!important)?\s*(?=;|$)/i', $authoredStyle, $matches)) {
+                $width = strtolower(end($matches[1]));
+            }
+
             $image->removeAttribute('width');
             $image->removeAttribute('height');
             $style = preg_replace(
                 '/(?:^|;)\s*(?:(?:min|max)-)?(?:width|height)\s*:[^;]*(?=;|$)/i',
                 ';',
-                $image->getAttribute('style') ?? '',
+                $authoredStyle,
             );
             $style = trim($style, " \t\n\r\0\x0B;");
-            $image->setAttribute('style', ($style !== '' ? $style.'; ' : '').'max-width: 100%; width: auto; height: auto;');
+            $image->setAttribute('style', ($style !== '' ? $style.'; ' : '').'max-width: 100%; width: '.$width.'; height: auto;');
         }
 
         return $document->body->innerHTML;

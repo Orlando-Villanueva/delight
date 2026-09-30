@@ -95,3 +95,22 @@ it('rejects malformed image sources before publication', function (string $conte
     'Markdown' => '![History](//example.org:invalid/history.png)',
     'HTML' => '<img src="//example.org:invalid/history.png" alt="History">',
 ]);
+
+it('accepts multiple mailto recipients with encoded addresses and query parameters', function () {
+    $announcement = Announcement::factory()->make([
+        'content' => '[Email](mailto:one%40example.org,two@example.org?subject=Hello)',
+    ]);
+
+    app(AnnouncementEmailLinkValidator::class)->validate($announcement);
+
+    expect($announcement->content)->toContain('one%40example.org,two@example.org');
+});
+
+it('rejects a malformed member of a mailto recipient list', function () {
+    $announcement = Announcement::factory()->make([
+        'content' => '[Email](mailto:one@example.org,invalid)',
+    ]);
+
+    expect(fn () => app(AnnouncementEmailLinkValidator::class)->validate($announcement))
+        ->toThrow(ValidationException::class);
+});

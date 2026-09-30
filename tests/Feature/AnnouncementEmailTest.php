@@ -136,9 +136,11 @@ it('renders inline images with absolute sources and responsive dimensions', func
     $document = HTMLDocument::createFromString($html, LIBXML_NOERROR, 'UTF-8');
     $image = $document->querySelector('.message img');
 
+    $expectedWidth = str_contains($content, 'width=') ? '1375px' : 'auto';
+
     expect($image->getAttribute('src'))->toBe($source)
         ->and($image->getAttribute('alt'))->toBe('Reading history')
-        ->and($image->getAttribute('style'))->toBe('max-width: 100%; width: auto; height: auto;')
+        ->and($image->getAttribute('style'))->toBe('max-width: 100%; width: '.$expectedWidth.'; height: auto;')
         ->and($image->hasAttribute('width'))->toBeFalse()
         ->and($image->hasAttribute('height'))->toBeFalse();
 })->with([
@@ -173,7 +175,7 @@ it('preserves image decoration while replacing conflicting sizing styles', funct
     $document = HTMLDocument::createFromString($html, LIBXML_NOERROR, 'UTF-8');
 
     expect($document->querySelector('img')->getAttribute('style'))
-        ->toBe('border-radius: 12px; max-width: 100%; width: auto; height: auto;');
+        ->toBe('border-radius: 12px; max-width: 100%; width: 1375px; height: auto;');
 });
 
 it('renders a test draft using the shared email content without live unsubscribe actions', function () {
@@ -209,3 +211,44 @@ it('renders existing announcements with malformed image sources without aborting
         ->not->toContain('example.org:invalid')
         ->toContain(url('/images/logo-64.png'));
 });
+
+it('preserves legacy link text when its destination cannot be resolved', function () {
+    $announcement = Announcement::factory()->make([
+        'content' => '<a href="//example.org:invalid/x">Broken <strong>destination</strong></a> [Dashboard](/dashboard)',
+    ]);
+
+    $html = (new AnnouncementEmailContentRenderer)->render($announcement);
+    $document = HTMLDocument::createFromString($html, LIBXML_NOERROR, 'UTF-8');
+
+    expect($document->querySelector('a')->hasAttribute('href'))->toBeFalse();
+    expect($html)->toContain('Broken <strong>destination</strong>')->toContain(url('/dashboard'));
+});
+
+it('uses the resolved fallback image instead of alternate candidates in email', function () {
+    $content = '<picture><source srcset="/images/alternate.png 2x"><img src="/images/logo-64.png" srcset="/images/large.png 2x, //example.org:invalid/image.png 3x" sizes="100vw" alt="Logo"></picture>';
+    $announcement = Announcement::factory()->make(['content' => $content]);
+
+    $html = (new AnnouncementEmailContentRenderer)->render($announcement);
+
+    expect($html)->toContain(url('/images/logo-64.png'))
+        ->not->toContain('srcset')->not->toContain('sizes=')->not->toContain('<source');
+    expect($announcement->content)->toBe($content);
+});
+
+it('preserves authored image widths while constraining them to the email container', function (string $attributes, string $width) {
+    $announcement = Announcement::factory()->make([
+        'content' => '<img src="/images/updates/book-completions-history.png" '.$attributes.'>',
+    ]);
+
+    $html = (new AnnouncementEmailContentRenderer)->render($announcement);
+    $document = HTMLDocument::createFromString($html, LIBXML_NOERROR, 'UTF-8');
+
+    expect($document->querySelector('img')->getAttribute('style'))
+        ->toBe('max-width: 100%; width: '.$width.'; height: auto;');
+})->with([
+    'small attribute' => ['width="64" height="64"', '64px'],
+    'small inline width' => ['style="width: 64px !important; height: 64px"', '64px'],
+    'oversized width' => ['width="1375"', '1375px'],
+    'percentage width' => ['style="width: 50%; min-width: 900px"', '50%'],
+    'inline width overrides attribute' => ['width="1375" style="width: 64px"', '64px'],
+]);
