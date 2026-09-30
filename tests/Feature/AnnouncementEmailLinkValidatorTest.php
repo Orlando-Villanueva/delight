@@ -76,3 +76,22 @@ it('allows an invalid link to be saved as a draft but prevents publication', fun
     expect($draft->fresh()->is_draft)->toBeTrue();
     expect($draft->fresh()->email_broadcast_authorized_at)->toBeNull();
 });
+
+it('rejects malformed image sources before publication', function (string $content) {
+    $draft = Announcement::factory()->draft()->create(['content' => $content]);
+
+    try {
+        app(AnnouncementService::class)->publishDraft($draft, now());
+        $this->fail('Expected image validation to fail.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors()['content'])->toBe([
+            'Image "History" (//example.org:invalid/history.png): Malformed URL.',
+        ]);
+    }
+
+    expect($draft->fresh()->is_draft)->toBeTrue();
+    expect($draft->fresh()->email_broadcast_authorized_at)->toBeNull();
+})->with([
+    'Markdown' => '![History](//example.org:invalid/history.png)',
+    'HTML' => '<img src="//example.org:invalid/history.png" alt="History">',
+]);

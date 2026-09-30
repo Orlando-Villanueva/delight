@@ -7,6 +7,7 @@ use Dom\HTMLDocument;
 use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\Psr7\UriResolver;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class AnnouncementEmailContentRenderer
 {
@@ -25,7 +26,13 @@ class AnnouncementEmailContentRenderer
 
         foreach ($document->querySelectorAll('img') as $image) {
             if ($image->hasAttribute('src')) {
-                $image->setAttribute('src', $this->resolveUrl($image->getAttribute('src'), $announcement));
+                try {
+                    $image->setAttribute('src', $this->resolveUrl($image->getAttribute('src'), $announcement));
+                } catch (InvalidArgumentException) {
+                    $image->replaceWith($document->createTextNode($image->getAttribute('alt') ?? ''));
+
+                    continue;
+                }
             }
 
             $image->removeAttribute('width');

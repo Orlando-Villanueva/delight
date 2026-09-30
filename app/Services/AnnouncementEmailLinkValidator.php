@@ -32,12 +32,22 @@ class AnnouncementEmailLinkValidator
             }
         }
 
+        foreach ($document->querySelectorAll('img') as $image) {
+            $reference = trim($image->getAttribute('src') ?? '');
+            $label = trim($image->getAttribute('alt') ?? '') ?: 'Unlabeled image';
+            $problem = $this->problem($reference, $announcement, isImage: true);
+
+            if ($problem !== null) {
+                $errors[] = "Image \"{$label}\" ({$reference}): {$problem}";
+            }
+        }
+
         if ($errors !== []) {
             throw ValidationException::withMessages(['content' => $errors]);
         }
     }
 
-    private function problem(string $reference, Announcement $announcement): ?string
+    private function problem(string $reference, Announcement $announcement, bool $isImage = false): ?string
     {
         if ($reference === '' || preg_match('/[\x00-\x1f\x7f]/', $reference)) {
             return 'Malformed URL.';
@@ -51,6 +61,10 @@ class AnnouncementEmailLinkValidator
         }
 
         $scheme = strtolower($uri->getScheme());
+
+        if ($isImage && ! in_array($scheme, ['http', 'https'], true)) {
+            return 'Unsupported image scheme. Use http or https.';
+        }
 
         if (! in_array($scheme, ['http', 'https', 'mailto', 'tel'], true)) {
             return 'Unsupported scheme. Use http, https, mailto, or tel.';

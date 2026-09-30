@@ -197,3 +197,15 @@ it('renders a test draft using the shared email content without live unsubscribe
         ->not->toContain('Unsubscribe from these emails')
         ->not->toContain('/marketing/unsubscribe');
 });
+
+it('renders existing announcements with malformed image sources without aborting', function () {
+    $announcement = Announcement::factory()->make([
+        'content' => '<img src="//example.org:invalid/history.png" alt="History &amp; details"> ![Logo](/images/logo-64.png)',
+    ]);
+
+    $html = (new AnnouncementEmailContentRenderer)->render($announcement);
+
+    expect($html)->toContain('History &amp; details')
+        ->not->toContain('example.org:invalid')
+        ->toContain(url('/images/logo-64.png'));
+});
