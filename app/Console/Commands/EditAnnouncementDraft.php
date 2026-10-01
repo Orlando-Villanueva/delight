@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Console\AnnouncementDraftOutput;
+use App\Console\CommandOutput;
 use App\Models\Announcement;
 use App\Services\AnnouncementService;
 use App\Services\AnnouncementValidator;
@@ -42,6 +43,7 @@ class EditAnnouncementDraft extends Command
      */
     public function handle(
         AnnouncementService $announcementService,
+        CommandOutput $output,
         AnnouncementValidator $announcementValidator,
         AnnouncementDraftOutput $draftOutput,
     ): int {
@@ -50,25 +52,25 @@ class EditAnnouncementDraft extends Command
             ->first();
 
         if (! $announcement || ! $announcement->is_draft) {
-            return $this->renderFailure([
+            return $output->renderFailure($this, [
                 'draft' => ['Only an existing draft announcement can be edited.'],
             ]);
         }
 
         if (! $this->hasRequestedChanges()) {
-            return $this->renderFailure([
+            return $output->renderFailure($this, [
                 'changes' => ['At least one draft change option is required.'],
             ]);
         }
 
         if ($this->option('social-image-path') !== null && $this->option('clear-social-image')) {
-            return $this->renderFailure([
+            return $output->renderFailure($this, [
                 'social_image_path' => ['The social image path cannot be set and cleared together.'],
             ]);
         }
 
         if ($this->option('ends-at') !== null && $this->option('clear-ends-at')) {
-            return $this->renderFailure([
+            return $output->renderFailure($this, [
                 'ends_at' => ['The expiry time cannot be set and cleared together.'],
             ]);
         }
@@ -80,7 +82,7 @@ class EditAnnouncementDraft extends Command
             );
             $announcement = $announcementService->updateDraft($announcement, $validated);
         } catch (ValidationException $exception) {
-            return $this->renderFailure($exception->errors());
+            return $output->renderFailure($this, $exception->errors());
         }
 
         return $draftOutput->render($this, $announcement, 'Announcement draft updated.');
@@ -163,25 +165,5 @@ class EditAnnouncementDraft extends Command
         }
 
         return $input;
-    }
-
-    /**
-     * @param  array<string, array<int, string>>  $errors
-     */
-    private function renderFailure(array $errors): int
-    {
-        if ($this->option('json')) {
-            $this->line(json_encode(['errors' => $errors], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
-
-            return self::FAILURE;
-        }
-
-        foreach ($errors as $messages) {
-            foreach ($messages as $message) {
-                $this->error($message);
-            }
-        }
-
-        return self::FAILURE;
     }
 }

@@ -7,6 +7,8 @@ use Illuminate\Console\Command;
 
 class AnnouncementDraftOutput
 {
+    public function __construct(private CommandOutput $output) {}
+
     public function render(Command $command, Announcement $announcement, string $message): int
     {
         $result = [
@@ -21,17 +23,11 @@ class AnnouncementDraftOutput
             'proposed_ends_at' => $announcement->ends_at?->toIso8601String(),
         ];
 
-        if ($command->option('json')) {
-            $command->line(json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
-
-            return Command::SUCCESS;
+        if (! $command->option('json')) {
+            $command->info($message);
         }
 
-        $command->info($message);
-        $command->table(['Field', 'Value'], collect($result)
-            ->map(fn (mixed $value, string $key): array => [$key, $value ?? 'None'])
-            ->values()
-            ->all());
+        $this->output->renderSummary($command, $result);
 
         return Command::SUCCESS;
     }

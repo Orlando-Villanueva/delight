@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\CommandOutput;
 use App\Models\Announcement;
 use App\Services\AnnouncementEmailLinkValidator;
 use App\Services\AnnouncementService;
@@ -35,6 +36,7 @@ class PublishAnnouncement extends Command
      */
     public function handle(
         AnnouncementService $announcementService,
+        CommandOutput $output,
         AnnouncementEmailLinkValidator $linkValidator,
     ): int {
         $announcement = Announcement::query()
@@ -42,19 +44,19 @@ class PublishAnnouncement extends Command
             ->first();
 
         if (! $announcement || ! $announcement->is_draft) {
-            return $this->renderFailure(['draft' => ['Only an existing draft announcement can be published.']]);
+            return $output->renderFailure($this, ['draft' => ['Only an existing draft announcement can be published.']]);
         }
 
         try {
             $linkValidator->validate($announcement);
         } catch (ValidationException $exception) {
-            return $this->renderFailure($exception->errors());
+            return $output->renderFailure($this, $exception->errors());
         }
 
         $startsAt = $this->publicationTime($announcement);
 
         if ($announcement->ends_at?->lte($startsAt)) {
-            return $this->renderFailure(['ends_at' => ['The expiry time must be after the publication time.']]);
+            return $output->renderFailure($this, ['ends_at' => ['The expiry time must be after the publication time.']]);
         }
 
         $summary = [
@@ -69,18 +71,18 @@ class PublishAnnouncement extends Command
         ];
 
         if ($this->option('dry-run')) {
-            $this->renderSummary($summary);
+            $output->renderSummary($this, $summary);
 
             return self::SUCCESS;
         }
 
         if (! $this->option('json')) {
-            $this->renderSummary($summary);
+            $output->renderSummary($this, $summary);
         }
 
         if (! $this->option('yes')) {
             if ($this->option('json') || ! $this->input->isInteractive()) {
-                return $this->renderFailure(['confirmation' => ['Publication requires --yes when running without interactive confirmation.']]);
+                return $output->renderFailure($this, ['confirmation' => ['Publication requires --yes when running without interactive confirmation.']]);
             }
 
             if (! $this->confirm('Publish or schedule this announcement in-app?')) {
@@ -96,7 +98,7 @@ class PublishAnnouncement extends Command
         $summary['state'] = $startsAt->isFuture() ? 'scheduled' : 'published';
 
         if ($this->option('json')) {
-            $this->renderSummary($summary);
+            $output->renderSummary($this, $summary);
         } else {
             $this->info("Announcement {$summary['state']}.");
         }
@@ -107,41 +109,5 @@ class PublishAnnouncement extends Command
     private function publicationTime(Announcement $announcement): CarbonInterface
     {
         return $announcement->starts_at?->isFuture() ? $announcement->starts_at : now();
-    }
-
-    /** @param array<string, mixed> $summary */
-    private function renderSummary(array $summary): void
-    {
-        if ($this->option('json')) {
-            $this->line(json_encode($summary, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
-
-            return;
-        }
-
-        $this->table(['Field', 'Value'], collect($summary)
-            ->map(function (mixed $value, string $key): array {
-                if (is_bool($value)) {
-                    $value = $value ? 'Yes' : 'No';
-                }
-
-                return [$key, $value ?? 'None'];
-            })
-            ->values()->all());
-    }
-
-    /** @param array<string, array<int, string>> $errors */
-    private function renderFailure(array $errors): int
-    {
-        if ($this->option('json')) {
-            $this->line(json_encode(['errors' => $errors], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
-        } else {
-            foreach ($errors as $messages) {
-                foreach ($messages as $message) {
-                    $this->error($message);
-                }
-            }
-        }
-
-        return self::FAILURE;
     }
 }
