@@ -9,9 +9,11 @@ use App\Services\AchievementService;
 use App\Services\BibleReferenceService;
 use App\Services\BookProgressSyncService;
 use Carbon\Carbon;
-use Faker\Factory as FakerFactory;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Random\Engine\Mt19937;
+use Random\Randomizer;
 
 class DatabaseSeeder extends Seeder
 {
@@ -20,8 +22,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
         $this->createAnnualRecapAnnouncement();
         $this->call(ReleaseAnnouncementsSeeder::class);
 
@@ -70,9 +70,13 @@ class DatabaseSeeder extends Seeder
             return $existingUser;
         }
 
-        return User::factory()->create([
+        return User::create([
             'name' => $name,
             'email' => $email,
+            'email_verified_at' => now(),
+            'password' => Hash::make('password'),
+            'remember_token' => Str::random(10),
+            'avatar_url' => null,
         ]);
     }
 
@@ -116,8 +120,7 @@ MD;
      */
     private function createTestReadingLogs(User $user): void
     {
-        $faker = FakerFactory::create();
-        $faker->seed(12345);
+        $random = new Randomizer(new Mt19937(12345));
 
         $today = Carbon::today();
         $launchDate = Carbon::parse('2025-08-01');
@@ -150,12 +153,12 @@ MD;
             }
 
             // Model a steady but imperfect reading habit with plenty of room for growth.
-            if ($faker->boolean(25)) {
-                $logsForDay = $faker->numberBetween(1, 2); // 1-2 chapters per sitting
+            if ($random->getInt(1, 100) <= 25) {
+                $logsForDay = $random->getInt(1, 2); // 1-2 chapters per sitting
 
                 // Occasional "Deep Dive" days (e.g., Sundays)
                 if ($readingDate->isSunday()) {
-                    $logsForDay = $faker->numberBetween(2, 4);
+                    $logsForDay = $random->getInt(2, 4);
                 }
 
                 while (isset($sampleBookOrder[$sampleBookIndex])
@@ -178,8 +181,8 @@ MD;
 
                 foreach ($chaptersForDay as $chapter) {
                     $loggedAt = $readingDate->copy()
-                        ->addHours($faker->numberBetween(6, 22))
-                        ->addMinutes($faker->numberBetween(0, 59));
+                        ->addHours($random->getInt(6, 22))
+                        ->addMinutes($random->getInt(0, 59));
 
                     ReadingLog::create([
                         'user_id' => $user->id,
@@ -187,7 +190,9 @@ MD;
                         'chapter' => $chapter,
                         'passage_text' => $bibleService->formatBibleReference($bookId, $chapter),
                         'date_read' => $readingDate->toDateString(),
-                        'notes_text' => $faker->optional(0.2)->sentence(), // 20% chance of notes
+                        'notes_text' => $random->getInt(1, 100) <= 20
+                            ? 'Reflecting on '.$bibleService->formatBibleReference($bookId, $chapter).'.'
+                            : null,
                         'created_at' => $loggedAt,
                         'updated_at' => $loggedAt,
                     ]);
@@ -307,6 +312,14 @@ MD;
             }
 
             $loggedAt = $readingDate->copy()->addHours(2)->addMinutes(30);
+
+            if ($user->readingLogs()
+                ->where('book_id', $logData['book_id'])
+                ->where('chapter', $logData['chapter'])
+                ->whereDate('date_read', $readingDate->toDateString())
+                ->exists()) {
+                continue;
+            }
 
             ReadingLog::create([
                 'user_id' => $user->id,
