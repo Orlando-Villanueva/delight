@@ -47,3 +47,8 @@ site_name="delight-$(basename "$(dirname "$PWD")")"
 herd link "$site_name" --update-env
 
 printf '\nOpen http://%s.test\n' "$site_name"'''
+
+[[actions]]
+name = "tests"
+icon = "test"
+command = "php artisan test --parallel"
