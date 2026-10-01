@@ -25,6 +25,32 @@ class CommandOutput
             })->values()->all());
     }
 
+    /** @param array<string, mixed> $summary */
+    public function confirmAction(Command $command, bool $interactive, array $summary, string $action, string $prompt): bool
+    {
+        if (! $command->option('json')) {
+            $this->renderSummary($command, $summary);
+        }
+
+        if ($command->option('yes')) {
+            return true;
+        }
+
+        if ($command->option('json') || ! $interactive) {
+            $this->renderFailure($command, ['confirmation' => ["{$action} requires --yes when running without interactive confirmation."]]);
+
+            return false;
+        }
+
+        $confirmed = $command->confirm($prompt);
+
+        if (! $confirmed) {
+            $command->info("{$action} cancelled.");
+        }
+
+        return $confirmed;
+    }
+
     /** @param array<string, array<int, string>> $errors */
     public function renderFailure(Command $command, array $errors): int
     {

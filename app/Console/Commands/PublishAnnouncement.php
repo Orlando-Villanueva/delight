@@ -76,20 +76,8 @@ class PublishAnnouncement extends Command
             return self::SUCCESS;
         }
 
-        if (! $this->option('json')) {
-            $output->renderSummary($this, $summary);
-        }
-
-        if (! $this->option('yes')) {
-            if ($this->option('json') || ! $this->input->isInteractive()) {
-                return $output->renderFailure($this, ['confirmation' => ['Publication requires --yes when running without interactive confirmation.']]);
-            }
-
-            if (! $this->confirm('Publish or schedule this announcement in-app?')) {
-                $this->info('Publication cancelled.');
-
-                return self::FAILURE;
-            }
+        if (! $output->confirmAction($this, $this->input->isInteractive(), $summary, 'Publication', 'Publish or schedule this announcement in-app?')) {
+            return self::FAILURE;
         }
 
         $startsAt = $this->publicationTime($announcement);

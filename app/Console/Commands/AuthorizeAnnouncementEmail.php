@@ -44,20 +44,8 @@ class AuthorizeAnnouncementEmail extends Command
             return self::SUCCESS;
         }
 
-        if (! $this->option('json')) {
-            $output->renderSummary($this, $summary);
-        }
-
-        if (! $this->option('yes')) {
-            if ($this->option('json') || ! $this->input->isInteractive()) {
-                return $output->renderFailure($this, ['confirmation' => ['Email authorization requires --yes when running without interactive confirmation.']]);
-            }
-
-            if (! $this->confirm('Authorize email delivery for this announcement?')) {
-                $this->info('Email authorization cancelled.');
-
-                return self::FAILURE;
-            }
+        if (! $output->confirmAction($this, $this->input->isInteractive(), $summary, 'Email authorization', 'Authorize email delivery for this announcement?')) {
+            return self::FAILURE;
         }
 
         try {
