@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\Announcement;
-use App\Services\AnnouncementEmailDeliveryService;
 use App\Services\AnnouncementEmailLinkValidator;
 use App\Services\AnnouncementService;
 use Carbon\CarbonInterface;
@@ -20,7 +19,7 @@ class PublishAnnouncement extends Command
      */
     protected $signature = 'announcements:publish
         {draft : Current draft slug}
-        {--dry-run : Report publication and recipient estimates without saving}
+        {--dry-run : Report publication state and timing without saving}
         {--yes : Confirm publication without an interactive prompt}
         {--json : Return machine-readable JSON; publication requires --yes}';
 
@@ -29,14 +28,13 @@ class PublishAnnouncement extends Command
      *
      * @var string
      */
-    protected $description = 'Publish or schedule an announcement draft and authorize email delivery';
+    protected $description = 'Publish or schedule an announcement draft in-app';
 
     /**
      * Execute the console command.
      */
     public function handle(
         AnnouncementService $announcementService,
-        AnnouncementEmailDeliveryService $deliveryService,
         AnnouncementEmailLinkValidator $linkValidator,
     ): int {
         $announcement = Announcement::query()
@@ -67,8 +65,6 @@ class PublishAnnouncement extends Command
             'publication_url' => route('announcements.show', ['slug' => $announcement->slug]),
             'starts_at' => $startsAt->toIso8601String(),
             'ends_at' => $announcement->ends_at?->toIso8601String(),
-            ...$deliveryService->estimateAudience($startsAt),
-            'audience_note' => 'Current estimates; recipients are finalized when delivery becomes due.',
             'dry_run' => (bool) $this->option('dry-run'),
         ];
 
@@ -87,7 +83,7 @@ class PublishAnnouncement extends Command
                 return $this->renderFailure(['confirmation' => ['Publication requires --yes when running without interactive confirmation.']]);
             }
 
-            if (! $this->confirm('Publish or schedule this announcement and authorize email delivery?')) {
+            if (! $this->confirm('Publish or schedule this announcement in-app?')) {
                 $this->info('Publication cancelled.');
 
                 return self::FAILURE;
@@ -102,7 +98,7 @@ class PublishAnnouncement extends Command
         if ($this->option('json')) {
             $this->renderSummary($summary);
         } else {
-            $this->info("Announcement {$summary['state']}. Email delivery authorized.");
+            $this->info("Announcement {$summary['state']}.");
         }
 
         return self::SUCCESS;

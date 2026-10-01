@@ -53,8 +53,8 @@ class AnnouncementController extends Controller
         $announcement = $this->announcementService->createPublishedOrScheduled($request->validated());
 
         $message = $announcement->starts_at?->isFuture()
-            ? 'Announcement scheduled. Eligible users will be emailed after it is published.'
-            : 'Announcement published. Email delivery will begin within five minutes.';
+            ? 'Announcement scheduled.'
+            : 'Announcement published.';
 
         return redirect()->route('admin.announcements.index')
             ->with('success', $message);

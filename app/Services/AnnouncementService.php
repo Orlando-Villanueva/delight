@@ -50,7 +50,7 @@ class AnnouncementService
         return Announcement::query()->create([
             ...$validated,
             'is_draft' => $isDraft,
-            'email_broadcast_authorized_at' => $isDraft ? null : now(),
+            'email_broadcast_authorized_at' => null,
         ]);
     }
 
@@ -65,7 +65,6 @@ class AnnouncementService
         $announcement->update([
             'is_draft' => false,
             'starts_at' => $startsAt,
-            'email_broadcast_authorized_at' => now(),
         ]);
 
         return $announcement;
