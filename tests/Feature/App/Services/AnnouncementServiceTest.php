@@ -113,3 +113,43 @@ it('rechecks draft state from storage before authorizing a stale announcement', 
 
     expect($announcement->fresh()->email_broadcast_authorized_at)->toBeNull();
 });
+
+it('rechecks expiry at authorization after a successful preview', function () {
+    $this->freezeSecond();
+    $announcement = Announcement::factory()->create(['ends_at' => now()->addMinute()]);
+    $service = app(AnnouncementService::class);
+    $service->previewEmailAuthorization($announcement);
+    $this->travel(2)->minutes();
+
+    try {
+        $service->authorizeEmail($announcement);
+        $this->fail('An expired announcement cannot be authorized after preview.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors())->toHaveKey('ends_at');
+    }
+
+    expect($announcement->fresh()->email_broadcast_authorized_at)->toBeNull();
+});
+
+it('preserves existing authorization when an announcement has expired', function () {
+    $this->freezeSecond();
+    $announcement = Announcement::factory()->create([
+        'starts_at' => now()->subDay(),
+        'ends_at' => now()->subHour(),
+        'email_broadcast_authorized_at' => now()->subDay(),
+    ]);
+    $original = $announcement->fresh()->getAttributes();
+    $service = app(AnnouncementService::class);
+
+    expect($service->previewEmailAuthorization($announcement)['email_broadcast_authorized_at'])
+        ->toBe($announcement->email_broadcast_authorized_at->toIso8601String());
+    expect($service->authorizeEmail($announcement))->toBeFalse()
+        ->and($announcement->fresh()->getAttributes())->toBe($original);
+});
+
+it('allows initial authorization at the inclusive visibility expiry boundary', function () {
+    $this->freezeSecond();
+    $announcement = Announcement::factory()->create(['ends_at' => now()]);
+
+    expect(app(AnnouncementService::class)->authorizeEmail($announcement))->toBeTrue();
+});

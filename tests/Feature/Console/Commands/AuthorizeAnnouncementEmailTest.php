@@ -162,3 +162,22 @@ it('reports a missing announcement as a structured error', function () {
     expect(json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR)['errors'])
         ->toBe(['announcement' => ['The announcement does not exist.']]);
 });
+
+it('rejects initial email authorization after expiry without changing data', function (bool $dryRun) {
+    $this->freezeSecond();
+    Mail::fake();
+    $announcement = Announcement::factory()->create([
+        'starts_at' => now()->subDay(),
+        'ends_at' => now()->subSecond(),
+    ]);
+    $original = $announcement->fresh()->getAttributes();
+
+    expect(Artisan::call('announcements:authorize-email', [
+        'announcement' => $announcement->slug, '--yes' => true, '--json' => true, '--dry-run' => $dryRun,
+    ]))->toBe(1);
+    expect(json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR)['errors'])
+        ->toBe(['ends_at' => ['Expired announcements cannot be authorized for email.']]);
+    expect($announcement->fresh()->getAttributes())->toBe($original);
+    $this->assertDatabaseCount('announcement_email_deliveries', 0);
+    Mail::assertNothingSent();
+})->with(['preview' => true, 'authorize' => false]);

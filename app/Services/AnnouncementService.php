@@ -143,6 +143,12 @@ class AnnouncementService
             return;
         }
 
+        if ($announcement->ends_at?->lt(now())) {
+            throw ValidationException::withMessages([
+                'ends_at' => ['Expired announcements cannot be authorized for email.'],
+            ]);
+        }
+
         if ($announcement->sent_via_email_at !== null
             || $announcement->email_audience_finalized_at !== null
             || $announcement->email_broadcast_completed_at !== null
