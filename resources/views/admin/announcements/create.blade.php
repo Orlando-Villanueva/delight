@@ -188,12 +188,12 @@
                         <div class="pt-6 mt-6 border-t border-gray-100 dark:border-gray-700 xl:mt-auto">
                             @if ($isEditing)
                                 <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                                    Saving keeps this announcement as a private draft. It will not authorize or send email.
+                                    Saving keeps this announcement as a private draft.
                                 </div>
                             @else
                                 <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                                    Publishing authorizes an email to every eligible user. A future publish date delays both
-                                    the public announcement and its email delivery until that time.
+                                    Publishing makes this announcement visible in-app. A future publish date delays its visibility
+                                    until that time.
                                 </div>
                             @endif
                             <button type="submit"

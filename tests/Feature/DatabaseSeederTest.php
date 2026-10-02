@@ -5,6 +5,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
 
@@ -99,4 +100,26 @@ it('continues seeding an incomplete book when existing logs include rereads', fu
             ->where('achievement_key', 'book_completed')
             ->where('context_key', 'book:19')
             ->exists())->toBeTrue();
+});
+
+it('creates verified seed accounts and preserves their credentials when seeded again', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $users = User::query()->orderBy('email')->get();
+    $credentials = $users->mapWithKeys(fn (User $user): array => [$user->email => $user->password]);
+
+    expect($users)->toHaveCount(3);
+
+    foreach ($users as $user) {
+        expect($user->email_verified_at)->not->toBeNull()
+            ->and(Hash::check('password', $user->password))->toBeTrue();
+    }
+
+    $this->seed(DatabaseSeeder::class);
+
+    expect(User::count())->toBe(3)
+        ->and(User::query()->orderBy('email')->get()
+            ->mapWithKeys(fn (User $user): array => [$user->email => $user->password])->all())
+        ->toBe($credentials->all())
+        ->and(User::where('email', 'seed.user2@example.com')->firstOrFail()->readingLogs()->count())->toBe(3);
 });

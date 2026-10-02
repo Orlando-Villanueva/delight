@@ -42,7 +42,7 @@ it('it_can_show_the_announcement_create_form_for_admins', function () {
     $response->assertSee('generate it from the title.');
     $response->assertSee('Markdown');
     $response->assertDontSee('name="type"', false);
-    $response->assertSee('Publishing authorizes an email to every eligible user.');
+    $response->assertSee('Publishing makes this announcement visible in-app.');
     $response->assertSee('Publish or schedule announcement');
 });
 
@@ -297,9 +297,9 @@ it('redirects a publicly reachable announcement preview to its publication URL',
     ]);
 });
 
-it('publishes and authorizes an immediate email broadcast without sending in the request', function () {
+it('publishes in-app without authorizing an email broadcast', function () {
     Mail::fake();
-    $recipient = User::factory()->create();
+    User::factory()->create();
 
     $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
         'title' => 'New Feature',
@@ -312,7 +312,7 @@ it('publishes and authorizes an immediate email broadcast without sending in the
     $response->assertRedirect(route('admin.announcements.index'));
     $response->assertSessionHas(
         'success',
-        'Announcement published. Email delivery will begin within five minutes.'
+        'Announcement published.'
     );
 
     $announcement = Announcement::first();
@@ -323,7 +323,7 @@ it('publishes and authorizes an immediate email broadcast without sending in the
         ->and($announcement->social_image_path)->toBe('images/new-feature-social.jpg')
         ->and($announcement->is_draft)->toBeFalse()
         ->and($announcement->slug)->toBe('new-feature')
-        ->and($announcement->email_broadcast_authorized_at)->not->toBeNull()
+        ->and($announcement->email_broadcast_authorized_at)->toBeNull()
         ->and($announcement->email_audience_finalized_at)->toBeNull()
         ->and($announcement->emailDeliveries()->count())->toBe(0);
 
@@ -331,11 +331,9 @@ it('publishes and authorizes an immediate email broadcast without sending in the
 
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
 
-    expect($announcement->fresh()->email_audience_finalized_at)->not->toBeNull()
-        ->and($announcement->emailDeliveries()->count())->toBe(2)
-        ->and($announcement->emailDeliveries()->pluck('user_id')->all())
-        ->toEqualCanonicalizing([$this->admin->id, $recipient->id]);
-    Mail::assertSentCount(2);
+    expect($announcement->fresh()->email_audience_finalized_at)->toBeNull()
+        ->and($announcement->emailDeliveries()->count())->toBe(0);
+    Mail::assertNothingSent();
 });
 
 it('shows a duplicate slug error and restores the announcement form', function () {
@@ -380,9 +378,9 @@ it('publishes with an explicit clean publication slug', function () {
     Mail::assertNothingSent();
 });
 
-it('authorizes a scheduled email broadcast without sending before publication', function () {
+it('schedules in-app without authorizing email before or after publication', function () {
     Mail::fake();
-    $recipient = User::factory()->create();
+    User::factory()->create();
     $startsAt = now()->addHour()->startOfMinute();
 
     $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
@@ -395,12 +393,12 @@ it('authorizes a scheduled email broadcast without sending before publication', 
     $response->assertRedirect(route('admin.announcements.index'))
         ->assertSessionHas(
             'success',
-            'Announcement scheduled. Eligible users will be emailed after it is published.'
+            'Announcement scheduled.'
         );
 
     $announcement = Announcement::sole();
 
-    expect($announcement->email_broadcast_authorized_at)->not->toBeNull()
+    expect($announcement->email_broadcast_authorized_at)->toBeNull()
         ->and($announcement->email_audience_finalized_at)->toBeNull()
         ->and($announcement->emailDeliveries()->count())->toBe(0);
     Mail::assertNothingSent();
@@ -414,11 +412,9 @@ it('authorizes a scheduled email broadcast without sending before publication', 
     $this->travelTo($startsAt);
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
 
-    expect($announcement->fresh()->email_audience_finalized_at)->not->toBeNull()
-        ->and($announcement->emailDeliveries()->count())->toBe(2)
-        ->and($announcement->emailDeliveries()->pluck('user_id')->all())
-        ->toEqualCanonicalizing([$this->admin->id, $recipient->id]);
-    Mail::assertSentCount(2);
+    expect($announcement->fresh()->email_audience_finalized_at)->toBeNull()
+        ->and($announcement->emailDeliveries()->count())->toBe(0);
+    Mail::assertNothingSent();
 });
 
 it('it_can_render_a_markdown_preview_for_admins', function () {

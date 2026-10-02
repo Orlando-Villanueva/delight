@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Console\AnnouncementDraftOutput;
+use App\Console\CommandOutput;
 use App\Services\AnnouncementService;
 use App\Services\AnnouncementValidator;
 use Illuminate\Console\Command;
@@ -37,23 +38,24 @@ class CreateAnnouncementDraft extends Command
      */
     public function handle(
         AnnouncementService $announcementService,
+        CommandOutput $output,
         AnnouncementValidator $announcementValidator,
         AnnouncementDraftOutput $draftOutput,
     ): int {
         $contentFile = $this->option('content-file');
 
         if (! is_string($contentFile) || blank($contentFile)) {
-            return $this->renderFailure(['content' => ['The content file option is required.']]);
+            return $output->renderFailure($this, ['content' => ['The content file option is required.']]);
         }
 
         if (! is_file($contentFile) || ! is_readable($contentFile)) {
-            return $this->renderFailure(['content' => ['The content file must be an existing readable file.']]);
+            return $output->renderFailure($this, ['content' => ['The content file must be an existing readable file.']]);
         }
 
         $content = file_get_contents($contentFile);
 
         if ($content === false) {
-            return $this->renderFailure(['content' => ['The content file could not be read.']]);
+            return $output->renderFailure($this, ['content' => ['The content file could not be read.']]);
         }
 
         try {
@@ -68,29 +70,9 @@ class CreateAnnouncementDraft extends Command
             ]);
             $announcement = $announcementService->createDraft($validated);
         } catch (ValidationException $exception) {
-            return $this->renderFailure($exception->errors());
+            return $output->renderFailure($this, $exception->errors());
         }
 
         return $draftOutput->render($this, $announcement, 'Announcement draft created.');
-    }
-
-    /**
-     * @param  array<string, array<int, string>>  $errors
-     */
-    private function renderFailure(array $errors): int
-    {
-        if ($this->option('json')) {
-            $this->line(json_encode(['errors' => $errors], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
-
-            return self::FAILURE;
-        }
-
-        foreach ($errors as $messages) {
-            foreach ($messages as $message) {
-                $this->error($message);
-            }
-        }
-
-        return self::FAILURE;
     }
 }

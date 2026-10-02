@@ -1,20 +1,15 @@
 <?php
 
-use App\Mail\AnnouncementEmail;
 use App\Models\Announcement;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
 
-it('reports a dry run without changing the draft or creating deliveries', function () {
+it('reports publication timing without changing the draft', function () {
     $this->freezeTime();
     Mail::fake();
     $draft = Announcement::factory()->draft()->create(['hero_image_path' => 'images/hero.png', 'starts_at' => now()->subWeek()]);
     $original = $draft->fresh()->getAttributes();
-    User::factory()->unverified()->create();
-    User::factory()->create(['marketing_emails_opted_out_at' => now()]);
-    User::factory()->create(['email' => 'invalid']);
-    User::factory()->create(['created_at' => now()->addDay()]);
 
     expect(Artisan::call('announcements:publish', ['draft' => $draft->slug, '--dry-run' => true, '--json' => true]))->toBe(0);
     $output = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
@@ -23,36 +18,35 @@ it('reports a dry run without changing the draft or creating deliveries', functi
         'state' => 'published',
         'dry_run' => true,
         'starts_at' => now()->toIso8601String(),
-        'eligible_recipients' => 1,
-        'excluded_recipients' => 3,
     ]);
     expect($draft->fresh()->getAttributes())->toBe($original);
     $this->assertDatabaseCount('announcement_email_deliveries', 0);
     Mail::assertNothingSent();
 });
 
-it('publishes at the actual confirmation time and leaves sending to the mailer', function () {
+it('publishes at the actual confirmation time without authorizing email', function () {
     $this->freezeTime();
     Mail::fake();
-    $recipient = User::factory()->create();
+    User::factory()->create();
     $draft = Announcement::factory()->draft()->create(['hero_image_path' => 'images/hero.png', 'starts_at' => now()->subWeek()]);
 
     $this->artisan('announcements:publish', ['draft' => $draft->slug])
-        ->expectsConfirmation('Publish or schedule this announcement and authorize email delivery?', 'yes')
+        ->expectsConfirmation('Publish or schedule this announcement in-app?', 'yes')
         ->assertSuccessful();
 
     expect($draft->fresh()->is_draft)->toBeFalse()
         ->and($draft->fresh()->starts_at->toDateTimeString())->toBe(now()->toDateTimeString())
-        ->and($draft->fresh()->email_broadcast_authorized_at->toDateTimeString())->toBe(now()->toDateTimeString())
+        ->and($draft->fresh()->email_broadcast_authorized_at)->toBeNull()
         ->and($draft->fresh()->email_audience_finalized_at)->toBeNull();
     $this->assertDatabaseCount('announcement_email_deliveries', 0);
     Mail::assertNothingSent();
 
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
-    Mail::assertSent(AnnouncementEmail::class, fn ($mail) => $mail->hasTo($recipient->email));
+    Mail::assertNothingSent();
+    $this->assertDatabaseCount('announcement_email_deliveries', 0);
 });
 
-it('preserves a future publication date and sends only once it becomes due', function () {
+it('preserves a future publication date without authorizing email when due', function () {
     $this->freezeTime();
     Mail::fake();
     User::factory()->create();
@@ -70,7 +64,8 @@ it('preserves a future publication date and sends only once it becomes due', fun
 
     $this->travelTo($startsAt);
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
-    Mail::assertSentCount(1);
+    Mail::assertNothingSent();
+    $this->assertDatabaseCount('announcement_email_deliveries', 0);
 });
 
 it('leaves a cancelled publication untouched', function () {
@@ -78,7 +73,7 @@ it('leaves a cancelled publication untouched', function () {
     $original = $draft->fresh()->getAttributes();
 
     $this->artisan('announcements:publish', ['draft' => $draft->slug])
-        ->expectsConfirmation('Publish or schedule this announcement and authorize email delivery?', 'no')
+        ->expectsConfirmation('Publish or schedule this announcement in-app?', 'no')
         ->expectsOutput('Publication cancelled.')
         ->assertFailed();
 
@@ -149,3 +144,17 @@ it('reports invalid links before publication or dry run without changing the dra
     $this->assertDatabaseCount('announcement_email_deliveries', 0);
     Mail::assertNothingSent();
 })->with([true, false]);
+
+it('reports successful in-app publication', function () {
+    $this->freezeSecond();
+    $draft = Announcement::factory()->draft()->create();
+    Mail::fake();
+
+    $this->artisan('announcements:publish', ['draft' => $draft->slug, '--yes' => true])
+        ->expectsOutput('Announcement published.')
+        ->assertSuccessful();
+
+    expect($draft->fresh()->email_broadcast_authorized_at)->toBeNull();
+    $this->assertDatabaseCount('announcement_email_deliveries', 0);
+    Mail::assertNothingSent();
+});
