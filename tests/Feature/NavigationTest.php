@@ -499,6 +499,32 @@ describe('Accessibility Features', function () {
 });
 
 describe('Navigation URL Management', function () {
+    it('provides full-page admin links in the sidebar and profile menu only for admins', function (bool $isAdmin) {
+        config(['mail.admin_address' => 'admin@example.com']);
+        $user = User::factory()->create([
+            'email' => $isAdmin ? 'admin@example.com' : 'reader@example.com',
+        ]);
+
+        $response = ($this->getDashboard)($user);
+        $response->assertSuccessful();
+        $adminUrl = route('filament.admin.pages.admin-home');
+        $document = new \DOMDocument;
+        @$document->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($document);
+        $links = $xpath->query('//a[@href="'.$adminUrl.'"]');
+
+        expect($links->length)->toBe($isAdmin ? 3 : 0);
+
+        foreach ($links as $link) {
+            expect(preg_replace('/\s+/', ' ', trim($link->textContent)))->toBe('Admin');
+            expect($link->hasAttribute('hx-get'))->toBeFalse();
+        }
+
+        expect($xpath->query('//ul[@id="desktop-sidebar-navigation"]//a[@href="'.$adminUrl.'"]')->length)->toBe(0);
+
+        $response->assertDontSee('hx-get="'.$adminUrl.'"', false);
+    })->with(['admin' => true, 'reader' => false]);
+
     it('uses named routes for navigation links', function () {
         $response = ($this->getDashboard)();
 

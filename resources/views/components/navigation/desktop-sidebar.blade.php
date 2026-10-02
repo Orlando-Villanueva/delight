@@ -38,17 +38,6 @@
                     </x-slot:icon>
                 </x-navigation.nav-link>
             </li>
-            @if (auth()->user()?->isAdmin())
-                <li>
-                    <x-navigation.nav-link route="admin.analytics.index" label="Analytics" variant="sidebar"
-                        active-prefix>
-                        <x-slot:icon>
-                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 19h16M6 17V9m4 8V5m4 12v-4m4 4V7" />
-                        </x-slot:icon>
-                    </x-navigation.nav-link>
-                </li>
-            @endif
             <li>
                 <x-navigation.nav-link route="logs.create" label="Log Reading" variant="sidebar">
                     <x-slot:icon>
@@ -85,6 +74,12 @@
             </li>
         </ul>
     </div>
+
+    @if (auth()->user()?->isAdmin())
+        <div data-admin-workspace-link class="border-t border-gray-200 p-3 dark:border-gray-700">
+            <x-navigation.admin-link />
+        </div>
+    @endif
 
     <!-- Feedback Link (Isolated at bottom) -->
     <div class="p-3 border-t border-gray-200 dark:border-gray-700">
