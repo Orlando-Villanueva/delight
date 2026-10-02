@@ -6,6 +6,7 @@
 
 ## Task-Specific Guides
 - For annual recap work, read `docs/annual-recap/README.md`.
+- For announcement drafting, publication, email authorization, or delivery operations, use `.agents/skills/delight-announcements/SKILL.md`.
 
 Local sections in this file are project-specific. The Boost-managed framework guidance follows below.
 
