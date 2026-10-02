@@ -17,6 +17,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.4",
+        "filament/filament": "^5.0",
         "google/apiclient": "2.19.4",
         "laravel-notification-channels/webpush": "^11.0",
         "laravel/fortify": "^1.27",
@@ -54,7 +55,8 @@
     "scripts": {
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php artisan package:discover --ansi",
+            "@php artisan filament:upgrade"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
