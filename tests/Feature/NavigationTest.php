@@ -6,6 +6,8 @@ use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
 use App\Models\User;
+use DOMDocument;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -508,9 +510,9 @@ describe('Navigation URL Management', function () {
         $response = ($this->getDashboard)($user);
         $response->assertSuccessful();
         $adminUrl = route('filament.admin.pages.admin-home');
-        $document = new \DOMDocument;
+        $document = new DOMDocument;
         @$document->loadHTML($response->getContent());
-        $xpath = new \DOMXPath($document);
+        $xpath = new DOMXPath($document);
         $links = $xpath->query('//a[@href="'.$adminUrl.'"]');
 
         expect($links->length)->toBe($isAdmin ? 3 : 0);
