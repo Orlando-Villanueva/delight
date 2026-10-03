@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\AdminHome;
 use App\Http\Middleware\AuthenticateAdminPanel;
+use App\Http\Middleware\SecurityHeadersMiddleware;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -46,6 +47,7 @@ class AdminPanelProvider extends PanelProvider
                     ->url(fn (): string => route('dashboard')),
             ])
             ->middleware([
+                SecurityHeadersMiddleware::class,
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
