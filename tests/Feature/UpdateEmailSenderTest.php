@@ -9,6 +9,44 @@ use App\Models\Announcement;
 use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
+use Symfony\Component\Process\Process;
+
+it('sends subscriber mail using environment sender overrides with independent default fallbacks', function (
+    string|false $updatesAddress,
+    string|false $updatesName,
+    string $expectedAddress,
+    string $expectedName,
+) {
+    $process = new Process([
+        PHP_BINARY,
+        '-r',
+        'require $argv[1]; $config = require $argv[2]; echo json_encode([
+            "from" => $config["from"], "updates_from" => $config["updates_from"],
+        ], JSON_THROW_ON_ERROR);',
+        base_path('vendor/autoload.php'),
+        config_path('mail.php'),
+    ], base_path(), [
+        'MAIL_FROM_ADDRESS' => 'accounts@example.com',
+        'MAIL_FROM_NAME' => 'Account Sender',
+        'MAIL_UPDATES_FROM_ADDRESS' => $updatesAddress,
+        'MAIL_UPDATES_FROM_NAME' => $updatesName,
+    ]);
+    $process->mustRun();
+    $mailConfig = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+    config()->set('mail.from', $mailConfig['from']);
+    config()->set('mail.updates_from', $mailConfig['updates_from']);
+    $mail = AnnouncementEmail::forTest(Announcement::factory()->make());
+
+    $message = Mail::mailer('array')->to('reader@example.com')->send($mail)->getSymfonySentMessage()->getOriginalMessage();
+
+    expect($message->getFrom()[0]->getAddress())->toBe($expectedAddress)
+        ->and($message->getFrom()[0]->getName())->toBe($expectedName);
+})->with([
+    'both unset' => [false, false, 'accounts@example.com', 'Account Sender'],
+    'address only' => ['subscriber@example.com', false, 'subscriber@example.com', 'Account Sender'],
+    'name only' => [false, 'Subscriber Sender', 'accounts@example.com', 'Subscriber Sender'],
+    'both overridden' => ['subscriber@example.com', 'Subscriber Sender', 'subscriber@example.com', 'Subscriber Sender'],
+]);
 
 it('sends subscriber mail from the configured updates sender and preserves unsubscribe headers', function (string $type) {
     config()->set('mail.from', ['address' => 'noreply@mydelight.app', 'name' => 'Delight Accounts']);

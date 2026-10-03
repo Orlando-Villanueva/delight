@@ -38,7 +38,8 @@ describe('settings screen', () => {
       1,
       'https://delight-staging.laravel.cloud/privacy-policy',
     );
-    expect(Linking.openURL).toHaveBeenNthCalledWith(2, 'mailto:orlando@mg.mydelight.app');
+    expect(screen.getByText('orlando@mydelight.app')).toBeOnTheScreen();
+    expect(Linking.openURL).toHaveBeenNthCalledWith(2, 'mailto:orlando@mydelight.app');
     expect(Linking.openURL).toHaveBeenNthCalledWith(
       3,
       'https://delight-staging.laravel.cloud/account-deletion',
