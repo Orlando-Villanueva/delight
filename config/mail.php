@@ -108,6 +108,11 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    'updates_from' => [
+        'address' => env('MAIL_UPDATES_FROM_ADDRESS', env('MAIL_FROM_ADDRESS', 'hello@example.com')),
+        'name' => env('MAIL_UPDATES_FROM_NAME', env('MAIL_FROM_NAME', 'Example')),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Admin Address
@@ -120,6 +125,6 @@ return [
 
     'admin_address' => env('ADMIN_EMAIL', 'hello@delight.app'),
 
-    'support_address' => env('SUPPORT_EMAIL', 'orlando@mg.mydelight.app'),
+    'support_address' => env('SUPPORT_EMAIL', 'orlando@mydelight.app'),
 
 ];

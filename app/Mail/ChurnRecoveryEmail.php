@@ -5,6 +5,8 @@ namespace App\Mail;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Headers;
@@ -47,6 +49,7 @@ class ChurnRecoveryEmail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
+            from: new Address(config('mail.updates_from.address'), config('mail.updates_from.name')),
             subject: $this->emailSubject(),
         );
     }
@@ -73,7 +76,7 @@ class ChurnRecoveryEmail extends Mailable
     }
 
     /**
-     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
+     * @return array<int, Attachment>
      */
     public function attachments(): array
     {
