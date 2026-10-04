@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\AnnouncementEmailContentRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -73,6 +74,7 @@ class AnnouncementEmail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
+            from: new Address(config('mail.updates_from.address'), config('mail.updates_from.name')),
             subject: ($this->isTest ? '[TEST] ' : '').$this->announcement->title,
         );
     }

@@ -9,7 +9,7 @@ import { getWebBaseUrl } from '@/config/web-environment';
 import { themeTokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
-const supportEmail = 'orlando@mg.mydelight.app';
+const supportEmail = 'orlando@mydelight.app';
 const externalResourceError = 'That resource could not be opened. Try again.';
 
 type SettingsLinkProps = {
