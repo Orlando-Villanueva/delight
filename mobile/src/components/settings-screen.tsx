@@ -3,6 +3,7 @@ import * as Linking from 'expo-linking';
 import { useState } from 'react';
 import { AccessibilityInfo, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { AndroidUpdateSettings } from '@/components/android-update-settings';
 import { NativeReminderSettings } from '@/components/native-reminder-settings';
 import { SettingsSection } from '@/components/settings-section';
 import { getWebBaseUrl } from '@/config/web-environment';
@@ -97,6 +98,7 @@ export function SettingsScreen() {
       </Text>
 
       <NativeReminderSettings />
+      <AndroidUpdateSettings />
 
       {errorMessage ? (
         <Text

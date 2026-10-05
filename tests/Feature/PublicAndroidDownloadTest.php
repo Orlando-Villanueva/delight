@@ -1,16 +1,16 @@
 <?php
 
-const ANDROID_APK_URL = 'https://github.com/Orlando-Villanueva/delight/releases/download/android-v0.1.1-12/delight-android.apk';
-const ANDROID_APK_SHA256 = '2a5c777e4057247c23220bc5178cd8c663279b76b1b3709ec8d5925df80ba2fe';
-const ANDROID_RELEASE_URL = 'https://github.com/Orlando-Villanueva/delight/releases/tag/android-v0.1.1-12';
+const ANDROID_APK_URL = 'https://github.com/Orlando-Villanueva/delight/releases/download/android-v0.1.2-13/delight-android.apk';
+const ANDROID_APK_SHA256 = '55e7d510d2caa08b8294fe7851dc8f9df1a7f1d2847b5f226dbbb39d7fad3c1b';
+const ANDROID_RELEASE_URL = 'https://github.com/Orlando-Villanueva/delight/releases/tag/android-v0.1.2-13';
 const ANDROID_UPDATE_URL = 'https://mydelight.app/android';
 
 it('returns cacheable current Android release metadata without authentication', function () {
     $this->getJson('/api/v1/android/release')
         ->assertSuccessful()
         ->assertHeader('cache-control', 'max-age=300, public, s-maxage=300, stale-while-revalidate=600')
-        ->assertJsonPath('data.version', '0.1.1')
-        ->assertJsonPath('data.version_code', 12)
+        ->assertJsonPath('data.version', '0.1.2')
+        ->assertJsonPath('data.version_code', 13)
         ->assertJsonPath('data.update_url', ANDROID_UPDATE_URL);
 });
 
@@ -24,8 +24,8 @@ it('presents the accepted Android release with installation and support guidance
     $response->assertOk()
         ->assertSee('href="'.ANDROID_APK_URL.'"', false)
         ->assertSeeText('Download APK · 104 MB')
-        ->assertSeeText('Version 0.1.1 (12)')
-        ->assertSeeText('September 24, 2026')
+        ->assertSeeText('Version 0.1.2 (13)')
+        ->assertSeeText('October 5, 2026')
         ->assertSeeText('Android™ 7.0+')
         ->assertSee('src="'.asset('images/android-robot-head.svg').'"', false)
         ->assertSee('href="'.ANDROID_RELEASE_URL.'"', false)
