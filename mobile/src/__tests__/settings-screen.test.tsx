@@ -8,6 +8,9 @@ jest.mock('expo-linking', () => ({ openURL: jest.fn() }));
 jest.mock('@/components/native-reminder-settings', () => ({
   NativeReminderSettings: () => null,
 }));
+jest.mock('@/components/android-update-settings', () => ({
+  AndroidUpdateSettings: () => null,
+}));
 jest.mock('@/config/web-environment', () => ({
   getWebBaseUrl: () => 'https://delight-staging.laravel.cloud',
 }));
