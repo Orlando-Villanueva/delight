@@ -79,7 +79,7 @@ function checkLabel(state: ManualAndroidUpdateState): string {
     return 'Try again';
   }
 
-  if (state.status === 'up-to-date' || state.status === 'update-available') {
+  if (state.status === 'up-to-date') {
     return 'Check again';
   }
 
