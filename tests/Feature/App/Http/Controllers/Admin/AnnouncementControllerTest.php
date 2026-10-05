@@ -62,7 +62,7 @@ it('shows persisted drafts to admins with a protected preview link', function ()
 
     $response->assertSee($announcement->title)
         ->assertSee('Draft')
-        ->assertSee('Not enabled')
+        ->assertSee('Not authorized')
         ->assertDontSee('Expired')
         ->assertSee(route('admin.announcements.preview', $announcement->slug))
         ->assertDontSee(route('announcements.show', $announcement->slug))
@@ -546,7 +546,7 @@ it('shows live announcement email progress and polls while delivery is active', 
     $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
 
     $response->assertOk()
-        ->assertSee('Sending')
+        ->assertSee('Pending recipients')
         ->assertSee('2 of 3 handled')
         ->assertSee('1 pending')
         ->assertSee('Started 5 minutes ago')
@@ -582,13 +582,15 @@ it('shows completed broadcast duration and stops polling', function () {
     $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
 
     $response->assertOk()
-        ->assertSee('Delivered')
+        ->assertSee('Processing completed')
+        ->assertSee('1 transport-submitted')
+        ->assertDontSee('Delivered')
         ->assertSee('1 of 1 handled')
         ->assertSee('Completed in 10m')
         ->assertDontSee('hx-trigger="every 15s"', false);
 });
 
-it('warns when pending announcement email delivery is delayed', function () {
+it('shows pending recipients without inferring a provider delay', function () {
     $announcement = Announcement::factory()->create([
         'email_broadcast_authorized_at' => now()->subMinutes(17),
         'email_audience_finalized_at' => now()->subMinutes(16),
@@ -600,7 +602,8 @@ it('warns when pending announcement email delivery is delayed', function () {
     $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
 
     $response->assertOk()
-        ->assertSee('Delayed')
+        ->assertSee('Pending recipients')
+        ->assertDontSee('Delayed')
         ->assertSee('0 of 1 handled')
         ->assertSee('1 pending')
         ->assertSee('Started 16 minutes ago');
@@ -677,4 +680,40 @@ it('returns content errors without publishing a malformed announcement link', fu
 
     $this->assertDatabaseMissing('announcements', ['slug' => 'broken-link-review']);
     Mail::assertNothingSent();
+});
+
+it('shows historical email records without authorizing or changing failed recipients', function () {
+    $this->freezeTime();
+    Mail::fake();
+    $announcement = Announcement::factory()->create();
+    $delivery = AnnouncementEmailDelivery::factory()->for($announcement)->create([
+        'failed_at' => now(),
+        'attempt_count' => 2,
+        'failure_reason' => 'Permanent SMTP rejection',
+    ]);
+    $before = $delivery->fresh()->getRawOriginal();
+
+    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+
+    $response->assertSee('Historical email records')
+        ->assertSee('Email not authorized')
+        ->assertSee('1 failed')
+        ->assertSee('Permanent SMTP rejection')
+        ->assertDontSee('hx-trigger="every 15s"', false);
+    expect($delivery->fresh()->getRawOriginal())->toBe($before);
+    expect($announcement->fresh()->email_broadcast_authorized_at)->toBeNull();
+    Mail::assertNothingSent();
+});
+
+it('shows a recorded historical completion without inventing a duration or a submitted recipient', function () {
+    $this->freezeTime();
+    $announcement = Announcement::factory()->create(['email_broadcast_completed_at' => now()->subMinute()]);
+
+    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+
+    $response->assertSee('Historical email records')
+        ->assertSee('Processing completed')
+        ->assertSee('1 minute ago')
+        ->assertDontSee('Completed in')
+        ->assertDontSee('transport-submitted');
 });

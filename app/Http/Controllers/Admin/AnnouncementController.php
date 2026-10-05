@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAnnouncementRequest;
 use App\Http\Requests\UpdateAnnouncementRequest;
 use App\Models\Announcement;
+use App\Services\AnnouncementDeliveryStatusService;
 use App\Services\AnnouncementEmailDeliveryService;
 use App\Services\AnnouncementService;
 use Illuminate\Http\RedirectResponse;
@@ -18,29 +19,22 @@ class AnnouncementController extends Controller
     public function __construct(
         private AnnouncementEmailDeliveryService $emailDeliveryService,
         private AnnouncementService $announcementService,
+        private AnnouncementDeliveryStatusService $deliveryStatusService,
     ) {}
 
     public function index(): View
     {
-        $announcements = Announcement::query()
+        $announcements = $this->deliveryStatusService->withDeliveryCounts(Announcement::query())
             ->with(['latestEmailDelivery', 'latestFailedEmailDelivery'])
-            ->withCount([
-                'emailDeliveries',
-                'emailDeliveries as email_sent_count' => fn ($query) => $query->whereNotNull('sent_at'),
-                'emailDeliveries as email_skipped_count' => fn ($query) => $query->whereNotNull('skipped_at'),
-                'emailDeliveries as email_failed_count' => fn ($query) => $query->whereNotNull('failed_at'),
-                'emailDeliveries as email_uncertain_count' => fn ($query) => $query->whereNotNull('uncertain_at'),
-            ])
             ->latest()
             ->paginate(20);
 
-        $hasActiveEmailBroadcasts = $announcements->getCollection()->contains(
-            fn (Announcement $announcement): bool => $announcement->email_broadcast_authorized_at !== null
-                && $announcement->email_broadcast_completed_at === null
-                && $announcement->starts_at?->lte(now())
+        $deliverySummaries = $announcements->getCollection()->mapWithKeys(
+            fn (Announcement $announcement): array => [$announcement->id => $this->deliveryStatusService->summarize($announcement)]
         );
+        $hasActiveEmailBroadcasts = $deliverySummaries->contains(fn (array $summary): bool => $summary['active']);
 
-        return view('admin.announcements.index', compact('announcements', 'hasActiveEmailBroadcasts'));
+        return view('admin.announcements.index', compact('announcements', 'deliverySummaries', 'hasActiveEmailBroadcasts'));
     }
 
     public function create()

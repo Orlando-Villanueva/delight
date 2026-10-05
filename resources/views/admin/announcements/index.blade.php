@@ -8,6 +8,7 @@
             <div class="sm:flex-auto">
                 <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">Announcements</h1>
                 <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Manage your product updates and notifications.</p>
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Transport submission does not confirm inbox delivery.</p>
             </div>
             <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
                 <a href="{{ route('admin.announcements.create') }}"
@@ -74,40 +75,14 @@
                                         }
                                     @endphp
                                     @php
-                                        $emailPendingCount = $announcement->email_deliveries_count
-                                            - $announcement->email_sent_count
-                                            - $announcement->email_skipped_count
-                                            - $announcement->email_failed_count
-                                            - $announcement->email_uncertain_count;
-                                        $emailHandledCount = $announcement->email_deliveries_count - $emailPendingCount;
-                                        $emailIsDelayed = $emailPendingCount > 0
-                                            && $announcement->email_audience_finalized_at?->lte(now()->subMinutes(15));
-
-                                        if (!$announcement->email_broadcast_authorized_at) {
-                                            $emailStatus = 'Not enabled';
-                                            $emailStatusClasses = 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-                                        } elseif ($announcement->starts_at?->isFuture()) {
-                                            $emailStatus = 'Scheduled';
-                                            $emailStatusClasses = 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
-                                        } elseif (!$announcement->email_audience_finalized_at) {
-                                            $emailStatus = 'Pending';
-                                            $emailStatusClasses = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
-                                        } elseif ($announcement->email_failed_count > 0) {
-                                            $emailStatus = 'Needs attention';
-                                            $emailStatusClasses = 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-                                        } elseif ($announcement->email_uncertain_count > 0) {
-                                            $emailStatus = 'Uncertain';
-                                            $emailStatusClasses = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
-                                        } elseif ($emailIsDelayed) {
-                                            $emailStatus = 'Delayed';
-                                            $emailStatusClasses = 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300';
-                                        } elseif ($emailPendingCount > 0) {
-                                            $emailStatus = 'Sending';
-                                            $emailStatusClasses = 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
-                                        } else {
-                                            $emailStatus = 'Delivered';
-                                            $emailStatusClasses = 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-                                        }
+                                        $delivery = $deliverySummaries[$announcement->id];
+                                        $emailStatusClasses = match ($delivery['status']) {
+                                            'Needs attention' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+                                            'Uncertain', 'Audience not finalized', 'Awaiting completion' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+                                            'Scheduled', 'Pending recipients' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+                                            'Processing completed' => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+                                            default => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                                        };
                                     @endphp
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                         <td
@@ -132,33 +107,44 @@
                                         <td class="px-3 py-4 text-sm text-gray-600 dark:text-gray-300" aria-live="polite">
                                             <div class="flex min-w-44 flex-col items-start gap-2">
                                                 <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $emailStatusClasses }}">
-                                                    {{ $emailStatus }}
+                                                    {{ $delivery['status'] }}
                                                 </span>
 
-                                                @if ($announcement->email_audience_finalized_at)
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                    {{ $delivery['authorized'] ? 'Email authorized' : 'Email not authorized' }}.
+                                                </p>
+
+                                                @if ($delivery['audience_finalized'] || $delivery['total'] > 0 || $delivery['completed'])
                                                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                        {{ $emailHandledCount }} of {{ $announcement->email_deliveries_count }} handled
-                                                        @if ($emailPendingCount > 0)
-                                                            &middot; {{ $emailPendingCount }} pending
+                                                        {{ $delivery['handled'] }} of {{ $delivery['total'] }} handled
+                                                        @if ($delivery['submitted'] > 0)
+                                                            &middot; {{ $delivery['submitted'] }} transport-submitted
                                                         @endif
-                                                        @if ($announcement->email_skipped_count > 0)
-                                                            &middot; {{ $announcement->email_skipped_count }} skipped
+                                                        @if ($delivery['pending'] > 0)
+                                                            &middot; {{ $delivery['pending'] }} pending
                                                         @endif
-                                                        @if ($announcement->email_failed_count > 0)
-                                                            &middot; {{ $announcement->email_failed_count }} failed
+                                                        @if ($delivery['skipped'] > 0)
+                                                            &middot; {{ $delivery['skipped'] }} skipped
                                                         @endif
-                                                        @if ($announcement->email_uncertain_count > 0)
-                                                            &middot; {{ $announcement->email_uncertain_count }} uncertain
+                                                        @if ($delivery['failed'] > 0)
+                                                            &middot; {{ $delivery['failed'] }} failed
+                                                        @endif
+                                                        @if ($delivery['uncertain'] > 0)
+                                                            &middot; {{ $delivery['uncertain'] }} uncertain
                                                         @endif
                                                     </p>
 
                                                     @if ($announcement->email_broadcast_completed_at)
                                                         <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                            Completed in {{ $announcement->emailBroadcastDurationForHumans() }}
+                                                            @if ($announcement->emailBroadcastDurationForHumans())
+                                                                Completed in {{ $announcement->emailBroadcastDurationForHumans() }}
+                                                            @else
+                                                                Processing completed
+                                                            @endif
                                                             &middot; {{ $announcement->email_broadcast_completed_at->diffForHumans() }}
                                                         </p>
-                                                    @else
-                                                        <p class="text-xs {{ $emailIsDelayed ? 'font-medium text-orange-700 dark:text-orange-300' : 'text-gray-500 dark:text-gray-400' }}">
+                                                    @elseif ($delivery['audience_finalized'])
+                                                        <p class="text-xs text-gray-500 dark:text-gray-400">
                                                             Started {{ $announcement->email_audience_finalized_at->diffForHumans() }}
                                                             @if ($announcement->latestEmailDelivery)
                                                                 &middot; Last activity {{ $announcement->latestEmailDelivery->updated_at->diffForHumans() }}
@@ -176,12 +162,12 @@
                                                     </p>
                                                 @endif
 
-                                                @if ($announcement->email_failed_count > 0)
+                                                @if ($delivery['failed'] > 0)
                                                     <form method="POST" action="{{ route('admin.announcements.email-deliveries.retry', $announcement) }}">
                                                         @csrf
                                                         <button type="submit"
                                                             class="inline-flex items-center rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:border-red-800 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-900/20 dark:focus:ring-offset-gray-800">
-                                                            Retry {{ $announcement->email_failed_count }} failed
+                                                            Retry {{ $delivery['failed'] }} failed
                                                         </button>
                                                     </form>
                                                 @endif
