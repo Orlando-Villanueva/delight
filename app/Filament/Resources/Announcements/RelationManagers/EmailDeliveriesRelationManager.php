@@ -15,6 +15,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Livewire\Attributes\On;
 
 class EmailDeliveriesRelationManager extends RelationManager
 {
@@ -36,6 +37,17 @@ class EmailDeliveriesRelationManager extends RelationManager
     public function isReadOnly(): bool
     {
         return true;
+    }
+
+    #[On('announcement-deliveries-retried')]
+    public function refreshAfterRetry(int $announcementId): void
+    {
+        if ($announcementId !== $this->getOwnerRecord()->id) {
+            return;
+        }
+
+        $this->flushCachedTableRecords();
+        $this->resetPage($this->getTablePaginationPageName());
     }
 
     public function infolist(Schema $schema): Schema

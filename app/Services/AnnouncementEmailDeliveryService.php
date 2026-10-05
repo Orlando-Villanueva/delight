@@ -8,6 +8,8 @@ use App\Models\Announcement;
 use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\LazyCollection;
@@ -217,22 +219,44 @@ class AnnouncementEmailDeliveryService
 
     public function retryFailedForAnnouncement(Announcement $announcement): int
     {
-        $retriedCount = $announcement->emailDeliveries()
-            ->whereNotNull('failed_at')
-            ->whereNull('sent_at')
-            ->whereNull('skipped_at')
-            ->whereNull('uncertain_at')
-            ->update([
+        return DB::transaction(function () use ($announcement): int {
+            $broadcast = Announcement::query()->whereKey($announcement->id)->lockForUpdate()->first();
+
+            if ($broadcast === null) {
+                return 0;
+            }
+
+            $retriedCount = $this->retryableFailedRecipients($broadcast)->update([
                 'failed_at' => null,
                 'next_attempt_at' => now(),
                 'updated_at' => now(),
             ]);
 
-        if ($retriedCount > 0) {
-            $announcement->forceFill(['email_broadcast_completed_at' => null])->save();
-        }
+            if ($retriedCount > 0) {
+                $broadcast->forceFill(['email_broadcast_completed_at' => null])->save();
+            }
 
-        return $retriedCount;
+            return $retriedCount;
+        });
+    }
+
+    public function countRetryableFailures(Announcement $announcement): int
+    {
+        return $this->retryableFailedRecipients($announcement)->count();
+    }
+
+    /**
+     * @return Builder<AnnouncementEmailDelivery>
+     */
+    private function retryableFailedRecipients(Announcement $announcement): Builder
+    {
+        return AnnouncementEmailDelivery::query()
+            ->where('announcement_id', $announcement->id)
+            ->whereHas('announcement', fn (Builder $query): Builder => $query->published()->whereNotNull('email_broadcast_authorized_at'))
+            ->whereNotNull('failed_at')
+            ->whereNull('sent_at')
+            ->whereNull('skipped_at')
+            ->whereNull('uncertain_at');
     }
 
     public function completeFinishedBroadcasts(): int
