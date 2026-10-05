@@ -97,6 +97,7 @@ it('offers navigation links without exposing generated mutation actions', functi
     $this->actingAs($admin);
 
     Livewire::test(ListAnnouncements::class)
+        ->assertSee(AnnouncementResource::getUrl('view', ['record' => $draft], panel: 'admin'))
         ->assertSee(route('admin.announcements.create'))
         ->assertSee(route('admin.announcements.edit', $draft))
         ->assertSee(route('admin.announcements.preview', $draft->slug))
@@ -122,3 +123,21 @@ it('preserves authoring feedback through the legacy list redirect', function () 
     Mail::assertNothingSent();
     $this->assertDatabaseHas('announcements', ['slug' => 'local-feedback-check', 'email_broadcast_authorized_at' => null]);
 });
+
+it('shows authorization separately only when it adds to the status badge', function (array $attributes, string $status, ?string $authorization) {
+    $admin = User::factory()->create(['email' => 'admin@example.com']);
+    Announcement::factory()->create($attributes);
+    $this->actingAs($admin);
+
+    $component = Livewire::test(ListAnnouncements::class)->assertSee($status);
+
+    if ($authorization === null) {
+        $component->assertDontSee('Email not authorized');
+    } else {
+        $component->assertSee($authorization);
+    }
+})->with([
+    'not authorized' => [[], 'Not authorized', null],
+    'historical' => [fn () => ['sent_via_email_at' => now()->subDay()], 'Historical email records', 'Email not authorized'],
+    'authorized' => [fn () => ['email_broadcast_authorized_at' => now()], 'Audience not finalized', 'Email authorized'],
+]);

@@ -3,10 +3,54 @@
 namespace App\Services;
 
 use App\Models\Announcement;
+use App\Models\AnnouncementEmailDelivery;
 use Illuminate\Database\Eloquent\Builder;
 
 class AnnouncementDeliveryStatusService
 {
+    public const array RECIPIENT_OUTCOMES = [
+        'pending' => 'Pending',
+        'submitted' => 'Transport-submitted',
+        'skipped' => 'Skipped',
+        'failed' => 'Failed',
+        'uncertain' => 'Uncertain',
+    ];
+
+    private const array OUTCOME_COLUMNS = [
+        'submitted' => 'sent_at',
+        'skipped' => 'skipped_at',
+        'failed' => 'failed_at',
+        'uncertain' => 'uncertain_at',
+    ];
+
+    public function recipientStatus(AnnouncementEmailDelivery $delivery): string
+    {
+        foreach (self::OUTCOME_COLUMNS as $outcome => $column) {
+            if ($delivery->{$column} !== null) {
+                return self::RECIPIENT_OUTCOMES[$outcome];
+            }
+        }
+
+        return self::RECIPIENT_OUTCOMES['pending'];
+    }
+
+    /**
+     * @param  Builder<AnnouncementEmailDelivery>  $query
+     * @return Builder<AnnouncementEmailDelivery>
+     */
+    public function filterRecipients(Builder $query, ?string $outcome): Builder
+    {
+        if ($outcome === 'pending') {
+            foreach (self::OUTCOME_COLUMNS as $column) {
+                $query->whereNull($column);
+            }
+        } elseif (isset(self::OUTCOME_COLUMNS[$outcome])) {
+            $query->whereNotNull(self::OUTCOME_COLUMNS[$outcome]);
+        }
+
+        return $query;
+    }
+
     /**
      * @param  Builder<Announcement>  $query
      * @return Builder<Announcement>
@@ -68,8 +112,7 @@ class AnnouncementDeliveryStatusService
     {
         return [
             'emailDeliveries',
-            'emailDeliveries as email_pending_count' => fn (Builder $query) => $query
-                ->whereNull('sent_at')->whereNull('skipped_at')->whereNull('failed_at')->whereNull('uncertain_at'),
+            'emailDeliveries as email_pending_count' => fn (Builder $query) => $this->filterRecipients($query, 'pending'),
             'emailDeliveries as email_sent_count' => fn (Builder $query) => $query->whereNotNull('sent_at'),
             'emailDeliveries as email_skipped_count' => fn (Builder $query) => $query->whereNotNull('skipped_at'),
             'emailDeliveries as email_failed_count' => fn (Builder $query) => $query->whereNotNull('failed_at'),
