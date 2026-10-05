@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\AdminHome;
+use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Http\Middleware\AuthenticateAdminPanel;
 use App\Http\Middleware\SecurityHeadersMiddleware;
 use Filament\Enums\ThemeMode;
@@ -35,14 +36,14 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Blue,
             ])
             ->pages([AdminHome::class])
+            ->resources([AnnouncementResource::class])
             ->navigationItems([
                 NavigationItem::make('Analytics')
+                    ->sort(1)
                     ->icon('heroicon-o-chart-bar')
                     ->url(fn (): string => route('admin.analytics.index')),
-                NavigationItem::make('Announcements')
-                    ->icon('heroicon-o-megaphone')
-                    ->url(fn (): string => route('admin.announcements.index')),
                 NavigationItem::make('Back to Delight')
+                    ->sort(3)
                     ->icon('heroicon-o-arrow-left')
                     ->url(fn (): string => route('dashboard')),
             ])

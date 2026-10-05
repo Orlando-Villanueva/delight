@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Http\Controllers\AccountDeletionController;
 use App\Http\Controllers\AchievementsController;
 use App\Http\Controllers\Admin\AnalyticsController;
@@ -219,8 +220,13 @@ Route::middleware(['auth', EnsureUserIsAdmin::class])->prefix('admin')->name('ad
         ->name('announcements.preview');
     Route::post('announcements/{announcement}/email-deliveries/retry', [AnnouncementController::class, 'retryFailedEmailDeliveries'])
         ->name('announcements.email-deliveries.retry');
+    Route::get('announcements', function () {
+        session()->keep('success');
+
+        return redirect(AnnouncementResource::getUrl('index', panel: 'admin'));
+    })->name('announcements.index');
     Route::resource('announcements', AnnouncementController::class)
-        ->only(['index', 'create', 'store', 'edit', 'update']);
+        ->only(['create', 'store', 'edit', 'update']);
 });
 
 // Public Announcements

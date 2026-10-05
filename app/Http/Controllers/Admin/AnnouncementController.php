@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAnnouncementRequest;
 use App\Http\Requests\UpdateAnnouncementRequest;
 use App\Models\Announcement;
-use App\Services\AnnouncementDeliveryStatusService;
 use App\Services\AnnouncementEmailDeliveryService;
 use App\Services\AnnouncementService;
 use Illuminate\Http\RedirectResponse;
@@ -19,23 +18,7 @@ class AnnouncementController extends Controller
     public function __construct(
         private AnnouncementEmailDeliveryService $emailDeliveryService,
         private AnnouncementService $announcementService,
-        private AnnouncementDeliveryStatusService $deliveryStatusService,
     ) {}
-
-    public function index(): View
-    {
-        $announcements = $this->deliveryStatusService->withDeliveryCounts(Announcement::query())
-            ->with(['latestEmailDelivery', 'latestFailedEmailDelivery'])
-            ->latest()
-            ->paginate(20);
-
-        $deliverySummaries = $announcements->getCollection()->mapWithKeys(
-            fn (Announcement $announcement): array => [$announcement->id => $this->deliveryStatusService->summarize($announcement)]
-        );
-        $hasActiveEmailBroadcasts = $deliverySummaries->contains(fn (array $summary): bool => $summary['active']);
-
-        return view('admin.announcements.index', compact('announcements', 'deliverySummaries', 'hasActiveEmailBroadcasts'));
-    }
 
     public function create()
     {
