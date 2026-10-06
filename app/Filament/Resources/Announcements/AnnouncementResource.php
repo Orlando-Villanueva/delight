@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Announcements;
 
 use App\Filament\Resources\Announcements\Pages\CreateAnnouncement;
+use App\Filament\Resources\Announcements\Pages\EditAnnouncement;
 use App\Filament\Resources\Announcements\Pages\ListAnnouncements;
 use App\Filament\Resources\Announcements\Pages\ViewAnnouncement;
 use App\Filament\Resources\Announcements\RelationManagers\EmailDeliveriesRelationManager;
@@ -65,6 +66,11 @@ class AnnouncementResource extends Resource
     public static function canCreate(): bool
     {
         return static::canViewAny();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return static::canViewAny() && $record instanceof Announcement && $record->is_draft;
     }
 
     public static function form(Schema $schema): Schema
@@ -217,7 +223,7 @@ class AnnouncementResource extends Resource
                     ->url(fn (Announcement $record): string => static::getUrl('view', ['record' => $record], panel: 'admin')),
                 Action::make('editDraft')
                     ->label('Edit draft')
-                    ->url(fn (Announcement $record): string => route('admin.announcements.edit', $record))
+                    ->url(fn (Announcement $record): string => static::getUrl('edit', ['record' => $record], panel: 'admin'))
                     ->visible(fn (Announcement $record): bool => $record->is_draft),
                 Action::make('view')
                     ->label(fn (Announcement $record): string => $record->isPublished() ? 'View' : 'Preview')
@@ -270,6 +276,7 @@ class AnnouncementResource extends Resource
         return [
             'index' => ListAnnouncements::route('/'),
             'create' => CreateAnnouncement::route('/create'),
+            'edit' => EditAnnouncement::route('/{record}/edit'),
             'view' => ViewAnnouncement::route('/{record}'),
         ];
     }

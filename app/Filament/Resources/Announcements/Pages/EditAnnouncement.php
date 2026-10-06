@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Filament\Resources\Announcements\Pages;
+
+use App\Filament\Resources\Announcements\AnnouncementResource;
+use App\Models\Announcement;
+use App\Services\AnnouncementService;
+use App\Services\AnnouncementValidator;
+use Filament\Actions\Action;
+use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class EditAnnouncement extends EditRecord
+{
+    protected static string $resource = AnnouncementResource::class;
+
+    protected static ?string $title = 'Edit announcement draft';
+
+    public function getRelationManagers(): array
+    {
+        return [];
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('preview')->label('Preview saved draft')
+                ->url(fn (): string => route('admin.announcements.preview', $this->getRecord()->slug))
+                ->openUrlInNewTab(),
+        ];
+    }
+
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        return DB::transaction(function () use ($record, $data): Model {
+            $current = Announcement::query()->lockForUpdate()->findOrFail($record->getKey());
+            abort_unless(AnnouncementResource::canEdit($current), 403);
+
+            try {
+                $validated = app(AnnouncementValidator::class)->validate($data, $current);
+            } catch (ValidationException $exception) {
+                throw ValidationException::withMessages(collect($exception->errors())
+                    ->mapWithKeys(fn (array $messages, string $field): array => ['data.'.$field => $messages])
+                    ->all());
+            }
+
+            app(AnnouncementService::class)->updateDraft($current, $validated);
+
+            $record->refresh();
+            $this->refreshFormData(['slug', 'starts_at']);
+
+            return $record;
+        });
+    }
+
+    protected function getSaveFormAction(): Action
+    {
+        return parent::getSaveFormAction()->label('Save draft');
+    }
+
+    protected function getSavedNotificationTitle(): ?string
+    {
+        return 'Announcement draft updated.';
+    }
+
+    protected function getRedirectUrl(): ?string
+    {
+        return null;
+    }
+}

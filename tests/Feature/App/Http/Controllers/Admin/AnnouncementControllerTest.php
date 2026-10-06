@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Models\Announcement;
 use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
@@ -78,9 +79,9 @@ it('shows an edit action only for persisted drafts', function () {
 
     $response = $this->actingAs($this->admin)->followingRedirects()->get(route('admin.announcements.index'));
 
-    $response->assertSee(route('admin.announcements.edit', $draft))
-        ->assertDontSee(route('admin.announcements.edit', $scheduledAnnouncement))
-        ->assertDontSee(route('admin.announcements.edit', $publishedAnnouncement));
+    $response->assertSee(AnnouncementResource::getUrl('edit', ['record' => $draft], panel: 'admin'))
+        ->assertDontSee(AnnouncementResource::getUrl('edit', ['record' => $scheduledAnnouncement], panel: 'admin'))
+        ->assertDontSee(AnnouncementResource::getUrl('edit', ['record' => $publishedAnnouncement], panel: 'admin'));
 });
 
 it('renders a persisted draft in the announcement edit form', function () {
@@ -258,7 +259,7 @@ it('renders a persisted draft preview for admins without side effects', function
         ->assertDontSee('<link rel="canonical"', false);
     expect(substr_count(
         $response->getContent(),
-        route('admin.announcements.edit', $announcement)
+        AnnouncementResource::getUrl('edit', ['record' => $announcement], panel: 'admin')
     ))->toBe(2);
     expect($this->admin->announcements()->whereKey($announcement->id)->exists())->toBeFalse()
         ->and($announcement->emailDeliveries()->count())->toBe(0);
@@ -277,7 +278,7 @@ it('renders a scheduled announcement preview before its publication time', funct
     $response->assertSee('Scheduled preview')
         ->assertSee('This announcement is not publicly visible yet.')
         ->assertDontSee('Edit draft')
-        ->assertDontSee(route('admin.announcements.edit', $announcement));
+        ->assertDontSee(AnnouncementResource::getUrl('edit', ['record' => $announcement], panel: 'admin'));
     $this->get(route('announcements.show', $announcement->slug))->assertNotFound();
 });
 

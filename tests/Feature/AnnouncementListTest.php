@@ -100,7 +100,7 @@ it('offers navigation links without exposing generated mutation actions', functi
         ->assertSee(AnnouncementResource::getUrl('view', ['record' => $draft], panel: 'admin'))
         ->assertSee(AnnouncementResource::getUrl('create', panel: 'admin'))
         ->assertSee('New draft')
-        ->assertSee(route('admin.announcements.edit', $draft))
+        ->assertSee(AnnouncementResource::getUrl('edit', ['record' => $draft], panel: 'admin'))
         ->assertSee(route('admin.announcements.preview', $draft->slug))
         ->assertSee(route('announcements.show', $published->slug))
         ->assertTableActionDoesNotExist('delete')
