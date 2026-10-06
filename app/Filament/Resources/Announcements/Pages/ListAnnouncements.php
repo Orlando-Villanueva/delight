@@ -29,8 +29,8 @@ class ListAnnouncements extends ListRecords
     {
         return [
             Action::make('newAnnouncement')
-                ->label('New announcement')
-                ->url(route('admin.announcements.create')),
+                ->label('New draft')
+                ->url(AnnouncementResource::getUrl('create', panel: 'admin')),
         ];
     }
 }
