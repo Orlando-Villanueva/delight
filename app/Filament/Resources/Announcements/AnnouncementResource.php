@@ -8,14 +8,19 @@ use App\Filament\Resources\Announcements\Pages\ViewAnnouncement;
 use App\Filament\Resources\Announcements\RelationManagers\EmailDeliveriesRelationManager;
 use App\Models\Announcement;
 use App\Services\AnnouncementDeliveryStatusService;
+use App\Services\AnnouncementImageService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\Layout\Split;
@@ -25,6 +30,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\HtmlString;
 
 class AnnouncementResource extends Resource
 {
@@ -72,13 +78,40 @@ class AnnouncementResource extends Resource
                         ->helperText('Optional. Defaults to the title slug and becomes part of the announcement URL.'),
                     Textarea::make('content')->label('Content (Markdown)')->required()->rows(12)->columnSpanFull(),
                     TextInput::make('hero_image_path')->label('Hero image path')->required()->maxLength(255)
-                        ->helperText('Public image path, for example images/updates/example.png.'),
-                    TextInput::make('social_image_path')->label('Social image path')->maxLength(255),
+                        ->suffixAction(static::imagePicker('hero'))
+                        ->helperText('Public image path, for example images/updates/hero/example.png.'),
+                    TextInput::make('social_image_path')->label('Social image path')->maxLength(255)
+                        ->suffixAction(static::imagePicker('social')),
                     DateTimePicker::make('starts_at')->label('Proposed publication time')
                         ->helperText('Optional. Defaults to now; saving the draft does not publish it.'),
                     DateTimePicker::make('ends_at')->label('Expiry')->helperText('Optional. Must be after the proposed publication time.'),
                 ]),
         ]);
+    }
+
+    private static function imagePicker(string $folder): Action
+    {
+        return Action::make('browseImages')->label('Browse images')->icon(Heroicon::OutlinedPhoto)
+            ->modalHeading($folder === 'hero' ? 'Choose a hero image' : 'Choose a social preview image')
+            ->modalDescription('Images deployed in images/updates/'.$folder.'. Usage includes saved announcements in every state and images in their Markdown. Unused here does not mean unused elsewhere in the app.')
+            ->modalSubmitActionLabel('Use image')
+            ->modalSubmitAction(fn (Action $action): Action => $action->disabled(app(AnnouncementImageService::class)->images($folder) === []))
+            ->authorize(fn (): bool => static::canCreate())
+            ->schema([
+                Toggle::make('unused_only')->label('Unused by announcements')->default(false)->live()
+                    ->afterStateUpdated(fn (Set $set) => $set('image', null)),
+                Radio::make('image')->label('Image')->required()->columns(2)
+                    ->options(fn (Get $get): array => collect(app(AnnouncementImageService::class)->images($folder, (bool) $get('unused_only')))
+                        ->mapWithKeys(fn (bool $used, string $path): array => [
+                            $path => new HtmlString(view('filament.announcements.image-option', ['path' => $path, 'used' => $used])->render()),
+                        ])->all())
+                    ->helperText(fn (Radio $component): string => $component->getOptions() === []
+                        ? 'No matching images in images/updates/'.$folder.'. Add an image to this folder, turn off the unused filter, or enter a path manually.'
+                        : 'Select an image to fill the path field.'),
+            ])
+            ->action(function (array $data, TextInput $component): void {
+                $component->state($data['image']);
+            });
     }
 
     public static function infolist(Schema $schema): Schema
