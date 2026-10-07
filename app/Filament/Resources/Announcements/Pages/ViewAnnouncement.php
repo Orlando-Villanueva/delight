@@ -3,10 +3,14 @@
 namespace App\Filament\Resources\Announcements\Pages;
 
 use App\Filament\Resources\Announcements\AnnouncementResource;
+use App\Models\Announcement;
 use App\Services\AnnouncementEmailDeliveryService;
+use App\Services\AnnouncementService;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ViewAnnouncement extends ViewRecord
 {
@@ -15,6 +19,54 @@ class ViewAnnouncement extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('publishDraft')
+                ->label(fn (): string => $this->getRecord()->starts_at?->isFuture() ? 'Schedule announcement' : 'Publish announcement')
+                ->authorize(fn (): bool => AnnouncementResource::canViewAny())
+                ->visible(fn (): bool => AnnouncementResource::canEdit($this->getRecord()))
+                ->requiresConfirmation()
+                ->modalHeading('Publish or schedule announcement')
+                ->modalDescription(fn (): string => sprintf(
+                    'Publish “%s” in-app %s? Expiry: %s. This uses the saved draft and does not authorize email. Publication ends draft editing.',
+                    $this->getRecord()->title,
+                    $this->getRecord()->starts_at?->isFuture()
+                        ? 'at '.$this->getRecord()->starts_at->format('M j, Y H:i:s T')
+                        : 'now',
+                    $this->getRecord()->ends_at?->format('M j, Y H:i:s T') ?? 'none',
+                ))
+                ->modalSubmitActionLabel('Confirm publication')
+                ->action(function (Action $action, AnnouncementService $service): void {
+                    abort_unless(AnnouncementResource::canViewAny(), 403);
+
+                    try {
+                        DB::transaction(function () use ($service): void {
+                            $current = Announcement::query()->lockForUpdate()->findOrFail($this->getRecord()->id);
+
+                            if (! $current->is_draft) {
+                                throw ValidationException::withMessages(['draft' => 'Only an existing draft announcement can be published.']);
+                            }
+
+                            $startsAt = $current->starts_at?->isFuture() ? $current->starts_at : now();
+
+                            if ($current->ends_at?->lte($startsAt)) {
+                                throw ValidationException::withMessages(['ends_at' => 'The expiry time must be after the publication time.']);
+                            }
+
+                            $service->publishDraft($current, $startsAt);
+                        });
+                    } catch (ValidationException $exception) {
+                        Notification::make()->danger()->title('Announcement could not be published')
+                            ->body(collect($exception->errors())->flatten()->implode("\n"))
+                            ->persistent()->send();
+                        $action->halt();
+                    }
+
+                    $this->getRecord()->refresh();
+
+                    Notification::make()->success()
+                        ->title($this->getRecord()->starts_at->isFuture() ? 'Announcement scheduled.' : 'Announcement published.')
+                        ->body('Email has not been authorized.')
+                        ->send();
+                }),
             Action::make('retryFailedRecipients')
                 ->label('Retry failed recipients')
                 ->color('warning')
