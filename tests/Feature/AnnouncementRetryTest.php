@@ -47,8 +47,8 @@ it('confirms retries before resetting only eligible failures and refreshing the 
 
     $page->callMountedAction()->assertNotified('1 failed recipient marked for retry.')
         ->assertDispatched('announcement-deliveries-retried', announcementId: $announcement->id)
-        ->assertSchemaComponentStateSet('delivery_pending', 2, schema: 'infolist')
-        ->assertSchemaComponentStateSet('email_broadcast_completed_at', null, schema: 'infolist')
+        ->assertSchemaComponentStateSet('delivery-progress.delivery_pending', 2, schema: 'infolist')
+        ->assertSchemaComponentStateSet('delivery-progress.email_broadcast_completed_at', null, schema: 'infolist')
         ->assertActionHidden('retryFailedRecipients');
     expect($failed->fresh()->failed_at)->toBeNull()
         ->and($failed->fresh()->next_attempt_at->toDateTimeString())->toBe(now()->toDateTimeString())

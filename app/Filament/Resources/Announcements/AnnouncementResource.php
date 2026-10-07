@@ -19,6 +19,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -138,19 +139,37 @@ class AnnouncementResource extends Resource
                 TextEntry::make('starts_at')->label('Publication time')->dateTime('M j, Y H:i:s')->placeholder('Not recorded'),
                 TextEntry::make('ends_at')->label('Expiry')->dateTime('M j, Y H:i:s')->placeholder('No expiry'),
             ]),
-            Section::make('Email processing')
-                ->description('Authorization permits asynchronous processing. Recorded submission and completion do not confirm inbox delivery.')
-                ->columns(2)->columnSpanFull()->schema([
-                    TextEntry::make('delivery_status')->label('Recorded status')
-                        ->state(fn (Announcement $record, AnnouncementDeliveryStatusService $service): string => $service->summarize($record)['status'])
-                        ->columnSpanFull(),
-                    TextEntry::make('email_broadcast_authorized_at')->label('Email authorized at')->dateTime('M j, Y H:i:s')->placeholder('Not authorized'),
-                    TextEntry::make('email_audience_finalized_at')->label('Audience finalized at')->dateTime('M j, Y H:i:s')->placeholder('Not finalized'),
-                    TextEntry::make('email_broadcast_completed_at')->label('Processing completed at')->dateTime('M j, Y H:i:s')->placeholder('Not recorded'),
-                    TextEntry::make('sent_via_email_at')->label('Legacy email timestamp')->dateTime('M j, Y H:i:s')->placeholder('Not recorded'),
+            Group::make()->key('delivery-progress')->columnSpanFull()
+                ->extraAttributes(fn (Announcement $record): array => self::shouldPollDeliveryProgress($record)
+                    ? ['wire:poll.15s.visible' => '$refresh']
+                    : [])
+                ->schema([
+                    Section::make('Email processing')
+                        ->description('Authorization permits asynchronous processing. Recorded submission and completion do not confirm inbox delivery.')
+                        ->columns(2)->columnSpanFull()->schema([
+                            TextEntry::make('refresh_status')->label('Updates')
+                                ->state('Auto-refresh')->badge()->color('success')->icon('heroicon-m-signal')
+                                ->helperText(fn (): string => 'Every 15 seconds · Last refreshed '.now()->format('H:i:s T'))
+                                ->visible(fn (Announcement $record): bool => self::shouldPollDeliveryProgress($record))
+                                ->columnSpanFull(),
+                            TextEntry::make('delivery_status')->label('Recorded status')
+                                ->state(fn (Announcement $record, AnnouncementDeliveryStatusService $service): string => $service->summarize($record)['status'])
+                                ->columnSpanFull(),
+                            TextEntry::make('email_broadcast_authorized_at')->label('Email authorized at')->dateTime('M j, Y H:i:s')->placeholder('Not authorized'),
+                            TextEntry::make('email_audience_finalized_at')->label('Audience finalized at')->dateTime('M j, Y H:i:s')->placeholder('Not finalized'),
+                            TextEntry::make('email_broadcast_completed_at')->label('Processing completed at')->dateTime('M j, Y H:i:s')->placeholder('Not recorded'),
+                            TextEntry::make('sent_via_email_at')->label('Legacy email timestamp')->dateTime('M j, Y H:i:s')->placeholder('Not recorded'),
+                        ]),
+                    Section::make('Recorded recipient outcomes')->columns(['sm' => 2, 'lg' => 3])->columnSpanFull()->schema($counts),
                 ]),
-            Section::make('Recorded recipient outcomes')->columns(['sm' => 2, 'lg' => 3])->columnSpanFull()->schema($counts),
         ]);
+    }
+
+    public static function shouldPollDeliveryProgress(Announcement $record): bool
+    {
+        return ! $record->is_draft
+            && $record->email_broadcast_authorized_at !== null
+            && $record->email_broadcast_completed_at === null;
     }
 
     public static function getRelations(): array

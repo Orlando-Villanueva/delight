@@ -82,6 +82,10 @@ class EmailDeliveriesRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table->recordTitleAttribute('recipient_email')
+            ->poll(fn (): ?string => AnnouncementResource::shouldPollDeliveryProgress($this->getOwnerRecord()) ? '15s.visible' : null)
+            ->extraAttributes(fn (): array => AnnouncementResource::shouldPollDeliveryProgress($this->getOwnerRecord()) && $this->getTableRecords()->isEmpty()
+                ? ['wire:poll.15s.visible' => '$refresh']
+                : [])
             ->description('These are recorded processing outcomes, not confirmed inbox delivery.')
             ->columns([
                 Split::make([
