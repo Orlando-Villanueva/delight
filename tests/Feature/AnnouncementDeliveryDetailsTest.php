@@ -33,7 +33,17 @@ it('shows stored publication and processing milestones with recipient totals', f
         ->assertSee('Recorded recipient outcomes')
         ->assertSee('Transport-submitted')
         ->assertSeeLivewire(EmailDeliveriesRelationManager::class)
-        ->assertActionDoesNotExist('edit');
+        ->assertActionHidden('editDraft');
+});
+
+it('links editable drafts to the draft editor from their details page', function () {
+    $admin = User::factory()->create(['email' => 'admin@example.com']);
+    $announcement = Announcement::factory()->draft()->create();
+    $this->actingAs($admin);
+
+    Livewire::test(ViewAnnouncement::class, ['record' => $announcement->id])
+        ->assertActionVisible('editDraft')
+        ->assertActionHasUrl('editDraft', AnnouncementResource::getUrl('edit', ['record' => $announcement], panel: 'admin'));
 });
 
 it('shows historical records without inferring authorization or missing milestones', function () {

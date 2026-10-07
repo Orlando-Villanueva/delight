@@ -47,6 +47,10 @@ class ViewAnnouncement extends ViewRecord
 
                     $notification->send();
                 }),
+            Action::make('editDraft')
+                ->label('Edit draft')
+                ->visible(fn (): bool => AnnouncementResource::canEdit($this->getRecord()))
+                ->url(fn (): string => AnnouncementResource::getUrl('edit', ['record' => $this->getRecord()], panel: 'admin')),
             Action::make('preview')->label($this->getRecord()->isPublished() ? 'View announcement' : 'Preview announcement')
                 ->url($this->getRecord()->isPublished()
                     ? route('announcements.show', $this->getRecord()->slug)

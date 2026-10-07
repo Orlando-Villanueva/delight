@@ -30,6 +30,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->brandName('Delight Admin')
+            ->sidebarFullyCollapsibleOnDesktop()
             ->authGuard('web')
             ->defaultThemeMode(ThemeMode::System)
             ->colors([
