@@ -2,68 +2,29 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreAnnouncementRequest;
-use App\Http\Requests\UpdateAnnouncementRequest;
 use App\Models\Announcement;
 use App\Services\AnnouncementEmailDeliveryService;
-use App\Services\AnnouncementService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AnnouncementController extends Controller
 {
     public function __construct(
         private AnnouncementEmailDeliveryService $emailDeliveryService,
-        private AnnouncementService $announcementService,
     ) {}
 
-    public function create()
+    public function create(): RedirectResponse
     {
-        return view('admin.announcements.create');
+        return redirect(AnnouncementResource::getUrl('create', panel: 'admin'));
     }
 
-    public function store(StoreAnnouncementRequest $request): RedirectResponse
-    {
-        $announcement = $this->announcementService->createPublishedOrScheduled($request->validated());
-
-        $message = $announcement->starts_at?->isFuture()
-            ? 'Announcement scheduled.'
-            : 'Announcement published.';
-
-        return redirect()->route('admin.announcements.index')
-            ->with('success', $message);
-    }
-
-    public function edit(Announcement $announcement): View
+    public function edit(Announcement $announcement): RedirectResponse
     {
         abort_unless($announcement->is_draft, 404);
 
-        return view('admin.announcements.create', compact('announcement'));
-    }
-
-    public function update(UpdateAnnouncementRequest $request, Announcement $announcement): RedirectResponse
-    {
-        abort_unless($announcement->is_draft, 404);
-
-        $announcement = $this->announcementService->updateDraft($announcement, $request->validated());
-
-        return redirect()->route('admin.announcements.preview', ['announcement' => $announcement->slug])
-            ->with('success', 'Announcement draft updated.');
-    }
-
-    public function previewMarkdown(Request $request)
-    {
-        $content = (string) $request->input('content', '');
-        $trimmedContent = trim($content);
-        $previewHtml = $trimmedContent !== '' ? Str::markdown($content) : '';
-
-        return response()->htmx('admin.announcements.create', 'announcement-preview', [
-            'previewHtml' => $previewHtml,
-            'previewIsEmpty' => $trimmedContent === '',
-        ]);
+        return redirect(AnnouncementResource::getUrl('edit', ['record' => $announcement], panel: 'admin'));
     }
 
     public function preview(Announcement $announcement): View|RedirectResponse

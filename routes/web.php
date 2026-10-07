@@ -214,8 +214,6 @@ Route::middleware(['throttle:60,1', EnsureAdminOrAnalyticsToken::class])->prefix
 Route::middleware(['auth', EnsureUserIsAdmin::class])->prefix('admin')->name('admin.')->group(function () {
     Route::get('analytics', [AnalyticsController::class, 'index'])
         ->name('analytics.index');
-    Route::post('announcements/preview-markdown', [AnnouncementController::class, 'previewMarkdown'])
-        ->name('announcements.preview-markdown');
     Route::get('announcements/{announcement:slug}/preview', [AnnouncementController::class, 'preview'])
         ->name('announcements.preview');
     Route::post('announcements/{announcement}/email-deliveries/retry', [AnnouncementController::class, 'retryFailedEmailDeliveries'])
@@ -226,7 +224,7 @@ Route::middleware(['auth', EnsureUserIsAdmin::class])->prefix('admin')->name('ad
         return redirect(AnnouncementResource::getUrl('index', panel: 'admin'));
     })->name('announcements.index');
     Route::resource('announcements', AnnouncementController::class)
-        ->only(['create', 'store', 'edit', 'update']);
+        ->only(['create', 'edit']);
 });
 
 // Public Announcements

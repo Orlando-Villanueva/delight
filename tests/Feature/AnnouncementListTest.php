@@ -108,21 +108,12 @@ it('offers navigation links without exposing generated mutation actions', functi
         ->assertTableActionHidden('editDraft', $published);
 });
 
-it('preserves authoring feedback through the legacy list redirect', function () {
-    Mail::fake();
+it('preserves recovery feedback through the legacy list redirect', function () {
     $admin = User::factory()->create(['email' => 'admin@example.com']);
 
-    $response = $this->actingAs($admin)->followingRedirects()->post(route('admin.announcements.store'), [
-        'title' => 'Local feedback check',
-        'slug' => 'local-feedback-check',
-        'content' => 'A local announcement without external links.',
-        'hero_image_path' => 'images/updates/local-feedback-check.png',
-        'starts_at' => now()->toDateTimeString(),
-    ]);
-
-    $response->assertSee('Announcement published.');
-    Mail::assertNothingSent();
-    $this->assertDatabaseHas('announcements', ['slug' => 'local-feedback-check', 'email_broadcast_authorized_at' => null]);
+    $this->actingAs($admin)->withSession(['success' => 'One failed announcement email will be retried.'])
+        ->followingRedirects()->get(route('admin.announcements.index'))
+        ->assertSee('One failed announcement email will be retried.');
 });
 
 it('shows authorization separately only when it adds to the status badge', function (array $attributes, string $status, ?string $authorization) {
