@@ -7,14 +7,22 @@ use App\Models\Announcement;
 use App\Services\AnnouncementEmailDeliveryService;
 use App\Services\AnnouncementService;
 use Filament\Actions\Action;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Text;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 
 class ViewAnnouncement extends ViewRecord
 {
     protected static string $resource = AnnouncementResource::class;
+
+    /** @var array<string, mixed> */
+    #[Locked]
+    public array $emailAuthorizationPreview = [];
 
     protected function getHeaderActions(): array
     {
@@ -65,6 +73,59 @@ class ViewAnnouncement extends ViewRecord
                     Notification::make()->success()
                         ->title($this->getRecord()->starts_at->isFuture() ? 'Announcement scheduled.' : 'Announcement published.')
                         ->body('Email has not been authorized.')
+                        ->send();
+                }),
+            Action::make('authorizeEmail')
+                ->label('Authorize email')
+                ->authorize(fn (): bool => AnnouncementResource::canViewAny())
+                ->visible(fn (): bool => ! $this->getRecord()->is_draft && $this->getRecord()->email_broadcast_authorized_at === null)
+                ->requiresConfirmation()
+                ->mountUsing(function (Action $action, AnnouncementService $service): void {
+                    abort_unless(AnnouncementResource::canViewAny(), 403);
+
+                    try {
+                        $this->emailAuthorizationPreview = $service->previewEmailAuthorization($this->getRecord());
+                    } catch (ValidationException $exception) {
+                        Notification::make()->danger()->title('Email could not be authorized')
+                            ->body(collect($exception->errors())->flatten()->implode("\n"))
+                            ->persistent()->send();
+                        $action->cancel();
+                    }
+                })
+                ->modalHeading('Authorize announcement email')
+                ->modalDescription('Review the audience before authorizing email.')
+                ->schema([
+                    TextEntry::make('announcement_title')->label('Announcement')
+                        ->state(fn (): string => $this->emailAuthorizationPreview['title'] ?? ''),
+                    TextEntry::make('publication_time')->label('Publication time')
+                        ->state(fn (): ?string => $this->emailAuthorizationPreview['starts_at'] ?? null)
+                        ->dateTime('M j, Y H:i:s T')
+                        ->helperText('Only accounts created by this time are eligible.'),
+                    Grid::make(2)->schema([
+                        TextEntry::make('eligible_recipients')->label('Estimated eligible')
+                            ->state(fn (): int => $this->emailAuthorizationPreview['eligible_recipients'] ?? 0),
+                        TextEntry::make('excluded_recipients')->label('Estimated excluded')
+                            ->state(fn (): int => $this->emailAuthorizationPreview['excluded_recipients'] ?? 0),
+                    ]),
+                    Text::make('Estimates may change. The worker finalizes the audience when processing starts.'),
+                    Text::make('Email processing can begin once publication is due. Authorization does not send immediately or confirm inbox delivery.'),
+                ])
+                ->modalSubmitActionLabel('Authorize email')
+                ->action(function (Action $action, AnnouncementService $service): void {
+                    abort_unless(AnnouncementResource::canViewAny(), 403);
+
+                    try {
+                        $authorized = $service->authorizeEmail($this->getRecord());
+                    } catch (ValidationException $exception) {
+                        Notification::make()->danger()->title('Email could not be authorized')
+                            ->body(collect($exception->errors())->flatten()->implode("\n"))
+                            ->persistent()->send();
+                        $action->halt();
+                    }
+
+                    Notification::make()->success()
+                        ->title($authorized ? 'Announcement email authorized.' : 'Announcement email already authorized.')
+                        ->body('The background worker will process email once publication is due. This does not confirm inbox delivery.')
                         ->send();
                 }),
             Action::make('retryFailedRecipients')
