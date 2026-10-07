@@ -2,12 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Mail\AnnouncementEmail;
 use App\Models\Announcement;
-use App\Services\AnnouncementEmailLinkValidator;
+use App\Services\AnnouncementTestEmailService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
@@ -21,7 +18,7 @@ class SendAnnouncementTestEmail extends Command
 
     protected $description = 'Send an optional announcement draft test email only to the configured admin inbox';
 
-    public function handle(AnnouncementEmailLinkValidator $linkValidator): int
+    public function handle(AnnouncementTestEmailService $service): int
     {
         $announcement = Announcement::query()
             ->where('slug', Str::slug((string) $this->argument('draft')))
@@ -34,19 +31,11 @@ class SendAnnouncementTestEmail extends Command
         }
 
         try {
-            $linkValidator->validate($announcement);
+            $recipient = $service->preview($announcement);
         } catch (ValidationException $exception) {
-            foreach ($exception->errors()['content'] as $message) {
+            foreach (collect($exception->errors())->flatten() as $message) {
                 $this->error($message);
             }
-
-            return self::FAILURE;
-        }
-
-        $recipient = config('mail.admin_address');
-
-        if (Validator::make(['recipient' => $recipient], ['recipient' => ['required', 'string', 'email']])->fails()) {
-            $this->error('Configure a valid ADMIN_EMAIL before sending a test.');
 
             return self::FAILURE;
         }
@@ -75,7 +64,13 @@ class SendAnnouncementTestEmail extends Command
         }
 
         try {
-            Mail::to($recipient)->send(AnnouncementEmail::forTest($announcement));
+            $service->send($announcement);
+        } catch (ValidationException $exception) {
+            foreach (collect($exception->errors())->flatten() as $message) {
+                $this->error($message);
+            }
+
+            return self::FAILURE;
         } catch (TransportExceptionInterface $exception) {
             report($exception);
             $this->error('The mail transport rejected the test email. Check the application logs for details.');

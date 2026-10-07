@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Announcements\Pages;
 
+use App\Filament\Resources\Announcements\Actions\SendTestEmailAction;
 use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Models\Announcement;
 use App\Services\AnnouncementEmailDeliveryService;
@@ -27,6 +28,7 @@ class ViewAnnouncement extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            SendTestEmailAction::make('sendTestEmail'),
             Action::make('publishDraft')
                 ->label(fn (): string => $this->getRecord()->starts_at?->isFuture() ? 'Schedule announcement' : 'Publish announcement')
                 ->authorize(fn (): bool => AnnouncementResource::canViewAny())

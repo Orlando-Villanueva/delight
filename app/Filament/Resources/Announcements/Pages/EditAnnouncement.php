@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Announcements\Pages;
 
+use App\Filament\Resources\Announcements\Actions\SendTestEmailAction;
 use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Models\Announcement;
 use App\Services\AnnouncementService;
@@ -26,6 +27,7 @@ class EditAnnouncement extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            SendTestEmailAction::make('sendTestEmail'),
             Action::make('preview')->label('Preview saved draft')
                 ->url(fn (): string => route('admin.announcements.preview', $this->getRecord()->slug))
                 ->openUrlInNewTab(),
