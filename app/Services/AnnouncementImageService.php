@@ -10,17 +10,71 @@ use InvalidArgumentException;
 
 class AnnouncementImageService
 {
+    /** @var array<string, array<string, bool>> */
+    private array $imagesByFolder = [];
+
+    /** @var array<string, list<string>> */
+    private array $pathsByFolder = [];
+
+    /** @var array<string, bool>|null */
+    private ?array $usedPaths = null;
+
+    public function hasImages(string $folder): bool
+    {
+        return $this->imagePaths($folder) !== [];
+    }
+
     /** @return array<string, bool> Image paths mapped to whether an announcement uses them. */
     public function images(string $folder, bool $unusedOnly = false): array
+    {
+        if (! array_key_exists($folder, $this->imagesByFolder)) {
+            $paths = $this->imagePaths($folder);
+            $used = $paths === [] ? [] : $this->usedPaths();
+            $images = [];
+            foreach ($paths as $path) {
+                $images[$path] = isset($used[$path]);
+            }
+            ksort($images);
+            $this->imagesByFolder[$folder] = $images;
+        }
+
+        return $unusedOnly
+            ? array_filter($this->imagesByFolder[$folder], fn (bool $used): bool => ! $used)
+            : $this->imagesByFolder[$folder];
+    }
+
+    /** @return list<string> */
+    private function imagePaths(string $folder): array
     {
         if (! in_array($folder, ['hero', 'social'], true)) {
             throw new InvalidArgumentException('Unknown announcement image folder.');
         }
 
+        if (array_key_exists($folder, $this->pathsByFolder)) {
+            return $this->pathsByFolder[$folder];
+        }
+
         $prefix = 'images/updates/'.$folder.'/';
         $directory = public_path($prefix);
-        if (! is_dir($directory)) {
-            return [];
+        $paths = [];
+        if (is_dir($directory)) {
+            foreach (File::allFiles($directory) as $file) {
+                if (! str_starts_with((string) $file->getRealPath(), realpath($directory).DIRECTORY_SEPARATOR)
+                    || ! in_array(strtolower($file->getExtension()), ['png', 'jpg', 'jpeg', 'webp', 'gif', 'avif', 'svg'], true)) {
+                    continue;
+                }
+                $paths[] = $prefix.$file->getRelativePathname();
+            }
+        }
+
+        return $this->pathsByFolder[$folder] = $paths;
+    }
+
+    /** @return array<string, bool> */
+    private function usedPaths(): array
+    {
+        if ($this->usedPaths !== null) {
+            return $this->usedPaths;
         }
 
         $used = [];
@@ -35,23 +89,7 @@ class AnnouncementImageService
             }
         }
 
-        $images = [];
-        foreach (File::allFiles($directory) as $file) {
-            if (! str_starts_with((string) $file->getRealPath(), realpath($directory).DIRECTORY_SEPARATOR)
-                || ! in_array(strtolower($file->getExtension()), ['png', 'jpg', 'jpeg', 'webp', 'gif', 'avif', 'svg'], true)) {
-                continue;
-            }
-
-            $path = $prefix.$file->getRelativePathname();
-            $isUsed = isset($used[$path]);
-            if (! $unusedOnly || ! $isUsed) {
-                $images[$path] = $isUsed;
-            }
-        }
-
-        ksort($images);
-
-        return $images;
+        return $this->usedPaths = $used;
     }
 
     private function localPath(?string $reference): string

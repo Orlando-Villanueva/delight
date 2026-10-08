@@ -5,6 +5,7 @@ use App\Models\Announcement;
 use App\Models\User;
 use App\Services\AnnouncementImageService;
 use Filament\Actions\Testing\TestAction;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Livewire\Livewire;
 
@@ -123,4 +124,35 @@ it('explains the empty folder without offering legacy images', function () {
     $html = $page->instance()->getSchema('mountedActionSchema0')->toHtml();
     expect($html)->toContain('No matching images in images/updates/hero.')
         ->not->toContain('images/updates/legacy.png');
+});
+
+it('checks image availability and empty folders without querying announcements', function () {
+    File::deleteDirectory(public_path('images/updates/social'));
+    File::ensureDirectoryExists(public_path('images/updates/social'));
+    File::put(public_path('images/updates/social/.gitkeep'), '');
+    DB::enableQueryLog();
+    DB::flushQueryLog();
+
+    expect(app(AnnouncementImageService::class)->hasImages('hero'))->toBeTrue();
+    expect(app(AnnouncementImageService::class)->hasImages('social'))->toBeFalse();
+    expect(app(AnnouncementImageService::class)->images('social'))->toBe([]);
+    expect(DB::getQueryLog())->toBe([]);
+    DB::disableQueryLog();
+});
+
+it('reuses one usage scan across folders and filters and refreshes it for a new lifecycle', function () {
+    $draft = Announcement::factory()->draft()->create(['hero_image_path' => 'images/updates/hero/hero.png']);
+    DB::enableQueryLog();
+    DB::flushQueryLog();
+
+    expect(app(AnnouncementImageService::class)->images('hero'))->toHaveKey('images/updates/hero/hero.png', true);
+    expect(app(AnnouncementImageService::class)->images('hero', true))->not->toHaveKey('images/updates/hero/hero.png');
+    expect(app(AnnouncementImageService::class)->images('social'))->toBe(['images/updates/social/unused.png' => false]);
+    expect(DB::getQueryLog())->toHaveCount(1);
+    DB::disableQueryLog();
+
+    $draft->update(['hero_image_path' => 'images/updates/hero/unused.png']);
+    app()->forgetScopedInstances();
+    expect(app(AnnouncementImageService::class)->images('hero', true))->toHaveKey('images/updates/hero/hero.png')
+        ->not->toHaveKey('images/updates/hero/unused.png');
 });

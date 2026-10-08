@@ -5,6 +5,7 @@ use App\Filament\Resources\Announcements\Pages\EditAnnouncement;
 use App\Models\Announcement;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -115,3 +116,37 @@ it('rejects a save if publication or admin access changed while the form was ope
     $page->call('save')->assertForbidden();
     expect($draft->fresh()->title)->toBe('Original title');
 })->with(['publication', 'admin access']);
+
+it('rejects stale saves after an Artisan edit even within the same second', function () {
+    $this->freezeTime();
+    $this->actingAs(User::factory()->create(['email' => 'admin@example.com']));
+    $draft = Announcement::factory()->draft()->create(['title' => 'Original title', 'content' => 'Original body', 'hero_image_path' => 'images/hero.png']);
+    $updatedAt = $draft->updated_at;
+    $page = Livewire::test(EditAnnouncement::class, ['record' => $draft->id])
+        ->fillForm(['content' => 'Unsaved browser body']);
+
+    $this->artisan('announcements:edit', ['draft' => $draft->slug, '--title' => 'Artisan revision'])->assertSuccessful();
+    expect($draft->fresh()->updated_at->equalTo($updatedAt))->toBeTrue();
+
+    $page->call('save')->assertHasFormErrors(['title'])->assertNotNotified()
+        ->assertSet('data.content', 'Unsaved browser body')
+        ->assertSee('This draft changed after you opened it. Copy your unsaved edits before reloading the page.');
+    expect($draft->fresh()->title)->toBe('Artisan revision');
+    expect($draft->fresh()->content)->toBe('Original body');
+});
+
+it('uses the saved draft as the baseline for subsequent saves', function () {
+    $this->actingAs(User::factory()->create(['email' => 'admin@example.com']));
+    $draft = Announcement::factory()->draft()->create(['hero_image_path' => 'images/hero.png']);
+    Livewire::test(EditAnnouncement::class, ['record' => $draft->id])
+        ->fillForm(['content' => 'First revision'])->call('save')->assertHasNoFormErrors()
+        ->fillForm(['content' => 'Second revision'])->call('save')->assertHasNoFormErrors();
+    expect($draft->fresh()->content)->toBe('Second revision');
+});
+
+it('prevents clients from replacing the draft conflict baseline', function () {
+    $this->actingAs(User::factory()->create(['email' => 'admin@example.com']));
+    $draft = Announcement::factory()->draft()->create();
+    expect(fn () => Livewire::test(EditAnnouncement::class, ['record' => $draft->id])
+        ->set('loadedDraftFingerprint', 'forged'))->toThrow(CannotUpdateLockedPropertyException::class);
+});

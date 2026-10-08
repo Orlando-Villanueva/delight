@@ -102,7 +102,7 @@ class AnnouncementResource extends Resource
             ->modalHeading($folder === 'hero' ? 'Choose a hero image' : 'Choose a social preview image')
             ->modalDescription('Images deployed in images/updates/'.$folder.'. Usage includes saved announcements in every state and images in their Markdown. Unused here does not mean unused elsewhere in the app.')
             ->modalSubmitActionLabel('Use image')
-            ->modalSubmitAction(fn (Action $action): Action => $action->disabled(app(AnnouncementImageService::class)->images($folder) === []))
+            ->modalSubmitAction(fn (Action $action): Action => $action->disabled(! app(AnnouncementImageService::class)->hasImages($folder)))
             ->authorize(fn (): bool => static::canCreate())
             ->schema([
                 Toggle::make('unused_only')->label('Unused by announcements')->default(false)->live()
