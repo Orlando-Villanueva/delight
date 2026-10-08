@@ -1,3 +1,5 @@
+@use('App\Filament\Resources\Announcements\AnnouncementResource')
+
 @extends('layouts.reader')
 
 @php($isPreview = $isPreview ?? false)
@@ -69,7 +71,7 @@
             </div>
             <div class="flex flex-wrap items-center gap-4">
                 @if ($announcement->is_draft)
-                    <a href="{{ route('admin.announcements.edit', $announcement) }}"
+                    <a href="{{ AnnouncementResource::getUrl('edit', ['record' => $announcement], panel: 'admin') }}"
                         class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-600 dark:hover:bg-blue-500 dark:focus:ring-offset-amber-950">
                         Edit draft
                     </a>
@@ -113,7 +115,7 @@
 
         <div class="mx-auto mt-16 flex max-w-prose flex-wrap items-center gap-4 border-t border-gray-100 pt-10 dark:border-gray-800">
             @if ($isPreview && $announcement->is_draft)
-                <a href="{{ route('admin.announcements.edit', $announcement) }}"
+                <a href="{{ AnnouncementResource::getUrl('edit', ['record' => $announcement], panel: 'admin') }}"
                     class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-600 dark:hover:bg-blue-500 dark:focus:ring-offset-gray-900">
                     Edit draft
                 </a>

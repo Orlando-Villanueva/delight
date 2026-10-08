@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Models\Announcement;
 use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
@@ -21,29 +22,12 @@ it('it_can_show_the_announcement_index_for_admins', function () {
         'starts_at' => now(),
     ]);
 
-    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+    $response = $this->actingAs($this->admin)->followingRedirects()->get(route('admin.announcements.index'));
 
     $response->assertOk();
     $response->assertSee('Weekly Update');
     $response->assertSee(route('announcements.show', 'weekly-update-123'))
         ->assertDontSee(route('admin.announcements.preview', 'weekly-update-123'));
-});
-
-it('it_can_show_the_announcement_create_form_for_admins', function () {
-    $response = $this->actingAs($this->admin)->get(route('admin.announcements.create'));
-
-    $response->assertOk();
-    $response->assertSee('Create Announcement');
-    $response->assertSee('Content');
-    $response->assertSee('Hero Image Path');
-    $response->assertSee('Social Image Path');
-    $response->assertSee('Publication Slug');
-    $response->assertSee('Leave blank to');
-    $response->assertSee('generate it from the title.');
-    $response->assertSee('Markdown');
-    $response->assertDontSee('name="type"', false);
-    $response->assertSee('Publishing makes this announcement visible in-app.');
-    $response->assertSee('Publish or schedule announcement');
 });
 
 it('shows persisted drafts to admins with a protected preview link', function () {
@@ -58,12 +42,11 @@ it('shows persisted drafts to admins with a protected preview link', function ()
         'starts_at' => now()->addDay(),
     ]);
 
-    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+    $response = $this->actingAs($this->admin)->followingRedirects()->get(route('admin.announcements.index'));
 
     $response->assertSee($announcement->title)
         ->assertSee('Draft')
-        ->assertSee('Not enabled')
-        ->assertDontSee('Expired')
+        ->assertSee('Not authorized')
         ->assertSee(route('admin.announcements.preview', $announcement->slug))
         ->assertDontSee(route('announcements.show', $announcement->slug))
         ->assertSee(route('admin.announcements.preview', $scheduledAnnouncement->slug))
@@ -77,161 +60,11 @@ it('shows an edit action only for persisted drafts', function () {
     ]);
     $publishedAnnouncement = Announcement::factory()->create();
 
-    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+    $response = $this->actingAs($this->admin)->followingRedirects()->get(route('admin.announcements.index'));
 
-    $response->assertSee(route('admin.announcements.edit', $draft))
-        ->assertDontSee(route('admin.announcements.edit', $scheduledAnnouncement))
-        ->assertDontSee(route('admin.announcements.edit', $publishedAnnouncement));
-});
-
-it('renders a persisted draft in the announcement edit form', function () {
-    $announcement = Announcement::factory()->draft()->create([
-        'title' => 'Editable announcement draft',
-        'slug' => 'editable-announcement-draft',
-        'content' => 'Original draft content.',
-        'hero_image_path' => 'images/original-hero.png',
-        'social_image_path' => 'images/original-social.png',
-        'starts_at' => '2026-09-10 09:00:00',
-        'ends_at' => '2026-09-17 09:00:00',
-    ]);
-
-    $response = $this->actingAs($this->admin)->get(route('admin.announcements.edit', $announcement));
-
-    $response->assertSee('Edit Announcement Draft')
-        ->assertSee('value="Editable announcement draft"', false)
-        ->assertSee('value="editable-announcement-draft"', false)
-        ->assertSee('Original draft content.')
-        ->assertSee('value="images/original-hero.png"', false)
-        ->assertSee('value="images/original-social.png"', false)
-        ->assertSee('value="2026-09-10T09:00"', false)
-        ->assertSee('value="2026-09-17T09:00"', false)
-        ->assertSee('Saving keeps this announcement as a private draft.')
-        ->assertSee('Save draft changes')
-        ->assertSee('hx-include="closest form"', false)
-        ->assertSee('hx-params="not _method"', false);
-});
-
-it('updates a persisted draft without publishing or authorizing email', function () {
-    Mail::fake();
-    $announcement = Announcement::factory()->draft()->create([
-        'title' => 'Original title',
-        'slug' => 'original-title',
-        'content' => 'Original content.',
-        'hero_image_path' => 'images/original.png',
-    ]);
-
-    $response = $this->actingAs($this->admin)->put(route('admin.announcements.update', $announcement), [
-        'title' => 'Revised title',
-        'slug' => 'Revised Editorial URL',
-        'content' => 'Revised content.',
-        'hero_image_path' => 'images/revised.png',
-        'social_image_path' => 'images/revised-social.png',
-        'starts_at' => '2026-09-10T09:00',
-        'ends_at' => '2026-09-17T09:00',
-        'is_draft' => false,
-        'email_broadcast_authorized_at' => now(),
-    ]);
-
-    $response->assertRedirectToRoute('admin.announcements.preview', [
-        'announcement' => 'revised-editorial-url',
-    ])->assertSessionHas('success', 'Announcement draft updated.');
-
-    $announcement->refresh();
-
-    expect($announcement->title)->toBe('Revised title')
-        ->and($announcement->slug)->toBe('revised-editorial-url')
-        ->and($announcement->content)->toBe('Revised content.')
-        ->and($announcement->hero_image_path)->toBe('images/revised.png')
-        ->and($announcement->social_image_path)->toBe('images/revised-social.png')
-        ->and($announcement->starts_at->format('Y-m-d H:i'))->toBe('2026-09-10 09:00')
-        ->and($announcement->ends_at->format('Y-m-d H:i'))->toBe('2026-09-17 09:00')
-        ->and($announcement->is_draft)->toBeTrue()
-        ->and($announcement->email_broadcast_authorized_at)->toBeNull()
-        ->and($announcement->emailDeliveries()->count())->toBe(0);
-    Mail::assertNothingSent();
-});
-
-it('generates a publication slug from the title when updating a draft without one', function () {
-    $announcement = Announcement::factory()->draft()->create([
-        'slug' => 'original-publication-slug',
-        'hero_image_path' => 'images/original.png',
-    ]);
-
-    $response = $this->actingAs($this->admin)->put(route('admin.announcements.update', $announcement), [
-        'title' => 'Generated From Updated Title',
-        'slug' => '',
-        'content' => 'Updated content.',
-        'hero_image_path' => 'images/updated.png',
-    ]);
-
-    $response->assertValid()
-        ->assertRedirectToRoute('admin.announcements.preview', [
-            'announcement' => 'generated-from-updated-title',
-        ]);
-    expect($announcement->fresh()->slug)->toBe('generated-from-updated-title');
-});
-
-it('allows a draft to retain its publication slug', function () {
-    $announcement = Announcement::factory()->draft()->create([
-        'slug' => 'retained-publication-slug',
-        'hero_image_path' => 'images/original.png',
-    ]);
-
-    $response = $this->actingAs($this->admin)->put(route('admin.announcements.update', $announcement), [
-        'title' => 'Updated title',
-        'slug' => 'retained-publication-slug',
-        'content' => 'Updated content.',
-        'hero_image_path' => 'images/updated.png',
-    ]);
-
-    $response->assertValid()
-        ->assertRedirectToRoute('admin.announcements.preview', [
-            'announcement' => 'retained-publication-slug',
-        ]);
-    expect($announcement->fresh()->title)->toBe('Updated title');
-});
-
-it('rejects another announcement publication slug when updating a draft', function () {
-    $announcement = Announcement::factory()->draft()->create([
-        'title' => 'Unchanged title',
-        'slug' => 'unchanged-slug',
-        'hero_image_path' => 'images/original.png',
-    ]);
-    Announcement::factory()->create(['slug' => 'existing-slug']);
-
-    $response = $this->actingAs($this->admin)
-        ->from(route('admin.announcements.edit', $announcement))
-        ->put(route('admin.announcements.update', $announcement), [
-            'title' => 'Changed title',
-            'slug' => 'existing-slug',
-            'content' => 'Changed content.',
-            'hero_image_path' => 'images/changed.png',
-        ]);
-
-    $response->assertRedirect(route('admin.announcements.edit', $announcement))
-        ->assertInvalid(['slug']);
-    expect($announcement->fresh()->title)->toBe('Unchanged title')
-        ->and($announcement->fresh()->slug)->toBe('unchanged-slug');
-});
-
-it('does not allow published announcements to be edited', function () {
-    $announcement = Announcement::factory()->create([
-        'title' => 'Published announcement',
-        'hero_image_path' => 'images/published.png',
-    ]);
-
-    $this->actingAs($this->admin)
-        ->get(route('admin.announcements.edit', $announcement))
-        ->assertNotFound();
-
-    $this->actingAs($this->admin)->put(route('admin.announcements.update', $announcement), [
-        'title' => 'Changed title',
-        'slug' => $announcement->slug,
-        'content' => 'Changed content.',
-        'hero_image_path' => 'images/changed.png',
-    ])->assertNotFound();
-
-    expect($announcement->fresh()->title)->toBe('Published announcement');
+    $response->assertSee(AnnouncementResource::getUrl('edit', ['record' => $draft], panel: 'admin'))
+        ->assertDontSee(AnnouncementResource::getUrl('edit', ['record' => $scheduledAnnouncement], panel: 'admin'))
+        ->assertDontSee(AnnouncementResource::getUrl('edit', ['record' => $publishedAnnouncement], panel: 'admin'));
 });
 
 it('renders a persisted draft preview for admins without side effects', function () {
@@ -259,7 +92,7 @@ it('renders a persisted draft preview for admins without side effects', function
         ->assertDontSee('<link rel="canonical"', false);
     expect(substr_count(
         $response->getContent(),
-        route('admin.announcements.edit', $announcement)
+        AnnouncementResource::getUrl('edit', ['record' => $announcement], panel: 'admin')
     ))->toBe(2);
     expect($this->admin->announcements()->whereKey($announcement->id)->exists())->toBeFalse()
         ->and($announcement->emailDeliveries()->count())->toBe(0);
@@ -278,7 +111,7 @@ it('renders a scheduled announcement preview before its publication time', funct
     $response->assertSee('Scheduled preview')
         ->assertSee('This announcement is not publicly visible yet.')
         ->assertDontSee('Edit draft')
-        ->assertDontSee(route('admin.announcements.edit', $announcement));
+        ->assertDontSee(AnnouncementResource::getUrl('edit', ['record' => $announcement], panel: 'admin'));
     $this->get(route('announcements.show', $announcement->slug))->assertNotFound();
 });
 
@@ -297,214 +130,6 @@ it('redirects a publicly reachable announcement preview to its publication URL',
     ]);
 });
 
-it('publishes in-app without authorizing an email broadcast', function () {
-    Mail::fake();
-    User::factory()->create();
-
-    $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
-        'title' => 'New Feature',
-        'content' => 'Some markdown content.',
-        'hero_image_path' => 'images/new-feature-hero.png',
-        'social_image_path' => 'images/new-feature-social.jpg',
-        'is_draft' => true,
-    ]);
-
-    $response->assertRedirect(route('admin.announcements.index'));
-    $response->assertSessionHas(
-        'success',
-        'Announcement published.'
-    );
-
-    $announcement = Announcement::first();
-
-    expect($announcement)->not->toBeNull()
-        ->and($announcement->title)->toBe('New Feature')
-        ->and($announcement->hero_image_path)->toBe('images/new-feature-hero.png')
-        ->and($announcement->social_image_path)->toBe('images/new-feature-social.jpg')
-        ->and($announcement->is_draft)->toBeFalse()
-        ->and($announcement->slug)->toBe('new-feature')
-        ->and($announcement->email_broadcast_authorized_at)->toBeNull()
-        ->and($announcement->email_audience_finalized_at)->toBeNull()
-        ->and($announcement->emailDeliveries()->count())->toBe(0);
-
-    Mail::assertNothingSent();
-
-    $this->artisan('announcements:send-published-emails')->assertSuccessful();
-
-    expect($announcement->fresh()->email_audience_finalized_at)->toBeNull()
-        ->and($announcement->emailDeliveries()->count())->toBe(0);
-    Mail::assertNothingSent();
-});
-
-it('shows a duplicate slug error and restores the announcement form', function () {
-    Announcement::factory()->create(['slug' => 'new-feature']);
-
-    $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
-        'title' => 'New Feature',
-        'content' => 'Some markdown content.',
-        'hero_image_path' => 'images/new-feature-hero.png',
-        'social_image_path' => 'images/new-feature-social.png',
-        'starts_at' => '2026-09-10T09:00',
-        'ends_at' => '2026-09-17T09:00',
-    ]);
-
-    $response->assertInvalid(['slug']);
-    $form = $this->get(route('admin.announcements.create'));
-
-    $form->assertSee('The announcement could not be saved.')
-        ->assertSee('The slug has already been taken.')
-        ->assertSee('value="New Feature"', false)
-        ->assertSee('value="new-feature"', false)
-        ->assertSee('value="images/new-feature-hero.png"', false)
-        ->assertSee('value="images/new-feature-social.png"', false)
-        ->assertSee('Some markdown content.')
-        ->assertSee('value="2026-09-10T09:00"', false)
-        ->assertSee('value="2026-09-17T09:00"', false);
-    expect(Announcement::query()->count())->toBe(1);
-});
-
-it('publishes with an explicit clean publication slug', function () {
-    Mail::fake();
-
-    $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
-        'title' => 'New Feature',
-        'slug' => 'Editorial Release URL',
-        'content' => 'Some markdown content.',
-        'hero_image_path' => 'images/new-feature-hero.png',
-    ]);
-
-    $response->assertRedirect(route('admin.announcements.index'));
-    expect(Announcement::sole()->slug)->toBe('editorial-release-url');
-    Mail::assertNothingSent();
-});
-
-it('schedules in-app without authorizing email before or after publication', function () {
-    Mail::fake();
-    User::factory()->create();
-    $startsAt = now()->addHour()->startOfMinute();
-
-    $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
-        'title' => 'Scheduled Feature',
-        'content' => 'Some scheduled markdown content.',
-        'hero_image_path' => 'images/scheduled-feature-hero.png',
-        'starts_at' => $startsAt->format('Y-m-d\TH:i'),
-    ]);
-
-    $response->assertRedirect(route('admin.announcements.index'))
-        ->assertSessionHas(
-            'success',
-            'Announcement scheduled.'
-        );
-
-    $announcement = Announcement::sole();
-
-    expect($announcement->email_broadcast_authorized_at)->toBeNull()
-        ->and($announcement->email_audience_finalized_at)->toBeNull()
-        ->and($announcement->emailDeliveries()->count())->toBe(0);
-    Mail::assertNothingSent();
-
-    $this->artisan('announcements:send-published-emails')->assertSuccessful();
-
-    expect($announcement->fresh()->email_audience_finalized_at)->toBeNull()
-        ->and($announcement->emailDeliveries()->count())->toBe(0);
-    Mail::assertNothingSent();
-
-    $this->travelTo($startsAt);
-    $this->artisan('announcements:send-published-emails')->assertSuccessful();
-
-    expect($announcement->fresh()->email_audience_finalized_at)->toBeNull()
-        ->and($announcement->emailDeliveries()->count())->toBe(0);
-    Mail::assertNothingSent();
-});
-
-it('it_can_render_a_markdown_preview_for_admins', function () {
-    $response = $this->actingAs($this->admin)->post(route('admin.announcements.preview-markdown'), [
-        'content' => "# Hello\n\n**World**",
-    ], [
-        'HX-Request' => 'true',
-    ]);
-
-    $response->assertOk();
-    $response->assertSee('<h1>Hello</h1>', false);
-    $response->assertSee('<strong>World</strong>', false);
-    $response->assertDontSee('<!DOCTYPE html>');
-    expect(Announcement::query()->count())->toBe(0);
-});
-
-it('it_can_render_an_empty_preview_state_for_admins', function () {
-    $response = $this->actingAs($this->admin)->post(route('admin.announcements.preview-markdown'), [
-        'content' => '   ',
-    ], [
-        'HX-Request' => 'true',
-    ]);
-
-    $response->assertOk();
-    $response->assertSee('Nothing to preview yet', false);
-    $response->assertDontSee('<!DOCTYPE html>');
-});
-
-it('it_can_block_non_admins_from_admin_announcement_routes', function (string $method, Closure $route, array $payload = []) {
-    $user = User::factory()->create([
-        'email' => 'user@example.com',
-    ]);
-
-    $response = $this->actingAs($user)->{$method}($route(), $payload, [
-        'HX-Request' => 'true',
-    ]);
-
-    $response->assertForbidden();
-})->with([
-    ['get', fn () => route('admin.announcements.index')],
-    ['get', fn () => route('admin.announcements.create')],
-    ['post', fn () => route('admin.announcements.store'), [
-        'title' => 'Blocked',
-        'content' => 'Nope',
-        'hero_image_path' => 'images/nope.png',
-        'social_image_path' => 'images/nope-social.jpg',
-    ]],
-    ['post', fn () => route('admin.announcements.preview-markdown'), [
-        'content' => '# Preview',
-    ]],
-    ['get', fn () => route('admin.announcements.preview', [
-        'announcement' => Announcement::factory()->draft()->create()->slug,
-    ])],
-    ['get', fn () => route('admin.announcements.edit', Announcement::factory()->draft()->create())],
-    ['put', fn () => route('admin.announcements.update', Announcement::factory()->draft()->create()), [
-        'title' => 'Blocked update',
-        'content' => 'Nope',
-        'hero_image_path' => 'images/nope.png',
-    ]],
-]);
-
-it('it_can_redirect_guests_from_admin_announcement_routes', function (string $method, Closure $route, array $payload = []) {
-    $response = $this->{$method}($route(), $payload, [
-        'HX-Request' => 'true',
-    ]);
-
-    $response->assertRedirect(route('login'));
-})->with([
-    ['get', fn () => route('admin.announcements.index')],
-    ['get', fn () => route('admin.announcements.create')],
-    ['post', fn () => route('admin.announcements.store'), []],
-    ['post', fn () => route('admin.announcements.preview-markdown'), [
-        'content' => '# Preview',
-    ]],
-    ['get', fn () => route('admin.announcements.preview', [
-        'announcement' => Announcement::factory()->draft()->create()->slug,
-    ])],
-    ['get', fn () => route('admin.announcements.edit', Announcement::factory()->draft()->create())],
-    ['put', fn () => route('admin.announcements.update', Announcement::factory()->draft()->create())],
-]);
-
-it('it_can_validate_announcement_creation_inputs', function () {
-    $response = $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
-        'title' => '',
-        'content' => '',
-    ]);
-
-    $response->assertSessionHasErrors(['title', 'content', 'hero_image_path']);
-});
-
 it('shows announcement email failures and routine recovery on the admin index', function () {
     $announcement = Announcement::factory()->create([
         'title' => 'Delivery status update',
@@ -521,13 +146,13 @@ it('shows announcement email failures and routine recovery on the admin index', 
         'failure_reason' => 'Mailgun unavailable (code 503).',
     ]);
 
-    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+    $response = $this->actingAs($this->admin)->followingRedirects()->get(route('admin.announcements.index'));
 
     $response->assertOk()
         ->assertSee('Needs attention')
         ->assertSee('1 failed')
-        ->assertSee('Mailgun unavailable (code 503).')
-        ->assertSee(route('admin.announcements.email-deliveries.retry', $announcement));
+        ->assertDontSee('Mailgun unavailable (code 503).')
+        ->assertDontSee(route('admin.announcements.email-deliveries.retry', $announcement));
 });
 
 it('shows live announcement email progress and polls while delivery is active', function () {
@@ -543,16 +168,13 @@ it('shows live announcement email progress and polls while delivery is active', 
         'announcement_id' => $announcement->id,
     ]);
 
-    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+    $response = $this->actingAs($this->admin)->followingRedirects()->get(route('admin.announcements.index'));
 
     $response->assertOk()
-        ->assertSee('Sending')
+        ->assertSee('Pending recipients')
         ->assertSee('2 of 3 handled')
         ->assertSee('1 pending')
-        ->assertSee('Started 5 minutes ago')
-        ->assertSee('Last activity')
-        ->assertSee('hx-trigger="every 15s"', false)
-        ->assertSee('hx-select="#announcement-table-body"', false);
+        ->assertSee('wire:poll.15s', false);
 });
 
 it('does not poll for email progress before a scheduled announcement is published', function () {
@@ -561,14 +183,14 @@ it('does not poll for email progress before a scheduled announcement is publishe
         'email_broadcast_authorized_at' => now(),
     ]);
 
-    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+    $response = $this->actingAs($this->admin)->followingRedirects()->get(route('admin.announcements.index'));
 
     $response->assertOk()
         ->assertSee('Scheduled')
-        ->assertDontSee('hx-trigger="every 15s"', false);
+        ->assertDontSee('wire:poll.15s', false);
 });
 
-it('shows completed broadcast duration and stops polling', function () {
+it('shows completed broadcast summary and stops polling', function () {
     $announcement = Announcement::factory()->create([
         'email_broadcast_authorized_at' => now()->subMinutes(11),
         'email_audience_finalized_at' => now()->subMinutes(10),
@@ -579,16 +201,17 @@ it('shows completed broadcast duration and stops polling', function () {
         'sent_at' => now()->subMinute(),
     ]);
 
-    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+    $response = $this->actingAs($this->admin)->followingRedirects()->get(route('admin.announcements.index'));
 
     $response->assertOk()
-        ->assertSee('Delivered')
+        ->assertSee('Processing completed')
+        ->assertSee('1 transport-submitted')
+        ->assertDontSee('Delivered')
         ->assertSee('1 of 1 handled')
-        ->assertSee('Completed in 10m')
-        ->assertDontSee('hx-trigger="every 15s"', false);
+        ->assertDontSee('wire:poll.15s', false);
 });
 
-it('warns when pending announcement email delivery is delayed', function () {
+it('shows pending recipients without inferring a provider delay', function () {
     $announcement = Announcement::factory()->create([
         'email_broadcast_authorized_at' => now()->subMinutes(17),
         'email_audience_finalized_at' => now()->subMinutes(16),
@@ -597,13 +220,13 @@ it('warns when pending announcement email delivery is delayed', function () {
         'announcement_id' => $announcement->id,
     ]);
 
-    $response = $this->actingAs($this->admin)->get(route('admin.announcements.index'));
+    $response = $this->actingAs($this->admin)->followingRedirects()->get(route('admin.announcements.index'));
 
     $response->assertOk()
-        ->assertSee('Delayed')
+        ->assertSee('Pending recipients')
+        ->assertDontSee('Delayed')
         ->assertSee('0 of 1 handled')
-        ->assertSee('1 pending')
-        ->assertSee('Started 16 minutes ago');
+        ->assertSee('1 pending');
 });
 
 it('retries only terminally failed recipients for an announcement', function () {
@@ -664,17 +287,84 @@ it('blocks non-admins and guests from retrying failed announcement emails', func
     $this->post($route)->assertRedirect(route('login'));
 });
 
-it('returns content errors without publishing a malformed announcement link', function () {
+it('shows historical email records without authorizing or changing failed recipients', function () {
+    $this->freezeTime();
     Mail::fake();
+    $announcement = Announcement::factory()->create();
+    $delivery = AnnouncementEmailDelivery::factory()->for($announcement)->create([
+        'failed_at' => now(),
+        'attempt_count' => 2,
+        'failure_reason' => 'Permanent SMTP rejection',
+    ]);
+    $before = $delivery->fresh()->getRawOriginal();
 
-    $this->actingAs($this->admin)->post(route('admin.announcements.store'), [
-        'title' => 'Broken link review',
-        'slug' => 'broken-link-review',
-        'content' => '[Broken](https://)',
-        'hero_image_path' => 'images/updates/example.png',
-        'starts_at' => now()->toDateTimeString(),
-    ])->assertSessionHasErrors(['content' => 'Link "Broken" (https://): Malformed URL.']);
+    $response = $this->actingAs($this->admin)->followingRedirects()->get(route('admin.announcements.index'));
 
-    $this->assertDatabaseMissing('announcements', ['slug' => 'broken-link-review']);
+    $response->assertSee('Historical email records')
+        ->assertSee('Email not authorized')
+        ->assertSee('1 failed')
+        ->assertDontSee('Permanent SMTP rejection')
+        ->assertDontSee('wire:poll.15s', false);
+    expect($delivery->fresh()->getRawOriginal())->toBe($before);
+    expect($announcement->fresh()->email_broadcast_authorized_at)->toBeNull();
     Mail::assertNothingSent();
 });
+
+it('shows a historical processing milestone without inventing a duration or a submitted recipient', function () {
+    $this->freezeTime();
+    $announcement = Announcement::factory()->create(['email_broadcast_completed_at' => now()->subMinute()]);
+
+    $response = $this->actingAs($this->admin)->followingRedirects()->get(route('admin.announcements.index'));
+
+    $response->assertSee('Historical email records')
+        ->assertSee('Completed processing')
+        ->assertDontSee('Completed in')
+        ->assertDontSee('transport-submitted');
+});
+it('redirects legacy draft authoring links to Filament', function () {
+    $draft = Announcement::factory()->draft()->create();
+    $this->actingAs($this->admin);
+
+    $this->get(route('admin.announcements.create'))->assertRedirect(AnnouncementResource::getUrl('create', panel: 'admin'));
+    $this->get(route('admin.announcements.edit', $draft))->assertRedirect(AnnouncementResource::getUrl('edit', ['record' => $draft], panel: 'admin'));
+    $this->followingRedirects()->get(route('admin.announcements.edit', $draft))->assertSee('Edit announcement draft')->assertSee($draft->title);
+});
+
+it('rejects legacy edit links for published scheduled and missing announcements', function () {
+    $this->actingAs($this->admin);
+    $published = Announcement::factory()->create();
+    $scheduled = Announcement::factory()->create(['starts_at' => now()->addDay()]);
+
+    $this->get(route('admin.announcements.edit', $published))->assertNotFound();
+    $this->get(route('admin.announcements.edit', $scheduled))->assertNotFound();
+    $this->get('/admin/announcements/999999/edit')->assertNotFound();
+});
+
+it('protects retained legacy navigation and preview routes', function (string $routeName) {
+    $draft = Announcement::factory()->draft()->create();
+    $url = route($routeName, $routeName === 'admin.announcements.preview' ? $draft->slug : $draft);
+
+    $this->get($url)->assertRedirect(route('login'));
+    $this->actingAs(User::factory()->create())->get($url)->assertForbidden();
+})->with(['admin.announcements.index', 'admin.announcements.create', 'admin.announcements.edit', 'admin.announcements.preview']);
+
+it('retires legacy authoring mutations without changing records', function (string $method, string $path) {
+    $draft = Announcement::factory()->draft()->create();
+    $before = $draft->fresh()->getRawOriginal();
+    $this->actingAs($this->admin);
+    Mail::fake();
+
+    $response = $this->{$method}(str_replace('{id}', (string) $draft->id, $path), [
+        'title' => 'Unwanted publication', 'content' => 'Changed content', 'is_draft' => false,
+    ]);
+
+    expect(in_array($response->status(), [404, 405], true))->toBeTrue();
+    expect($draft->fresh()->getRawOriginal())->toBe($before);
+    $this->assertDatabaseCount('announcements', 1);
+    Mail::assertNothingSent();
+})->with([
+    ['post', '/admin/announcements'],
+    ['put', '/admin/announcements/{id}'],
+    ['patch', '/admin/announcements/{id}'],
+    ['post', '/admin/announcements/preview-markdown'],
+]);

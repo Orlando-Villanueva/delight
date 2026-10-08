@@ -19,19 +19,17 @@ it('rejects publication of a non-draft announcement', function () {
     app(AnnouncementService::class)->publishDraft($announcement, now());
 })->throws(LogicException::class, 'Only draft announcements can be published.');
 
-it('creates announcements without accepting email authorization from input', function (bool $isDraft) {
+it('creates drafts without accepting publication or email authorization from input', function () {
     $attributes = Announcement::factory()->make([
-        'email_broadcast_authorized_at' => now(),
+        'email_broadcast_authorized_at' => now(), 'is_draft' => false,
     ])->getAttributes();
     $service = app(AnnouncementService::class);
 
-    $announcement = $isDraft
-        ? $service->createDraft($attributes)
-        : $service->createPublishedOrScheduled($attributes);
+    $announcement = $service->createDraft($attributes);
 
-    expect($announcement->fresh()->is_draft)->toBe($isDraft)
+    expect($announcement->fresh()->is_draft)->toBeTrue()
         ->and($announcement->fresh()->email_broadcast_authorized_at)->toBeNull();
-})->with(['draft' => true, 'published' => false]);
+});
 
 it('publishes a draft while preserving existing email state', function (bool $hasEmailState) {
     $this->freezeSecond();

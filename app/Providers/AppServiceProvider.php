@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\GoogleIdTokenVerifierContract;
+use App\Services\AnnouncementImageService;
 use App\Services\BibleReferenceService;
 use App\Services\GoogleIdTokenVerifier;
 use App\Services\ReadingCalendarService;
@@ -19,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->scoped(AnnouncementImageService::class);
         $this->app->scoped(Google_Client::class, fn (): Google_Client => new Google_Client);
         $this->app->bind(GoogleIdTokenVerifierContract::class, GoogleIdTokenVerifier::class);
 

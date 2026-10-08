@@ -18,10 +18,12 @@ For Laravel Cloud, use the available Cloud skill and discover command signatures
 Read the current command help before constructing an operation. Write the approved Markdown to a content file accessible in the execution environment. Use public image paths and check authored links and images; built-in structural validation does not prove that a URL is reachable or that an image renders.
 
 ```bash
-php artisan announcements:draft --title="Announcement title" --slug=announcement-slug --content-file=/path/to/content.md --hero-image-path=images/updates/hero.png --json
+php artisan announcements:draft --title="Announcement title" --slug=announcement-slug --content-file=/path/to/content.md --hero-image-path=images/updates/hero/example.png --json
 php artisan announcements:edit announcement-slug --content-file=/path/to/revised.md --json
 php artisan announcements:publish announcement-slug --dry-run --json
 ```
+
+Filament announcement management is under `/admin/manage-announcements`. **New draft** saves a private draft; **Edit draft** updates only saved drafts. Image pickers browse committed hero images under `public/images/updates/hero/` and social previews under `public/images/updates/social/`. Their usage labels reflect saved announcement references, not proof that an asset is safe to delete. Existing image paths remain valid.
 
 Draft creation persists `starts_at` (defaults to now). Use explicit dates with timezone offsets for scheduling. Draft output includes an authenticated admin preview URL. Review the actual content, image, publication time, and expiry with the user before publishing. Published announcements cannot be edited through the draft commands.
 
@@ -32,7 +34,7 @@ php artisan announcements:test-email announcement-slug --dry-run
 php artisan announcements:test-email announcement-slug --yes
 ```
 
-This targets only the configured `mail.admin_address`, prefixes the subject with `[TEST]`, and creates no subscriber delivery records. Verify the recipient and transport before the send; it neither publishes nor authorizes a broadcast.
+This targets only the configured `mail.admin_address`, prefixes the subject with `[TEST]`, and creates no subscriber delivery records. Verify the recipient and transport before the send; it neither publishes nor authorizes a broadcast. Filament provides **Send test email** on draft editing and details pages. Confirmation shows the admin recipient and `[TEST]` subject. It uses the saved draft, so save edits first. Success means transport submission, not confirmed inbox delivery.
 
 ## Publish in-app
 
@@ -40,7 +42,7 @@ This targets only the configured `mail.admin_address`, prefixes the subject with
 php artisan announcements:publish announcement-slug --yes --json
 ```
 
-Publication sets `is_draft=false`, preserves a future `starts_at`, and otherwise uses the actual publication time. It does not authorize email. The existing admin create form likewise publishes/schedules without authorizing email. Report the publication URL and saved timing. In a dry-run, `state=published` describes the proposed outcome, not a persisted transition.
+Publication sets `is_draft=false`, preserves a future `starts_at`, and otherwise uses the actual publication time. It does not authorize email. In Filament, open saved draft details and confirm **Publish announcement** or **Schedule announcement**. Creating or saving a draft does not publish it. Publication ends draft editing. Report the publication URL and saved timing. In a dry-run, `state=published` describes the proposed outcome, not a persisted transition.
 
 ## Authorize email separately
 
@@ -49,7 +51,7 @@ php artisan announcements:authorize-email announcement-slug --dry-run --json
 php artisan announcements:authorize-email announcement-slug --yes --json
 ```
 
-Review recipient estimates before authorization. The estimate uses valid addresses, opt-out filtering, and the publication-time account-creation cutoff; it is not a frozen audience or a sent count.
+Filament provides **Authorize email** on published/scheduled announcement details with audience estimates in the confirmation. Review recipient estimates before authorization. The estimate uses valid addresses, opt-out filtering, and the publication-time account-creation cutoff; it is not a frozen audience or a sent count.
 
 Authorization sets `email_broadcast_authorized_at=now()` under a transaction and row lock. It leaves `starts_at` unchanged and does not send synchronously. Drafts, initial authorization after expiry, missing publication times, malformed email content, and email history without an authorization timestamp are rejected. Do not bypass these guards or clear historical state to make a command succeed.
 
@@ -67,6 +69,8 @@ php artisan announcements:send-published-emails
 
 Inspect the announcement's authorization, audience-finalization and completion timestamps, plus its `AnnouncementEmailDelivery` rows and command/application logs. Preserve terminal failed and uncertain states. Do not automatically run `--retry-delivery`; inspect the failure and obtain approval for a deliberate retry. Completion means processing finished; inspect sent/skipped/failed/uncertain totals before claiming success.
 
+Filament details show persisted milestones and recipient outcomes. Authorized incomplete announcements auto-refresh every 15 seconds while visible. The green **Auto-refresh** indicator and timestamp describe page updates, not scheduler health. Polling stops once completion is recorded. Recipient details expose recorded reasons; **Retry failed recipients** requires confirmation and applies only to eligible failures.
+
 Report evidence precisely: authorized, awaiting publication, processed, captured by log/Mailpit, or accepted by the configured transport. Transport acceptance does not prove real inbox delivery. Do not change provider settings or add quota/MCP/UI functionality as part of preparing an announcement.
 
 ## Source of truth
@@ -75,6 +79,8 @@ Resolve these repository-relative paths from the checkout root:
 
 - `app/Console/Commands/{CreateAnnouncementDraft,EditAnnouncementDraft,PublishAnnouncement,AuthorizeAnnouncementEmail,SendAnnouncementTestEmail,SendPublishedAnnouncementEmails}.php`: operation flags and output.
 - `app/Services/AnnouncementService.php`: creation, publication, authorization guards and transaction.
+- `app/Services/AnnouncementTestEmailService.php`: saved-draft test validation and transport submission.
+- `app/Filament/Resources/Announcements/`: draft forms, publication, test-email and authorization actions, progress and recipient diagnostics.
 - `app/Services/AnnouncementValidator.php` and `AnnouncementEmailLinkValidator.php`: input and email-reference validation.
 - `app/Services/AnnouncementEmailDeliveryService.php`: audience selection, snapshots, retries and completion.
 - `app/Models/Announcement.php`, `AnnouncementEmailDelivery.php`, and `routes/console.php`: visibility, persisted delivery state and schedule.

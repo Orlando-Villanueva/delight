@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\Announcements\AnnouncementResource;
 use App\Models\User;
 
 beforeEach(function () {
@@ -13,7 +14,7 @@ it('shows the admin shell and existing destinations to the configured admin', fu
         ->assertOk()
         ->assertSee('Welcome to Delight Admin')
         ->assertSee(route('admin.analytics.index'))
-        ->assertSee(route('admin.announcements.index'))
+        ->assertSee(AnnouncementResource::getUrl('index', panel: 'admin'))
         ->assertSee(route('dashboard'))
         ->assertSee('Back to Delight')
         ->assertSee('--default-theme-mode: system', false)

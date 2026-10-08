@@ -57,13 +57,15 @@ it('inspects markdown references and linked images and collects all errors', fun
     }
 });
 
-it('rejects invalid links in direct publication without creating a record', function () {
+it('rejects invalid links when publishing a saved draft', function () {
     $attributes = Announcement::factory()->draft()->make(['content' => '[Broken](https://)'])->getAttributes();
 
-    expect(fn () => app(AnnouncementService::class)->createPublishedOrScheduled($attributes))
+    $draft = app(AnnouncementService::class)->createDraft($attributes);
+
+    expect(fn () => app(AnnouncementService::class)->publishDraft($draft, now()))
         ->toThrow(ValidationException::class);
 
-    $this->assertDatabaseCount('announcements', 0);
+    expect($draft->fresh()->is_draft)->toBeTrue();
 });
 
 it('allows an invalid link to be saved as a draft but prevents publication', function () {
