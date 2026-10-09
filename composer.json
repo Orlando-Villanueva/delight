@@ -26,6 +26,7 @@
         "laravel/socialite": "^5.23",
         "laravel/telescope": "^5.10",
         "laravel/tinker": "^2.10.1",
+        "sentry/sentry-laravel": "^4.29",
         "symfony/http-client": "^7.3",
         "symfony/mailgun-mailer": "^7.3"
     },
