@@ -22,7 +22,8 @@ class ReadingLogGroupResource extends JsonResource
         $firstLog = $logs->first();
         $startChapter = (int) $logs->min('chapter');
         $endChapter = (int) $logs->max('chapter');
-        $bookName = app(BibleReferenceService::class)->getLocalizedBookName(
+        $bibleReferenceService = app(BibleReferenceService::class);
+        $bookName = $bibleReferenceService->getLocalizedBookName(
             $firstLog->book_id,
             includeDeuterocanonical: true
         );
@@ -39,6 +40,18 @@ class ReadingLogGroupResource extends JsonResource
             'notes_text' => $firstLog->notes_text,
             'date_read' => $firstLog->date_read->toDateString(),
             'logged_at' => $firstLog->created_at->toISOString(),
+            'records' => $logs->map(fn (ReadingLog $log): array => [
+                'id' => (int) $log->id,
+                'chapter' => (int) $log->chapter,
+                'passage' => $bibleReferenceService->formatBibleReference(
+                    $log->book_id,
+                    $log->chapter,
+                    includeDeuterocanonical: true
+                ),
+                'notes_text' => $log->notes_text,
+                'date_read' => $log->date_read->toDateString(),
+                'logged_at' => $log->created_at->toISOString(),
+            ])->values(),
         ];
     }
 }

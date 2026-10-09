@@ -513,6 +513,7 @@ describe('mergeReadingHistoryPages', () => {
       notesText: null,
       dateRead: '2026-08-10',
       loggedAt: null,
+      records: null,
     });
 
     const result = mergeReadingHistoryPages([

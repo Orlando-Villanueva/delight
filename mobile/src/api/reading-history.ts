@@ -1,5 +1,14 @@
 import type { AuthenticatedRequestOptions } from '@/auth/auth-context';
 
+export type ReadingHistoryRecord = {
+  id: number;
+  chapter: number;
+  passage: string;
+  notesText: string | null;
+  dateRead: string;
+  loggedAt: string | null;
+};
+
 export type ReadingHistoryGroup = {
   logIds: number[];
   book: {
@@ -12,6 +21,7 @@ export type ReadingHistoryGroup = {
   notesText: string | null;
   dateRead: string;
   loggedAt: string | null;
+  records: ReadingHistoryRecord[] | null;
 };
 
 export type ReadingHistoryDay = {
@@ -25,19 +35,29 @@ export type ReadingHistoryPage = {
   lastPage: number;
 };
 
+export type ReadingGroupResponse = {
+  log_ids: number[];
+  book: { id: number; name: string };
+  start_chapter: number;
+  end_chapter: number | null;
+  passage: string;
+  notes_text: string | null;
+  date_read: string;
+  logged_at: string | null;
+  records?: {
+    id: number;
+    chapter: number;
+    passage: string;
+    notes_text: string | null;
+    date_read: string;
+    logged_at: string | null;
+  }[];
+};
+
 type ReadingHistoryResponse = {
   data: {
     date_read: string;
-    groups: {
-      log_ids: number[];
-      book: { id: number; name: string };
-      start_chapter: number;
-      end_chapter: number | null;
-      passage: string;
-      notes_text: string | null;
-      date_read: string;
-      logged_at: string | null;
-    }[];
+    groups: ReadingGroupResponse[];
   }[];
   meta: {
     current_page: number;
@@ -46,6 +66,27 @@ type ReadingHistoryResponse = {
 };
 
 type AuthenticatedApi = <T>(path: string, options?: AuthenticatedRequestOptions) => Promise<T>;
+
+export function mapReadingGroup(group: ReadingGroupResponse): ReadingHistoryGroup {
+  return {
+    logIds: group.log_ids,
+    book: group.book,
+    startChapter: group.start_chapter,
+    endChapter: group.end_chapter,
+    passage: group.passage,
+    notesText: group.notes_text,
+    dateRead: group.date_read,
+    loggedAt: group.logged_at,
+    records: group.records?.map((record) => ({
+      id: record.id,
+      chapter: record.chapter,
+      passage: record.passage,
+      notesText: record.notes_text,
+      dateRead: record.date_read,
+      loggedAt: record.logged_at,
+    })) ?? null,
+  };
+}
 
 export async function fetchReadingHistoryPage(
   request: AuthenticatedApi,
@@ -56,16 +97,7 @@ export async function fetchReadingHistoryPage(
   return {
     days: response.data.map((day) => ({
       dateRead: day.date_read,
-      groups: day.groups.map((group) => ({
-        logIds: group.log_ids,
-        book: group.book,
-        startChapter: group.start_chapter,
-        endChapter: group.end_chapter,
-        passage: group.passage,
-        notesText: group.notes_text,
-        dateRead: group.date_read,
-        loggedAt: group.logged_at,
-      })),
+      groups: day.groups.map(mapReadingGroup),
     })),
     currentPage: response.meta.current_page,
     lastPage: response.meta.last_page,
