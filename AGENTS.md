@@ -15,6 +15,7 @@ Local sections in this file are project-specific. The Boost-managed framework gu
 These project-specific exceptions take precedence over the blanket test-change and full-suite handoff requirements in the Boost-managed guidance below. Other framework guidance remains applicable.
 
 - Add or update tests when needed to cover changed behavior and important failure modes. Existing coverage may suffice for mechanical or behavior-preserving changes; do not change a test merely to accompany every code edit or repeat the implementation.
+- Choose tests based on meaningful regression value and the risk of the change. Avoid redundant coverage or tests that merely repeat the implementation; use proportionate verification when additional automated tests would add little value.
 - Run the relevant checks yourself. Expand to the full suite when shared behavior, failures, unresolved risk, or an explicit project requirement warrants it. Do not routinely ask the user to run the full suite after targeted tests pass. Report what ran, the results, and any material verification gap; request user action only when the required check cannot be completed in the available environment.
 
 ## Project Structure & Module Organization
