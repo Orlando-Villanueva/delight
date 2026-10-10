@@ -129,6 +129,7 @@ describe('account menu', () => {
 
     expect(screen.getByText('Reader')).toBeOnTheScreen();
     expect(screen.getByText('reader@example.com')).toBeOnTheScreen();
+    expect(screen.getByTestId('bottom-sheet-drag-handle')).toBeOnTheScreen();
     expect(screen.getByLabelText('Sign out')).toBeOnTheScreen();
     expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(
       'Signed in as Reader, reader@example.com.',
@@ -190,12 +191,12 @@ describe('account menu', () => {
     expect(screen.getByText('reader@example.com')).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByLabelText('Dismiss account'));
-    expect(screen.queryByText('reader@example.com')).not.toBeOnTheScreen();
+    await waitFor(() => expect(screen.queryByText('reader@example.com')).not.toBeOnTheScreen());
     expect(screen.queryByLabelText('Sign out')).not.toBeOnTheScreen();
 
     await fireEvent.press(screen.getByLabelText('Account for Reader'));
     await fireEvent.press(screen.getByLabelText('Close account'));
-    expect(screen.queryByText('reader@example.com')).not.toBeOnTheScreen();
+    await waitFor(() => expect(screen.queryByText('reader@example.com')).not.toBeOnTheScreen());
   });
 
   it('signs out from the opened account surface', async () => {

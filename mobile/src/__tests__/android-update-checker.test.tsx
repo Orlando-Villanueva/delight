@@ -134,11 +134,11 @@ describe('Android update checker', () => {
     await waitFor(() => expect(screen.getByText('A newer Delight version is ready')).toBeOnTheScreen());
     await fireEvent.press(screen.getByLabelText('Later'));
 
-    expect(mockedSetItem).toHaveBeenCalledWith(
+    await waitFor(() => expect(mockedSetItem).toHaveBeenCalledWith(
       'delight.android-update-dismissed',
       expect.stringContaining('"versionCode":10'),
-    );
-    expect(screen.queryByText('A newer Delight version is ready')).not.toBeOnTheScreen();
+    ));
+    await waitFor(() => expect(screen.queryByText('A newer Delight version is ready')).not.toBeOnTheScreen());
   });
 
   it('prompts again when a Later dismissal expires in the same process', async () => {
@@ -159,7 +159,7 @@ describe('Android update checker', () => {
 
     await waitFor(() => expect(screen.getByText('A newer Delight version is ready')).toBeOnTheScreen());
     await fireEvent.press(screen.getByLabelText('Later'));
-    expect(screen.queryByText('A newer Delight version is ready')).not.toBeOnTheScreen();
+    await waitFor(() => expect(screen.queryByText('A newer Delight version is ready')).not.toBeOnTheScreen());
 
     dateNow.mockReturnValue(
       initialTime + androidUpdateDismissalWindowMs + androidUpdateCheckCooldownMs,

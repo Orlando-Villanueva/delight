@@ -297,7 +297,7 @@ describe('native reading-log form', () => {
     expect(await screen.findByText('Choose a book')).toBeOnTheScreen();
     await fireEvent.press(screen.getByLabelText('Dismiss book list'));
 
-    expect(screen.queryByText('Choose a book')).not.toBeOnTheScreen();
+    await waitFor(() => expect(screen.queryByText('Choose a book')).not.toBeOnTheScreen());
   });
 
   it('submits only a server-provided date and the entered reading', async () => {

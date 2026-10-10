@@ -192,6 +192,7 @@ export function AccountMenu() {
       </Pressable>
       <BottomSheet
         visible={visible}
+        draggable
         title="Account"
         onClose={close}
         padBottomSafeArea

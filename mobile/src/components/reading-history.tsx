@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -22,6 +23,7 @@ import {
 } from '@/api/reading-history';
 import { fetchBootstrap } from '@/api/bootstrap';
 import { useAuthenticatedApi } from '@/auth/auth-context';
+import { ReadingHistoryDetails } from '@/components/reading-history-details';
 import { themeTokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
@@ -205,18 +207,18 @@ function HistoryPassageHeading({
 
   return (
     <View
+      style={{ flex: 1 }}
       onLayout={(event) => {
         rowWidthRef.current = event.nativeEvent.layout.width;
         updateVisibility();
       }}
     >
       <View style={{ alignItems: 'baseline', flexDirection: 'row' }}>
-        <Text selectable style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
+        <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', flexShrink: 1 }}>
           {passage}
         </Text>
         {chapters && showCount ? (
           <Text
-            selectable
             style={{
               color: colors.mutedText,
               fontSize: 15,
@@ -372,12 +374,15 @@ function LogTodayCallout() {
   );
 }
 
-function HistoryDay({ day }: { day: ReadingHistoryDay }) {
+function HistoryDay({ day, onOpenDetails }: {
+  day: ReadingHistoryDay;
+  onOpenDetails: (logIds: number[]) => void;
+}) {
   const { colors } = useTheme();
 
   return (
-    <View accessibilityRole="header" style={{ gap: 12 }}>
-      <Text selectable style={{ color: colors.text, fontSize: 19, fontWeight: '700' }}>
+    <View style={{ gap: 12 }}>
+      <Text accessibilityRole="header" selectable style={{ color: colors.text, fontSize: 19, fontWeight: '700' }}>
         {formatDate(day.dateRead)}
       </Text>
       {day.groups.map((group) => {
@@ -385,30 +390,49 @@ function HistoryDay({ day }: { day: ReadingHistoryDay }) {
         const chapters = multiChapterCountLabel(group);
 
         return (
-          <View
+          <Pressable
             key={group.logIds.join('-')}
-            style={{
+            accessibilityRole="button"
+            accessibilityLabel={`Reading details for ${group.passage}, ${formatDate(group.dateRead)}`}
+            accessibilityHint="Shows the individual chapters and notes for this reading."
+            onPress={() => onOpenDetails(group.logIds)}
+            style={({ pressed }) => ({
               gap: 8,
+              minHeight: themeTokens.minimumTouchTarget,
               padding: themeTokens.spacing.section,
               borderRadius: themeTokens.radius.card,
               borderCurve: 'continuous',
               borderWidth: 1,
               borderColor: colors.border,
               backgroundColor: colors.surface,
-            }}
+              opacity: pressed ? 0.8 : 1,
+            })}
           >
-            <HistoryPassageHeading passage={group.passage} chapters={chapters} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <HistoryPassageHeading passage={group.passage} chapters={chapters} />
+              <MaterialCommunityIcons
+                accessible={false}
+                importantForAccessibility="no"
+                name="chevron-right"
+                size={22}
+                color={colors.mutedText}
+              />
+            </View>
             {group.notesText ? (
-              <Text selectable style={{ color: colors.text, fontSize: 16, lineHeight: 24 }}>
+              <Text
+                numberOfLines={2}
+                ellipsizeMode="tail"
+                style={{ color: colors.text, fontSize: 16, lineHeight: 24 }}
+              >
                 {group.notesText}
               </Text>
             ) : null}
             {time ? (
-              <Text selectable style={{ color: colors.mutedText, fontSize: 14 }}>
+              <Text style={{ color: colors.mutedText, fontSize: 14 }}>
                 Logged at {time}
               </Text>
             ) : null}
-          </View>
+          </Pressable>
         );
       })}
     </View>
@@ -419,6 +443,22 @@ export function ReadingHistory() {
   const { colors } = useTheme();
   const readTodayStatus = useReadTodayStatus();
   const history = useReadingHistory(readTodayStatus.refetch);
+  const [selectedLogIds, setSelectedLogIds] = useState<number[] | null>(null);
+  const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
+  const selectedGroup = selectedLogIds === null ? null : history.days
+    .flatMap((day) => day.groups)
+    .find((group) => group.logIds.length === selectedLogIds.length
+      && group.logIds.every((id) => selectedLogIds.includes(id))) ?? null;
+
+  if (selectedLogIds !== null && selectedGroup === null) {
+    setSelectedLogIds(null);
+    setDetailsNotice('History changed. Open the reading details again to see the current chapters.');
+  }
+
+  function openDetails(logIds: number[]) {
+    setDetailsNotice(null);
+    setSelectedLogIds([...logIds]);
+  }
 
   if (history.isInitialLoading) {
     return (
@@ -444,61 +484,81 @@ export function ReadingHistory() {
   }
 
   return (
-    <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
-      refreshControl={(
-        <RefreshControl
-          refreshing={history.isRefreshing}
-          onRefresh={history.refresh}
-          testID="history-refresh-control"
-        />
-      )}
-      style={{ backgroundColor: colors.background }}
-      contentContainerStyle={{ gap: 24, padding: themeTokens.spacing.screen }}
-    >
-      {history.refreshError ? (
-        <Text
-          accessibilityLiveRegion="polite"
-          selectable
-          style={{ color: colors.danger, fontSize: 16, lineHeight: 24 }}
-        >
-          History could not be refreshed. {history.refreshError.message}
-        </Text>
-      ) : null}
-      {history.days.length > 0 && readTodayStatus.data?.has_read_today === false ? <LogTodayCallout /> : null}
-      {history.days.length === 0 ? (
-        <View accessibilityLiveRegion="polite" style={{ gap: 16, paddingTop: 48 }}>
-          <Text selectable style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>Your history is waiting</Text>
-          <Text selectable style={{ color: colors.mutedText, fontSize: 16, lineHeight: 24 }}>
-            Log a reading to begin building your record here.
-          </Text>
-          <ActionButton
-            label="Log a reading"
-            accessibilityHint="Opens the Log tab to record a reading."
-            onPress={() => router.push('/(tabs)/log')}
-            tone="accent"
+    <>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        refreshControl={(
+          <RefreshControl
+            refreshing={history.isRefreshing}
+            onRefresh={history.refresh}
+            testID="history-refresh-control"
           />
-        </View>
-      ) : (
-        <>
-          {history.days.map((day) => <HistoryDay key={day.dateRead} day={day} />)}
-          {history.hasNextPage ? (
-            <View accessibilityLiveRegion="polite" style={{ gap: 12 }}>
-              {history.loadMoreError ? (
-                <Text selectable style={{ color: colors.danger, fontSize: 16 }}>{history.loadMoreError.message}</Text>
-              ) : null}
-              <HistoryLoadMoreControl
-                isLoadingMore={history.isLoadingMore}
-                onLoadMore={() => void history.loadMore()}
-              />
-            </View>
-          ) : (
-            <Text accessibilityLiveRegion="polite" selectable style={{ color: colors.mutedText, fontSize: 15, textAlign: 'center' }}>
-              You have reached the beginning of your history.
+        )}
+        style={{ backgroundColor: colors.background }}
+        contentContainerStyle={{ gap: 24, padding: themeTokens.spacing.screen }}
+      >
+        {detailsNotice ? (
+          <Text
+            accessibilityLiveRegion="polite"
+            selectable
+            style={{ color: colors.mutedText, fontSize: 16, lineHeight: 24 }}
+          >
+            {detailsNotice}
+          </Text>
+        ) : null}
+        {history.refreshError ? (
+          <Text
+            accessibilityLiveRegion="polite"
+            selectable
+            style={{ color: colors.danger, fontSize: 16, lineHeight: 24 }}
+          >
+            History could not be refreshed. {history.refreshError.message}
+          </Text>
+        ) : null}
+        {history.days.length > 0 && readTodayStatus.data?.has_read_today === false ? <LogTodayCallout /> : null}
+        {history.days.length === 0 ? (
+          <View accessibilityLiveRegion="polite" style={{ gap: 16, paddingTop: 48 }}>
+            <Text selectable style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>Your history is waiting</Text>
+            <Text selectable style={{ color: colors.mutedText, fontSize: 16, lineHeight: 24 }}>
+              Log a reading to begin building your record here.
             </Text>
-          )}
-        </>
-      )}
-    </ScrollView>
+            <ActionButton
+              label="Log a reading"
+              accessibilityHint="Opens the Log tab to record a reading."
+              onPress={() => router.push('/(tabs)/log')}
+              tone="accent"
+            />
+          </View>
+        ) : (
+          <>
+            {history.days.map((day) => (
+              <HistoryDay key={day.dateRead} day={day} onOpenDetails={openDetails} />
+            ))}
+            {history.hasNextPage ? (
+              <View accessibilityLiveRegion="polite" style={{ gap: 12 }}>
+                {history.loadMoreError ? (
+                  <Text selectable style={{ color: colors.danger, fontSize: 16 }}>{history.loadMoreError.message}</Text>
+                ) : null}
+                <HistoryLoadMoreControl
+                  isLoadingMore={history.isLoadingMore}
+                  onLoadMore={() => void history.loadMore()}
+                />
+              </View>
+            ) : (
+              <Text accessibilityLiveRegion="polite" selectable style={{ color: colors.mutedText, fontSize: 15, textAlign: 'center' }}>
+                You have reached the beginning of your history.
+              </Text>
+            )}
+          </>
+        )}
+      </ScrollView>
+      {selectedGroup ? (
+        <ReadingHistoryDetails
+          group={selectedGroup}
+          dateLabel={formatDate(selectedGroup.dateRead)}
+          onClose={() => setSelectedLogIds(null)}
+        />
+      ) : null}
+    </>
   );
 }
