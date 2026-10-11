@@ -16,6 +16,7 @@ export function useReadingRecordRemoval({
   const busyRef = useRef(false);
   const confirmingRef = useRef(false);
   const [busy, setBusy] = useState(false);
+  const [activeId, setActiveId] = useState<number | null>(null);
   const [removedId, setRemovedId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const mutation = useMutation({
@@ -27,6 +28,7 @@ export function useReadingRecordRemoval({
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
+    setActiveId(recordId);
     setError(null);
     onProtectDetails();
     let deleted = refreshOnly;
@@ -41,7 +43,7 @@ export function useReadingRecordRemoval({
       setRemovedId(null);
     } catch (failure) {
       setError(deleted
-        ? 'The chapter was removed, but History could not refresh. Refresh History to try again.'
+        ? 'The chapter was removed, but History could not refresh. Retry refresh to try again.'
         : failure instanceof Error ? failure.message : 'The chapter could not be removed. Try again.');
     } finally {
       busyRef.current = false;
@@ -62,7 +64,7 @@ export function useReadingRecordRemoval({
   }
 
   return {
-    busy, error, removedId, confirmRemoval,
+    busy, activeId, error, removedId, confirmRemoval,
     refresh: () => { if (removedId !== null) void remove(removedId, true); },
   };
 }

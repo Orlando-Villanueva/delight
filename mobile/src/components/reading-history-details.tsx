@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { ReadingHistoryGroup, ReadingHistoryRecord } from '@/api/reading-history';
 import { ReadingNoteEditor } from '@/components/reading-note-editor';
@@ -40,20 +40,49 @@ export function ReadingHistoryDetails({
 
   function removalAction(record: ReadingHistoryRecord, label = 'Remove') {
     const disabled = removal.busy || removal.removedId !== null;
+    const active = removal.activeId === record.id && removal.busy;
     return (
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Remove ${record.passage} from History`}
         accessibilityHint="Asks for confirmation before removing this chapter record."
         disabled={disabled}
-        accessibilityState={{ disabled }}
+        accessibilityState={{ disabled, busy: active }}
         onPress={() => removal.confirmRemoval(record.id, record.passage)}
-        style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center', opacity: disabled ? 0.5 : 1 }}
+        style={{
+          minHeight: themeTokens.minimumTouchTarget, minWidth: label === 'Remove' ? 112 : 136,
+          flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'flex-end',
+          opacity: disabled && !active ? 0.5 : 1,
+        }}
       >
-        <Text style={{ color: colors.danger, fontSize: 16, fontWeight: '600' }}>
-          {record.id === removal.removedId ? 'Removed' : label}
+        {active ? <ActivityIndicator size="small" color={colors.danger} accessible={false} /> : null}
+        <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 16, fontWeight: '600' }}>
+          {active ? 'Removing…' : record.id === removal.removedId ? 'Removed' : label}
         </Text>
       </Pressable>
+    );
+  }
+
+  function removalFeedback(record: ReadingHistoryRecord) {
+    if (removal.activeId !== record.id || !removal.error) return null;
+    return (
+      <View style={{ gap: 8 }}>
+        <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 16 }}>
+          {removal.error}
+        </Text>
+        {removal.removedId !== null ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retry refresh"
+            disabled={removal.busy}
+            accessibilityState={{ disabled: removal.busy }}
+            onPress={removal.refresh}
+            style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center' }}
+          >
+            <Text style={{ color: colors.primary, fontSize: 16 }}>Retry refresh</Text>
+          </Pressable>
+        ) : null}
+      </View>
     );
   }
 
@@ -125,12 +154,12 @@ export function ReadingHistoryDetails({
             <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 18, fontWeight: '600' }}>
               Note
             </Text>
-            {hasRecords && !editing && removal.removedId === null ? (
+            {hasRecords && !editing ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Edit note"
-                disabled={removal.busy}
-                accessibilityState={{ disabled: removal.busy }}
+                disabled={removal.busy || removal.removedId !== null}
+                accessibilityState={{ disabled: removal.busy || removal.removedId !== null }}
                 onPress={() => {
                   setEditing(true);
                   onPreserveDetailsChange?.(true);
@@ -162,27 +191,12 @@ export function ReadingHistoryDetails({
             </Text>
           ) : null}
         </View>
-        {removal.error ? (
-          <View style={{ gap: 8 }}>
-            <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 16 }}>
-              {removal.error}
-            </Text>
-            {removal.removedId !== null ? (
-              <Pressable accessibilityRole="button" accessibilityLabel="Refresh History"
-                disabled={removal.busy} accessibilityState={{ disabled: removal.busy }}
-                onPress={removal.refresh}
-                style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center' }}>
-                <Text style={{ color: colors.primary, fontSize: 16 }}>Refresh History</Text>
-              </Pressable>
-            ) : null}
+        {hasRecords && records.length === 1 && !editing ? (
+          <View style={{ gap: 8, alignItems: 'flex-start' }}>
+            {removalAction(records[0], 'Remove chapter')}
+            {removalFeedback(records[0])}
           </View>
         ) : null}
-        {removal.busy ? (
-          <Text accessibilityLiveRegion="polite" style={{ color: colors.mutedText, fontSize: 16 }}>
-            {removal.removedId === null ? 'Removing chapter…' : 'Refreshing History…'}
-          </Text>
-        ) : null}
-        {hasRecords && records.length === 1 && !editing ? removalAction(records[0], 'Remove chapter') : null}
         {hasRecords && records.length > 1 ? (
           <View style={{ gap: 12 }}>
             <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 18, fontWeight: '600' }}>
@@ -209,6 +223,7 @@ export function ReadingHistoryDetails({
                   </Text>
                   {!editing ? removalAction(record) : null}
                 </View>
+                {removalFeedback(record)}
                 {!hasSharedNote ? (
                   <Text
                     selectable

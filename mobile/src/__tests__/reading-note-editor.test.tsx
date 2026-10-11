@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import { ApiError } from '@/api/api-error';
 import type { ReadingHistoryGroup } from '@/api/reading-history';
@@ -106,8 +106,8 @@ it('retries only refreshing when the write succeeded but refresh failed', async 
   const onSaved = jest.fn().mockRejectedValueOnce(new Error('Refresh failed')).mockResolvedValue(undefined);
   await editor(false, onSaved);
   await fireEvent.press(screen.getByRole('button', { name: 'Save note' }));
-  expect(await screen.findByText(/Your note was saved, but History could not refresh/)).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Refresh History' }));
+  expect(await screen.findByText(/Note saved. Couldn’t refresh History/)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Retry refresh' }));
   await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(2));
   expect(request).toHaveBeenCalledTimes(1);
 });
@@ -120,4 +120,24 @@ it('validates note length locally and allows cancel without writing', async () =
   expect(request).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Cancel note editing' }));
   expect(onCancel).toHaveBeenCalledTimes(1);
+});
+
+it('keeps one saving state through the write and refresh', async () => {
+  let finishWrite!: () => void;
+  let finishRefresh!: () => void;
+  request.mockReturnValue(new Promise<void>((resolve) => { finishWrite = resolve; }));
+  const onSaved = jest.fn(() => new Promise<void>((resolve) => { finishRefresh = resolve; }));
+  const { onSavingChange } = await editor(false, onSaved);
+  await fireEvent.press(screen.getByRole('button', { name: 'Save note' }));
+  await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+  expect(screen.getByText('Saving…')).toBeOnTheScreen();
+  await act(async () => { finishWrite(); });
+  await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+  expect(screen.getByText('Saving…')).toBeOnTheScreen();
+  expect(screen.queryByText('Refreshing…')).not.toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Save note' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Cancel note editing' })).toBeDisabled();
+  expect(onSavingChange).toHaveBeenLastCalledWith(true);
+  await act(async () => { finishRefresh(); });
+  await waitFor(() => expect(onSavingChange).toHaveBeenLastCalledWith(false));
 });

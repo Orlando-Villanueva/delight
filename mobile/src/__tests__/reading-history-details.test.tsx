@@ -106,15 +106,24 @@ it('cancels removal without sending a request', async () => {
 it('removes the authoritative record after confirmation and blocks dismissal while pending', async () => {
   let finish: (() => void) | undefined;
   request.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
-  const { onClose, onRecordRemoved } = await details(false);
+  let finishRefresh: (() => void) | undefined;
+  const onRemoved = jest.fn(() => new Promise<void>((resolve) => { finishRefresh = resolve; }));
+  const { onClose, onRecordRemoved } = await details(false, onRemoved);
   jest.mocked(Alert.alert).mockImplementationOnce((_title, _message, buttons) => buttons?.[1].onPress?.());
   await fireEvent.press(screen.getByRole('button', { name: 'Remove John 1 from History' }));
   await waitFor(() => expect(request).toHaveBeenCalledWith('/api/v1/reading-logs/101', { method: 'DELETE' }));
   expect(screen.getByRole('button', { name: 'Remove John 1 from History' })).toBeDisabled();
+  expect(screen.getByText('Removing…')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Edit note' })).toBeDisabled();
+  expect(screen.queryByText('Refreshing History…')).not.toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Close reading details' }));
   expect(onClose).not.toHaveBeenCalled();
   finish?.();
   await waitFor(() => expect(onRecordRemoved).toHaveBeenCalledWith(101));
+  expect(screen.getByText('Removing…')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Edit note' })).toBeDisabled();
+  finishRefresh?.();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Edit note' })).toBeEnabled());
 });
 
 it('preserves the reading and reports a failed deletion without retrying automatically', async () => {
@@ -133,8 +142,8 @@ it('retries only refresh after removal succeeded but refreshing failed', async (
   jest.mocked(Alert.alert).mockImplementationOnce((_title, _message, buttons) => buttons?.[1].onPress?.());
   await fireEvent.press(screen.getByRole('button', { name: 'Remove John 1 from History' }));
   expect(await screen.findByText(/The chapter was removed, but History could not refresh/)).toBeOnTheScreen();
-  expect(screen.queryByRole('button', { name: 'Edit note' })).not.toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole('button', { name: 'Refresh History' }));
+  expect(screen.getByRole('button', { name: 'Edit note' })).toBeDisabled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Retry refresh' }));
   await waitFor(() => expect(onRemoved).toHaveBeenCalledTimes(2));
   expect(request).toHaveBeenCalledTimes(1);
 });

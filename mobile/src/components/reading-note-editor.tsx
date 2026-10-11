@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { AccessibilityInfo, Pressable, Text, TextInput, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { z } from 'zod';
 
 import { ApiError } from '@/api/api-error';
@@ -63,7 +63,7 @@ export function ReadingNoteEditor({
       await onSaved();
     } catch (error) {
       if (didSave) {
-        setMessage('Your note was saved, but History could not refresh. Tap Refresh History to try again.');
+        setMessage('Note saved. Couldn’t refresh History. Retry refresh to try again.');
       } else if (error instanceof ApiError && error.validationErrors.notes_text?.[0]) {
         setError('note', { message: error.validationErrors.notes_text[0] });
       } else {
@@ -132,14 +132,18 @@ export function ReadingNoteEditor({
       <View style={{ flexDirection: 'row', gap: 16 }}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={saved ? 'Refresh History' : 'Save note'}
-          accessibilityState={{ disabled: busy || (replacesDifferentNotes && !confirmed) }}
+          accessibilityLabel={saved && !busy ? 'Retry refresh' : 'Save note'}
+          accessibilityState={{ disabled: busy || (replacesDifferentNotes && !confirmed), busy }}
           disabled={busy || (replacesDifferentNotes && !confirmed)}
           onPress={() => { void handleSubmit(save)(); }}
-          style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center', opacity: busy ? 0.5 : 1 }}
+          style={{
+            minHeight: themeTokens.minimumTouchTarget, minWidth: 112,
+            flexDirection: 'row', alignItems: 'center', gap: 6,
+          }}
         >
-          <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>
-            {busy ? (saved ? 'Refreshing…' : 'Saving…') : (saved ? 'Refresh History' : 'Save')}
+          {busy ? <ActivityIndicator size="small" color={colors.primary} accessible={false} /> : null}
+          <Text accessibilityLiveRegion="polite" style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>
+            {busy ? 'Saving…' : saved ? 'Retry refresh' : 'Save'}
           </Text>
         </Pressable>
         <Pressable
