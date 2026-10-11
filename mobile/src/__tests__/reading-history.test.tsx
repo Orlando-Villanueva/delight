@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, userEvent, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import type { PropsWithChildren } from 'react';
-import { AppState } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import HistoryScreen from '@/app/(tabs)/history';
@@ -208,6 +208,62 @@ describe('reading history', () => {
     expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
     expect(request).toHaveBeenCalledWith('/api/v1/bootstrap');
   });
+
+  it.each(['edge', 'middle', 'last'])('refreshes and reconciles details after removing an %s chapter',
+    async (scenario) => {
+      const record = (chapter: number) => ({
+        id: 100 + chapter, chapter, passage: `John ${chapter}`, notes_text: 'Note',
+        date_read: '2026-08-10', logged_at: null,
+      });
+      const initial = detailedGroup({
+        log_ids: scenario === 'last' ? [101] : [101, 102, 103],
+        passage: scenario === 'last' ? 'John 1' : 'John 1-3',
+        end_chapter: scenario === 'last' ? null : 3,
+        records: (scenario === 'last' ? [1] : [1, 2, 3]).map(record),
+      });
+      const remaining = scenario === 'last' ? [] : scenario === 'middle' ? [
+        detailedGroup({ log_ids: [101], passage: 'John 1', end_chapter: null, records: [record(1)] }),
+        detailedGroup({ log_ids: [103], passage: 'John 3', start_chapter: 3, end_chapter: null, records: [record(3)] }),
+      ] : [detailedGroup({ log_ids: [102, 103], passage: 'John 2-3', start_chapter: 2, end_chapter: 3,
+        records: [record(2), record(3)] })];
+      let deleted = false;
+      const id = scenario === 'middle' ? 102 : 101;
+      request.mockImplementation((path: string) => {
+        if (path === '/api/v1/bootstrap') return Promise.resolve(bootstrapResponse(true));
+        if (path === `/api/v1/reading-logs/${id}`) {
+          deleted = true;
+          return Promise.resolve(undefined);
+        }
+        if (path.endsWith('page=1')) return Promise.resolve(historyResponse(1, 2, '2026-08-11', [
+          readingGroup({ log_ids: [109], passage: 'John 9', start_chapter: 9, end_chapter: null }),
+        ]));
+        return Promise.resolve(historyResponse(2, 2, '2026-08-10', deleted ? remaining : [initial]));
+      });
+      const confirm = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => buttons?.[1].onPress?.());
+      try {
+        const screen = await renderHistory();
+        await fireEvent.press(await screen.findByRole('button', { name: 'Load more' }));
+        await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1/ }));
+        await fireEvent.press(screen.getByRole('button', {
+          name: `Remove John ${scenario === 'middle' ? 2 : 1} from History`,
+        }));
+        if (scenario === 'edge') {
+          expect(await screen.findByText('John 2-3')).toBeOnTheScreen();
+          expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
+          await waitFor(() => expect(screen.getByRole('button', { name: 'Remove John 2 from History' })).toBeEnabled());
+        } else {
+          expect(await screen.findByText(scenario === 'middle'
+            ? 'Chapter removed. The remaining chapters are now shown as separate readings in History.'
+            : 'Chapter removed from History.')).toBeOnTheScreen();
+          expect(screen.queryByRole('button', { name: 'Close reading details' })).not.toBeOnTheScreen();
+        }
+        expect(request).toHaveBeenCalledWith(`/api/v1/reading-logs/${id}`, { method: 'DELETE' });
+        expect(request.mock.calls.filter(([path]) => path.endsWith('page=2'))).toHaveLength(2);
+        expect(request.mock.calls.filter(([path]) => path === '/api/v1/bootstrap')).toHaveLength(1);
+      } finally {
+        confirm.mockRestore();
+      }
+    });
 
   it('shows each chapters distinct note and explicitly identifies a missing note', async () => {
     request.mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [detailedGroup({

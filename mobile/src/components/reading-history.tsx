@@ -114,7 +114,7 @@ function useReadingHistory(refreshReadTodayStatus: () => Promise<{ isSuccess: bo
     }
   }, [hasNextPage, lastLoadedPage, pages, refresh, request]);
 
-  const refreshAfterNoteUpdate = useCallback(async (minimumPages = 0) => {
+  const refreshAfterMutation = useCallback(async (minimumPages = 0) => {
     const generation = ++refreshGenerationRef.current;
     const refreshedPages = await Promise.all(Array.from(
       { length: Math.max(lastLoadedPage, minimumPages) }, (_, index) => fetchReadingHistoryPage(request, index + 1),
@@ -128,6 +128,7 @@ function useReadingHistory(refreshReadTodayStatus: () => Promise<{ isSuccess: bo
     }
     queryClient.setQueryData(['reading-history', 1], refreshedPages[0]);
     setLoadedPages(refreshedPages.slice(1));
+    return mergeReadingHistoryPages(refreshedPages);
   }, [lastLoadedPage, queryClient, refreshReadTodayStatus, request]);
 
   return {
@@ -142,7 +143,7 @@ function useReadingHistory(refreshReadTodayStatus: () => Promise<{ isSuccess: bo
     hasNextPage,
     refresh,
     retryInitial: refetch,
-    refreshAfterNoteUpdate,
+    refreshAfterMutation,
     loadedPageCount: lastLoadedPage,
     loadMore,
   };
@@ -463,7 +464,7 @@ export function ReadingHistory() {
   const readTodayStatus = useReadTodayStatus();
   const history = useReadingHistory(readTodayStatus.refetch);
   const [selectedLogIds, setSelectedLogIds] = useState<number[] | null>(null);
-  const [editingSelection, setEditingSelection] = useState<{
+  const [preservedSelection, setPreservedSelection] = useState<{
     group: ReadingHistoryGroup; loadedPageCount: number;
   } | null>(null);
   const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
@@ -471,7 +472,7 @@ export function ReadingHistory() {
     .flatMap((day) => day.groups)
     .find((group) => group.logIds.length === selectedLogIds.length
       && group.logIds.every((id) => selectedLogIds.includes(id))) ?? null;
-  const selectedGroup = editingSelection?.group ?? currentGroup;
+  const selectedGroup = preservedSelection?.group ?? currentGroup;
 
   if (selectedLogIds !== null && selectedGroup === null) {
     setSelectedLogIds(null);
@@ -580,13 +581,28 @@ export function ReadingHistory() {
           group={selectedGroup}
           dateLabel={formatDate(selectedGroup.dateRead)}
           onClose={() => {
-            setEditingSelection(null);
+            setPreservedSelection(null);
             setSelectedLogIds(null);
           }}
-          onEditingChange={(editing) => setEditingSelection(editing ? {
+          onPreserveDetailsChange={(editing) => setPreservedSelection((current) => editing ? current ?? {
             group: selectedGroup, loadedPageCount: history.loadedPageCount,
           } : null)}
-          onNoteSaved={() => history.refreshAfterNoteUpdate(editingSelection?.loadedPageCount)}
+          onNoteSaved={async () => { await history.refreshAfterMutation(preservedSelection?.loadedPageCount); }}
+          onRecordRemoved={async (recordId) => {
+            const days = await history.refreshAfterMutation(preservedSelection?.loadedPageCount);
+            const remainingIds = selectedGroup.logIds.filter((id) => id !== recordId);
+            const groups = days.flatMap((day) => day.groups)
+              .filter((group) => group.logIds.some((id) => remainingIds.includes(id)));
+            const remainingGroup = groups.length === 1 && groups[0].logIds.length === remainingIds.length
+              && groups[0].logIds.every((id) => remainingIds.includes(id)) ? groups[0] : null;
+            setSelectedLogIds(remainingGroup?.logIds ?? null);
+            setPreservedSelection(null);
+            if (!remainingGroup) {
+              setDetailsNotice(groups.length > 1
+                ? 'Chapter removed. The remaining chapters are now shown as separate readings in History.'
+                : 'Chapter removed from History.');
+            }
+          }}
         />
       ) : null}
     </>

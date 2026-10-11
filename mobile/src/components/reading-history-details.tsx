@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Alert, Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
 
-import type { ReadingHistoryGroup } from '@/api/reading-history';
+import type { ReadingHistoryGroup, ReadingHistoryRecord } from '@/api/reading-history';
 import { ReadingNoteEditor } from '@/components/reading-note-editor';
 import { BottomSheet, type SheetDismissReason } from '@/components/bottom-sheet';
+import { useReadingRecordRemoval } from '@/features/reading-log/use-reading-record-removal';
 import { themeTokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
@@ -12,7 +13,8 @@ type ReadingHistoryDetailsProps = {
   dateLabel: string;
   onClose: () => void;
   onNoteSaved: () => Promise<void>;
-  onEditingChange?: (editing: boolean) => void;
+  onRecordRemoved: (recordId: number) => Promise<void>;
+  onPreserveDetailsChange?: (editing: boolean) => void;
 };
 
 export function ReadingHistoryDetails({
@@ -20,23 +22,46 @@ export function ReadingHistoryDetails({
   dateLabel,
   onClose,
   onNoteSaved,
-  onEditingChange,
+  onPreserveDetailsChange,
+  onRecordRemoved,
 }: Readonly<ReadingHistoryDetailsProps>) {
   const { colors } = useTheme();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const removal = useReadingRecordRemoval({
+    dateLabel, onProtectDetails: () => onPreserveDetailsChange?.(true), onRemoved: onRecordRemoved,
+  });
   const records = group.records;
   const hasRecords = records !== null && records.length > 0;
   const sharedNote = hasRecords ? records[0].notesText : group.notesText;
   const hasSharedNote = hasRecords && records.every((record) => record.notesText === sharedNote);
   const noteStyle = { color: colors.text, fontSize: 16, lineHeight: 24 };
 
+  function removalAction(record: ReadingHistoryRecord, label = 'Remove') {
+    const disabled = removal.busy || removal.removedId !== null;
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Remove ${record.passage} from History`}
+        accessibilityHint="Asks for confirmation before removing this chapter record."
+        disabled={disabled}
+        accessibilityState={{ disabled }}
+        onPress={() => removal.confirmRemoval(record.id, record.passage)}
+        style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center', opacity: disabled ? 0.5 : 1 }}
+      >
+        <Text style={{ color: colors.danger, fontSize: 16, fontWeight: '600' }}>
+          {record.id === removal.removedId ? 'Removed' : label}
+        </Text>
+      </Pressable>
+    );
+  }
+
   function cancelEditing() {
     Keyboard.dismiss();
     setDirty(false);
     setEditing(false);
-    onEditingChange?.(false);
+    onPreserveDetailsChange?.(false);
   }
 
   async function beforeDismiss(reason: SheetDismissReason): Promise<boolean> {
@@ -71,7 +96,7 @@ export function ReadingHistoryDetails({
       visible
       draggable
       avoidKeyboard={editing}
-      dismissDisabled={saving}
+      dismissDisabled={saving || removal.busy}
       onBeforeDismiss={beforeDismiss}
       title={group.passage}
       onClose={onClose}
@@ -85,7 +110,7 @@ export function ReadingHistoryDetails({
       <ScrollView
         style={{ flexShrink: 1 }}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ gap: themeTokens.spacing.section }}
+        contentContainerStyle={{ gap: themeTokens.spacing.section, paddingRight: 12 }}
       >
         <Text selectable style={{ color: colors.mutedText, fontSize: 16, lineHeight: 24 }}>
           {dateLabel}
@@ -100,13 +125,15 @@ export function ReadingHistoryDetails({
             <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 18, fontWeight: '600' }}>
               Note
             </Text>
-            {hasRecords && !editing ? (
+            {hasRecords && !editing && removal.removedId === null ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Edit note"
+                disabled={removal.busy}
+                accessibilityState={{ disabled: removal.busy }}
                 onPress={() => {
                   setEditing(true);
-                  onEditingChange?.(true);
+                  onPreserveDetailsChange?.(true);
                 }}
                 style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center' }}
               >
@@ -125,7 +152,7 @@ export function ReadingHistoryDetails({
                 await onNoteSaved();
                 Keyboard.dismiss();
                 setEditing(false);
-                onEditingChange?.(false);
+                onPreserveDetailsChange?.(false);
               }}
               onCancel={cancelEditing}
             />
@@ -135,6 +162,27 @@ export function ReadingHistoryDetails({
             </Text>
           ) : null}
         </View>
+        {removal.error ? (
+          <View style={{ gap: 8 }}>
+            <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 16 }}>
+              {removal.error}
+            </Text>
+            {removal.removedId !== null ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Refresh History"
+                disabled={removal.busy} accessibilityState={{ disabled: removal.busy }}
+                onPress={removal.refresh}
+                style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center' }}>
+                <Text style={{ color: colors.primary, fontSize: 16 }}>Refresh History</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+        {removal.busy ? (
+          <Text accessibilityLiveRegion="polite" style={{ color: colors.mutedText, fontSize: 16 }}>
+            {removal.removedId === null ? 'Removing chapter…' : 'Refreshing History…'}
+          </Text>
+        ) : null}
+        {hasRecords && records.length === 1 && !editing ? removalAction(records[0], 'Remove chapter') : null}
         {hasRecords && records.length > 1 ? (
           <View style={{ gap: 12 }}>
             <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 18, fontWeight: '600' }}>
@@ -155,9 +203,12 @@ export function ReadingHistoryDetails({
                   borderBottomColor: colors.border,
                 }}
               >
-                <Text selectable style={{ color: colors.text, fontSize: 18, fontWeight: '600' }}>
-                  {record.passage}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <Text selectable style={{ color: colors.text, fontSize: 18, fontWeight: '600', flexShrink: 1 }}>
+                    {record.passage}
+                  </Text>
+                  {!editing ? removalAction(record) : null}
+                </View>
                 {!hasSharedNote ? (
                   <Text
                     selectable

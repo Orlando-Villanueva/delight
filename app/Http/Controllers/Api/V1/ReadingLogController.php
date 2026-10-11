@@ -69,6 +69,14 @@ class ReadingLogController extends Controller
         return response()->noContent();
     }
 
+    public function destroy(Request $request, ReadingLog $readingLog): Response
+    {
+        abort_unless($request->user()->id === $readingLog->user_id, 403);
+        abort_unless($this->readingLogService->deleteReadingLog($readingLog), 500, 'The chapter could not be removed.');
+
+        return response()->noContent();
+    }
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $logs = $this->readingLogService->getPaginatedDayGroupsFor(

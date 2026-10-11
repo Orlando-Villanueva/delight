@@ -666,12 +666,16 @@ class ReadingLogService
         $chapter = $readingLog->chapter;
         $recapYear = $readingLog->date_read->year;
 
-        $deleted = $readingLog->delete();
+        $deleted = DB::transaction(function () use ($readingLog, $user, $bookId, $chapter): bool {
+            $deleted = (bool) $readingLog->delete();
+            if ($deleted) {
+                $this->updateBookProgressAfterDeletion($user, $bookId, $chapter);
+            }
+
+            return $deleted;
+        });
 
         if ($deleted) {
-            // Update book progress to remove the deleted chapter
-            $this->updateBookProgressAfterDeletion($user, $bookId, $chapter);
-
             // For deletions, we can't easily determine if this was the only reading of the day
             // so we invalidate all caches to be safe
             $this->invalidateUserStatisticsCache($user, true, [$recapYear]);

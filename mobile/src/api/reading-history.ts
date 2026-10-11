@@ -170,3 +170,7 @@ export async function updateReadingNote(
     body: { log_ids: logIds, notes_text: note.trim() || null },
   });
 }
+
+export async function deleteReadingRecord(request: AuthenticatedApi, recordId: number): Promise<void> {
+  await request(`/api/v1/reading-logs/${recordId}`, { method: 'DELETE' });
+}
