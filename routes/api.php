@@ -54,6 +54,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/reading-logs', [ReadingLogController::class, 'store'])
             ->name('reading-logs.store');
 
+        Route::patch('/reading-logs/{readingLog}/note', [ReadingLogController::class, 'updateNote'])
+            ->name('reading-logs.note.update');
+
+        Route::delete('/reading-logs/{readingLog}', [ReadingLogController::class, 'destroy'])
+            ->name('reading-logs.destroy');
+
         Route::get('/reading-logs', [ReadingLogController::class, 'index'])
             ->name('reading-logs.index');
     });

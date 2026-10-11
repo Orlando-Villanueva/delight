@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\V1;
 
 use App\Services\BibleReferenceService;
 use App\Services\ReadingCalendarService;
+use App\Services\ReadingLogService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -39,7 +40,7 @@ class StoreReadingLogRequest extends FormRequest
                 'date_format:Y-m-d',
                 Rule::in([$readingCalendar->todayFor($this->user())->toDateString(), $readingCalendar->yesterdayFor($this->user())->toDateString()]),
             ],
-            'notes_text' => ['nullable', 'string', 'max:1000'],
+            'notes_text' => ['nullable', 'string', 'max:'.ReadingLogService::MAX_NOTE_LENGTH],
         ];
     }
 

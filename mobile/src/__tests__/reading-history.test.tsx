@@ -1,10 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, cleanup, fireEvent, render, userEvent, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import type { PropsWithChildren } from 'react';
-import { AppState } from 'react-native';
+import { Alert, AppState } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import HistoryScreen from '@/app/(tabs)/history';
+import { ApiError } from '@/api/api-error';
 import { mergeReadingHistoryPages, type ReadingHistoryPage } from '@/api/reading-history';
 import { useAuthenticatedApi } from '@/auth/auth-context';
 import { canFitChapterCount } from '@/components/reading-history';
@@ -34,7 +36,7 @@ jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) =
 
 async function renderHistory(readToday: boolean | 'unavailable' = true) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { gcTime: 0, retry: false, staleTime: Infinity }, mutations: { retry: false } },
+    defaultOptions: { queries: { gcTime: 0, retry: false, staleTime: Infinity }, mutations: { retry: false, gcTime: 0 } },
   });
 
   if (readToday !== 'unavailable') {
@@ -42,7 +44,16 @@ async function renderHistory(readToday: boolean | 'unavailable' = true) {
   }
 
   function Wrapper({ children }: PropsWithChildren) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 0, left: 0, right: 0, bottom: 24 },
+        }}
+      >
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </SafeAreaProvider>
+    );
   }
 
   return Object.assign(await render(<HistoryScreen />, { wrapper: Wrapper }), { queryClient });
@@ -87,6 +98,30 @@ function readingGroup(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+function detailedGroup(overrides: Partial<Record<string, unknown>> = {}) {
+  return readingGroup({
+    records: [
+      {
+        id: 101,
+        chapter: 1,
+        passage: 'John 1',
+        notes_text: 'A hopeful beginning.',
+        date_read: '2026-08-10',
+        logged_at: '2026-08-10T14:30:00.000Z',
+      },
+      {
+        id: 102,
+        chapter: 2,
+        passage: 'John 2',
+        notes_text: 'A hopeful beginning.',
+        date_read: '2026-08-10',
+        logged_at: '2026-08-10T14:30:00.000Z',
+      },
+    ],
+    ...overrides,
+  });
+}
+
 beforeEach(() => {
   request.mockReset();
   request.mockImplementation((path: string) => {
@@ -105,6 +140,348 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('reading history', () => {
+  it('opens the intended groups details by tapping its note and shows a shared note once', async () => {
+    request.mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [
+      detailedGroup(),
+      detailedGroup({
+        log_ids: [104],
+        passage: 'John 4',
+        start_chapter: 4,
+        end_chapter: null,
+        records: [{
+          id: 104, chapter: 4, passage: 'John 4', notes_text: 'Another reading.',
+          date_read: '2026-08-10', logged_at: null,
+        }],
+      }),
+    ]));
+
+    const screen = await renderHistory();
+    const button = await screen.findByRole('button', { name: /Reading details for John 1-2/ });
+    expect(screen.queryByText('Reading details')).not.toBeOnTheScreen();
+    expect(button).toBeOnTheScreen();
+    await fireEvent.press(within(button).getByText('A hopeful beginning.'));
+
+    expect(screen.getByText('John 1')).toBeOnTheScreen();
+    expect(screen.getByText('John 2')).toBeOnTheScreen();
+    expect(screen.getByText('Note')).toBeOnTheScreen();
+    expect(screen.getAllByText('A hopeful beginning.')).toHaveLength(1);
+    expect(screen.queryByText('Another reading.')).not.toBeOnTheScreen();
+    expect(screen.getByText('Monday, August 10, 2026')).toBeOnTheScreen();
+  });
+
+  it.each([1, 2])('edits a groups note and preserves details across %i loaded pages', async (lastPage) => {
+    let note = 'A hopeful beginning.';
+    request.mockImplementation((path: string) => {
+      if (path === '/api/v1/bootstrap') {
+        return Promise.resolve(bootstrapResponse(true));
+      }
+      if (path === '/api/v1/reading-logs/101/note') {
+        note = 'Updated group note';
+        return Promise.resolve(undefined);
+      }
+      if (path.startsWith('/api/v1/reading-logs?page=')) {
+        const page = Number(path.split('=')[1]);
+        if (lastPage === 2 && page === 1) {
+          return Promise.resolve(historyResponse(1, 2, '2026-08-10', [readingGroup({
+            log_ids: [104], passage: 'John 4', start_chapter: 4, end_chapter: null,
+          })]));
+        }
+        return Promise.resolve(historyResponse(page, lastPage, '2026-08-10', [detailedGroup({
+          notes_text: note,
+          records: [1, 2].map((chapter) => ({
+            id: 100 + chapter, chapter, passage: `John ${chapter}`, notes_text: note,
+            date_read: '2026-08-10', logged_at: null,
+          })),
+        })]));
+      }
+      return Promise.reject(new Error('Unexpected request'));
+    });
+    const screen = await renderHistory();
+    if (lastPage === 2) {
+      await fireEvent.press(await screen.findByRole('button', { name: 'Load more' }));
+    }
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Edit note' }));
+    await fireEvent.changeText(screen.getByLabelText('Note'), 'Updated group note');
+    await fireEvent.press(screen.getByRole('button', { name: 'Save note' }));
+    expect(await screen.findByText('Updated group note')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
+    expect(request).toHaveBeenCalledWith('/api/v1/bootstrap');
+  });
+
+  it.each(['edge', 'middle', 'last'])('refreshes and reconciles details after removing an %s chapter',
+    async (scenario) => {
+      const record = (chapter: number) => ({
+        id: 100 + chapter, chapter, passage: `John ${chapter}`, notes_text: 'Note',
+        date_read: '2026-08-10', logged_at: null,
+      });
+      const initial = detailedGroup({
+        log_ids: scenario === 'last' ? [101] : [101, 102, 103],
+        passage: scenario === 'last' ? 'John 1' : 'John 1-3',
+        end_chapter: scenario === 'last' ? null : 3,
+        records: (scenario === 'last' ? [1] : [1, 2, 3]).map(record),
+      });
+      const remaining = scenario === 'last' ? [] : scenario === 'middle' ? [
+        detailedGroup({ log_ids: [101], passage: 'John 1', end_chapter: null, records: [record(1)] }),
+        detailedGroup({ log_ids: [103], passage: 'John 3', start_chapter: 3, end_chapter: null, records: [record(3)] }),
+      ] : [detailedGroup({ log_ids: [102, 103], passage: 'John 2-3', start_chapter: 2, end_chapter: 3,
+        records: [record(2), record(3)] })];
+      let deleted = false;
+      const id = scenario === 'middle' ? 102 : 101;
+      request.mockImplementation((path: string) => {
+        if (path === '/api/v1/bootstrap') return Promise.resolve(bootstrapResponse(true));
+        if (path === `/api/v1/reading-logs/${id}`) {
+          deleted = true;
+          return Promise.resolve(undefined);
+        }
+        if (path.endsWith('page=1')) return Promise.resolve(historyResponse(1, 2, '2026-08-11', [
+          readingGroup({ log_ids: [109], passage: 'John 9', start_chapter: 9, end_chapter: null }),
+        ]));
+        return Promise.resolve(historyResponse(2, 2, '2026-08-10', deleted ? remaining : [initial]));
+      });
+      const confirm = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => buttons?.[1].onPress?.());
+      try {
+        const screen = await renderHistory();
+        await fireEvent.press(await screen.findByRole('button', { name: 'Load more' }));
+        await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1/ }));
+        await fireEvent.press(screen.getByRole('button', {
+          name: `Remove John ${scenario === 'middle' ? 2 : 1} from History`,
+        }));
+        if (scenario === 'edge') {
+          expect(await screen.findByText('John 2-3')).toBeOnTheScreen();
+          expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
+          await waitFor(() => expect(screen.getByRole('button', { name: 'Remove John 2 from History' })).toBeEnabled());
+        } else {
+          expect(await screen.findByText(scenario === 'middle'
+            ? 'Chapter removed. The remaining chapters are now shown as separate readings in History.'
+            : 'Chapter removed from History.')).toBeOnTheScreen();
+          expect(screen.queryByRole('button', { name: 'Close reading details' })).not.toBeOnTheScreen();
+        }
+        expect(request).toHaveBeenCalledWith(`/api/v1/reading-logs/${id}`, { method: 'DELETE' });
+        expect(request.mock.calls.filter(([path]) => path.endsWith('page=2'))).toHaveLength(2);
+        expect(request.mock.calls.filter(([path]) => path === '/api/v1/bootstrap')).toHaveLength(1);
+      } finally {
+        confirm.mockRestore();
+      }
+    });
+
+  it('shows each chapters distinct note and explicitly identifies a missing note', async () => {
+    request.mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [detailedGroup({
+      records: [
+        { id: 101, chapter: 1, passage: 'John 1', notes_text: 'Chapter one note.',
+          date_read: '2026-08-10', logged_at: null },
+        { id: 102, chapter: 2, passage: 'John 2', notes_text: null,
+          date_read: '2026-08-10', logged_at: null },
+      ],
+    })]));
+
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+
+    expect(screen.getByText('These chapters have different notes.')).toBeOnTheScreen();
+    expect(screen.getByText('Chapter one note.')).toBeOnTheScreen();
+    expect(screen.getByText('No note')).toBeOnTheScreen();
+    expect(screen.queryByText('Shared note')).not.toBeOnTheScreen();
+  });
+
+  it('explains unavailable chapter details instead of deriving them from a passage range', async () => {
+    request.mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10'));
+
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+
+    expect(screen.getByText(/Individual chapter details are unavailable/)).toBeOnTheScreen();
+    expect(screen.queryByText('John 1')).not.toBeOnTheScreen();
+    expect(screen.queryByText('John 2')).not.toBeOnTheScreen();
+  });
+
+  it('shows a single chapter with no note without a misleading shared-note label', async () => {
+    request.mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [detailedGroup({
+      log_ids: [101], passage: 'John 1', end_chapter: null, notes_text: null, logged_at: null,
+      records: [{ id: 101, chapter: 1, passage: 'John 1', notes_text: null,
+        date_read: '2026-08-10', logged_at: null }],
+    })]));
+
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1,/ }));
+
+    expect(screen.queryByText('Chapter read')).not.toBeOnTheScreen();
+    expect(screen.getAllByText('John 1')).toHaveLength(1);
+    expect(screen.getByText('No note')).toBeOnTheScreen();
+    expect(screen.queryByText('Shared note')).not.toBeOnTheScreen();
+    expect(screen.queryByText(/Logged at/)).not.toBeOnTheScreen();
+  });
+
+  it.each(['Close reading details', 'Dismiss reading details', 'Android Back'])(
+    'returns to History using %s', async (action) => {
+      request.mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [detailedGroup()]));
+
+      const screen = await renderHistory();
+      await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+
+      if (action === 'Android Back') {
+        await fireEvent(screen.getByText('Chapters read'), 'requestClose');
+      } else {
+        await fireEvent.press(screen.getByRole('button', { name: action }));
+      }
+
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: 'Close reading details' })).not.toBeOnTheScreen();
+      });
+      expect(screen.getByRole('button', { name: /Reading details for John 1-2/ })).toBeOnTheScreen();
+    },
+  );
+
+  it.each([
+    { groups: [] },
+    { groups: [detailedGroup({ log_ids: [101], end_chapter: null, passage: 'John 1' })] },
+  ])('closes details and announces a removed or changed group after refresh', async ({ groups }) => {
+    request
+      .mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [detailedGroup()]))
+      .mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', groups));
+
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await act(async () => {
+      await screen.getByTestId('history-refresh-control', { includeHiddenElements: true }).props.onRefresh();
+    });
+
+    expect(await screen.findByText(/History changed. Open the reading details again/))
+      .toHaveProp('accessibilityLiveRegion', 'polite');
+    expect(screen.queryByRole('button', { name: 'Close reading details' })).not.toBeOnTheScreen();
+  });
+
+  it('updates open details from current History data without retaining the previous note', async () => {
+    const updated = detailedGroup({
+      notes_text: 'Updated reflection.',
+      records: [
+        { id: 101, chapter: 1, passage: 'John 1', notes_text: 'Updated reflection.',
+          date_read: '2026-08-10', logged_at: null },
+        { id: 102, chapter: 2, passage: 'John 2', notes_text: 'Updated reflection.',
+          date_read: '2026-08-10', logged_at: null },
+      ],
+    });
+    request
+      .mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [detailedGroup()]))
+      .mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [updated]));
+
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await act(async () => {
+      await screen.getByTestId('history-refresh-control', { includeHiddenElements: true }).props.onRefresh();
+    });
+
+    expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
+    expect(screen.getByText('Updated reflection.')).toBeOnTheScreen();
+    expect(screen.queryByText('A hopeful beginning.')).not.toBeOnTheScreen();
+  });
+
+  it('keeps details open after a failed refresh', async () => {
+    request
+      .mockResolvedValueOnce(historyResponse(1, 1, '2026-08-10', [detailedGroup()]))
+      .mockRejectedValueOnce(new Error('Delight could not connect.'));
+
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await act(async () => {
+      await screen.getByTestId('history-refresh-control', { includeHiddenElements: true }).props.onRefresh();
+    });
+
+    expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
+    expect(screen.getByText('John 2')).toBeOnTheScreen();
+    expect(screen.queryByText(/History changed/)).not.toBeOnTheScreen();
+  });
+
+  it('preserves a page-two draft across foreground refresh and reloads its page after saving', async () => {
+    let note = 'Original note';
+    request.mockImplementation((path: string) => {
+      if (path === '/api/v1/bootstrap') return Promise.resolve(bootstrapResponse(true));
+      if (path === '/api/v1/reading-logs/101/note') {
+        note = 'Unsaved draft';
+        return Promise.resolve(undefined);
+      }
+      if (path.endsWith('page=1')) {
+        return Promise.resolve(historyResponse(1, 2, '2026-08-10', [readingGroup({
+          log_ids: [104], passage: 'John 4',
+        })]));
+      }
+      return Promise.resolve(historyResponse(2, 2, '2026-08-09', [detailedGroup({
+        notes_text: note,
+        records: [1, 2].map((chapter) => ({
+          id: 100 + chapter, chapter, passage: `John ${chapter}`, notes_text: note,
+          date_read: '2026-08-09', logged_at: null,
+        })),
+      })]));
+    });
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Load more' }));
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Edit note' }));
+    await fireEvent.changeText(screen.getByLabelText('Note'), 'Unsaved draft');
+    await act(async () => { mockAppStateListener?.('active'); });
+    await waitFor(() => expect(screen.getByTestId('history-refresh-control', {
+      includeHiddenElements: true,
+    }).props.refreshing).toBe(false));
+    expect(screen.getByDisplayValue('Unsaved draft')).toBeOnTheScreen();
+    expect(screen.queryByText(/History changed/)).not.toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Save note' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit note' })).toBeOnTheScreen());
+    expect(screen.getByText('Unsaved draft')).toBeOnTheScreen();
+    expect(request.mock.calls.filter(([path]) => path.endsWith('page=2'))).toHaveLength(2);
+  });
+
+  it('retains a draft when refresh removes its group and Save reports a conflict', async () => {
+    let removed = false;
+    request.mockImplementation((path: string) => {
+      if (path === '/api/v1/bootstrap') return Promise.resolve(bootstrapResponse(true));
+      if (path === '/api/v1/reading-logs/101/note') {
+        return Promise.reject(new ApiError('This reading has changed. Refresh History and open it again.', 'http', 409));
+      }
+      return Promise.resolve(historyResponse(1, 1, '2026-08-10', removed ? [] : [detailedGroup()]));
+    });
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Edit note' }));
+    await fireEvent.changeText(screen.getByLabelText('Note'), 'Keep this draft');
+    removed = true;
+    await act(async () => {
+      await screen.getByTestId('history-refresh-control', { includeHiddenElements: true }).props.onRefresh();
+    });
+    expect(screen.getByDisplayValue('Keep this draft')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Save note' }));
+    expect(await screen.findByText('This reading has changed. Refresh History and open it again.')).toBeOnTheScreen();
+    expect(screen.getByDisplayValue('Keep this draft')).toBeOnTheScreen();
+    expect(request).toHaveBeenCalledWith('/api/v1/reading-logs/101/note', {
+      method: 'PATCH', body: { log_ids: [101, 102], notes_text: 'Keep this draft' },
+    });
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancel note editing' }));
+    expect(await screen.findByText(/History changed. Open the reading details again/)).toBeOnTheScreen();
+  });
+
+  it('closes an older pages details when a successful refresh replaces appended pages', async () => {
+    const olderGroup = detailedGroup({
+      log_ids: [104], passage: 'John 4', start_chapter: 4, end_chapter: null,
+      date_read: '2026-08-09',
+      records: [{ id: 104, chapter: 4, passage: 'John 4', notes_text: null,
+        date_read: '2026-08-09', logged_at: null }],
+    });
+    request
+      .mockResolvedValueOnce(historyResponse(1, 2, '2026-08-10', [detailedGroup()]))
+      .mockResolvedValueOnce(historyResponse(2, 2, '2026-08-09', [olderGroup]))
+      .mockResolvedValueOnce(historyResponse(1, 2, '2026-08-10', [detailedGroup()]));
+
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Load more' }));
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 4/ }));
+    await act(async () => {
+      await screen.getByTestId('history-refresh-control', { includeHiddenElements: true }).props.onRefresh();
+    });
+
+    expect(await screen.findByText(/History changed/)).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Close reading details' })).not.toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: /Reading details for John 4/ })).not.toBeOnTheScreen();
+  });
+
   it('shows an accessible Log today callout when bootstrap reports no reading today', async () => {
     request.mockResolvedValue(historyResponse(1, 1, '2026-08-09'));
 
@@ -513,6 +890,7 @@ describe('mergeReadingHistoryPages', () => {
       notesText: null,
       dateRead: '2026-08-10',
       loggedAt: null,
+      records: null,
     });
 
     const result = mergeReadingHistoryPages([

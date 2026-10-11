@@ -4,14 +4,17 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreReadingLogRequest;
+use App\Http\Requests\Api\V1\UpdateReadingNoteRequest;
 use App\Http\Resources\Api\V1\ReadingLogDayResource;
 use App\Http\Resources\Api\V1\ReadingLogGroupResource;
+use App\Models\ReadingLog;
 use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 use Illuminate\Validation\ValidationException;
 
 class ReadingLogController extends Controller
@@ -54,6 +57,24 @@ class ReadingLogController extends Controller
         return (new ReadingLogGroupResource($group))
             ->response()
             ->setStatusCode(201);
+    }
+
+    public function updateNote(UpdateReadingNoteRequest $request, ReadingLog $readingLog): Response
+    {
+        $data = $request->validated();
+        $this->readingLogService->updateGroupNote(
+            $request->user(), $readingLog, $data['log_ids'], $data['notes_text']
+        );
+
+        return response()->noContent();
+    }
+
+    public function destroy(Request $request, ReadingLog $readingLog): Response
+    {
+        abort_unless($request->user()->id === $readingLog->user_id, 403);
+        abort_unless($this->readingLogService->deleteReadingLog($readingLog), 500, 'The chapter could not be removed.');
+
+        return response()->noContent();
     }
 
     public function index(Request $request): AnonymousResourceCollection

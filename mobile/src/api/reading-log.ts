@@ -1,4 +1,5 @@
 import type { AuthenticatedRequestOptions } from '@/auth/auth-context';
+import { mapReadingGroup, type ReadingGroupResponse, type ReadingHistoryGroup } from '@/api/reading-history';
 
 export type CreateReadingInput = {
   book_id: number;
@@ -8,31 +9,10 @@ export type CreateReadingInput = {
   notes_text: string | null;
 };
 
-export type CreatedReading = {
-  logIds: number[];
-  book: {
-    id: number;
-    name: string;
-  };
-  startChapter: number;
-  endChapter: number | null;
-  passage: string;
-  notesText: string | null;
-  dateRead: string;
-  loggedAt: string | null;
-};
+export type CreatedReading = ReadingHistoryGroup;
 
 type CreateReadingResponse = {
-  data: {
-    log_ids: number[];
-    book: { id: number; name: string };
-    start_chapter: number;
-    end_chapter: number | null;
-    passage: string;
-    notes_text: string | null;
-    date_read: string;
-    logged_at: string | null;
-  };
+  data: ReadingGroupResponse;
 };
 
 type AuthenticatedApi = <T>(path: string, options?: AuthenticatedRequestOptions) => Promise<T>;
@@ -45,16 +25,5 @@ export async function createReadingLog(
     method: 'POST',
     body: input,
   });
-  const reading = response.data;
-
-  return {
-    logIds: reading.log_ids,
-    book: reading.book,
-    startChapter: reading.start_chapter,
-    endChapter: reading.end_chapter,
-    passage: reading.passage,
-    notesText: reading.notes_text,
-    dateRead: reading.date_read,
-    loggedAt: reading.logged_at,
-  };
+  return mapReadingGroup(response.data);
 }

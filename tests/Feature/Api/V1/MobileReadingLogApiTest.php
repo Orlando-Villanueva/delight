@@ -56,6 +56,16 @@ it('creates a single chapter and returns its canonical group', function () {
         ->assertJsonCount(1, 'data.log_ids')
         ->assertJsonStructure(['data' => ['logged_at']]);
 
+    $log = $user->readingLogs()->sole();
+    $response->assertJsonPath('data.records', [[
+        'id' => $log->id,
+        'chapter' => 3,
+        'passage' => 'John 3',
+        'notes_text' => 'Born of the Spirit.',
+        'date_read' => '2026-08-08',
+        'logged_at' => $log->created_at->toISOString(),
+    ]]);
+
     expect($user->readingLogs()
         ->where('book_id', 43)
         ->where('chapter', 3)
@@ -66,7 +76,7 @@ it('creates a single chapter and returns its canonical group', function () {
 it('creates a chapter range atomically with book progress', function () {
     $user = User::factory()->create();
 
-    $this->withToken(mobileReadingToken($user))->postJson(MOBILE_READING_LOGS_ENDPOINT, [
+    $response = $this->withToken(mobileReadingToken($user))->postJson(MOBILE_READING_LOGS_ENDPOINT, [
         'book_id' => 43,
         'start_chapter' => 1,
         'end_chapter' => 3,
@@ -77,7 +87,19 @@ it('creates a chapter range atomically with book progress', function () {
         ->assertJsonPath('data.start_chapter', 1)
         ->assertJsonPath('data.end_chapter', 3)
         ->assertJsonPath('data.passage', 'John 1-3')
-        ->assertJsonCount(3, 'data.log_ids');
+        ->assertJsonCount(3, 'data.log_ids')
+        ->assertJsonCount(3, 'data.records');
+
+    foreach ($user->readingLogs()->orderBy('chapter')->get() as $index => $log) {
+        $response->assertJsonPath("data.records.{$index}", [
+            'id' => $log->id,
+            'chapter' => $index + 1,
+            'passage' => 'John '.($index + 1),
+            'notes_text' => null,
+            'date_read' => '2026-08-07',
+            'logged_at' => $log->created_at->toISOString(),
+        ]);
+    }
 
     expect($user->readingLogs()->orderBy('chapter')->pluck('chapter')->all())->toBe([1, 2, 3])
         ->and($user->bookProgress()->where('book_id', 43)->firstOrFail()->chapters_read)->toBe([1, 2, 3]);
@@ -252,6 +274,65 @@ it('returns only the users history newest first grouped by date session and cont
         ->assertSuccessful()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.date_read', today()->subDays(8)->toDateString());
+});
+
+it('exposes each chapters own details within account isolated history segments', function () {
+    $user = User::factory()->create();
+    $sessionTime = Carbon::parse('2026-08-08 11:00:00', 'UTC');
+    $logs = [];
+
+    foreach ([4 => 'Separate segment.', 2 => null, 1 => 'First chapter note.'] as $chapter => $notes) {
+        $logs[$chapter] = ReadingLog::factory()->for($user)->create([
+            'book_id' => 43,
+            'chapter' => $chapter,
+            'date_read' => '2026-08-08',
+            'created_at' => $sessionTime,
+            'notes_text' => $notes,
+        ]);
+    }
+
+    ReadingLog::factory()->for(User::factory())->create([
+        'book_id' => 43,
+        'chapter' => 3,
+        'date_read' => '2026-08-08',
+        'created_at' => $sessionTime,
+        'notes_text' => 'Other account private note.',
+    ]);
+
+    $response = $this->withToken(mobileReadingToken($user))->getJson(MOBILE_READING_LOGS_ENDPOINT);
+
+    $response
+        ->assertSuccessful()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonCount(2, 'data.0.groups')
+        ->assertJsonPath('data.0.groups.0.log_ids', [$logs[1]->id, $logs[2]->id])
+        ->assertJsonPath('data.0.groups.0.notes_text', 'First chapter note.')
+        ->assertJsonPath('data.0.groups.0.records', [
+            [
+                'id' => $logs[1]->id,
+                'chapter' => 1,
+                'passage' => 'John 1',
+                'notes_text' => 'First chapter note.',
+                'date_read' => '2026-08-08',
+                'logged_at' => '2026-08-08T11:00:00.000000Z',
+            ],
+            [
+                'id' => $logs[2]->id,
+                'chapter' => 2,
+                'passage' => 'John 2',
+                'notes_text' => null,
+                'date_read' => '2026-08-08',
+                'logged_at' => '2026-08-08T11:00:00.000000Z',
+            ],
+        ])
+        ->assertJsonPath('data.0.groups.1.records', [[
+            'id' => $logs[4]->id,
+            'chapter' => 4,
+            'passage' => 'John 4',
+            'notes_text' => 'Separate segment.',
+            'date_read' => '2026-08-08',
+            'logged_at' => '2026-08-08T11:00:00.000000Z',
+        ]]);
 });
 
 it('keeps web and api domain side effects in parity', function () {

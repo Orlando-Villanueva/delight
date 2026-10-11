@@ -1,8 +1,11 @@
 import { z } from 'zod';
 
+
 import type { ValidationErrors } from '@/api/api-error';
 import type { BootstrapBook, BootstrapData } from '@/api/bootstrap';
 import type { CreateReadingInput } from '@/api/reading-log';
+
+export const readingNoteSchema = z.string().max(1000, 'The notes may not be greater than 1,000 characters.');
 
 export const readingLogSuccessDismissMs = 4_000;
 
@@ -124,7 +127,7 @@ export function createReadingLogSchema(
       (value) => allowedDates.includes(value),
       'Choose today or yesterday.',
     ),
-    notesText: z.string().max(1000, 'The notes may not be greater than 1,000 characters.'),
+    notesText: readingNoteSchema,
   }).superRefine((values, context) => {
     if (values.bookId === null) {
       return;
