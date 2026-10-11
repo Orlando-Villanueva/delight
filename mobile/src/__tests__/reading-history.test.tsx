@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, userEvent, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import type { PropsWithChildren } from 'react';
-import { Alert, AppState } from 'react-native';
+import { AccessibilityInfo, Alert, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import HistoryScreen from '@/app/(tabs)/history';
@@ -364,8 +364,10 @@ describe('reading history', () => {
       await screen.getByTestId('history-refresh-control', { includeHiddenElements: true }).props.onRefresh();
     });
 
-    expect(await screen.findByText(/History changed. Open the reading details again/))
-      .toHaveProp('accessibilityLiveRegion', 'polite');
+    expect(await screen.findByText(/History changed. Open the reading details again/)).toBeOnTheScreen();
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(
+      'History changed. Open the reading details again to see the current chapters.',
+    );
     expect(screen.queryByRole('button', { name: 'Close reading details' })).not.toBeOnTheScreen();
   });
 

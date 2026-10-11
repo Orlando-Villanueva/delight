@@ -7,7 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/api-error';
 import LogScreen from '@/app/(tabs)/log';
 import { useAuthenticatedApi } from '@/auth/auth-context';
-import { formatReadingDate, readingLogSuccessDismissMs } from '@/features/reading-log/form';
+import { formatReadingDate } from '@/features/reading-log/form';
 
 jest.mock('@/auth/auth-context', () => ({ useAuthenticatedApi: jest.fn() }));
 
@@ -352,7 +352,7 @@ describe('native reading-log form', () => {
     await fireEvent.press(screen.getByLabelText('Log reading'));
 
     await waitFor(() => expect(readingLogPosts()).toHaveLength(2));
-    expect(await screen.findByText(`John 3 recorded for ${formatReadingDate('2026-08-10')}.`)).toBeOnTheScreen();
+    expect(await screen.findByText(`John 3 logged for ${formatReadingDate('2026-08-10')}.`)).toBeOnTheScreen();
   });
 
   it('starts a retry cooldown after a rate-limit response', async () => {
@@ -393,7 +393,7 @@ describe('native reading-log form', () => {
     await act(async () => {
       resolveCreate?.(createdReading());
     });
-    await screen.findByText(`John 3 recorded for ${formatReadingDate('2026-08-10')}.`);
+    await screen.findByText(`John 3 logged for ${formatReadingDate('2026-08-10')}.`);
   });
 
   it('shows the canonical reading after success, clears the form, and refreshes Home and History', async () => {
@@ -404,20 +404,21 @@ describe('native reading-log form', () => {
     await fillValidReading();
     await fireEvent.press(screen.getByLabelText('Log reading'));
 
-    expect(await screen.findByText(`John 3 recorded for ${formatReadingDate('2026-08-10')}.`)).toBeOnTheScreen();
+    expect(await screen.findByText(`John 3 logged for ${formatReadingDate('2026-08-10')}.`)).toBeOnTheScreen();
     expect(screen.queryByDisplayValue('Born of the Spirit.')).not.toBeOnTheScreen();
     expect(screen.getByLabelText('Start chapter')).toHaveDisplayValue('');
     expect(screen.getByLabelText('End chapter')).toHaveDisplayValue('');
     expect(screen.getByLabelText('Add a note or reflection')).toBeOnTheScreen();
     expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(
-      `John 3 recorded for ${formatReadingDate('2026-08-10')}.`,
+      `John 3 logged for ${formatReadingDate('2026-08-10')}.`,
     );
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['bootstrap'] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['reading-history'] });
     invalidate.mockRestore();
 
-    await fireEvent.press(screen.getByLabelText('Dismiss success message'));
-    expect(screen.queryByText('Reading logged')).not.toBeOnTheScreen();
+    await fireEvent.press(screen.getByLabelText('Dismiss notification'));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Dismiss notification' }))
+      .not.toBeOnTheScreen());
   });
 
   it('selects the book that was just logged when refreshed recent books arrive', async () => {
@@ -447,13 +448,13 @@ describe('native reading-log form', () => {
     await fireEvent.changeText(screen.getByLabelText('Start chapter'), '3');
     await fireEvent.press(screen.getByLabelText('Log reading'));
 
-    expect(await screen.findByText(`Genesis 3 recorded for ${formatReadingDate('2026-08-10')}.`)).toBeOnTheScreen();
+    expect(await screen.findByText(`Genesis 3 logged for ${formatReadingDate('2026-08-10')}.`)).toBeOnTheScreen();
     await waitFor(() => expect(screen.getByLabelText('Recent book Genesis')).toBeOnTheScreen());
     expect(screen.getByLabelText('Recent book Genesis')).toHaveProp('accessibilityState', { selected: true });
     expect(screen.getByLabelText('Recent book John')).toHaveProp('accessibilityState', { selected: false });
   });
 
-  it('auto-dismisses the success banner after a short delay', async () => {
+  it('auto-dismisses the success snackbar after a short delay', async () => {
     jest.useFakeTimers();
     mockApi();
     await renderLog();
@@ -461,13 +462,13 @@ describe('native reading-log form', () => {
     await fillValidReading();
     await fireEvent.press(screen.getByLabelText('Log reading'));
 
-    expect(await screen.findByText(`John 3 recorded for ${formatReadingDate('2026-08-10')}.`)).toBeOnTheScreen();
+    expect(await screen.findByText(`John 3 logged for ${formatReadingDate('2026-08-10')}.`)).toBeOnTheScreen();
 
     await act(async () => {
-      await jest.advanceTimersByTimeAsync(readingLogSuccessDismissMs);
+      await jest.advanceTimersByTimeAsync(5200);
     });
 
-    expect(screen.queryByText('Reading logged')).not.toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Dismiss notification' })).not.toBeOnTheScreen();
     jest.useRealTimers();
   });
 

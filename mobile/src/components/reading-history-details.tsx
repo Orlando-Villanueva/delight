@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { ReadingHistoryGroup, ReadingHistoryRecord } from '@/api/reading-history';
 import { ReadingNoteEditor } from '@/components/reading-note-editor';
+import { TransientNotice } from '@/components/transient-notice';
 import { BottomSheet, type SheetDismissReason } from '@/components/bottom-sheet';
 import { useReadingRecordRemoval } from '@/features/reading-log/use-reading-record-removal';
 import { themeTokens } from '@/theme/tokens';
@@ -26,6 +27,8 @@ export function ReadingHistoryDetails({
   onRecordsRemoved,
 }: Readonly<ReadingHistoryDetailsProps>) {
   const { colors } = useTheme();
+  const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  const dismissSuccessNotice = useCallback(() => setSuccessNotice(null), []);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -35,6 +38,7 @@ export function ReadingHistoryDetails({
     group, dateLabel, onProtectDetails: () => onPreserveDetailsChange?.(true),
     onRemoved: async (ids) => {
       await onRecordsRemoved(ids);
+      setSuccessNotice(`${ids.length === 1 ? 'Chapter' : `${ids.length} chapters`} removed.`);
       setSelecting(false);
       setSelectedIds([]);
     },
@@ -184,6 +188,7 @@ export function ReadingHistoryDetails({
                 disabled={selecting || removal.busy || removal.removedIds.length > 0}
                 accessibilityState={{ disabled: selecting || removal.busy || removal.removedIds.length > 0 }}
                 onPress={() => {
+                  setSuccessNotice(null);
                   setEditing(true);
                   onPreserveDetailsChange?.(true);
                 }}
@@ -205,6 +210,7 @@ export function ReadingHistoryDetails({
                 await onNoteSaved();
                 Keyboard.dismiss();
                 setEditing(false);
+                setSuccessNotice('Note saved.');
                 onPreserveDetailsChange?.(false);
               }}
               onCancel={cancelEditing}
@@ -245,6 +251,7 @@ export function ReadingHistoryDetails({
               ) : !editing ? (
                 <Pressable accessibilityRole="button" accessibilityLabel="Remove chapters"
                   onPress={() => {
+                    setSuccessNotice(null);
                     setSelecting(true);
                     onPreserveDetailsChange?.(true);
                   }}
@@ -345,6 +352,9 @@ export function ReadingHistoryDetails({
             </Pressable>
           </View>
         </View>
+      ) : null}
+      {successNotice ? (
+        <TransientNotice message={successNotice} bottom={24} onDismiss={dismissSuccessNotice} />
       ) : null}
     </BottomSheet>
   );

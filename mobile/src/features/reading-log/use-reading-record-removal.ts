@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
-import { AccessibilityInfo, Alert } from 'react-native';
+import { Alert } from 'react-native';
 
 import { deleteReadingChapters, deleteReadingRecord, type ReadingHistoryGroup } from '@/api/reading-history';
 import { useAuthenticatedApi } from '@/auth/auth-context';
@@ -40,8 +40,6 @@ export function useReadingRecordRemoval({
         await mutation.mutateAsync(recordIds);
         deleted = true;
         setRemovedIds(recordIds);
-        AccessibilityInfo.announceForAccessibility(recordIds.length === 1
-          ? 'Chapter removed from History.' : 'Chapters removed from History.');
       }
       await onRemoved(recordIds);
       setRemovedIds([]);

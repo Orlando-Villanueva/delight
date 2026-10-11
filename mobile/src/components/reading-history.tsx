@@ -24,6 +24,7 @@ import {
 import { fetchBootstrap } from '@/api/bootstrap';
 import { useAuthenticatedApi } from '@/auth/auth-context';
 import { ReadingHistoryDetails } from '@/components/reading-history-details';
+import { TransientNotice } from '@/components/transient-notice';
 import { themeTokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
@@ -468,6 +469,7 @@ export function ReadingHistory() {
     group: ReadingHistoryGroup; loadedPageCount: number; active: boolean;
   } | null>(null);
   const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
+  const dismissDetailsNotice = useCallback(() => setDetailsNotice(null), []);
   const currentGroup = selectedLogIds === null ? null : history.days
     .flatMap((day) => day.groups)
     .find((group) => group.logIds.length === selectedLogIds.length
@@ -524,15 +526,6 @@ export function ReadingHistory() {
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={{ gap: 24, padding: themeTokens.spacing.screen }}
       >
-        {detailsNotice ? (
-          <Text
-            accessibilityLiveRegion="polite"
-            selectable
-            style={{ color: colors.mutedText, fontSize: 16, lineHeight: 24 }}
-          >
-            {detailsNotice}
-          </Text>
-        ) : null}
         {history.refreshError ? (
           <Text
             accessibilityLiveRegion="polite"
@@ -579,6 +572,13 @@ export function ReadingHistory() {
           </>
         )}
       </ScrollView>
+      {detailsNotice ? (
+        <TransientNotice
+          message={detailsNotice}
+          duration={detailsNotice.includes('separate readings') ? 8000 : 5000}
+          onDismiss={dismissDetailsNotice}
+        />
+      ) : null}
       {selectedGroup ? (
         <ReadingHistoryDetails
           group={selectedGroup}

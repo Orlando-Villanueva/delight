@@ -42,6 +42,17 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
+it('shows shared success feedback inside the sheet after saving a note', async () => {
+  await details();
+  await fireEvent.changeText(screen.getByLabelText('Note'), 'Updated note');
+  await fireEvent.press(screen.getByRole('button', { name: 'Save note' }));
+  expect(await screen.findByText('Note saved.')).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Save note' })).not.toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Dismiss notification' }));
+  await waitFor(() => expect(screen.queryByText('Note saved.')).not.toBeOnTheScreen());
+});
+
 it('Back leaves unchanged editing before closing details', async () => {
   const { onClose } = await details();
   await fireEvent(screen.getByTestId('bottom-sheet-modal'), 'requestClose');

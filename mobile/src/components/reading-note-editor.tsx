@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { AccessibilityInfo, ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { z } from 'zod';
 
 import { ApiError } from '@/api/api-error';
@@ -58,7 +58,6 @@ export function ReadingNoteEditor({
         await mutation.mutateAsync(note);
         didSave = true;
         setSaved(true);
-        AccessibilityInfo.announceForAccessibility('Note saved.');
       }
       await onSaved();
     } catch (error) {
