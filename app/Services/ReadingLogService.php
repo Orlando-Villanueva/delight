@@ -17,6 +17,8 @@ use InvalidArgumentException;
 
 class ReadingLogService
 {
+    public const int MAX_NOTE_LENGTH = 1000;
+
     private BibleReferenceService $bibleService;
 
     public function __construct(
@@ -780,9 +782,42 @@ class ReadingLogService
     }
 
     /**
-     * Resolve the collection of logs that should be updated when editing notes.
+     * @param  array<int, int>  $logIds
      */
-    public function getLogsForNoteUpdate(User $user, ReadingLog $primaryLog, array $logIds = []): Collection
+    public function updateGroupNote(User $user, ReadingLog $primaryLog, array $logIds, ?string $note): void
+    {
+        DB::transaction(function () use ($user, $primaryLog, $logIds, $note): void {
+            $dayLogs = $user->readingLogs()
+                ->whereDate('date_read', $primaryLog->date_read)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+            $ids = collect($logIds)->map(fn ($id): int => (int) $id)->sort()->values();
+            abort_if($dayLogs->whereIn('id', $ids)->count() !== $ids->count(), 404, 'Reading records are unavailable.');
+            $currentPrimary = $dayLogs->firstWhere('id', $primaryLog->id);
+            abort_if($currentPrimary === null, 404, 'Reading records are unavailable.');
+            $session = $dayLogs->filter(fn (ReadingLog $log): bool => $log->book_id === $currentPrimary->book_id
+                && $log->created_at->format('Y-m-d H:i:s') === $currentPrimary->created_at->format('Y-m-d H:i:s')
+            );
+            $group = $this->segmentReadingLogs($session)
+                ->first(fn (Collection $segment): bool => $segment->contains('id', $currentPrimary->id));
+            abort_if($group === null || $group->pluck('id')->sort()->values()->all() !== $ids->all(),
+                409, 'This reading has changed. Refresh History and open it again.');
+
+            $normalizedNote = $note === null ? null : trim($note);
+            $user->readingLogs()->whereIn('id', $ids)->update([
+                'notes_text' => $normalizedNote === '' ? null : $normalizedNote,
+            ]);
+        });
+
+        $this->invalidateUserStatisticsCache($user, true, [$primaryLog->date_read->year]);
+    }
+
+    /**
+     * Resolve owned records for redisplaying an invalid web note form.
+     * This does not validate group membership or authorize a note update.
+     */
+    public function getLogsForNoteForm(User $user, ReadingLog $primaryLog, array $logIds = []): Collection
     {
         $ids = collect($logIds)
             ->map(fn ($id) => (int) $id)

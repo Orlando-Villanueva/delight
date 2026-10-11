@@ -2,10 +2,13 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { Animated, PanResponder, type PanResponderGestureState, type GestureResponderEvent, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { BottomSheet, sheetPaddingBottom } from '@/components/bottom-sheet';
+import { BottomSheet, sheetPaddingBottom, type SheetDismissReason } from '@/components/bottom-sheet';
 import { themeTokens } from '@/theme/tokens';
 
-async function renderSheet(visible = true, onClose = jest.fn(), draggable = false) {
+async function renderSheet(
+  visible = true, onClose = jest.fn(), draggable = false, dismissDisabled = false,
+  onBeforeDismiss?: (reason: SheetDismissReason) => boolean | Promise<boolean>,
+) {
   await render(
     <SafeAreaProvider
       initialMetrics={{
@@ -16,6 +19,8 @@ async function renderSheet(visible = true, onClose = jest.fn(), draggable = fals
       <BottomSheet
         visible={visible}
         draggable={draggable}
+        dismissDisabled={dismissDisabled}
+        onBeforeDismiss={onBeforeDismiss}
         title="Choose a book"
         onClose={onClose}
         dismissAccessibilityLabel="Dismiss book list"
@@ -49,6 +54,17 @@ describe('bottom sheet padding', () => {
 });
 
 describe('bottom sheet', () => {
+  it.each([
+    ['Dismiss book list', 'backdrop'], ['Close book list', 'close'],
+  ] as const)('allows the caller to prevent dismissal from %s', async (label, reason) => {
+    const guard = jest.fn().mockResolvedValue(false);
+    const { onClose } = await renderSheet(true, jest.fn(), false, false, guard);
+    await fireEvent.press(screen.getByLabelText(label));
+    await waitFor(() => expect(guard).toHaveBeenCalledWith(reason));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText('Sheet body')).toBeOnTheScreen();
+  });
+
   it('renders the shared chrome and body when visible', async () => {
     await renderSheet();
 
@@ -70,6 +86,14 @@ describe('bottom sheet', () => {
     await fireEvent.press(screen.getByLabelText(label));
     expect(onClose).not.toHaveBeenCalled();
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
+
+  it('blocks dismissal while a caller is saving', async () => {
+    const { onClose } = await renderSheet(true, jest.fn(), true, true);
+    expect(screen.getByLabelText('Close book list')).toBeDisabled();
+    await fireEvent.press(screen.getByLabelText('Dismiss book list'));
+    await fireEvent.press(screen.getByLabelText('Close book list'));
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('ignores repeated dismissal while the exit animation is running', async () => {

@@ -59,7 +59,7 @@ type AuthContextValue = {
 };
 
 export type AuthenticatedRequestOptions = {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
 };
 

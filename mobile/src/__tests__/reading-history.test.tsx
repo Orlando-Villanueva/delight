@@ -6,6 +6,7 @@ import { AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import HistoryScreen from '@/app/(tabs)/history';
+import { ApiError } from '@/api/api-error';
 import { mergeReadingHistoryPages, type ReadingHistoryPage } from '@/api/reading-history';
 import { useAuthenticatedApi } from '@/auth/auth-context';
 import { canFitChapterCount } from '@/components/reading-history';
@@ -35,7 +36,7 @@ jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) =
 
 async function renderHistory(readToday: boolean | 'unavailable' = true) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { gcTime: 0, retry: false, staleTime: Infinity }, mutations: { retry: false } },
+    defaultOptions: { queries: { gcTime: 0, retry: false, staleTime: Infinity }, mutations: { retry: false, gcTime: 0 } },
   });
 
   if (readToday !== 'unavailable') {
@@ -162,10 +163,50 @@ describe('reading history', () => {
 
     expect(screen.getByText('John 1')).toBeOnTheScreen();
     expect(screen.getByText('John 2')).toBeOnTheScreen();
-    expect(screen.getByText('Shared note')).toBeOnTheScreen();
+    expect(screen.getByText('Note')).toBeOnTheScreen();
     expect(screen.getAllByText('A hopeful beginning.')).toHaveLength(1);
     expect(screen.queryByText('Another reading.')).not.toBeOnTheScreen();
     expect(screen.getByText('Monday, August 10, 2026')).toBeOnTheScreen();
+  });
+
+  it.each([1, 2])('edits a groups note and preserves details across %i loaded pages', async (lastPage) => {
+    let note = 'A hopeful beginning.';
+    request.mockImplementation((path: string) => {
+      if (path === '/api/v1/bootstrap') {
+        return Promise.resolve(bootstrapResponse(true));
+      }
+      if (path === '/api/v1/reading-logs/101/note') {
+        note = 'Updated group note';
+        return Promise.resolve(undefined);
+      }
+      if (path.startsWith('/api/v1/reading-logs?page=')) {
+        const page = Number(path.split('=')[1]);
+        if (lastPage === 2 && page === 1) {
+          return Promise.resolve(historyResponse(1, 2, '2026-08-10', [readingGroup({
+            log_ids: [104], passage: 'John 4', start_chapter: 4, end_chapter: null,
+          })]));
+        }
+        return Promise.resolve(historyResponse(page, lastPage, '2026-08-10', [detailedGroup({
+          notes_text: note,
+          records: [1, 2].map((chapter) => ({
+            id: 100 + chapter, chapter, passage: `John ${chapter}`, notes_text: note,
+            date_read: '2026-08-10', logged_at: null,
+          })),
+        })]));
+      }
+      return Promise.reject(new Error('Unexpected request'));
+    });
+    const screen = await renderHistory();
+    if (lastPage === 2) {
+      await fireEvent.press(await screen.findByRole('button', { name: 'Load more' }));
+    }
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Edit note' }));
+    await fireEvent.changeText(screen.getByLabelText('Note'), 'Updated group note');
+    await fireEvent.press(screen.getByRole('button', { name: 'Save note' }));
+    expect(await screen.findByText('Updated group note')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
+    expect(request).toHaveBeenCalledWith('/api/v1/bootstrap');
   });
 
   it('shows each chapters distinct note and explicitly identifies a missing note', async () => {
@@ -293,6 +334,72 @@ describe('reading history', () => {
     expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
     expect(screen.getByText('John 2')).toBeOnTheScreen();
     expect(screen.queryByText(/History changed/)).not.toBeOnTheScreen();
+  });
+
+  it('preserves a page-two draft across foreground refresh and reloads its page after saving', async () => {
+    let note = 'Original note';
+    request.mockImplementation((path: string) => {
+      if (path === '/api/v1/bootstrap') return Promise.resolve(bootstrapResponse(true));
+      if (path === '/api/v1/reading-logs/101/note') {
+        note = 'Unsaved draft';
+        return Promise.resolve(undefined);
+      }
+      if (path.endsWith('page=1')) {
+        return Promise.resolve(historyResponse(1, 2, '2026-08-10', [readingGroup({
+          log_ids: [104], passage: 'John 4',
+        })]));
+      }
+      return Promise.resolve(historyResponse(2, 2, '2026-08-09', [detailedGroup({
+        notes_text: note,
+        records: [1, 2].map((chapter) => ({
+          id: 100 + chapter, chapter, passage: `John ${chapter}`, notes_text: note,
+          date_read: '2026-08-09', logged_at: null,
+        })),
+      })]));
+    });
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Load more' }));
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Edit note' }));
+    await fireEvent.changeText(screen.getByLabelText('Note'), 'Unsaved draft');
+    await act(async () => { mockAppStateListener?.('active'); });
+    await waitFor(() => expect(screen.getByTestId('history-refresh-control', {
+      includeHiddenElements: true,
+    }).props.refreshing).toBe(false));
+    expect(screen.getByDisplayValue('Unsaved draft')).toBeOnTheScreen();
+    expect(screen.queryByText(/History changed/)).not.toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Save note' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit note' })).toBeOnTheScreen());
+    expect(screen.getByText('Unsaved draft')).toBeOnTheScreen();
+    expect(request.mock.calls.filter(([path]) => path.endsWith('page=2'))).toHaveLength(2);
+  });
+
+  it('retains a draft when refresh removes its group and Save reports a conflict', async () => {
+    let removed = false;
+    request.mockImplementation((path: string) => {
+      if (path === '/api/v1/bootstrap') return Promise.resolve(bootstrapResponse(true));
+      if (path === '/api/v1/reading-logs/101/note') {
+        return Promise.reject(new ApiError('This reading has changed. Refresh History and open it again.', 'http', 409));
+      }
+      return Promise.resolve(historyResponse(1, 1, '2026-08-10', removed ? [] : [detailedGroup()]));
+    });
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Edit note' }));
+    await fireEvent.changeText(screen.getByLabelText('Note'), 'Keep this draft');
+    removed = true;
+    await act(async () => {
+      await screen.getByTestId('history-refresh-control', { includeHiddenElements: true }).props.onRefresh();
+    });
+    expect(screen.getByDisplayValue('Keep this draft')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Save note' }));
+    expect(await screen.findByText('This reading has changed. Refresh History and open it again.')).toBeOnTheScreen();
+    expect(screen.getByDisplayValue('Keep this draft')).toBeOnTheScreen();
+    expect(request).toHaveBeenCalledWith('/api/v1/reading-logs/101/note', {
+      method: 'PATCH', body: { log_ids: [101, 102], notes_text: 'Keep this draft' },
+    });
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancel note editing' }));
+    expect(await screen.findByText(/History changed. Open the reading details again/)).toBeOnTheScreen();
   });
 
   it('closes an older pages details when a successful refresh replaces appended pages', async () => {

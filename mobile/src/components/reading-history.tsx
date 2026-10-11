@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -27,8 +27,9 @@ import { ReadingHistoryDetails } from '@/components/reading-history-details';
 import { themeTokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
-function useReadingHistory(refreshReadTodayStatus: () => Promise<unknown>) {
+function useReadingHistory(refreshReadTodayStatus: () => Promise<{ isSuccess: boolean }>) {
   const request = useAuthenticatedApi();
+  const queryClient = useQueryClient();
   const [loadedPages, setLoadedPages] = useState<ReadingHistoryPage[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<Error | null>(null);
@@ -113,6 +114,22 @@ function useReadingHistory(refreshReadTodayStatus: () => Promise<unknown>) {
     }
   }, [hasNextPage, lastLoadedPage, pages, refresh, request]);
 
+  const refreshAfterNoteUpdate = useCallback(async (minimumPages = 0) => {
+    const generation = ++refreshGenerationRef.current;
+    const refreshedPages = await Promise.all(Array.from(
+      { length: Math.max(lastLoadedPage, minimumPages) }, (_, index) => fetchReadingHistoryPage(request, index + 1),
+    ));
+    const bootstrapResult = await refreshReadTodayStatus();
+    if (!bootstrapResult.isSuccess) {
+      throw new Error('Home could not refresh. Try refreshing again.');
+    }
+    if (generation !== refreshGenerationRef.current) {
+      throw new Error('History changed during refresh. Try refreshing again.');
+    }
+    queryClient.setQueryData(['reading-history', 1], refreshedPages[0]);
+    setLoadedPages(refreshedPages.slice(1));
+  }, [lastLoadedPage, queryClient, refreshReadTodayStatus, request]);
+
   return {
     days,
     isInitialLoading: initialPage.isLoading,
@@ -125,6 +142,8 @@ function useReadingHistory(refreshReadTodayStatus: () => Promise<unknown>) {
     hasNextPage,
     refresh,
     retryInitial: refetch,
+    refreshAfterNoteUpdate,
+    loadedPageCount: lastLoadedPage,
     loadMore,
   };
 }
@@ -444,11 +463,15 @@ export function ReadingHistory() {
   const readTodayStatus = useReadTodayStatus();
   const history = useReadingHistory(readTodayStatus.refetch);
   const [selectedLogIds, setSelectedLogIds] = useState<number[] | null>(null);
+  const [editingSelection, setEditingSelection] = useState<{
+    group: ReadingHistoryGroup; loadedPageCount: number;
+  } | null>(null);
   const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
-  const selectedGroup = selectedLogIds === null ? null : history.days
+  const currentGroup = selectedLogIds === null ? null : history.days
     .flatMap((day) => day.groups)
     .find((group) => group.logIds.length === selectedLogIds.length
       && group.logIds.every((id) => selectedLogIds.includes(id))) ?? null;
+  const selectedGroup = editingSelection?.group ?? currentGroup;
 
   if (selectedLogIds !== null && selectedGroup === null) {
     setSelectedLogIds(null);
@@ -469,7 +492,7 @@ export function ReadingHistory() {
     );
   }
 
-  if (history.initialError && history.days.length === 0) {
+  if (history.initialError && history.days.length === 0 && selectedGroup === null) {
     return (
       <View accessibilityLiveRegion="polite" style={{ flex: 1, justifyContent: 'center', gap: 16, padding: themeTokens.spacing.screen }}>
         <Text selectable style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>History is unavailable</Text>
@@ -556,7 +579,14 @@ export function ReadingHistory() {
         <ReadingHistoryDetails
           group={selectedGroup}
           dateLabel={formatDate(selectedGroup.dateRead)}
-          onClose={() => setSelectedLogIds(null)}
+          onClose={() => {
+            setEditingSelection(null);
+            setSelectedLogIds(null);
+          }}
+          onEditingChange={(editing) => setEditingSelection(editing ? {
+            group: selectedGroup, loadedPageCount: history.loadedPageCount,
+          } : null)}
+          onNoteSaved={() => history.refreshAfterNoteUpdate(editingSelection?.loadedPageCount)}
         />
       ) : null}
     </>

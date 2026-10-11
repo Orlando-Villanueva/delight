@@ -159,3 +159,14 @@ export function hasPartialReadingHistoryOverlap(
 
   return false;
 }
+
+export async function updateReadingNote(
+  request: AuthenticatedApi,
+  logIds: number[],
+  note: string,
+): Promise<void> {
+  await request(`/api/v1/reading-logs/${logIds[0]}/note`, {
+    method: 'PATCH',
+    body: { log_ids: logIds, notes_text: note.trim() || null },
+  });
+}

@@ -3,6 +3,7 @@ import {
   Animated,
   type DimensionValue,
   Modal,
+  KeyboardAvoidingView,
   PanResponder,
   Pressable,
   Text,
@@ -19,6 +20,7 @@ const overlayEnterMs = 200;
 const sheetEnterMs = 280;
 const sheetExitMs = 220;
 const upwardTravelLimit = 24;
+export type SheetDismissReason = 'back' | 'close' | 'backdrop' | 'drag';
 
 type BottomSheetProps = {
   visible: boolean;
@@ -38,6 +40,9 @@ type BottomSheetProps = {
   padBottomSafeArea?: boolean;
   paddingBottom?: number;
   draggable?: boolean;
+  dismissDisabled?: boolean;
+  avoidKeyboard?: boolean;
+  onBeforeDismiss?: (reason: SheetDismissReason) => boolean | Promise<boolean>;
 };
 
 export function sheetPaddingBottom({
@@ -74,6 +79,9 @@ export function BottomSheet({
   padBottomSafeArea = false,
   paddingBottom,
   draggable = false,
+  dismissDisabled = false,
+  avoidKeyboard = false,
+  onBeforeDismiss,
 }: Readonly<BottomSheetProps>) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -82,15 +90,30 @@ export function BottomSheet({
   const [sheetTranslateY] = useState(() => new Animated.Value(height));
 
   const closingRef = useRef(false);
+  const checkingDismissRef = useRef(false);
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
 
-  const dismiss = useCallback(() => {
-    if (closingRef.current) {
+  const dismiss = useCallback(async (reason: SheetDismissReason) => {
+    if (closingRef.current || checkingDismissRef.current || dismissDisabled) {
       return;
+    }
+
+    if (onBeforeDismiss) {
+      checkingDismissRef.current = true;
+      Animated.spring(sheetTranslateY, {
+        toValue: 0, useNativeDriver: true, overshootClamping: true,
+      }).start();
+      try {
+        if (!await onBeforeDismiss(reason)) {
+          return;
+        }
+      } finally {
+        checkingDismissRef.current = false;
+      }
     }
 
     closingRef.current = true;
@@ -109,7 +132,7 @@ export function BottomSheet({
         onCloseRef.current();
       }
     });
-  }, [height, overlayOpacity, sheetTranslateY]);
+  }, [dismissDisabled, height, onBeforeDismiss, overlayOpacity, sheetTranslateY]);
 
   const returnToOpen = useCallback(() => {
     if (closingRef.current) {
@@ -123,10 +146,13 @@ export function BottomSheet({
     animation.start();
   }, [sheetTranslateY]);
 
-  const shouldClaimHandle = useCallback(() => !closingRef.current, []);
+  const shouldClaimHandle = useCallback(() => (
+    !closingRef.current && !checkingDismissRef.current && !dismissDisabled
+  ), [dismissDisabled]);
   const shouldStartDrag = useCallback((_: unknown, gesture: { dy: number; dx: number }) => (
-    !closingRef.current && Math.abs(gesture.dy) > 5 && Math.abs(gesture.dy) > Math.abs(gesture.dx)
-  ), []);
+    !closingRef.current && !checkingDismissRef.current && !dismissDisabled
+      && Math.abs(gesture.dy) > 5 && Math.abs(gesture.dy) > Math.abs(gesture.dx)
+  ), [dismissDisabled]);
   const startDrag = useCallback(() => {
     animationRef.current?.stop();
     sheetTranslateY.setValue(0);
@@ -142,7 +168,7 @@ export function BottomSheet({
   }, [sheetTranslateY]);
   const releaseDrag = useCallback((_: unknown, gesture: { dy: number; vy: number }) => {
     if (gesture.dy > 80 || (gesture.dy > 12 && gesture.vy > 0.7)) {
-      dismiss();
+      void dismiss('drag');
     } else {
       returnToOpen();
     }
@@ -187,13 +213,18 @@ export function BottomSheet({
 
   return (
     <Modal
+      testID="bottom-sheet-modal"
       animationType="none"
       transparent
       visible={visible}
-      onRequestClose={dismiss}
+      onRequestClose={() => { void dismiss('back'); }}
       accessibilityViewIsModal
     >
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <KeyboardAvoidingView
+        enabled={avoidKeyboard}
+        behavior="padding"
+        style={{ flex: 1, justifyContent: 'flex-end' }}
+      >
         <Animated.View
           pointerEvents="none"
           style={{
@@ -210,7 +241,7 @@ export function BottomSheet({
           accessibilityRole="button"
           accessibilityLabel={dismissAccessibilityLabel}
           accessibilityHint={dismissAccessibilityHint}
-          onPress={dismiss}
+          onPress={() => { void dismiss('backdrop'); }}
           style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
         />
         <Animated.View
@@ -286,7 +317,9 @@ export function BottomSheet({
               accessibilityRole="button"
               accessibilityLabel={closeAccessibilityLabel}
               accessibilityHint={closeAccessibilityHint}
-              onPress={dismiss}
+              onPress={() => { void dismiss('close'); }}
+              disabled={dismissDisabled}
+              accessibilityState={{ disabled: dismissDisabled }}
               style={{
                 minHeight: themeTokens.minimumTouchTarget,
                 minWidth: themeTokens.minimumTouchTarget,
@@ -301,7 +334,7 @@ export function BottomSheet({
           </View>
           {children}
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
