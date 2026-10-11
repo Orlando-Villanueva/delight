@@ -56,34 +56,36 @@
                 </div>
 
                 <!-- Books Grid -->
-                <div class="book-completion-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" role="list">
-                    <template x-for="book in current.processed_books" :key="book.name">
-                        <div role="listitem" class="flex min-h-[5.25rem] flex-col justify-center gap-1 border-r border-b border-gray-200 p-2 text-center dark:border-gray-700"
-                            :class="statusClasses(book.status)"
-                            :title="bookDetailsLabel(book)"
-                            :aria-label="bookDetailsLabel(book)">
-                            <div class="relative flex min-h-8 w-full items-center justify-center">
-                                <div class="w-full min-w-0 break-words px-8 text-center text-sm font-semibold leading-tight"
-                                    x-text="book.name"></div>
+                <div class="@container/book-grid">
+                    <div class="book-completion-grid grid grid-cols-1 @min-[18rem]/book-grid:grid-cols-2 @min-[27rem]/book-grid:grid-cols-3 @min-[36rem]/book-grid:grid-cols-4 @min-[45rem]/book-grid:grid-cols-5 @min-[54rem]/book-grid:grid-cols-6 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700" role="list">
+                        <template x-for="book in current.processed_books" :key="book.name">
+                            <div role="listitem" class="flex min-h-[5.25rem] flex-col justify-center gap-1 border-r border-b border-gray-200 p-2 text-center dark:border-gray-700"
+                                :class="statusClasses(book.status)"
+                                :title="bookDetailsLabel(book)"
+                                :aria-label="bookDetailsLabel(book)">
+                                <div class="flex min-h-8 w-full flex-wrap items-center justify-center gap-x-2 gap-y-1">
+                                    <div class="min-w-0 max-w-full break-normal text-center text-sm font-semibold leading-tight"
+                                        x-text="book.name"></div>
 
-                                <!-- The badge does not affect the centered title or tile height. -->
-                                <template x-if="book.completed_count > 0">
-                                    <span aria-hidden="true" class="absolute right-1 top-1/2 inline-flex h-6 min-w-6 -translate-y-1/2 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold leading-none text-gray-800 ring-1 ring-gray-300 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-500">
-                                        <span x-text="book.completed_count > 1 ? `×${book.completed_count}` : book.completed_count"></span>
-                                    </span>
-                                </template>
+                                    <!-- Badges wrap with the title instead of reserving space on every book. -->
+                                    <template x-if="book.completed_count > 0">
+                                        <span aria-hidden="true" class="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold leading-none text-gray-800 ring-1 ring-gray-300 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-500">
+                                            <span x-text="book.completed_count > 1 ? `×${book.completed_count}` : book.completed_count"></span>
+                                        </span>
+                                    </template>
+                                </div>
+
+                                <div class="text-sm leading-[1.5]"
+                                    x-text="book.completed_count > 0 ? `${book.next_completion_chapters}/${book.chapter_count} to next` : `${book.chapters_read}/${book.chapter_count} chapters`"></div>
+
+                                <!-- Progress toward the next whole-book completion -->
+                                <div class="h-1 w-full overflow-hidden rounded-full" :class="progressTrackClasses(book.status)">
+                                    <div class="h-1 rounded-full transition-[width] duration-300" :class="progressFillClasses(book.status)"
+                                        :style="`width: ${book.completed_count > 0 ? book.next_completion_progress_percent : book.percentage}%`"></div>
+                                </div>
                             </div>
-
-                            <div class="text-sm leading-[1.5]"
-                                x-text="book.completed_count > 0 ? `${book.next_completion_chapters}/${book.chapter_count} to next` : `${book.chapters_read}/${book.chapter_count} chapters`"></div>
-
-                            <!-- Progress toward the next whole-book completion -->
-                            <div class="h-1 w-full overflow-hidden rounded-full" :class="progressTrackClasses(book.status)">
-                                <div class="h-1 rounded-full transition-[width] duration-300" :class="progressFillClasses(book.status)"
-                                    :style="`width: ${book.completed_count > 0 ? book.next_completion_progress_percent : book.percentage}%`"></div>
-                            </div>
-                        </div>
-                    </template>
+                        </template>
+                    </div>
                 </div>
 
             </div>
