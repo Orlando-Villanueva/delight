@@ -16,19 +16,21 @@ const group: ReadingHistoryGroup = {
     dateRead: '2026-08-08', loggedAt: null }],
 };
 
-async function details(edit = true, onRecordRemoved = jest.fn().mockResolvedValue(undefined)) {
+async function details(
+  edit = true, onRecordsRemoved = jest.fn().mockResolvedValue(undefined), selectedGroup = group,
+) {
   const onClose = jest.fn();
   await render(
     <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 },
       insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { gcTime: 0 } } })}>
-        <ReadingHistoryDetails group={group} dateLabel="August 8" onClose={onClose}
-          onNoteSaved={jest.fn().mockResolvedValue(undefined)} onRecordRemoved={onRecordRemoved} />
+        <ReadingHistoryDetails group={selectedGroup} dateLabel="August 8" onClose={onClose}
+          onNoteSaved={jest.fn().mockResolvedValue(undefined)} onRecordsRemoved={onRecordsRemoved} />
       </QueryClientProvider>
     </SafeAreaProvider>,
   );
   if (edit) await fireEvent.press(screen.getByRole('button', { name: 'Edit note' }));
-  return { onClose, onRecordRemoved };
+  return { onClose, onRecordsRemoved };
 }
 
 beforeEach(() => {
@@ -108,7 +110,7 @@ it('removes the authoritative record after confirmation and blocks dismissal whi
   request.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
   let finishRefresh: (() => void) | undefined;
   const onRemoved = jest.fn(() => new Promise<void>((resolve) => { finishRefresh = resolve; }));
-  const { onClose, onRecordRemoved } = await details(false, onRemoved);
+  const { onClose, onRecordsRemoved } = await details(false, onRemoved);
   jest.mocked(Alert.alert).mockImplementationOnce((_title, _message, buttons) => buttons?.[1].onPress?.());
   await fireEvent.press(screen.getByRole('button', { name: 'Remove John 1 from History' }));
   await waitFor(() => expect(request).toHaveBeenCalledWith('/api/v1/reading-logs/101', { method: 'DELETE' }));
@@ -119,7 +121,7 @@ it('removes the authoritative record after confirmation and blocks dismissal whi
   await fireEvent.press(screen.getByRole('button', { name: 'Close reading details' }));
   expect(onClose).not.toHaveBeenCalled();
   finish?.();
-  await waitFor(() => expect(onRecordRemoved).toHaveBeenCalledWith(101));
+  await waitFor(() => expect(onRecordsRemoved).toHaveBeenCalledWith([101]));
   expect(screen.getByText('Removing…')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Edit note' })).toBeDisabled();
   finishRefresh?.();
@@ -146,4 +148,66 @@ it('retries only refresh after removal succeeded but refreshing failed', async (
   await fireEvent.press(screen.getByRole('button', { name: 'Retry refresh' }));
   await waitFor(() => expect(onRemoved).toHaveBeenCalledTimes(2));
   expect(request).toHaveBeenCalledTimes(1);
+});
+
+const multiGroup: ReadingHistoryGroup = {
+  ...group, logIds: [101, 102, 103], passage: 'John 1-3', endChapter: 3,
+  records: [1, 2, 3].map((chapter) => ({ ...group.records![0], id: 100 + chapter, chapter, passage: `John ${chapter}` })),
+};
+
+it('selects a subset and submits authoritative IDs once while keeping controls stable', async () => {
+  let finish!: () => void;
+  request.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+  const { onRecordsRemoved } = await details(false, undefined, multiGroup);
+  expect(screen.queryByRole('button', { name: 'Remove John 1 from History' })).not.toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Remove chapters' }));
+  expect(screen.getByRole('button', { name: 'Remove 0 chapters' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Edit note' })).toBeDisabled();
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'John 1' }));
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'John 3' }));
+  jest.mocked(Alert.alert).mockImplementationOnce((_title, _message, buttons) => buttons?.[1].onPress?.());
+  await fireEvent.press(screen.getByRole('button', { name: 'Remove 2 chapters' }));
+  expect(Alert.alert).toHaveBeenCalledWith('Remove 2 chapters?', expect.stringContaining('John 1, John 3'),
+    expect.any(Array), expect.any(Object));
+  await waitFor(() => expect(request).toHaveBeenCalledWith('/api/v1/reading-logs/101/chapters', {
+    method: 'DELETE', body: { group_ids: [101, 102, 103], log_ids: [101, 103] },
+  }));
+  expect(screen.getByText('Removing…')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Cancel chapter selection' })).toBeDisabled();
+  expect(screen.getByRole('checkbox', { name: 'John 1' })).toBeDisabled();
+  finish();
+  await waitFor(() => expect(onRecordsRemoved).toHaveBeenCalledWith([101, 103]));
+  expect(await screen.findByRole('button', { name: 'Remove chapters' })).toBeOnTheScreen();
+});
+
+it('selects and deselects all, and Back cancels selection without a write', async () => {
+  const { onClose } = await details(false, undefined, multiGroup);
+  await fireEvent.press(screen.getByRole('button', { name: 'Remove chapters' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Select all chapters' }));
+  expect(screen.getByRole('button', { name: 'Remove 3 chapters' })).toBeEnabled();
+  expect(screen.getByRole('checkbox', { name: 'John 2' })).toBeChecked();
+  await fireEvent.press(screen.getByRole('button', { name: 'Deselect all chapters' }));
+  expect(screen.getByRole('button', { name: 'Remove 0 chapters' })).toBeDisabled();
+  await fireEvent(screen.getByTestId('bottom-sheet-modal'), 'requestClose');
+  expect(await screen.findByRole('button', { name: 'Remove chapters' })).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Edit note' })).toBeEnabled();
+  expect(onClose).not.toHaveBeenCalled();
+  expect(request).not.toHaveBeenCalled();
+});
+
+it('preserves a failed selection and retries only refresh after batch deletion', async () => {
+  const onRemoved = jest.fn().mockRejectedValueOnce(new Error('Refresh failed')).mockResolvedValue(undefined);
+  request.mockRejectedValueOnce(new Error('Connection lost')).mockResolvedValue(undefined);
+  await details(false, onRemoved, multiGroup);
+  await fireEvent.press(screen.getByRole('button', { name: 'Remove chapters' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Select all chapters' }));
+  jest.mocked(Alert.alert).mockImplementation((_title, _message, buttons) => buttons?.[1].onPress?.());
+  await fireEvent.press(screen.getByRole('button', { name: 'Remove 3 chapters' }));
+  expect(await screen.findByText('Connection lost')).toBeOnTheScreen();
+  expect(screen.getByRole('checkbox', { name: 'John 2' })).toBeChecked();
+  await fireEvent.press(screen.getByRole('button', { name: 'Remove 3 chapters' }));
+  expect(await screen.findByText(/The chapters were removed, but History could not refresh/)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'Retry refresh' }));
+  await waitFor(() => expect(onRemoved).toHaveBeenCalledTimes(2));
+  expect(request).toHaveBeenCalledTimes(2);
 });

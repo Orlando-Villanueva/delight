@@ -316,8 +316,9 @@ class DeleteReadingLogTest extends TestCase
 
         $response = $this->actingAs($user)
             ->withHeaders(['HX-Request' => 'true'])
-            ->delete(route('logs.batchDestroy'), [
-                'ids' => $idsToDelete,
+            ->delete(route('logs.chapters.destroy', $allLogs->first()), [
+                'group_ids' => $idsToDelete,
+                'log_ids' => $idsToDelete,
             ]);
 
         $response->assertSuccessful();
@@ -375,8 +376,9 @@ class DeleteReadingLogTest extends TestCase
 
         $response = $this->actingAs($user)
             ->withHeaders(['HX-Request' => 'true'])
-            ->delete(route('logs.batchDestroy'), [
-                'ids' => [$firstLogId],
+            ->delete(route('logs.chapters.destroy', $allLogs->first()), [
+                'group_ids' => $allLogs->pluck('id')->all(),
+                'log_ids' => [$firstLogId],
             ]);
 
         $response->assertSuccessful();

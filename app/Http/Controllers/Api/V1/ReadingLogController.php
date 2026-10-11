@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\DeleteReadingChaptersRequest;
 use App\Http\Requests\Api\V1\StoreReadingLogRequest;
 use App\Http\Requests\Api\V1\UpdateReadingNoteRequest;
 use App\Http\Resources\Api\V1\ReadingLogDayResource;
@@ -64,6 +65,16 @@ class ReadingLogController extends Controller
         $data = $request->validated();
         $this->readingLogService->updateGroupNote(
             $request->user(), $readingLog, $data['log_ids'], $data['notes_text']
+        );
+
+        return response()->noContent();
+    }
+
+    public function destroyChapters(DeleteReadingChaptersRequest $request, ReadingLog $readingLog): Response
+    {
+        $data = $request->validated();
+        $this->readingLogService->deleteGroupChapters(
+            $request->user(), $readingLog, $data['group_ids'], $data['log_ids']
         );
 
         return response()->noContent();

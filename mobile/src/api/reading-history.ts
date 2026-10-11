@@ -174,3 +174,13 @@ export async function updateReadingNote(
 export async function deleteReadingRecord(request: AuthenticatedApi, recordId: number): Promise<void> {
   await request(`/api/v1/reading-logs/${recordId}`, { method: 'DELETE' });
 }
+
+export async function deleteReadingChapters(
+  request: AuthenticatedApi,
+  groupIds: number[],
+  recordIds: number[],
+): Promise<void> {
+  await request(`/api/v1/reading-logs/${groupIds[0]}/chapters`, {
+    method: 'DELETE', body: { group_ids: groupIds, log_ids: recordIds },
+  });
+}

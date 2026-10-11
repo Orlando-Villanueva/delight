@@ -2,48 +2,52 @@ import { useMutation } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { AccessibilityInfo, Alert } from 'react-native';
 
-import { deleteReadingRecord } from '@/api/reading-history';
+import { deleteReadingChapters, deleteReadingRecord, type ReadingHistoryGroup } from '@/api/reading-history';
 import { useAuthenticatedApi } from '@/auth/auth-context';
 
 export function useReadingRecordRemoval({
-  dateLabel, onProtectDetails, onRemoved,
+  group, dateLabel, onProtectDetails, onRemoved,
 }: {
+  group: ReadingHistoryGroup;
   dateLabel: string;
   onProtectDetails: () => void;
-  onRemoved: (recordId: number) => Promise<void>;
+  onRemoved: (recordIds: number[]) => Promise<void>;
 }) {
   const request = useAuthenticatedApi();
   const busyRef = useRef(false);
   const confirmingRef = useRef(false);
   const [busy, setBusy] = useState(false);
-  const [activeId, setActiveId] = useState<number | null>(null);
-  const [removedId, setRemovedId] = useState<number | null>(null);
+  const [activeIds, setActiveIds] = useState<number[]>([]);
+  const [removedIds, setRemovedIds] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const mutation = useMutation({
-    mutationFn: (id: number) => deleteReadingRecord(request, id),
+    mutationFn: (ids: number[]) => group.records?.length === 1
+      ? deleteReadingRecord(request, ids[0])
+      : deleteReadingChapters(request, group.logIds, ids),
     retry: false,
   });
 
-  async function remove(recordId: number, refreshOnly = false) {
+  async function remove(recordIds: number[], refreshOnly = false) {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
-    setActiveId(recordId);
+    setActiveIds(recordIds);
     setError(null);
     onProtectDetails();
     let deleted = refreshOnly;
     try {
       if (!deleted) {
-        await mutation.mutateAsync(recordId);
+        await mutation.mutateAsync(recordIds);
         deleted = true;
-        setRemovedId(recordId);
-        AccessibilityInfo.announceForAccessibility('Chapter removed from History.');
+        setRemovedIds(recordIds);
+        AccessibilityInfo.announceForAccessibility(recordIds.length === 1
+          ? 'Chapter removed from History.' : 'Chapters removed from History.');
       }
-      await onRemoved(recordId);
-      setRemovedId(null);
+      await onRemoved(recordIds);
+      setRemovedIds([]);
     } catch (failure) {
       setError(deleted
-        ? 'The chapter was removed, but History could not refresh. Retry refresh to try again.'
+        ? `${recordIds.length === 1 ? 'The chapter was' : 'The chapters were'} removed, but History could not refresh. Retry refresh to try again.`
         : failure instanceof Error ? failure.message : 'The chapter could not be removed. Try again.');
     } finally {
       busyRef.current = false;
@@ -51,20 +55,25 @@ export function useReadingRecordRemoval({
     }
   }
 
-  function confirmRemoval(recordId: number, passage: string) {
-    if (busyRef.current || confirmingRef.current || removedId !== null) return;
+  function confirmRemoval(recordIds: number[], passages: string[]) {
+    if (busyRef.current || confirmingRef.current || removedIds.length > 0 || recordIds.length === 0) return;
     confirmingRef.current = true;
-    Alert.alert(`Remove ${passage}?`, `Remove this chapter from your reading on ${dateLabel}?`, [
+    const title = recordIds.length === 1 ? `Remove ${passages[0]}?` : `Remove ${recordIds.length} chapters?`;
+    const message = group.records?.length === 1
+      ? `Remove this chapter from your reading on ${dateLabel}?`
+      : `Remove ${passages.join(', ')} from your reading of ${group.passage} on ${dateLabel}?`;
+    Alert.alert(title, message, [
       { text: 'Cancel', style: 'cancel', onPress: () => { confirmingRef.current = false; } },
       { text: 'Remove', style: 'destructive', onPress: () => {
         confirmingRef.current = false;
-        void remove(recordId);
+        void remove(recordIds);
       } },
     ], { cancelable: true, onDismiss: () => { confirmingRef.current = false; } });
   }
 
   return {
-    busy, activeId, error, removedId, confirmRemoval,
-    refresh: () => { if (removedId !== null) void remove(removedId, true); },
+    busy, activeIds, error, removedIds, confirmRemoval,
+    refresh: () => { if (removedIds.length > 0) void remove(removedIds, true); },
+    clearError: () => setError(null),
   };
 }

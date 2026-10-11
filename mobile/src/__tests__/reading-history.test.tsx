@@ -209,7 +209,7 @@ describe('reading history', () => {
     expect(request).toHaveBeenCalledWith('/api/v1/bootstrap');
   });
 
-  it.each(['edge', 'middle', 'last'])('refreshes and reconciles details after removing an %s chapter',
+  it.each(['edge', 'middle', 'last', 'all', 'subset'])('refreshes and reconciles details after %s removal',
     async (scenario) => {
       const record = (chapter: number) => ({
         id: 100 + chapter, chapter, passage: `John ${chapter}`, notes_text: 'Note',
@@ -221,16 +221,19 @@ describe('reading history', () => {
         end_chapter: scenario === 'last' ? null : 3,
         records: (scenario === 'last' ? [1] : [1, 2, 3]).map(record),
       });
-      const remaining = scenario === 'last' ? [] : scenario === 'middle' ? [
+      const remaining = scenario === 'last' || scenario === 'all' ? [] : scenario === 'subset' ? [
+        detailedGroup({ log_ids: [102], passage: 'John 2', start_chapter: 2, end_chapter: null, records: [record(2)] }),
+      ] : scenario === 'middle' ? [
         detailedGroup({ log_ids: [101], passage: 'John 1', end_chapter: null, records: [record(1)] }),
         detailedGroup({ log_ids: [103], passage: 'John 3', start_chapter: 3, end_chapter: null, records: [record(3)] }),
       ] : [detailedGroup({ log_ids: [102, 103], passage: 'John 2-3', start_chapter: 2, end_chapter: 3,
         records: [record(2), record(3)] })];
       let deleted = false;
       const id = scenario === 'middle' ? 102 : 101;
+      const removedIds = scenario === 'all' ? [101, 102, 103] : scenario === 'subset' ? [101, 103] : [id];
       request.mockImplementation((path: string) => {
         if (path === '/api/v1/bootstrap') return Promise.resolve(bootstrapResponse(true));
-        if (path === `/api/v1/reading-logs/${id}`) {
+        if (path === (scenario === 'last' ? `/api/v1/reading-logs/${id}` : '/api/v1/reading-logs/101/chapters')) {
           deleted = true;
           return Promise.resolve(undefined);
         }
@@ -244,20 +247,35 @@ describe('reading history', () => {
         const screen = await renderHistory();
         await fireEvent.press(await screen.findByRole('button', { name: 'Load more' }));
         await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1/ }));
-        await fireEvent.press(screen.getByRole('button', {
-          name: `Remove John ${scenario === 'middle' ? 2 : 1} from History`,
-        }));
+        if (scenario === 'last') {
+          await fireEvent.press(screen.getByRole('button', { name: 'Remove John 1 from History' }));
+        } else {
+          await fireEvent.press(screen.getByRole('button', { name: 'Remove chapters' }));
+          for (const recordId of removedIds) {
+            await fireEvent.press(screen.getByRole('checkbox', { name: `John ${recordId - 100}` }));
+          }
+          await fireEvent.press(screen.getByRole('button', {
+            name: `Remove ${removedIds.length} ${removedIds.length === 1 ? 'chapter' : 'chapters'}`,
+          }));
+        }
         if (scenario === 'edge') {
           expect(await screen.findByText('John 2-3')).toBeOnTheScreen();
           expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
-          await waitFor(() => expect(screen.getByRole('button', { name: 'Remove John 2 from History' })).toBeEnabled());
+          await waitFor(() => expect(screen.getByRole('button', { name: 'Remove chapters' })).toBeEnabled());
+        } else if (scenario === 'subset') {
+          expect(await screen.findByRole('button', { name: 'Remove John 2 from History' })).toBeEnabled();
+          expect(screen.queryByRole('button', { name: 'Remove chapters' })).not.toBeOnTheScreen();
         } else {
-          expect(await screen.findByText(scenario === 'middle'
+          expect(await screen.findByText(scenario === 'all' ? 'Chapters removed from History.' : scenario === 'middle'
             ? 'Chapter removed. The remaining chapters are now shown as separate readings in History.'
             : 'Chapter removed from History.')).toBeOnTheScreen();
           expect(screen.queryByRole('button', { name: 'Close reading details' })).not.toBeOnTheScreen();
         }
-        expect(request).toHaveBeenCalledWith(`/api/v1/reading-logs/${id}`, { method: 'DELETE' });
+        expect(request).toHaveBeenCalledWith(
+          scenario === 'last' ? `/api/v1/reading-logs/${id}` : '/api/v1/reading-logs/101/chapters',
+          scenario === 'last' ? { method: 'DELETE' }
+            : { method: 'DELETE', body: { group_ids: [101, 102, 103], log_ids: removedIds } },
+        );
         expect(request.mock.calls.filter(([path]) => path.endsWith('page=2'))).toHaveLength(2);
         expect(request.mock.calls.filter(([path]) => path === '/api/v1/bootstrap')).toHaveLength(1);
       } finally {
@@ -428,6 +446,86 @@ describe('reading history', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit note' })).toBeOnTheScreen());
     expect(screen.getByText('Unsaved draft')).toBeOnTheScreen();
     expect(request.mock.calls.filter(([path]) => path.endsWith('page=2'))).toHaveLength(2);
+  });
+
+  it.each(['Cancel', 'Back'])('keeps older reading details after foreground refresh and selection %s', async (exit) => {
+    request.mockImplementation((path: string) => {
+      if (path === '/api/v1/bootstrap') return Promise.resolve(bootstrapResponse(true));
+      if (path.endsWith('page=1')) {
+        return Promise.resolve(historyResponse(1, 2, '2026-08-10', [readingGroup({
+          log_ids: [104], passage: 'John 4',
+        })]));
+      }
+      return Promise.resolve(historyResponse(2, 2, '2026-08-09', [detailedGroup()]));
+    });
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Load more' }));
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Remove chapters' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'John 2' }));
+    await act(async () => { mockAppStateListener?.('active'); });
+    await waitFor(() => expect(screen.getByTestId('history-refresh-control', {
+      includeHiddenElements: true,
+    }).props.refreshing).toBe(false));
+    expect(screen.getByRole('checkbox', { name: 'John 2' })).toBeChecked();
+    if (exit === 'Cancel') {
+      await fireEvent.press(screen.getByRole('button', { name: 'Cancel chapter selection' }));
+    } else {
+      await fireEvent(screen.getByTestId('bottom-sheet-modal'), 'requestClose');
+    }
+    expect(await screen.findByRole('button', { name: 'Edit note' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Remove chapters' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
+    expect(screen.queryByRole('checkbox', { name: 'John 2' })).not.toBeOnTheScreen();
+    expect(request.mock.calls.some(([, options]) => options?.method === 'DELETE')).toBe(false);
+  });
+
+  it.each(['Cancel', 'Back'])('uses refreshed note text after chapter selection %s', async (exit) => {
+    let updated = false;
+    request.mockImplementation((path: string) => {
+      if (path === '/api/v1/bootstrap') return Promise.resolve(bootstrapResponse(true));
+      const note = updated ? 'Updated elsewhere' : 'Original note';
+      return Promise.resolve(historyResponse(1, 1, '2026-08-10', [detailedGroup({
+        notes_text: note,
+        records: [1, 2].map((chapter) => ({
+          id: 100 + chapter, chapter, passage: `John ${chapter}`, notes_text: note,
+          date_read: '2026-08-10', logged_at: null,
+        })),
+      })]));
+    });
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Remove chapters' }));
+    updated = true;
+    await act(async () => { mockAppStateListener?.('active'); });
+    await waitFor(() => expect(screen.getByTestId('history-refresh-control', {
+      includeHiddenElements: true,
+    }).props.refreshing).toBe(false));
+    expect(screen.getByText('Original note')).toBeOnTheScreen();
+    if (exit === 'Cancel') {
+      await fireEvent.press(screen.getByRole('button', { name: 'Cancel chapter selection' }));
+    } else {
+      await fireEvent(screen.getByTestId('bottom-sheet-modal'), 'requestClose');
+    }
+    expect(await screen.findByText('Updated elsewhere')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Edit note' }));
+    expect(screen.getByDisplayValue('Updated elsewhere')).toBeOnTheScreen();
+  });
+
+  it('reconciles changed chapters on foreground refresh after canceling selection', async () => {
+    let changed = false;
+    request.mockImplementation((path: string) => {
+      if (path === '/api/v1/bootstrap') return Promise.resolve(bootstrapResponse(true));
+      return Promise.resolve(historyResponse(1, 1, '2026-08-10', changed ? [] : [detailedGroup()]));
+    });
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Remove chapters' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancel chapter selection' }));
+    changed = true;
+    await act(async () => { mockAppStateListener?.('active'); });
+    expect(await screen.findByText(/History changed. Open the reading details again/)).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Close reading details' })).not.toBeOnTheScreen();
   });
 
   it('retains a draft when refresh removes its group and Save reports a conflict', async () => {

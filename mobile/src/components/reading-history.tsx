@@ -465,16 +465,19 @@ export function ReadingHistory() {
   const history = useReadingHistory(readTodayStatus.refetch);
   const [selectedLogIds, setSelectedLogIds] = useState<number[] | null>(null);
   const [preservedSelection, setPreservedSelection] = useState<{
-    group: ReadingHistoryGroup; loadedPageCount: number;
+    group: ReadingHistoryGroup; loadedPageCount: number; active: boolean;
   } | null>(null);
   const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
   const currentGroup = selectedLogIds === null ? null : history.days
     .flatMap((day) => day.groups)
     .find((group) => group.logIds.length === selectedLogIds.length
       && group.logIds.every((id) => selectedLogIds.includes(id))) ?? null;
-  const selectedGroup = preservedSelection?.group ?? currentGroup;
+  const fallbackGroup = preservedSelection !== null && history.hasNextPage
+    && history.loadedPageCount < preservedSelection.loadedPageCount ? preservedSelection.group : null;
+  const selectedGroup = preservedSelection?.active ? preservedSelection.group : currentGroup ?? fallbackGroup;
 
   if (selectedLogIds !== null && selectedGroup === null) {
+    setPreservedSelection(null);
     setSelectedLogIds(null);
     setDetailsNotice('History changed. Open the reading details again to see the current chapters.');
   }
@@ -584,13 +587,15 @@ export function ReadingHistory() {
             setPreservedSelection(null);
             setSelectedLogIds(null);
           }}
-          onPreserveDetailsChange={(editing) => setPreservedSelection((current) => editing ? current ?? {
-            group: selectedGroup, loadedPageCount: history.loadedPageCount,
-          } : null)}
+          onPreserveDetailsChange={(active) => setPreservedSelection((current) => active ? {
+            group: selectedGroup,
+            loadedPageCount: Math.max(history.loadedPageCount, current?.loadedPageCount ?? 0),
+            active: true,
+          } : current && fallbackGroup ? { ...current, active: false } : null)}
           onNoteSaved={async () => { await history.refreshAfterMutation(preservedSelection?.loadedPageCount); }}
-          onRecordRemoved={async (recordId) => {
+          onRecordsRemoved={async (recordIds) => {
             const days = await history.refreshAfterMutation(preservedSelection?.loadedPageCount);
-            const remainingIds = selectedGroup.logIds.filter((id) => id !== recordId);
+            const remainingIds = selectedGroup.logIds.filter((id) => !recordIds.includes(id));
             const groups = days.flatMap((day) => day.groups)
               .filter((group) => group.logIds.some((id) => remainingIds.includes(id)));
             const remainingGroup = groups.length === 1 && groups[0].logIds.length === remainingIds.length
@@ -598,9 +603,10 @@ export function ReadingHistory() {
             setSelectedLogIds(remainingGroup?.logIds ?? null);
             setPreservedSelection(null);
             if (!remainingGroup) {
+              const subject = recordIds.length === 1 ? 'Chapter' : 'Chapters';
               setDetailsNotice(groups.length > 1
-                ? 'Chapter removed. The remaining chapters are now shown as separate readings in History.'
-                : 'Chapter removed from History.');
+                ? `${subject} removed. The remaining chapters are now shown as separate readings in History.`
+                : `${subject} removed from History.`);
             }
           }}
         />

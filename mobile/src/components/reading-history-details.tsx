@@ -13,7 +13,7 @@ type ReadingHistoryDetailsProps = {
   dateLabel: string;
   onClose: () => void;
   onNoteSaved: () => Promise<void>;
-  onRecordRemoved: (recordId: number) => Promise<void>;
+  onRecordsRemoved: (recordIds: number[]) => Promise<void>;
   onPreserveDetailsChange?: (editing: boolean) => void;
 };
 
@@ -23,14 +23,21 @@ export function ReadingHistoryDetails({
   onClose,
   onNoteSaved,
   onPreserveDetailsChange,
-  onRecordRemoved,
+  onRecordsRemoved,
 }: Readonly<ReadingHistoryDetailsProps>) {
   const { colors } = useTheme();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const removal = useReadingRecordRemoval({
-    dateLabel, onProtectDetails: () => onPreserveDetailsChange?.(true), onRemoved: onRecordRemoved,
+    group, dateLabel, onProtectDetails: () => onPreserveDetailsChange?.(true),
+    onRemoved: async (ids) => {
+      await onRecordsRemoved(ids);
+      setSelecting(false);
+      setSelectedIds([]);
+    },
   });
   const records = group.records;
   const hasRecords = records !== null && records.length > 0;
@@ -39,8 +46,8 @@ export function ReadingHistoryDetails({
   const noteStyle = { color: colors.text, fontSize: 16, lineHeight: 24 };
 
   function removalAction(record: ReadingHistoryRecord, label = 'Remove') {
-    const disabled = removal.busy || removal.removedId !== null;
-    const active = removal.activeId === record.id && removal.busy;
+    const disabled = removal.busy || removal.removedIds.length > 0;
+    const active = removal.activeIds.includes(record.id) && removal.busy;
     return (
       <Pressable
         accessibilityRole="button"
@@ -48,7 +55,7 @@ export function ReadingHistoryDetails({
         accessibilityHint="Asks for confirmation before removing this chapter record."
         disabled={disabled}
         accessibilityState={{ disabled, busy: active }}
-        onPress={() => removal.confirmRemoval(record.id, record.passage)}
+        onPress={() => removal.confirmRemoval([record.id], [record.passage])}
         style={{
           minHeight: themeTokens.minimumTouchTarget, minWidth: label === 'Remove' ? 112 : 136,
           flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'flex-end',
@@ -57,20 +64,20 @@ export function ReadingHistoryDetails({
       >
         {active ? <ActivityIndicator size="small" color={colors.danger} accessible={false} /> : null}
         <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 16, fontWeight: '600' }}>
-          {active ? 'Removing…' : record.id === removal.removedId ? 'Removed' : label}
+          {active ? 'Removing…' : removal.removedIds.includes(record.id) ? 'Removed' : label}
         </Text>
       </Pressable>
     );
   }
 
   function removalFeedback(record: ReadingHistoryRecord) {
-    if (removal.activeId !== record.id || !removal.error) return null;
+    if (!removal.activeIds.includes(record.id) || !removal.error) return null;
     return (
       <View style={{ gap: 8 }}>
         <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 16 }}>
           {removal.error}
         </Text>
-        {removal.removedId !== null ? (
+        {removal.removedIds.length > 0 ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Retry refresh"
@@ -86,6 +93,18 @@ export function ReadingHistoryDetails({
     );
   }
 
+  function cancelSelection() {
+    setSelecting(false);
+    setSelectedIds([]);
+    removal.clearError();
+    onPreserveDetailsChange?.(false);
+  }
+
+  function toggleSelection(id: number) {
+    setSelectedIds((ids) => ids.includes(id) ? ids.filter((selected) => selected !== id) : [...ids, id]);
+    removal.clearError();
+  }
+
   function cancelEditing() {
     Keyboard.dismiss();
     setDirty(false);
@@ -94,6 +113,10 @@ export function ReadingHistoryDetails({
   }
 
   async function beforeDismiss(reason: SheetDismissReason): Promise<boolean> {
+    if (selecting && reason === 'back' && removal.removedIds.length === 0) {
+      cancelSelection();
+      return false;
+    }
     if (!editing) {
       return true;
     }
@@ -158,13 +181,14 @@ export function ReadingHistoryDetails({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Edit note"
-                disabled={removal.busy || removal.removedId !== null}
-                accessibilityState={{ disabled: removal.busy || removal.removedId !== null }}
+                disabled={selecting || removal.busy || removal.removedIds.length > 0}
+                accessibilityState={{ disabled: selecting || removal.busy || removal.removedIds.length > 0 }}
                 onPress={() => {
                   setEditing(true);
                   onPreserveDetailsChange?.(true);
                 }}
-                style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center' }}
+                style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center',
+                  opacity: selecting ? 0.5 : 1 }}
               >
                 <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>Edit note</Text>
               </Pressable>
@@ -199,9 +223,36 @@ export function ReadingHistoryDetails({
         ) : null}
         {hasRecords && records.length > 1 ? (
           <View style={{ gap: 12 }}>
-            <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 18, fontWeight: '600' }}>
-              Chapters read
-            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center',
+              justifyContent: 'space-between', gap: 12, minHeight: themeTokens.minimumTouchTarget }}>
+              <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 18, fontWeight: '600' }}>
+                Chapters read
+              </Text>
+              {selecting ? (
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel={selectedIds.length === records.length ? 'Deselect all chapters' : 'Select all chapters'}
+                  disabled={removal.busy || removal.removedIds.length > 0}
+                  accessibilityState={{ disabled: removal.busy || removal.removedIds.length > 0 }}
+                  onPress={() => {
+                    setSelectedIds(selectedIds.length === records.length ? [] : records.map((record) => record.id));
+                    removal.clearError();
+                  }}
+                  style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center' }}>
+                  <Text style={{ color: colors.primary, fontSize: 16 }}>
+                    {selectedIds.length === records.length ? 'Deselect all' : 'Select all'}
+                  </Text>
+                </Pressable>
+              ) : !editing ? (
+                <Pressable accessibilityRole="button" accessibilityLabel="Remove chapters"
+                  onPress={() => {
+                    setSelecting(true);
+                    onPreserveDetailsChange?.(true);
+                  }}
+                  style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center' }}>
+                  <Text style={{ color: colors.danger, fontSize: 16, fontWeight: '600' }}>Remove chapters</Text>
+                </Pressable>
+              ) : null}
+            </View>
             {!hasSharedNote ? (
               <Text selectable style={{ color: colors.mutedText, fontSize: 16, lineHeight: 24 }}>
                 These chapters have different notes.
@@ -212,18 +263,36 @@ export function ReadingHistoryDetails({
                 key={record.id}
                 style={{
                   gap: 8,
-                  paddingVertical: 10,
                   borderBottomWidth: 1,
                   borderBottomColor: colors.border,
                 }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <Text selectable style={{ color: colors.text, fontSize: 18, fontWeight: '600', flexShrink: 1 }}>
-                    {record.passage}
-                  </Text>
-                  {!editing ? removalAction(record) : null}
-                </View>
-                {removalFeedback(record)}
+                {selecting ? (
+                  <Pressable accessibilityRole="checkbox" accessibilityLabel={record.passage}
+                    accessibilityHint="Toggles this chapter in the removal selection."
+                    accessibilityState={{ checked: selectedIds.includes(record.id),
+                      disabled: removal.busy || removal.removedIds.length > 0 }}
+                    disabled={removal.busy || removal.removedIds.length > 0}
+                    onPress={() => toggleSelection(record.id)}
+                    style={{ minHeight: themeTokens.minimumTouchTarget,
+                      flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 24, height: 24, borderWidth: 2,
+                      borderRadius: 4, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text accessible={false} style={{ color: colors.primary, fontSize: 16 }}>
+                        {selectedIds.includes(record.id) ? '✓' : ''}
+                      </Text>
+                    </View>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '600', flexShrink: 1 }}>
+                      {record.passage}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <View style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center' }}>
+                    <Text selectable style={{ color: colors.text, fontSize: 18, fontWeight: '600' }}>
+                      {record.passage}
+                    </Text>
+                  </View>
+                )}
                 {!hasSharedNote ? (
                   <Text
                     selectable
@@ -241,6 +310,42 @@ export function ReadingHistoryDetails({
           </Text>
         ) : null}
       </ScrollView>
+      {selecting && hasRecords ? (
+        <View style={{ paddingTop: 12, gap: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
+          {removal.error ? (
+            <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 16 }}>
+              {removal.error}
+            </Text>
+          ) : null}
+          <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+            <Pressable accessibilityRole="button"
+              accessibilityLabel={removal.removedIds.length > 0 && !removal.busy
+                ? 'Retry refresh' : `Remove ${selectedIds.length} ${selectedIds.length === 1 ? 'chapter' : 'chapters'}`}
+              accessibilityState={{ disabled: removal.busy || selectedIds.length === 0, busy: removal.busy }}
+              disabled={removal.busy || selectedIds.length === 0}
+              onPress={() => {
+                if (removal.removedIds.length > 0) { removal.refresh(); return; }
+                const selected = records.filter((record) => selectedIds.includes(record.id));
+                removal.confirmRemoval(selected.map((record) => record.id), selected.map((record) => record.passage));
+              }}
+              style={{ minHeight: themeTokens.minimumTouchTarget,
+                flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+              {removal.busy ? <ActivityIndicator size="small" color={colors.danger} accessible={false} /> : null}
+              <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 16, fontWeight: '600' }}>
+                {removal.busy ? 'Removing…' : removal.removedIds.length > 0
+                  ? 'Retry refresh' : `Remove ${selectedIds.length} ${selectedIds.length === 1 ? 'chapter' : 'chapters'}`}
+              </Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Cancel chapter selection"
+              accessibilityState={{ disabled: removal.busy || removal.removedIds.length > 0 }}
+              disabled={removal.busy || removal.removedIds.length > 0}
+              onPress={cancelSelection}
+              style={{ minHeight: themeTokens.minimumTouchTarget, justifyContent: 'center' }}>
+              <Text style={{ color: colors.primary, fontSize: 16 }}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
     </BottomSheet>
   );
 }

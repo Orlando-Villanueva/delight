@@ -662,23 +662,23 @@ class ReadingLogService
     public function deleteReadingLog(ReadingLog $readingLog): bool
     {
         $user = $readingLog->user;
-        $bookId = $readingLog->book_id;
-        $chapter = $readingLog->chapter;
         $recapYear = $readingLog->date_read->year;
-
-        $deleted = DB::transaction(function () use ($readingLog, $user, $bookId, $chapter): bool {
-            $deleted = (bool) $readingLog->delete();
-            if ($deleted) {
-                $this->updateBookProgressAfterDeletion($user, $bookId, $chapter);
-            }
-
-            return $deleted;
-        });
+        $deleted = DB::transaction(fn (): bool => $this->deleteRecordAndUpdateProgress($readingLog, $user));
 
         if ($deleted) {
             // For deletions, we can't easily determine if this was the only reading of the day
             // so we invalidate all caches to be safe
             $this->invalidateUserStatisticsCache($user, true, [$recapYear]);
+        }
+
+        return $deleted;
+    }
+
+    private function deleteRecordAndUpdateProgress(ReadingLog $readingLog, User $user): bool
+    {
+        $deleted = (bool) $readingLog->delete();
+        if ($deleted) {
+            $this->updateBookProgressAfterDeletion($user, $readingLog->book_id, $readingLog->chapter);
         }
 
         return $deleted;
@@ -791,22 +791,8 @@ class ReadingLogService
     public function updateGroupNote(User $user, ReadingLog $primaryLog, array $logIds, ?string $note): void
     {
         DB::transaction(function () use ($user, $primaryLog, $logIds, $note): void {
-            $dayLogs = $user->readingLogs()
-                ->whereDate('date_read', $primaryLog->date_read)
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->get();
-            $ids = collect($logIds)->map(fn ($id): int => (int) $id)->sort()->values();
-            abort_if($dayLogs->whereIn('id', $ids)->count() !== $ids->count(), 404, 'Reading records are unavailable.');
-            $currentPrimary = $dayLogs->firstWhere('id', $primaryLog->id);
-            abort_if($currentPrimary === null, 404, 'Reading records are unavailable.');
-            $session = $dayLogs->filter(fn (ReadingLog $log): bool => $log->book_id === $currentPrimary->book_id
-                && $log->created_at->format('Y-m-d H:i:s') === $currentPrimary->created_at->format('Y-m-d H:i:s')
-            );
-            $group = $this->segmentReadingLogs($session)
-                ->first(fn (Collection $segment): bool => $segment->contains('id', $currentPrimary->id));
-            abort_if($group === null || $group->pluck('id')->sort()->values()->all() !== $ids->all(),
-                409, 'This reading has changed. Refresh History and open it again.');
+            $group = $this->lockCurrentReadingGroup($user, $primaryLog, $logIds);
+            $ids = $group->pluck('id');
 
             $normalizedNote = $note === null ? null : trim($note);
             $user->readingLogs()->whereIn('id', $ids)->update([
@@ -815,6 +801,54 @@ class ReadingLogService
         });
 
         $this->invalidateUserStatisticsCache($user, true, [$primaryLog->date_read->year]);
+    }
+
+    /**
+     * @param  array<int, int>  $groupIds
+     * @param  array<int, int>  $logIds
+     */
+    public function deleteGroupChapters(User $user, ReadingLog $primaryLog, array $groupIds, array $logIds): void
+    {
+        DB::transaction(function () use ($user, $primaryLog, $groupIds, $logIds): void {
+            $group = $this->lockCurrentReadingGroup($user, $primaryLog, $groupIds);
+            $ids = collect($logIds)->map(fn ($id): int => (int) $id);
+            abort_if($ids->isEmpty() || $ids->diff($group->pluck('id'))->isNotEmpty(),
+                409, 'This reading has changed. Refresh History and open it again.');
+
+            foreach ($group->whereIn('id', $ids) as $log) {
+                abort_unless($this->deleteRecordAndUpdateProgress($log, $user), 500, 'The chapters could not be removed.');
+            }
+        });
+
+        $this->invalidateUserStatisticsCache($user, true, [$primaryLog->date_read->year]);
+    }
+
+    /**
+     * Resolve and lock the exact display group inside the caller's transaction.
+     *
+     * @param  array<int, int>  $groupIds
+     * @return Collection<int, ReadingLog>
+     */
+    private function lockCurrentReadingGroup(User $user, ReadingLog $primaryLog, array $groupIds): Collection
+    {
+        $dayLogs = $user->readingLogs()
+            ->whereDate('date_read', $primaryLog->date_read)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+        $ids = collect($groupIds)->map(fn ($id): int => (int) $id)->sort()->values();
+        abort_if($dayLogs->whereIn('id', $ids)->count() !== $ids->count(), 404, 'Reading records are unavailable.');
+        $currentPrimary = $dayLogs->firstWhere('id', $primaryLog->id);
+        abort_if($currentPrimary === null, 404, 'Reading records are unavailable.');
+        $session = $dayLogs->filter(fn (ReadingLog $log): bool => $log->book_id === $currentPrimary->book_id
+            && $log->created_at->format('Y-m-d H:i:s') === $currentPrimary->created_at->format('Y-m-d H:i:s')
+        );
+        $group = $this->segmentReadingLogs($session)
+            ->first(fn (Collection $segment): bool => $segment->contains('id', $currentPrimary->id));
+        abort_if($group === null || $group->pluck('id')->sort()->values()->all() !== $ids->all(),
+            409, 'This reading has changed. Refresh History and open it again.');
+
+        return $group;
     }
 
     /**
