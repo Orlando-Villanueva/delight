@@ -18,11 +18,12 @@ const group: ReadingHistoryGroup = {
 
 async function details(
   edit = true, onRecordsRemoved = jest.fn().mockResolvedValue(undefined), selectedGroup = group,
+  bottomInset = 0,
 ) {
   const onClose = jest.fn();
   await render(
     <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 },
-      insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
+      insets: { top: 0, left: 0, right: 0, bottom: bottomInset } }}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { gcTime: 0 } } })}>
         <ReadingHistoryDetails group={selectedGroup} dateLabel="August 8" onClose={onClose}
           onNoteSaved={jest.fn().mockResolvedValue(undefined)} onRecordsRemoved={onRecordsRemoved} />
@@ -42,11 +43,12 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
-it('shows shared success feedback inside the sheet after saving a note', async () => {
-  await details();
+it.each([0, 48])('keeps note-save feedback above a %ipx system navigation inset', async (bottomInset) => {
+  await details(true, undefined, group, bottomInset);
   await fireEvent.changeText(screen.getByLabelText('Note'), 'Updated note');
   await fireEvent.press(screen.getByRole('button', { name: 'Save note' }));
   expect(await screen.findByText('Note saved.')).toBeOnTheScreen();
+  expect(screen.getByTestId('transient-notice')).toHaveStyle({ bottom: bottomInset + 24 });
   expect(screen.queryByRole('button', { name: 'Save note' })).not.toBeOnTheScreen();
   expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole('button', { name: 'Dismiss notification' }));

@@ -70,6 +70,7 @@ export function TransientNotice({ message, duration = 5000, bottom = 40, onDismi
 
   return (
     <Animated.View
+      testID="transient-notice"
       style={{
         position: 'absolute', bottom,
         left: themeTokens.spacing.screen, right: themeTokens.spacing.screen,

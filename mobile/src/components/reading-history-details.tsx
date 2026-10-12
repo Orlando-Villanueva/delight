@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ReadingHistoryGroup, ReadingHistoryRecord } from '@/api/reading-history';
 import { ReadingNoteEditor } from '@/components/reading-note-editor';
@@ -27,6 +28,7 @@ export function ReadingHistoryDetails({
   onRecordsRemoved,
 }: Readonly<ReadingHistoryDetailsProps>) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const dismissSuccessNotice = useCallback(() => setSuccessNotice(null), []);
   const [editing, setEditing] = useState(false);
@@ -354,7 +356,11 @@ export function ReadingHistoryDetails({
         </View>
       ) : null}
       {successNotice ? (
-        <TransientNotice message={successNotice} bottom={24} onDismiss={dismissSuccessNotice} />
+        <TransientNotice
+          message={successNotice}
+          bottom={insets.bottom + themeTokens.spacing.screen}
+          onDismiss={dismissSuccessNotice}
+        />
       ) : null}
     </BottomSheet>
   );
