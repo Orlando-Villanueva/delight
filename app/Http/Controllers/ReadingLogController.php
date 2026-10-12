@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\OnboardingStep;
+use App\Http\Requests\DeleteReadingChaptersRequest;
 use App\Http\Requests\UpdateReadingNotesRequest;
 use App\Models\ReadingLog;
 use App\Models\User;
@@ -20,6 +21,7 @@ use Illuminate\Support\MessageBag;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use Symfony\Component\HttpFoundation\Response;
 
 class ReadingLogController extends Controller
 {
@@ -287,40 +289,15 @@ class ReadingLogController extends Controller
     /**
      * Update the notes associated with a reading log (or grouped logs).
      */
-    public function updateNotes(UpdateReadingNotesRequest $request, ReadingLog $readingLog)
+    public function updateNotes(UpdateReadingNotesRequest $request, ReadingLog $readingLog): Response
     {
         $user = $request->user();
         $data = $request->validated();
-        $notesText = array_key_exists('notes_text', $data) ? (string) $data['notes_text'] : null;
-
-        if ($notesText !== null) {
-            $notesText = trim($notesText);
-
-            if ($notesText === '') {
-                $notesText = null;
-            }
-        }
-
-        $logs = $this->readingLogService->getLogsForNoteUpdate(
-            $user,
-            $readingLog,
-            $data['log_ids'] ?? []
+        $this->readingLogService->updateGroupNote(
+            $user, $readingLog, $data['log_ids'], $data['notes_text']
         );
 
-        if ($logs->isEmpty()) {
-            abort(404, 'Reading logs not found.');
-        }
-
-        foreach ($logs as $log) {
-            $this->readingLogService->updateReadingLog($log, [
-                'notes_text' => $notesText,
-            ]);
-        }
-
-        $dates = $logs
-            ->map(fn ($log) => $log->date_read->format('Y-m-d'))
-            ->unique()
-            ->values();
+        $dates = collect([$readingLog->date_read->format('Y-m-d')]);
 
         $dayResponses = $this->readingLogService->getPreparedLogsForDates(
             $user,
@@ -393,47 +370,29 @@ class ReadingLogController extends Controller
     /**
      * Delete multiple reading logs in a single request.
      */
-    public function batchDestroy(Request $request)
+    public function destroyChapters(DeleteReadingChaptersRequest $request, ReadingLog $readingLog): Response
     {
-        $ids = collect($request->input('ids', []))
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
-            ->unique();
-
-        if ($ids->isEmpty()) {
-            return response()->json([
-                'message' => 'Select at least one reading to delete.',
-            ], 422);
-        }
-
         $user = $request->user();
-
-        $logs = ReadingLog::where('user_id', $user->id)
-            ->whereIn('id', $ids)
-            ->get();
-
-        $dates = $logs->map(fn ($log) => $log->date_read->format('Y-m-d'))->unique()->values();
-
-        foreach ($logs as $log) {
-            $this->readingLogService->deleteReadingLog($log);
-        }
+        $data = $request->validated();
+        $date = $readingLog->date_read->format('Y-m-d');
+        $this->readingLogService->deleteGroupChapters($user, $readingLog, $data['group_ids'], $data['log_ids']);
 
         if ($request->header('HX-Request')) {
             $dayResponses = $this->readingLogService->getPreparedLogsForDates(
                 $user,
-                $dates->all(),
+                [$date],
                 $this->userStatisticsService
             );
 
-            $orderedResponses = $dates
-                ->mapWithKeys(fn ($date) => [$date => $dayResponses[$date] ?? null])
-                ->all();
+            $dayResponses = [$date => $dayResponses[$date] ?? null];
 
-            return view('partials.reading-log-update-response', [
-                'primaryDate' => $dates->first(),
-                'dayResponses' => $orderedResponses,
+            return response()->view('partials.reading-log-update-response', [
+                'primaryDate' => $date,
+                'dayResponses' => $dayResponses,
                 'userHasLogs' => $this->readingLogService->userHasAnyLogs($user),
-            ]);
+            ])->header('HX-Trigger', json_encode([
+                'hideModal' => ['id' => "delete-chapters-{$readingLog->id}"],
+            ]));
         }
 
         return redirect()->route('logs.index')->with('success', 'Selected readings deleted successfully.');

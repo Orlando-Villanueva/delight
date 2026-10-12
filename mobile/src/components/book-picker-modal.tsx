@@ -50,6 +50,7 @@ export function BookPickerModal({
   return (
     <BottomSheet
       visible={visible}
+      draggable
       title="Choose a book"
       onClose={close}
       maxHeight="80%"

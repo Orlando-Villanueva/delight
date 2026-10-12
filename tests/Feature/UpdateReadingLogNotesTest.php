@@ -146,3 +146,70 @@ it('rejects log ids that do not belong to the user', function () {
         'notes_text' => 'Other note',
     ]);
 });
+
+it('rejects incomplete or changed web groups without updating any notes', function (string $scenario) {
+    $user = User::factory()->create();
+    $logs = collect([1, 2])->map(fn (int $chapter) => ($this->makeReadingLog)($user, [
+        'chapter' => $chapter,
+        'created_at' => '2026-10-10 12:00:00',
+    ]));
+    $ids = $logs->pluck('id')->all();
+
+    if ($scenario === 'incomplete') {
+        $ids = [$logs->first()->id];
+    } else {
+        $logs->push(($this->makeReadingLog)($user, [
+            'chapter' => 3,
+            'created_at' => '2026-10-10 12:00:00',
+        ]));
+    }
+
+    $this->actingAs($user)->withHeaders(['HX-Request' => 'true'])
+        ->patch(route('logs.notes.update', $logs->first()), [
+            'notes_text' => 'Must not be applied',
+            'log_ids' => $ids,
+        ])->assertConflict();
+
+    foreach ($logs as $log) {
+        $this->assertDatabaseHas('reading_logs', ['id' => $log->id, 'notes_text' => 'Original note']);
+    }
+})->with(['incomplete group' => 'incomplete', 'group grew after opening editor' => 'changed']);
+
+it('normalizes and clears the complete group through the web redirect flow', function (?string $note, ?string $expected) {
+    $user = User::factory()->create();
+    $logs = collect([1, 2])->map(fn (int $chapter) => ($this->makeReadingLog)($user, [
+        'chapter' => $chapter,
+        'created_at' => '2026-10-10 12:00:00',
+    ]));
+
+    $this->actingAs($user)->patch(route('logs.notes.update', $logs->first()), [
+        'notes_text' => $note,
+        'log_ids' => $logs->pluck('id')->all(),
+    ])->assertRedirect(route('logs.index'));
+
+    foreach ($logs as $log) {
+        $this->assertDatabaseHas('reading_logs', ['id' => $log->id, 'notes_text' => $expected]);
+    }
+})->with([
+    'trimmed note' => ['  Updated  ', 'Updated'],
+    'blank note' => ['   ', null],
+    'null note' => [null, null],
+]);
+
+it('redisplays web validation errors for malformed note input without writing', function (array $invalid) {
+    $user = User::factory()->create();
+    $log = ($this->makeReadingLog)($user);
+
+    $this->actingAs($user)->withHeaders(['HX-Request' => 'true'])
+        ->patch(route('logs.notes.update', $log), array_merge([
+            'notes_text' => 'Draft', 'log_ids' => [$log->id],
+        ], $invalid))
+        ->assertStatus(422)
+        ->assertViewIs('components.modals.partials.edit-reading-note-form')
+        ->assertHeader('HX-Retarget', "#edit-note-form-container-{$log->id}");
+
+    $this->assertDatabaseHas('reading_logs', ['id' => $log->id, 'notes_text' => 'Original note']);
+})->with([
+    'non-array IDs' => [['log_ids' => 'invalid']],
+    'non-string note' => [['notes_text' => ['invalid']]],
+]);

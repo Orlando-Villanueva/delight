@@ -11,7 +11,8 @@
     aria-describedby="delete-chapters-desc-{{ $log->id }}"
     class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-stack-modal justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full"
     x-data="deleteChapterSelectionState({{ $allLogs->pluck('id')->map(fn($id) => (string) $id)->toJson() }})"
-    x-on:htmx:afterOnLoad="this.selectedChapters = []">
+    x-on:htmx:before-request="error = null"
+    x-on:htmx:after-request="afterRequest($event)">
     <div class="relative p-4 w-full max-w-md max-h-full">
         {{-- Modal content --}}
         <div class="relative bg-gray-50 rounded-lg shadow dark:bg-[#2f3746]">
@@ -27,10 +28,13 @@
                 <span class="sr-only">Close modal</span>
             </button>
 
-            <form class="flex flex-col h-full" hx-delete="{{ route('logs.batchDestroy') }}"
+            <form class="flex flex-col h-full" hx-delete="{{ route('logs.chapters.destroy', $log) }}"
                 hx-target="#reading-day-{{ $log->date_read->format('Y-m-d') }}" hx-swap="outerHTML"
-                hx-headers='{"X-CSRF-TOKEN": "{{ csrf_token() }}"}'
+                hx-headers='{"X-CSRF-TOKEN": "{{ csrf_token() }}", "Accept": "application/json"}'
                 hx-disabled-elt=".js-delete-actions-{{ $log->id }} button">
+                @foreach ($allLogs as $chapterLog)
+                    <input type="hidden" name="group_ids[]" value="{{ $chapterLog->id }}">
+                @endforeach
                 {{-- Modal header --}}
                 <div class="p-4 md:p-5 border-b border-gray-200/80 rounded-t-lg bg-white dark:bg-[#2f3746] dark:border-white/10">
                     <h3 id="delete-chapters-title-{{ $log->id }}"
@@ -63,7 +67,7 @@
                         @foreach ($allLogs->sortBy('chapter') as $chapterLog)
                             <label
                                 class="flex items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer">
-                                <input type="checkbox" name="ids[]" x-model="selectedChapters"
+                                <input type="checkbox" name="log_ids[]" x-model="selectedChapters"
                                     value="{{ $chapterLog->id }}"
                                     class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
                                 <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
@@ -72,6 +76,9 @@
                             </label>
                         @endforeach
                     </div>
+
+                    <p role="alert" x-cloak x-show="error" x-text="error"
+                        class="text-sm text-red-600 dark:text-red-400"></p>
 
                     {{-- Selected count --}}
                     <div class="text-sm text-gray-500 dark:text-gray-400 mt-3" x-show="selectedChapters.length > 0">
@@ -87,7 +94,7 @@
                         class="w-full sm:w-auto py-2.5 px-5 text-sm font-medium text-gray-900 bg-gray-200 rounded-lg border border-gray-300 hover:bg-gray-300 hover:text-gray-900 focus-visible:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500 dark:hover:bg-gray-700 dark:hover:text-white dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-gray-900">
                         Cancel
                     </button>
-                    <button type="submit" data-modal-hide="delete-chapters-{{ $log->id }}"
+                    <button type="submit"
                         :disabled="selectedChapters.length === 0"
                         class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 disabled:bg-red-200 dark:disabled:bg-red-500/40 disabled:text-white/70 dark:disabled:text-white/60 disabled:cursor-not-allowed rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-red-700 dark:focus-visible:ring-offset-gray-900 transition-colors">
                         <span x-text="buttonLabel()"></span>
@@ -97,30 +104,3 @@
         </div>
     </div>
 </div>
-
-<script>
-    /**
-     * Alpine state for managing chapter selection in the delete modal.
-     */
-    function deleteChapterSelectionState(allChapterIds) {
-        return {
-            allChapterIds,
-            selectedChapters: [],
-            selectAll() {
-                this.selectedChapters = [...this.allChapterIds];
-            },
-            deselectAll() {
-                this.selectedChapters = [];
-            },
-            buttonLabel() {
-                if (this.selectedChapters.length === 0) {
-                    return 'Delete Selected';
-                }
-
-                const suffix = this.selectedChapters.length === 1 ? 'Chapter' : 'Chapters';
-
-                return `Delete ${this.selectedChapters.length} ${suffix}`;
-            }
-        };
-    }
-</script>

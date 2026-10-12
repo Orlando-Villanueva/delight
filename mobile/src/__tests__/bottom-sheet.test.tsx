@@ -1,12 +1,17 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Text } from 'react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import {
+  Animated, Dimensions, PanResponder, type PanResponderGestureState, type GestureResponderEvent, Text,
+} from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { BottomSheet, sheetPaddingBottom } from '@/components/bottom-sheet';
+import { BottomSheet, sheetPaddingBottom, type SheetDismissReason } from '@/components/bottom-sheet';
 import { themeTokens } from '@/theme/tokens';
 
-async function renderSheet(visible = true, onClose = jest.fn()) {
-  await render(
+async function renderSheet(
+  visible = true, onClose = jest.fn(), draggable = false, dismissDisabled = false,
+  onBeforeDismiss?: (reason: SheetDismissReason) => boolean | Promise<boolean>,
+) {
+  const view = await render(
     <SafeAreaProvider
       initialMetrics={{
         frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -15,6 +20,9 @@ async function renderSheet(visible = true, onClose = jest.fn()) {
     >
       <BottomSheet
         visible={visible}
+        draggable={draggable}
+        dismissDisabled={dismissDisabled}
+        onBeforeDismiss={onBeforeDismiss}
         title="Choose a book"
         onClose={onClose}
         dismissAccessibilityLabel="Dismiss book list"
@@ -27,7 +35,7 @@ async function renderSheet(visible = true, onClose = jest.fn()) {
     </SafeAreaProvider>,
   );
 
-  return { onClose };
+  return { ...view, onClose };
 }
 
 describe('bottom sheet padding', () => {
@@ -48,6 +56,64 @@ describe('bottom sheet padding', () => {
 });
 
 describe('bottom sheet', () => {
+  it('finishes closing when keyboard dismissal changes the window height during exit', async () => {
+    const originalWindow = Dimensions.get('window');
+    const animations: { finish?: (result: { finished: boolean }) => void; stop: jest.Mock }[] = [];
+    const parallel = jest.spyOn(Animated, 'parallel').mockImplementation(() => {
+      const tracked: { finish?: (result: { finished: boolean }) => void; stop: jest.Mock } = {
+        stop: jest.fn(() => { tracked.finish?.({ finished: false }); }),
+      };
+      animations.push(tracked);
+      return { start: (callback) => { tracked.finish = callback; }, stop: tracked.stop, reset: jest.fn() };
+    });
+    const view = await renderSheet();
+    try {
+      await fireEvent.press(screen.getByLabelText('Close book list'));
+      const exit = animations[1];
+      await act(() => Dimensions.set({ window: { ...originalWindow, height: originalWindow.height + 200 } }));
+      expect(animations).toHaveLength(2);
+      expect(exit.stop).not.toHaveBeenCalled();
+      await act(() => exit.finish?.({ finished: true }));
+      expect(view.onClose).toHaveBeenCalledTimes(1);
+    } finally {
+      await view.unmount();
+      Dimensions.set({ window: originalWindow });
+      parallel.mockRestore();
+    }
+  });
+
+  it('owns the settling animation when the dismissal guard keeps the sheet open', async () => {
+    const entranceStop = jest.fn();
+    const settleStop = jest.fn();
+    const parallel = jest.spyOn(Animated, 'parallel').mockReturnValue({
+      start: jest.fn(), stop: entranceStop, reset: jest.fn(),
+    });
+    const spring = jest.spyOn(Animated, 'spring').mockReturnValue({
+      start: jest.fn(), stop: settleStop, reset: jest.fn(),
+    });
+    const view = await renderSheet(true, jest.fn(), true, false, () => false);
+    try {
+      await fireEvent.press(screen.getByLabelText('Close book list'));
+      expect(view.onClose).not.toHaveBeenCalled();
+      expect(entranceStop).toHaveBeenCalledTimes(1);
+      await view.unmount();
+      expect(settleStop).toHaveBeenCalledTimes(1);
+    } finally {
+      parallel.mockRestore();
+      spring.mockRestore();
+    }
+  });
+  it.each([
+    ['Dismiss book list', 'backdrop'], ['Close book list', 'close'],
+  ] as const)('allows the caller to prevent dismissal from %s', async (label, reason) => {
+    const guard = jest.fn().mockResolvedValue(false);
+    const { onClose } = await renderSheet(true, jest.fn(), false, false, guard);
+    await fireEvent.press(screen.getByLabelText(label));
+    await waitFor(() => expect(guard).toHaveBeenCalledWith(reason));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText('Sheet body')).toBeOnTheScreen();
+  });
+
   it('renders the shared chrome and body when visible', async () => {
     await renderSheet();
 
@@ -64,12 +130,94 @@ describe('bottom sheet', () => {
     expect(screen.queryByText('Sheet body')).not.toBeOnTheScreen();
   });
 
-  it('closes from the overlay and the close control', async () => {
+  it.each(['Dismiss book list', 'Close book list'])('animates before closing from %s', async (label) => {
     const { onClose } = await renderSheet();
+    await fireEvent.press(screen.getByLabelText(label));
+    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
 
+  it('blocks dismissal while a caller is saving', async () => {
+    const { onClose } = await renderSheet(true, jest.fn(), true, true);
+    expect(screen.getByLabelText('Close book list')).toBeDisabled();
     await fireEvent.press(screen.getByLabelText('Dismiss book list'));
     await fireEvent.press(screen.getByLabelText('Close book list'));
+    expect(onClose).not.toHaveBeenCalled();
+  });
 
-    expect(onClose).toHaveBeenCalledTimes(2);
+  it('ignores repeated dismissal while the exit animation is running', async () => {
+    const { onClose } = await renderSheet();
+    await fireEvent.press(screen.getByLabelText('Dismiss book list'));
+    await fireEvent.press(screen.getByLabelText('Close book list'));
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not close after an interrupted exit animation', async () => {
+    let finish: ((result: { finished: boolean }) => void) | undefined;
+    const animation = jest.spyOn(Animated, 'parallel').mockImplementation(() => ({
+      start: (callback) => { finish = callback; },
+      stop: jest.fn(), reset: jest.fn(),
+    }));
+    try {
+      const { onClose } = await renderSheet();
+      await fireEvent.press(screen.getByLabelText('Close book list'));
+      await act(() => finish?.({ finished: false }));
+      expect(onClose).not.toHaveBeenCalled();
+    } finally {
+      animation.mockRestore();
+    }
+  });
+
+  it('claims the handle touch and dismisses through the native responder handlers', async () => {
+    const { onClose } = await renderSheet(true, jest.fn(), true);
+    const handle = screen.getByTestId('bottom-sheet-drag-handle');
+    const touchEvent = (y: number, previousY: number, timestamp: number) => ({
+      nativeEvent: { touches: [{ identifier: 0, pageX: 100, pageY: y }] },
+      touchHistory: {
+        numberActiveTouches: 1,
+        indexOfSingleActiveTouch: 0,
+        mostRecentTimeStamp: timestamp,
+        touchBank: [{
+          touchActive: true,
+          startPageX: 100, startPageY: 100, startTimeStamp: 0,
+          currentPageX: 100, currentPageY: y, currentTimeStamp: timestamp,
+          previousPageX: 100, previousPageY: previousY, previousTimeStamp: 0,
+        }],
+      },
+    });
+    const start = touchEvent(100, 100, 0);
+    expect(await fireEvent(handle, 'startShouldSetResponder', start)).toBe(true);
+    await fireEvent(handle, 'responderGrant', start);
+    await fireEvent(handle, 'responderMove', touchEvent(200, 100, 200));
+    await fireEvent(handle, 'responderRelease', touchEvent(200, 200, 220));
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
+
+  it.each([
+    { dy: -120, vy: -1, closes: false },
+    { dy: 30, vy: 0.1, closes: false },
+    { dy: 100, vy: 0.1, closes: true },
+    { dy: 20, vy: 1, closes: true },
+  ])('handles a drag of $dy points at velocity $vy', async ({ dy, vy, closes }) => {
+    const responder = jest.spyOn(PanResponder, 'create');
+    try {
+      const { onClose } = await renderSheet(true, jest.fn(), true);
+      expect(screen.getByTestId('bottom-sheet-drag-handle')).toBeOnTheScreen();
+      const handlers = responder.mock.calls.at(-1)![0];
+      const event = {} as GestureResponderEvent;
+      const gesture = { dy, dx: 0, vy } as PanResponderGestureState;
+      await act(() => {
+        handlers.onPanResponderGrant?.(event, gesture);
+        handlers.onPanResponderMove?.(event, gesture);
+        handlers.onPanResponderRelease?.(event, gesture);
+      });
+      if (closes) {
+        await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+      } else {
+        expect(onClose).not.toHaveBeenCalled();
+      }
+    } finally {
+      responder.mockRestore();
+    }
   });
 });

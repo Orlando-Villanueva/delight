@@ -11,7 +11,7 @@ type LaravelErrorBody = {
 };
 
 type ApiRequestOptions = {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   token?: string | null;
   onUnauthorized?: () => void | Promise<void>;

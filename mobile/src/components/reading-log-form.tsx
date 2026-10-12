@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import {
   AccessibilityInfo,
@@ -18,6 +18,7 @@ import { type BootstrapBook, type BootstrapData } from '@/api/bootstrap';
 import { createReadingLog, type CreateReadingInput, type CreatedReading } from '@/api/reading-log';
 import { useAuthenticatedApi } from '@/auth/auth-context';
 import { BookPickerModal } from '@/components/book-picker-modal';
+import { TransientNotice } from '@/components/transient-notice';
 import { useKeyboardFocusedScroll } from '@/hooks/use-keyboard-focused-scroll';
 import { useBootstrap } from '@/hooks/use-bootstrap';
 import {
@@ -29,7 +30,6 @@ import {
   findBook,
   formatReadingDate,
   mapReadingLogValidationErrors,
-  readingLogSuccessDismissMs,
   toCreateReadingInput,
   type ReadingLogFieldName,
   type ReadingLogFormValues,
@@ -194,15 +194,7 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
     return () => clearTimeout(timer);
   }, [cooldownSeconds]);
 
-  useEffect(() => {
-    if (!success) {
-      return;
-    }
-
-    const timer = setTimeout(() => setSuccess(null), readingLogSuccessDismissMs);
-
-    return () => clearTimeout(timer);
-  }, [success]);
+  const dismissSuccess = useCallback(() => setSuccess(null), []);
 
   const mutation = useMutation({
     mutationFn: (input: CreateReadingInput) => createReadingLog(request, input),
@@ -228,9 +220,6 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
       reset(defaults);
       setAreNotesVisible(false);
       setSuccess(created);
-      AccessibilityInfo.announceForAccessibility(
-        `${created.passage} recorded for ${formatReadingDate(created.dateRead)}.`,
-      );
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['bootstrap'] }),
         queryClient.invalidateQueries({ queryKey: ['reading-history'] }),
@@ -286,32 +275,6 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ gap: themeTokens.spacing.screen, padding: themeTokens.spacing.screen }}
       >
-        {success ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss success message"
-            accessibilityHint="Hides the confirmation that your reading was saved"
-            accessibilityLiveRegion="polite"
-            onPress={() => setSuccess(null)}
-            style={{
-              gap: 8,
-              padding: themeTokens.spacing.section,
-              borderWidth: 1,
-              borderColor: colors.success,
-              borderRadius: themeTokens.radius.card,
-              borderCurve: 'continuous',
-              backgroundColor: colors.successSubtle,
-            }}
-          >
-            <Text selectable style={{ color: colors.success, fontSize: 18, fontWeight: '700' }}>
-              Reading logged
-            </Text>
-            <Text selectable style={{ color: colors.text, fontSize: 16, lineHeight: 24 }}>
-              {success.passage} recorded for {formatReadingDate(success.dateRead)}.
-            </Text>
-          </Pressable>
-        ) : null}
-
         <View style={{ gap: 8 }}>
           <Text selectable style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>
             When did you read?
@@ -605,6 +568,13 @@ function ReadingLogFields({ bootstrap }: Readonly<{ bootstrap: BootstrapData }>)
         />
       </ScrollView>
 
+      {success ? (
+        <TransientNotice
+          key={success.logIds.join(',')}
+          message={`${success.passage} logged for ${formatReadingDate(success.dateRead)}.`}
+          onDismiss={dismissSuccess}
+        />
+      ) : null}
       <BookPickerModal
         books={bootstrap.books}
         selectedBookId={bookId}

@@ -45,7 +45,7 @@ module.exports = ({ config }) => {
     ...config,
     name: variant.name,
     slug: 'delight',
-    version: '0.1.2',
+    version: '0.1.3',
     orientation: 'portrait',
     icon: DELIGHT_APP_ICON,
     scheme: 'delight',

@@ -2,6 +2,8 @@ export const themeTokens = {
   light: {
     background: '#f8fafc',
     surface: '#ffffff',
+    noticeSurface: '#1e293b',
+    noticeText: '#f8fafc',
     text: '#0f172a',
     mutedText: '#475569',
     primary: '#3366cc',
@@ -22,6 +24,8 @@ export const themeTokens = {
   dark: {
     background: '#0f172a',
     surface: '#1e293b',
+    noticeSurface: '#f1f5f9',
+    noticeText: '#0f172a',
     text: '#f8fafc',
     mutedText: '#cbd5e1',
     primary: '#7aa2f7',
