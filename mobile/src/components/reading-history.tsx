@@ -25,6 +25,7 @@ import { fetchBootstrap } from '@/api/bootstrap';
 import { useAuthenticatedApi } from '@/auth/auth-context';
 import { ReadingHistoryDetails } from '@/components/reading-history-details';
 import { TransientNotice } from '@/components/transient-notice';
+import { readingRemovalNotice } from '@/features/reading-log/removal-notice';
 import { themeTokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
@@ -36,6 +37,7 @@ function useReadingHistory(refreshReadTodayStatus: () => Promise<{ isSuccess: bo
   const [loadMoreError, setLoadMoreError] = useState<Error | null>(null);
   const isLoadingMoreRef = useRef(false);
   const refreshGenerationRef = useRef(0);
+  const mutationRefreshRef = useRef<Promise<ReadingHistoryDay[]> | null>(null);
 
   const initialPage = useQuery({
     queryKey: ['reading-history', 1],
@@ -53,6 +55,10 @@ function useReadingHistory(refreshReadTodayStatus: () => Promise<{ isSuccess: bo
   const hasNextPage = initialPage.data !== undefined && lastLoadedPage < lastPage;
 
   const refresh = useCallback(async () => {
+    if (mutationRefreshRef.current) {
+      await mutationRefreshRef.current.catch(() => undefined);
+      return;
+    }
     const refreshGeneration = ++refreshGenerationRef.current;
     setLoadMoreError(null);
     const [result] = await Promise.all([
@@ -115,21 +121,29 @@ function useReadingHistory(refreshReadTodayStatus: () => Promise<{ isSuccess: bo
     }
   }, [hasNextPage, lastLoadedPage, pages, refresh, request]);
 
-  const refreshAfterMutation = useCallback(async (minimumPages = 0) => {
-    const generation = ++refreshGenerationRef.current;
-    const refreshedPages = await Promise.all(Array.from(
-      { length: Math.max(lastLoadedPage, minimumPages) }, (_, index) => fetchReadingHistoryPage(request, index + 1),
-    ));
-    const bootstrapResult = await refreshReadTodayStatus();
-    if (!bootstrapResult.isSuccess) {
-      throw new Error('Home could not refresh. Try refreshing again.');
+  const refreshAfterMutation = useCallback((minimumPages = 0) => {
+    if (mutationRefreshRef.current) {
+      return mutationRefreshRef.current;
     }
-    if (generation !== refreshGenerationRef.current) {
-      throw new Error('History changed during refresh. Try refreshing again.');
-    }
-    queryClient.setQueryData(['reading-history', 1], refreshedPages[0]);
-    setLoadedPages(refreshedPages.slice(1));
-    return mergeReadingHistoryPages(refreshedPages);
+    const refreshMutation = async () => {
+      ++refreshGenerationRef.current;
+      try {
+        const refreshedPages = await Promise.all(Array.from(
+          { length: Math.max(lastLoadedPage, minimumPages) }, (_, index) => fetchReadingHistoryPage(request, index + 1),
+        ));
+        const bootstrapResult = await refreshReadTodayStatus();
+        if (!bootstrapResult.isSuccess) {
+          throw new Error('Home could not refresh. Try refreshing again.');
+        }
+        queryClient.setQueryData(['reading-history', 1], refreshedPages[0]);
+        setLoadedPages(refreshedPages.slice(1));
+        return mergeReadingHistoryPages(refreshedPages);
+      } finally {
+        mutationRefreshRef.current = null;
+      }
+    };
+    mutationRefreshRef.current = refreshMutation();
+    return mutationRefreshRef.current;
   }, [lastLoadedPage, queryClient, refreshReadTodayStatus, request]);
 
   return {
@@ -395,10 +409,10 @@ function LogTodayCallout() {
   );
 }
 
-function HistoryDay({ day, onOpenDetails }: {
+function HistoryDay({ day, onOpenDetails }: Readonly<{
   day: ReadingHistoryDay;
   onOpenDetails: (logIds: number[]) => void;
-}) {
+}>) {
   const { colors } = useTheme();
 
   return (
@@ -603,10 +617,7 @@ export function ReadingHistory() {
             setSelectedLogIds(remainingGroup?.logIds ?? null);
             setPreservedSelection(null);
             if (!remainingGroup) {
-              const subject = recordIds.length === 1 ? 'Chapter' : 'Chapters';
-              setDetailsNotice(groups.length > 1
-                ? `${subject} removed. The remaining chapters are now shown as separate readings in History.`
-                : `${subject} removed from History.`);
+              setDetailsNotice(readingRemovalNotice(recordIds.length, groups.length > 1));
             }
           }}
         />

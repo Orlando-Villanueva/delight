@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { Animated, PanResponder, type PanResponderGestureState, type GestureResponderEvent, Text } from 'react-native';
+import {
+  Animated, Dimensions, PanResponder, type PanResponderGestureState, type GestureResponderEvent, Text,
+} from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { BottomSheet, sheetPaddingBottom, type SheetDismissReason } from '@/components/bottom-sheet';
@@ -9,7 +11,7 @@ async function renderSheet(
   visible = true, onClose = jest.fn(), draggable = false, dismissDisabled = false,
   onBeforeDismiss?: (reason: SheetDismissReason) => boolean | Promise<boolean>,
 ) {
-  await render(
+  const view = await render(
     <SafeAreaProvider
       initialMetrics={{
         frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -33,7 +35,7 @@ async function renderSheet(
     </SafeAreaProvider>,
   );
 
-  return { onClose };
+  return { ...view, onClose };
 }
 
 describe('bottom sheet padding', () => {
@@ -54,6 +56,53 @@ describe('bottom sheet padding', () => {
 });
 
 describe('bottom sheet', () => {
+  it('finishes closing when keyboard dismissal changes the window height during exit', async () => {
+    const originalWindow = Dimensions.get('window');
+    const animations: { finish?: (result: { finished: boolean }) => void; stop: jest.Mock }[] = [];
+    const parallel = jest.spyOn(Animated, 'parallel').mockImplementation(() => {
+      const tracked: { finish?: (result: { finished: boolean }) => void; stop: jest.Mock } = {
+        stop: jest.fn(() => { tracked.finish?.({ finished: false }); }),
+      };
+      animations.push(tracked);
+      return { start: (callback) => { tracked.finish = callback; }, stop: tracked.stop, reset: jest.fn() };
+    });
+    const view = await renderSheet();
+    try {
+      await fireEvent.press(screen.getByLabelText('Close book list'));
+      const exit = animations[1];
+      await act(() => Dimensions.set({ window: { ...originalWindow, height: originalWindow.height + 200 } }));
+      expect(animations).toHaveLength(2);
+      expect(exit.stop).not.toHaveBeenCalled();
+      await act(() => exit.finish?.({ finished: true }));
+      expect(view.onClose).toHaveBeenCalledTimes(1);
+    } finally {
+      await view.unmount();
+      Dimensions.set({ window: originalWindow });
+      parallel.mockRestore();
+    }
+  });
+
+  it('owns the settling animation when the dismissal guard keeps the sheet open', async () => {
+    const entranceStop = jest.fn();
+    const settleStop = jest.fn();
+    const parallel = jest.spyOn(Animated, 'parallel').mockReturnValue({
+      start: jest.fn(), stop: entranceStop, reset: jest.fn(),
+    });
+    const spring = jest.spyOn(Animated, 'spring').mockReturnValue({
+      start: jest.fn(), stop: settleStop, reset: jest.fn(),
+    });
+    const view = await renderSheet(true, jest.fn(), true, false, () => false);
+    try {
+      await fireEvent.press(screen.getByLabelText('Close book list'));
+      expect(view.onClose).not.toHaveBeenCalled();
+      expect(entranceStop).toHaveBeenCalledTimes(1);
+      await view.unmount();
+      expect(settleStop).toHaveBeenCalledTimes(1);
+    } finally {
+      parallel.mockRestore();
+      spring.mockRestore();
+    }
+  });
   it.each([
     ['Dismiss book list', 'backdrop'], ['Close book list', 'close'],
   ] as const)('allows the caller to prevent dismissal from %s', async (label, reason) => {

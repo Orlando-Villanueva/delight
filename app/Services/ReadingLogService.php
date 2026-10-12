@@ -57,6 +57,8 @@ class ReadingLogService
 
     private function persistReadingWithResult(User $user, array $data, bool $evaluateAchievements): ReadingLogResult
     {
+        $lockedUser = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+
         // Validate and format the Bible reference
         $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
         $this->validateBibleReference($data['book_id'], $data, $includeDeuterocanonical);
@@ -76,9 +78,7 @@ class ReadingLogService
         // Check if this is the first reading ever (for celebration)
         // Wrapped in transaction to prevent race conditions where multiple requests
         // could trigger the celebration simultaneously
-        $shouldCelebrate = DB::transaction(function () use ($user) {
-            $lockedUser = User::where('id', $user->id)->lockForUpdate()->first();
-
+        $shouldCelebrate = DB::transaction(function () use ($user, $lockedUser) {
             if (! $lockedUser->hasEverCelebratedFirstReading()
                 && ! $lockedUser->readingLogs()->exists()) {
                 $user->forceFill([
@@ -663,7 +663,11 @@ class ReadingLogService
     {
         $user = $readingLog->user;
         $recapYear = $readingLog->date_read->year;
-        $deleted = DB::transaction(fn (): bool => $this->deleteRecordAndUpdateProgress($readingLog, $user));
+        $deleted = DB::transaction(function () use ($readingLog, $user): bool {
+            User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+
+            return $this->deleteRecordAndUpdateProgress($readingLog, $user);
+        });
 
         if ($deleted) {
             // For deletions, we can't easily determine if this was the only reading of the day
@@ -831,6 +835,8 @@ class ReadingLogService
      */
     private function lockCurrentReadingGroup(User $user, ReadingLog $primaryLog, array $groupIds): Collection
     {
+        User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+
         $dayLogs = $user->readingLogs()
             ->whereDate('date_read', $primaryLog->date_read)
             ->orderBy('id')

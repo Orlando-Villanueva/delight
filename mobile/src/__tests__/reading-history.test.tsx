@@ -36,7 +36,10 @@ jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) =
 
 async function renderHistory(readToday: boolean | 'unavailable' = true) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { gcTime: 0, retry: false, staleTime: Infinity }, mutations: { retry: false, gcTime: 0 } },
+    defaultOptions: {
+      queries: { gcTime: 0, retry: false, staleTime: Infinity },
+      mutations: { retry: false, gcTime: 0 },
+    },
   });
 
   if (readToday !== 'unavailable') {
@@ -266,7 +269,7 @@ describe('reading history', () => {
           expect(await screen.findByRole('button', { name: 'Remove John 2 from History' })).toBeEnabled();
           expect(screen.queryByRole('button', { name: 'Remove chapters' })).not.toBeOnTheScreen();
         } else {
-          expect(await screen.findByText(scenario === 'all' ? 'Chapters removed from History.' : scenario === 'middle'
+          expect(await screen.findByText(scenario === 'all' ? '3 chapters removed from History.' : scenario === 'middle'
             ? 'Chapter removed. The remaining chapters are now shown as separate readings in History.'
             : 'Chapter removed from History.')).toBeOnTheScreen();
           expect(screen.queryByRole('button', { name: 'Close reading details' })).not.toBeOnTheScreen();
@@ -410,6 +413,34 @@ describe('reading history', () => {
     expect(screen.getByRole('button', { name: 'Close reading details' })).toBeOnTheScreen();
     expect(screen.getByText('John 2')).toBeOnTheScreen();
     expect(screen.queryByText(/History changed/)).not.toBeOnTheScreen();
+  });
+
+  it('joins a pending note-save refresh when the app returns to the foreground', async () => {
+    let saved = false;
+    let finishRefresh: (page: unknown) => void = () => undefined;
+    request.mockImplementation((path: string) => {
+      if (path === '/api/v1/bootstrap') return Promise.resolve(bootstrapResponse(true));
+      if (path.endsWith('/note')) { saved = true; return Promise.resolve(undefined); }
+      if (saved) return new Promise<unknown>((resolve) => { finishRefresh = resolve; });
+      return Promise.resolve(historyResponse(1, 1, '2026-08-10', [detailedGroup()]));
+    });
+    const screen = await renderHistory();
+    await fireEvent.press(await screen.findByRole('button', { name: /Reading details for John 1-2/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Edit note' }));
+    await fireEvent.changeText(screen.getByLabelText('Note'), 'Updated note');
+    await fireEvent.press(screen.getByRole('button', { name: 'Save note' }));
+    await waitFor(() => expect(request.mock.calls.filter(([path]) => path.endsWith('page=1'))).toHaveLength(2));
+    await act(async () => { mockAppStateListener?.('active'); });
+    await act(async () => finishRefresh(historyResponse(1, 1, '2026-08-10', [detailedGroup({
+      notes_text: 'Updated note',
+      records: [1, 2].map((chapter) => ({ id: 100 + chapter, chapter, passage: `John ${chapter}`,
+        notes_text: 'Updated note', date_read: '2026-08-10', logged_at: null })),
+    })])));
+    expect(await screen.findByRole('button', { name: 'Edit note' })).toBeOnTheScreen();
+    expect(screen.getByText('Updated note')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Retry refresh' })).not.toBeOnTheScreen();
+    expect(request.mock.calls.filter(([path]) => path.endsWith('page=1'))).toHaveLength(2);
+    expect(request.mock.calls.filter(([path]) => path.endsWith('/note'))).toHaveLength(1);
   });
 
   it('preserves a page-two draft across foreground refresh and reloads its page after saving', async () => {

@@ -5,43 +5,58 @@ import { AccessibilityInfo, Animated, Platform, Pressable, Text } from 'react-na
 import { themeTokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
-export function TransientNotice({ message, duration = 5000, bottom = 40, onDismiss }: {
+export function TransientNotice({ message, duration = 5000, bottom = 40, onDismiss }: Readonly<{
   message: string;
   duration?: number;
   bottom?: number;
   onDismiss: () => void;
-}) {
+}>) {
   const { colors } = useTheme();
   const [progress] = useState(() => new Animated.Value(0));
   const reduceMotion = useRef(false);
   const closing = useRef(false);
   const dismiss = useCallback(() => {
-    if (closing.current) return;
+    if (closing.current) {
+      return;
+    }
     closing.current = true;
     if (reduceMotion.current) {
       onDismiss();
       return;
     }
     Animated.timing(progress, {
-      toValue: 0, duration: reduceMotion.current ? 0 : 160, useNativeDriver: true,
-    }).start(({ finished }) => { if (finished) onDismiss(); });
+      toValue: 0, duration: 160, useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        onDismiss();
+      }
+    });
   }, [onDismiss, progress]);
 
   useEffect(() => {
     let cancelled = false;
     closing.current = false;
-    AccessibilityInfo.announceForAccessibility(message);
+    if (Platform.OS !== 'android') {
+      AccessibilityInfo.announceForAccessibility(message);
+    }
     async function enter() {
       reduceMotion.current = await Promise.resolve(AccessibilityInfo.isReduceMotionEnabled()).catch(() => false);
-      if (cancelled) return;
+      if (cancelled) {
+        return;
+      }
       progress.setValue(reduceMotion.current ? 1 : 0);
-      if (reduceMotion.current) return;
+      if (reduceMotion.current) {
+        return;
+      }
       Animated.timing(progress, {
-        toValue: 1, duration: reduceMotion.current ? 0 : 180, useNativeDriver: true,
+        toValue: 1, duration: 180, useNativeDriver: true,
       }).start();
     }
     void enter();
-    return () => { cancelled = true; progress.stopAnimation(); };
+    return () => {
+      cancelled = true;
+      progress.stopAnimation();
+    };
   }, [message, progress]);
 
   useEffect(() => {
@@ -58,7 +73,9 @@ export function TransientNotice({ message, duration = 5000, bottom = 40, onDismi
           // Use the default duration when the native accessibility preference is unavailable.
         }
       }
-      if (!cancelled) timer = setTimeout(dismiss, timeout);
+      if (!cancelled) {
+        timer = setTimeout(dismiss, timeout);
+      }
     }
 
     void scheduleDismissal();
@@ -82,7 +99,11 @@ export function TransientNotice({ message, duration = 5000, bottom = 40, onDismi
         transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
       }}
     >
-      <Text style={{ flex: 1, color: colors.noticeText, fontSize: 16, lineHeight: 24 }}>
+      <Text
+        accessibilityRole="alert"
+        accessibilityLiveRegion="polite"
+        style={{ flex: 1, color: colors.noticeText, fontSize: 16, lineHeight: 24 }}
+      >
         {message}
       </Text>
       <Pressable

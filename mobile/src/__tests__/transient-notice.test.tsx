@@ -39,8 +39,12 @@ describe('temporary History feedback', () => {
   it('respects the Android accessibility timeout preference', async () => {
     jest.replaceProperty(Platform, 'OS', 'android');
     jest.spyOn(AccessibilityInfo, 'getRecommendedTimeoutMillis').mockResolvedValue(20000);
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockClear();
     const dismiss = jest.fn();
     await render(<TransientNotice message="Chapter removed" onDismiss={dismiss} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Chapter removed');
+    expect(screen.getByRole('alert')).toHaveProp('accessibilityLiveRegion', 'polite');
+    expect(announce).not.toHaveBeenCalled();
     await act(() => jest.advanceTimersByTime(19999));
     expect(dismiss).not.toHaveBeenCalled();
     await act(() => jest.advanceTimersByTime(1));

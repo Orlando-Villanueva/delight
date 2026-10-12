@@ -7,6 +7,7 @@ import { ReadingNoteEditor } from '@/components/reading-note-editor';
 import { TransientNotice } from '@/components/transient-notice';
 import { BottomSheet, type SheetDismissReason } from '@/components/bottom-sheet';
 import { useReadingRecordRemoval } from '@/features/reading-log/use-reading-record-removal';
+import { readingRemovalNotice } from '@/features/reading-log/removal-notice';
 import { themeTokens } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
@@ -40,7 +41,7 @@ export function ReadingHistoryDetails({
     group, dateLabel, onProtectDetails: () => onPreserveDetailsChange?.(true),
     onRemoved: async (ids) => {
       await onRecordsRemoved(ids);
-      setSuccessNotice(`${ids.length === 1 ? 'Chapter' : `${ids.length} chapters`} removed.`);
+      setSuccessNotice(readingRemovalNotice(ids.length));
       setSelecting(false);
       setSelectedIds([]);
     },

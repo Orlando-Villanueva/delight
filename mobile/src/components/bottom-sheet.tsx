@@ -86,6 +86,7 @@ export function BottomSheet({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const heightRef = useRef(height);
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [sheetTranslateY] = useState(() => new Animated.Value(height));
 
@@ -93,6 +94,9 @@ export function BottomSheet({
   const checkingDismissRef = useRef(false);
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
   const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    heightRef.current = height;
+  }, [height]);
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
@@ -104,9 +108,13 @@ export function BottomSheet({
 
     if (onBeforeDismiss) {
       checkingDismissRef.current = true;
-      Animated.spring(sheetTranslateY, {
+      animationRef.current?.stop();
+      overlayOpacity.setValue(1);
+      const settle = Animated.spring(sheetTranslateY, {
         toValue: 0, useNativeDriver: true, overshootClamping: true,
-      }).start();
+      });
+      animationRef.current = settle;
+      settle.start();
       try {
         if (!await onBeforeDismiss(reason)) {
           return;
@@ -191,7 +199,7 @@ export function BottomSheet({
     }
 
     overlayOpacity.setValue(0);
-    sheetTranslateY.setValue(height);
+    sheetTranslateY.setValue(heightRef.current);
 
     const animation = Animated.parallel([
       Animated.timing(overlayOpacity, {
@@ -209,7 +217,7 @@ export function BottomSheet({
     animation.start();
 
     return () => animationRef.current?.stop();
-  }, [height, overlayOpacity, sheetTranslateY, visible]);
+  }, [overlayOpacity, sheetTranslateY, visible]);
 
   return (
     <Modal
