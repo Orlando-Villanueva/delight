@@ -1,7 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { PropsWithChildren } from 'react';
-import { AccessibilityInfo, AppState, Keyboard, ScrollView } from 'react-native';
+import {
+  AccessibilityInfo, AppState, Keyboard, PanResponder, ScrollView,
+  type GestureResponderEvent, type PanResponderGestureState,
+} from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/api-error';
@@ -298,6 +301,29 @@ describe('native reading-log form', () => {
     await fireEvent.press(screen.getByLabelText('Dismiss book list'));
 
     await waitFor(() => expect(screen.queryByText('Choose a book')).not.toBeOnTheScreen());
+  });
+
+  it('dismisses the book picker with a handle drag without changing the selected book', async () => {
+    const responder = jest.spyOn(PanResponder, 'create');
+    try {
+      mockApi();
+      await renderLog();
+      await screen.findByText('John has 21 chapters.');
+      await fireEvent.press(screen.getByLabelText('Bible book'));
+      expect(screen.getByTestId('bottom-sheet-drag-handle')).toBeOnTheScreen();
+      const handlers = responder.mock.calls.at(-1)![0];
+      const event = {} as GestureResponderEvent;
+      const gesture = { dy: 120, dx: 0, vy: 0.5 } as PanResponderGestureState;
+      await act(() => {
+        handlers.onPanResponderGrant?.(event, gesture);
+        handlers.onPanResponderMove?.(event, gesture);
+        handlers.onPanResponderRelease?.(event, gesture);
+      });
+      await waitFor(() => expect(screen.queryByText('Choose a book')).not.toBeOnTheScreen());
+      expect(screen.getByLabelText('Bible book')).toHaveTextContent('John');
+    } finally {
+      responder.mockRestore();
+    }
   });
 
   it('submits only a server-provided date and the entered reading', async () => {
