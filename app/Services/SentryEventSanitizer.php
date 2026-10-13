@@ -29,6 +29,7 @@ class SentryEventSanitizer
 
         $permittedOutcomes = [
             OperationalFailureReporter::NATIVE_PUSH_OPERATION => [OperationalFailureReporter::UNKNOWN_OUTCOME],
+            OperationalFailureReporter::NATIVE_PUSH_DELIVERY_OPERATION => [OperationalFailureReporter::RETRY_EXHAUSTED],
             OperationalFailureReporter::ANNOUNCEMENT_EMAIL_OPERATION => [OperationalFailureReporter::TERMINAL_FAILURE, OperationalFailureReporter::UNCERTAIN_OUTCOME],
             OperationalFailureReporter::ONBOARDING_REMINDER_OPERATION => [OperationalFailureReporter::PROCESSING_FAILURE],
         ];

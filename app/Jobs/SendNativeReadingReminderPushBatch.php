@@ -128,6 +128,8 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
             return;
         }
 
+        $hasExhaustedRetries = false;
+
         foreach ($eligibleDeliveries as $index => $delivery) {
             $ticket = $tickets[$index] ?? null;
             $ticketError = data_get($ticket, 'details.error');
@@ -175,6 +177,10 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
                     'expo_retry_at' => null,
                 ])->save();
 
+                if ($ticketError === NativePushRateLimitRetryService::ERROR_CODE) {
+                    $hasExhaustedRetries = true;
+                }
+
                 if ($ticketError === 'DeviceNotRegistered') {
                     NativePushRegistration::query()
                         ->whereKey($delivery->native_push_registration_id)
@@ -197,6 +203,10 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
                 'failed_at' => null,
                 'failure_reason' => null,
             ])->save();
+        }
+
+        if ($hasExhaustedRetries) {
+            app(OperationalFailureReporter::class)->reportNativePushRetryExhausted();
         }
     }
 

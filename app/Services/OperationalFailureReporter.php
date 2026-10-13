@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\AnnouncementEmailTerminalFailureException;
 use App\Exceptions\AnnouncementEmailUncertainOutcomeException;
+use App\Exceptions\NativePushRetryExhaustedException;
 use App\Exceptions\NativePushUnknownOutcomeException;
 use App\Exceptions\OnboardingReminderProcessingFailureException;
 use Illuminate\Support\Facades\Cache;
@@ -18,6 +19,10 @@ class OperationalFailureReporter
     public const NATIVE_PUSH_OPERATION = 'native_push_dispatch';
 
     public const UNKNOWN_OUTCOME = 'unknown_outcome';
+
+    public const NATIVE_PUSH_DELIVERY_OPERATION = 'native_push_delivery';
+
+    public const RETRY_EXHAUSTED = 'retry_exhausted';
 
     public const ANNOUNCEMENT_EMAIL_OPERATION = 'announcement_email_delivery';
 
@@ -53,6 +58,12 @@ class OperationalFailureReporter
     {
         $this->report(self::ONBOARDING_REMINDER_OPERATION, self::PROCESSING_FAILURE,
             new OnboardingReminderProcessingFailureException('Onboarding reminder processing recorded failures.'));
+    }
+
+    public function reportNativePushRetryExhausted(): void
+    {
+        $this->report(self::NATIVE_PUSH_DELIVERY_OPERATION, self::RETRY_EXHAUSTED,
+            new NativePushRetryExhaustedException('Native push delivery exhausted its rate-limit retries.'));
     }
 
     private function report(string $operation, string $outcome, RuntimeException $exception): void

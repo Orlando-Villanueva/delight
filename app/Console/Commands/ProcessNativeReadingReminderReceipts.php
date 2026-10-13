@@ -8,6 +8,7 @@ use App\Models\NativePushRegistration;
 use App\Models\NativePushReminderDelivery;
 use App\Services\ExpoPushService;
 use App\Services\NativePushRateLimitRetryService;
+use App\Services\OperationalFailureReporter;
 use Illuminate\Console\Command;
 
 class ProcessNativeReadingReminderReceipts extends Command
@@ -25,6 +26,7 @@ class ProcessNativeReadingReminderReceipts extends Command
         $processedCount = 0;
         $unavailableCount = 0;
         $retryQueuedCount = 0;
+        $hasExhaustedRetries = false;
         $now = now();
         $cutoff = $now->copy()->subMinutes((int) config('services.expo.receipt_delay_minutes', 15));
         $receiptExpiredBefore = $now->copy()->subHours(self::RECEIPT_RETENTION_HOURS);
@@ -57,7 +59,7 @@ class ProcessNativeReadingReminderReceipts extends Command
             ->where('sent_at', '<=', $cutoff)
             ->where('sent_at', '>', $receiptExpiredBefore)
             ->orderBy('id')
-            ->chunkById(1000, function ($deliveries) use ($expo, $rateLimitRetries, &$processedCount): void {
+            ->chunkById(1000, function ($deliveries) use ($expo, $rateLimitRetries, &$processedCount, &$hasExhaustedRetries): void {
                 $ticketIds = $deliveries->pluck('expo_ticket_id')->filter()->values()->all();
                 $receipts = $expo->receipts($ticketIds);
 
@@ -112,6 +114,10 @@ class ProcessNativeReadingReminderReceipts extends Command
                     ])->save();
                     $processedCount++;
 
+                    if ($errorCode === NativePushRateLimitRetryService::ERROR_CODE) {
+                        $hasExhaustedRetries = true;
+                    }
+
                     if ($errorCode === 'DeviceNotRegistered') {
                         NativePushRegistration::query()
                             ->whereKey($delivery->native_push_registration_id)
@@ -160,6 +166,10 @@ class ProcessNativeReadingReminderReceipts extends Command
             });
 
         $this->info("Native reading reminder receipts processed: {$processedCount}; unavailable after retention: {$unavailableCount}; rate-limited retries queued: {$retryQueuedCount}.");
+
+        if ($hasExhaustedRetries) {
+            app(OperationalFailureReporter::class)->reportNativePushRetryExhausted();
+        }
 
         return self::SUCCESS;
     }
