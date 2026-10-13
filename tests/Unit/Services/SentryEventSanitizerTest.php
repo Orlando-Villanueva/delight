@@ -85,6 +85,7 @@ it('sends only permitted diagnostics when private values appear throughout the e
 })->with([
     'native push' => ['native_push_dispatch', 'unknown_outcome'],
     'announcement email' => ['announcement_email_delivery', 'terminal_failure'],
+    'announcement uncertainty' => ['announcement_email_delivery', 'uncertain_outcome'],
     'onboarding reminder' => ['onboarding_reminder', 'processing_failure'],
 ]);
 

@@ -225,7 +225,7 @@ it('marks a second transient failure terminally failed', function () {
     expect($transport->events)->toHaveCount(1);
 });
 
-it('reports terminal announcement failures once per run without changing persisted outcomes', function (string $monitoringMode): void {
+it('reports newly failed or uncertain announcement outcomes once per run without changing persisted outcomes', function (string $monitoringMode, string $outcome): void {
     $logStream = fopen('php://memory', 'w+');
     Log::swap(new LaravelLogger(new MonologLogger('announcement-test', [new StreamHandler($logStream)])));
     $deliveries = [pendingAnnouncementEmailDelivery(), pendingAnnouncementEmailDelivery()];
@@ -240,8 +240,8 @@ it('reports terminal announcement failures once per run without changing persist
         Cache::shouldReceive('add')->once()->andThrow(new RuntimeException('Cache unavailable'));
     }
     Mail::shouldReceive('to')->twice()->andThrow(new HttpTransportException(
-        'Recipient rejected (code 400).',
-        new MockResponse('', ['http_code' => 400]),
+        'Provider response could not be processed.',
+        new MockResponse('', ['http_code' => $outcome === 'terminal_failure' ? 400 : 200]),
         previous: new RuntimeException('private-recipient@example.com'),
     ));
 
@@ -254,30 +254,40 @@ it('reports terminal announcement failures once per run without changing persist
     expect($logOutput)->toContain('Announcement email delivery attempt did not succeed.')
         ->not->toContain('private-recipient@example.com');
     foreach ($deliveries as $delivery) {
-        expect($delivery->fresh()->failed_at)->not->toBeNull();
+        expect($delivery->fresh()->failed_at !== null)->toBe($outcome === 'terminal_failure');
+        expect($delivery->fresh()->uncertain_at !== null)->toBe($outcome === 'uncertain_outcome');
         expect($delivery->fresh()->attempt_count)->toBe(1);
         expect($delivery->fresh()->next_attempt_at)->toBeNull();
     }
     expect($transport->events)->toHaveCount(in_array($monitoringMode, ['available', 'transport unavailable'], true) ? 1 : 0);
     if ($transport->events !== []) {
         $event = $transport->events[0];
-        expect($logOutput)->toContain('Announcement email processing recorded terminal delivery failures.');
-        expect($event->getTags())->toBe(['operation' => 'announcement_email_delivery', 'outcome' => 'terminal_failure']);
+        expect($logOutput)->toContain($outcome === 'terminal_failure'
+            ? 'Announcement email processing recorded terminal delivery failures.'
+            : 'Announcement email processing recorded uncertain delivery outcomes.');
+        expect($event->getTags())->toBe(['operation' => 'announcement_email_delivery', 'outcome' => $outcome]);
         expect($event->getEnvironment())->toBe('testing');
         expect($event->getRelease())->toBe('delight@test-release');
         expect($event->getExceptions())->toHaveCount(1);
         $payload = (new PayloadSerializer(app(ClientBuilder::class)->getOptions()))->serialize($event);
-        expect($payload)->not->toContain('private-recipient@example.com')->not->toContain('Recipient rejected');
+        expect($payload)->not->toContain('private-recipient@example.com')->not->toContain('Provider response could not be processed');
     }
-})->with(['available', 'transport unavailable', 'cache unavailable', 'disabled']);
+})->with(['available', 'transport unavailable', 'cache unavailable', 'disabled'])
+    ->with(['terminal_failure', 'uncertain_outcome']);
 
-it('suppresses repeated announcement incidents for an hour with a separate operation gate', function (): void {
+it('suppresses repeated announcement incidents for an hour with separate outcome gates', function (string $outcome): void {
     $this->travelTo(now());
     config(['cache.default' => 'database']);
     $transport = announcementFailureReportingTransport();
-    Mail::shouldReceive('to')->times(3)->andThrow(permanentAnnouncementEmailException());
+    Mail::shouldReceive('to')->times(3)->andThrow($outcome === 'terminal_failure'
+        ? permanentAnnouncementEmailException()
+        : new TransportException('Unknown send outcome'));
 
-    app(OperationalFailureReporter::class)->reportNativePushUnknownOutcome();
+    if ($outcome === 'terminal_failure') {
+        app(OperationalFailureReporter::class)->reportAnnouncementEmailUncertainOutcome();
+    } else {
+        app(OperationalFailureReporter::class)->reportAnnouncementEmailTerminalFailure();
+    }
     pendingAnnouncementEmailDelivery();
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
     expect($transport->events)->toHaveCount(2);
@@ -292,7 +302,7 @@ it('suppresses repeated announcement incidents for an hour with a separate opera
     expect($transport->events)->toHaveCount(3);
     report(new LogicException('Unrelated operation'));
     expect($transport->events[3]->getTags())->toBeEmpty();
-});
+})->with(['terminal_failure', 'uncertain_outcome']);
 
 it('keeps nonterminal and expected announcement outcomes quiet', function (string $outcome): void {
     $transport = announcementFailureReportingTransport();
@@ -302,8 +312,6 @@ it('keeps nonterminal and expected announcement outcomes quiet', function (strin
     }
     if ($outcome === 'retryable') {
         Mail::shouldReceive('to')->once()->andThrow(transientAnnouncementEmailException());
-    } elseif ($outcome === 'uncertain') {
-        Mail::shouldReceive('to')->once()->andThrow(new TransportException('Unknown send outcome'));
     } else {
         Mail::fake();
     }
@@ -311,7 +319,7 @@ it('keeps nonterminal and expected announcement outcomes quiet', function (strin
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
 
     expect($transport->events)->toBeEmpty();
-})->with(['sent', 'skipped', 'retryable', 'uncertain', 'historical failure']);
+})->with(['sent', 'skipped', 'retryable', 'historical failure']);
 
 it('marks a permanent submission failure terminal on its first attempt', function () {
     $delivery = pendingAnnouncementEmailDelivery();
@@ -371,12 +379,14 @@ it('marks a permanent smtp rejection terminal on its first attempt', function ()
 });
 
 it('fails visibly and preserves an unexpected sending error for uncertain reconciliation', function () {
+    $transport = announcementFailureReportingTransport();
     Carbon::setTestNow('2026-08-31 12:00:00');
     $delivery = pendingAnnouncementEmailDelivery();
     Mail::shouldReceive('to')->once()->andThrow(new RuntimeException('Announcement view could not render.'));
 
     expect(fn () => Artisan::call('announcements:send-published-emails'))
         ->toThrow(RuntimeException::class, 'Announcement view could not render.');
+    expect($transport->events)->toBeEmpty();
 
     expect($delivery->fresh()->attempt_count)->toBe(1)
         ->and($delivery->fresh()->sending_at)->not->toBeNull()
@@ -393,6 +403,8 @@ it('fails visibly and preserves an unexpected sending error for uncertain reconc
         ->and($delivery->fresh()->uncertain_at)->not->toBeNull()
         ->and($delivery->fresh()->failure_reason)
         ->toBe('Delivery outcome is uncertain after an interrupted send attempt.');
+    expect($transport->events)->toHaveCount(1);
+    expect($transport->events[0]->getTags())->toBe(['operation' => 'announcement_email_delivery', 'outcome' => 'uncertain_outcome']);
 });
 
 it('does not report a provider-accepted delivery as failed when recording success breaks', function () {
@@ -425,6 +437,7 @@ it('does not report a provider-accepted delivery as failed when recording succes
 });
 
 it('marks an interrupted send uncertain without retrying it', function () {
+    $transport = announcementFailureReportingTransport();
     Mail::fake();
     Carbon::setTestNow('2026-08-31 12:30:00');
     $delivery = pendingAnnouncementEmailDelivery([
@@ -433,11 +446,13 @@ it('marks an interrupted send uncertain without retrying it', function () {
     ]);
 
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
+    Carbon::setTestNow(now()->addHour());
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
 
     Mail::assertNothingSent();
     expect($delivery->fresh()->uncertain_at)->not->toBeNull()
         ->and($delivery->fresh()->attempt_count)->toBe(1);
+    expect($transport->events)->toHaveCount(1);
 });
 
 it('an exact emergency retry accepts only a terminally failed delivery', function () {

@@ -111,6 +111,10 @@ class SendPublishedAnnouncementEmails extends Command
                 app(OperationalFailureReporter::class)->reportAnnouncementEmailTerminalFailure();
             }
 
+            if ($summary['uncertain'] > 0) {
+                app(OperationalFailureReporter::class)->reportAnnouncementEmailUncertainOutcome();
+            }
+
             return self::SUCCESS;
         } finally {
             $lock->release();

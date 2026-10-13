@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\AnnouncementEmailTerminalFailureException;
+use App\Exceptions\AnnouncementEmailUncertainOutcomeException;
 use App\Exceptions\NativePushUnknownOutcomeException;
 use App\Exceptions\OnboardingReminderProcessingFailureException;
 use Illuminate\Support\Facades\Cache;
@@ -22,6 +23,8 @@ class OperationalFailureReporter
 
     public const TERMINAL_FAILURE = 'terminal_failure';
 
+    public const UNCERTAIN_OUTCOME = 'uncertain_outcome';
+
     public const ONBOARDING_REMINDER_OPERATION = 'onboarding_reminder';
 
     public const PROCESSING_FAILURE = 'processing_failure';
@@ -38,6 +41,12 @@ class OperationalFailureReporter
     {
         $this->report(self::ANNOUNCEMENT_EMAIL_OPERATION, self::TERMINAL_FAILURE,
             new AnnouncementEmailTerminalFailureException('Announcement email processing recorded terminal delivery failures.'));
+    }
+
+    public function reportAnnouncementEmailUncertainOutcome(): void
+    {
+        $this->report(self::ANNOUNCEMENT_EMAIL_OPERATION, self::UNCERTAIN_OUTCOME,
+            new AnnouncementEmailUncertainOutcomeException('Announcement email processing recorded uncertain delivery outcomes.'));
     }
 
     public function reportOnboardingReminderProcessingFailure(): void
