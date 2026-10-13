@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\AnnouncementEmailDelivery;
 use App\Services\AnnouncementEmailDeliveryService;
+use App\Services\OperationalFailureReporter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -104,6 +105,10 @@ class SendPublishedAnnouncementEmails extends Command
                     ...$summary,
                     'pending_count' => $pendingCount,
                 ]);
+            }
+
+            if ($summary['failed'] > 0) {
+                app(OperationalFailureReporter::class)->reportAnnouncementEmailTerminalFailure();
             }
 
             return self::SUCCESS;

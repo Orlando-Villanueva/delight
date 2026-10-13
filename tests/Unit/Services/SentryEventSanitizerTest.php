@@ -18,7 +18,7 @@ use Tests\TestCase;
 
 uses(TestCase::class);
 
-it('sends only permitted diagnostics when private values appear throughout the event', function (): void {
+it('sends only permitted diagnostics when private values appear throughout the event', function (string $operation, string $outcome): void {
     config(['sentry.environment' => 'production', 'sentry.release' => 'delight@abc123']);
     $transport = new class implements TransportInterface
     {
@@ -47,7 +47,7 @@ it('sends only permitted diagnostics when private values appear throughout the e
         ->setRequest(['url' => 'https://example.com/'.$private, 'data' => ['notes' => $private], 'headers' => ['Authorization' => $private], 'cookies' => $private])
         ->setUser(UserDataBag::createFromArray(['email' => $private, 'ip_address' => '192.0.2.1']))
         ->setExtra(['nested' => ['push_token' => $private]])
-        ->setTags(['recipient' => $private, 'operation' => 'native_push_dispatch', 'outcome' => 'unknown_outcome'])
+        ->setTags(['recipient' => $private, 'operation' => $operation, 'outcome' => $outcome])
         ->setContext('private', ['reflection' => $private])
         ->setTransaction($private)
         ->setFingerprint([$private])
@@ -78,11 +78,14 @@ it('sends only permitted diagnostics when private values appear throughout the e
         'lineno' => 42,
         'in_app' => true,
     ]);
-    expect($data['tags'])->toBe(['operation' => 'native_push_dispatch', 'outcome' => 'unknown_outcome']);
+    expect($data['tags'])->toBe(['operation' => $operation, 'outcome' => $outcome]);
     foreach (['request', 'user', 'extra', 'contexts', 'transaction', 'fingerprint', 'server_name', 'logger', 'breadcrumbs', 'message'] as $key) {
         expect($data)->not->toHaveKey($key);
     }
-});
+})->with([
+    'native push' => ['native_push_dispatch', 'unknown_outcome'],
+    'announcement email' => ['announcement_email_delivery', 'terminal_failure'],
+]);
 
 it('drops operational labels unless both values are explicitly permitted', function (array $tags): void {
     $event = Event::createEvent()
@@ -95,6 +98,7 @@ it('drops operational labels unless both values are explicitly permitted', funct
     'unknown outcome' => [['operation' => 'native_push_dispatch', 'outcome' => 'ExpoPushToken[secret]']],
     'missing outcome' => [['operation' => 'native_push_dispatch']],
     'ordinary tags' => [['recipient' => 'private-reader@example.com']],
+    'mismatched operation and outcome' => [['operation' => 'announcement_email_delivery', 'outcome' => 'unknown_outcome']],
 ]);
 
 it('discards message-only events without invoking the transport', function (): void {

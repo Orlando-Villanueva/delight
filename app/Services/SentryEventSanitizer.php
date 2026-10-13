@@ -27,11 +27,17 @@ class SentryEventSanitizer
 
         $tags = $event->getTags();
 
-        if (($tags['operation'] ?? null) === OperationalFailureReporter::NATIVE_PUSH_OPERATION
-            && ($tags['outcome'] ?? null) === OperationalFailureReporter::UNKNOWN_OUTCOME) {
+        $permittedOutcomes = [
+            OperationalFailureReporter::NATIVE_PUSH_OPERATION => OperationalFailureReporter::UNKNOWN_OUTCOME,
+            OperationalFailureReporter::ANNOUNCEMENT_EMAIL_OPERATION => OperationalFailureReporter::TERMINAL_FAILURE,
+        ];
+        $operation = $tags['operation'] ?? null;
+
+        if (is_string($operation) && isset($permittedOutcomes[$operation])
+            && ($tags['outcome'] ?? null) === $permittedOutcomes[$operation]) {
             $sanitized->setTags([
-                'operation' => OperationalFailureReporter::NATIVE_PUSH_OPERATION,
-                'outcome' => OperationalFailureReporter::UNKNOWN_OUTCOME,
+                'operation' => $operation,
+                'outcome' => $permittedOutcomes[$operation],
             ]);
         }
 
