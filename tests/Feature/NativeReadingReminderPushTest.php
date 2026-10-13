@@ -13,6 +13,7 @@ use App\Services\NativePushRateLimitRetryService;
 use App\Services\OperationalFailureReporter;
 use App\Services\ReadingReminderConditionService;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Log\Logger as LaravelLogger;
@@ -656,6 +657,7 @@ it('does not remove a newly rotated address when an old receipt reports DeviceNo
 });
 
 it('stops polling for a receipt after Expo retention expires', function (): void {
+    $transport = nativePushReportingTransport();
     Carbon::setTestNow(Carbon::parse('2026-05-26 10:00:00', 'America/Toronto'));
     $expiredDevice = nativeReminderDevice();
     $expiredDelivery = NativePushReminderDelivery::factory()->create([
@@ -665,7 +667,7 @@ it('stops polling for a receipt after Expo retention expires', function (): void
         'token_hash' => $expiredDevice['registration']->token_hash,
         'expo_ticket_id' => 'ticket-expired',
         'expo_receipt_status' => NativePushReceiptStatus::Pending,
-        'sent_at' => now()->subHours(24)->subMinute(),
+        'sent_at' => now()->subHours(24),
     ]);
     $pendingDevice = nativeReminderDevice();
     $pendingDelivery = NativePushReminderDelivery::factory()->create([
@@ -675,7 +677,7 @@ it('stops polling for a receipt after Expo retention expires', function (): void
         'token_hash' => $pendingDevice['registration']->token_hash,
         'expo_ticket_id' => 'ticket-pending',
         'expo_receipt_status' => NativePushReceiptStatus::Pending,
-        'sent_at' => now()->subMinutes(20),
+        'sent_at' => now()->subHours(24)->addSecond(),
     ]);
     Http::preventStrayRequests();
     Http::fake([
@@ -692,6 +694,7 @@ it('stops polling for a receipt after Expo retention expires', function (): void
         ->and($pendingDelivery->fresh()->expo_receipt_status)->toBe(NativePushReceiptStatus::Pending);
     Http::assertSent(fn ($request): bool => $request->url() === 'https://exp.host/--/api/v2/push/getReceipts'
         && $request->data()['ids'] === ['ticket-pending']);
+    expect($transport->events)->toHaveCount(1);
 });
 
 it('schedules MessageRateExceeded receipts with exponential backoff', function (int $retryCount, int $delaySeconds): void {
@@ -1040,6 +1043,101 @@ function processExhaustedNativePushDeliveries(string $stage): array
     }
 
     return $deliveries;
+}
+
+it('aggregates newly unavailable receipts without polling or resending them', function (string $monitoringMode): void {
+    $this->travelTo(Carbon::parse('2026-05-26 10:00:00', 'America/Toronto'));
+    $deliveries = [pendingNativeReceiptSentAt(now()->subHours(24)), pendingNativeReceiptSentAt(now()->subHours(25))];
+    config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
+    $transport = nativePushReportingTransport($monitoringMode === 'transport unavailable');
+    $logStream = fopen('php://memory', 'w+');
+    Log::swap(new LaravelLogger(new MonologLogger('receipt-test', [new StreamHandler($logStream)])));
+    if ($monitoringMode === 'disabled') {
+        config(['sentry.dsn' => null]);
+    }
+    if ($monitoringMode === 'cache unavailable') {
+        Cache::shouldReceive('add')->once()->andThrow(new RuntimeException('Cache unavailable'));
+    }
+    Queue::fake();
+    Http::preventStrayRequests();
+    Http::fake(['https://exp.host/--/api/v2/push/getReceipts' => Http::response(['data' => []])]);
+
+    $this->artisan('push:process-native-reading-reminder-receipts')
+        ->expectsOutput('Native reading reminder receipts processed: 0; unavailable after retention: 2; rate-limited retries queued: 0.')
+        ->assertSuccessful();
+    $this->travel(1)->hours();
+    $this->artisan('push:process-native-reading-reminder-receipts')->assertSuccessful();
+
+    foreach ($deliveries as $delivery) {
+        $originalSentAt = $delivery->sent_at;
+        $delivery->refresh();
+        expect($delivery->expo_receipt_status)->toBe(NativePushReceiptStatus::Unavailable);
+        expect($delivery->expo_receipt_checked_at)->not->toBeNull();
+        expect($delivery->sent_at->equalTo($originalSentAt))->toBeTrue();
+        expect($delivery->failed_at)->toBeNull();
+        expect($delivery->expo_retry_at)->toBeNull();
+        expect($delivery->expo_retry_count)->toBe(0);
+    }
+    $expectedReports = in_array($monitoringMode, ['available', 'transport unavailable'], true) ? 1 : 0;
+    expect($transport->events)->toHaveCount($expectedReports);
+    rewind($logStream);
+    $logOutput = stream_get_contents($logStream);
+    fclose($logStream);
+    expect($logOutput)->not->toContain('private-ticket-')->not->toContain('ExpoPushToken[private-');
+    if ($expectedReports === 1) {
+        $event = $transport->events[0];
+        expect($event->getTags())->toBe(['operation' => 'native_push_receipts', 'outcome' => 'receipt_unavailable']);
+        expect($event->getEnvironment())->toBe('testing');
+        expect($event->getRelease())->toBe('delight@test-release');
+        expect($event->getExceptions())->toHaveCount(1);
+        $payload = (new PayloadSerializer(app(ClientBuilder::class)->getOptions()))->serialize($event);
+        expect($payload)->not->toContain('private-ticket-')->not->toContain('ExpoPushToken[private-');
+        expect($logOutput)->toContain('Native push receipts became unavailable after the retention period.');
+    }
+    Http::assertNothingSent();
+    Queue::assertNothingPushed();
+})->with(['available', 'transport unavailable', 'cache unavailable', 'disabled']);
+
+it('suppresses new unavailable receipt reports for an hour independently of retry exhaustion', function (): void {
+    $this->travelTo(Carbon::parse('2026-05-26 10:00:00', 'America/Toronto'));
+    config(['cache.default' => 'database']);
+    $transport = nativePushReportingTransport();
+    Queue::fake();
+    Http::preventStrayRequests();
+    Http::fake(['https://exp.host/--/api/v2/push/getReceipts' => Http::response(['data' => []])]);
+
+    app(OperationalFailureReporter::class)->reportNativePushRetryExhausted();
+    pendingNativeReceiptSentAt(now()->subHours(24));
+    $this->artisan('push:process-native-reading-reminder-receipts')->assertSuccessful();
+    expect($transport->events)->toHaveCount(2);
+    $this->travel(59)->minutes();
+    pendingNativeReceiptSentAt(now()->subHours(24));
+    $this->artisan('push:process-native-reading-reminder-receipts')->assertSuccessful();
+    expect($transport->events)->toHaveCount(2);
+    $this->travel(1)->minutes();
+    pendingNativeReceiptSentAt(now()->subHours(24));
+    $this->artisan('push:process-native-reading-reminder-receipts')->assertSuccessful();
+
+    expect($transport->events)->toHaveCount(3);
+    report(new LogicException('Unrelated operation'));
+    expect($transport->events[3]->getTags())->toBeEmpty();
+    Http::assertNothingSent();
+    Queue::assertNothingPushed();
+});
+
+function pendingNativeReceiptSentAt(CarbonInterface $sentAt): NativePushReminderDelivery
+{
+    $device = nativeReminderDevice(address: 'ExpoPushToken[private-'.fake()->uuid().']');
+
+    return NativePushReminderDelivery::factory()->create([
+        'native_push_registration_id' => $device['registration']->id,
+        'reminder_date' => $sentAt->toDateString(),
+        'scheduled_for_at' => $sentAt,
+        'token_hash' => $device['registration']->token_hash,
+        'expo_ticket_id' => 'private-ticket-'.fake()->uuid(),
+        'expo_receipt_status' => NativePushReceiptStatus::Pending,
+        'sent_at' => $sentAt,
+    ]);
 }
 
 function nativePushReportingTransport(bool $unavailable = false): TransportInterface

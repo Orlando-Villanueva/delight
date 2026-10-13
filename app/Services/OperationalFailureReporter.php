@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\AnnouncementEmailTerminalFailureException;
 use App\Exceptions\AnnouncementEmailUncertainOutcomeException;
+use App\Exceptions\NativePushReceiptUnavailableException;
 use App\Exceptions\NativePushRetryExhaustedException;
 use App\Exceptions\NativePushUnknownOutcomeException;
 use App\Exceptions\OnboardingReminderProcessingFailureException;
@@ -23,6 +24,10 @@ class OperationalFailureReporter
     public const NATIVE_PUSH_DELIVERY_OPERATION = 'native_push_delivery';
 
     public const RETRY_EXHAUSTED = 'retry_exhausted';
+
+    public const NATIVE_PUSH_RECEIPTS_OPERATION = 'native_push_receipts';
+
+    public const RECEIPT_UNAVAILABLE = 'receipt_unavailable';
 
     public const ANNOUNCEMENT_EMAIL_OPERATION = 'announcement_email_delivery';
 
@@ -64,6 +69,12 @@ class OperationalFailureReporter
     {
         $this->report(self::NATIVE_PUSH_DELIVERY_OPERATION, self::RETRY_EXHAUSTED,
             new NativePushRetryExhaustedException('Native push delivery exhausted its rate-limit retries.'));
+    }
+
+    public function reportNativePushReceiptUnavailable(): void
+    {
+        $this->report(self::NATIVE_PUSH_RECEIPTS_OPERATION, self::RECEIPT_UNAVAILABLE,
+            new NativePushReceiptUnavailableException('Native push receipts became unavailable after the retention period.'));
     }
 
     private function report(string $operation, string $outcome, RuntimeException $exception): void

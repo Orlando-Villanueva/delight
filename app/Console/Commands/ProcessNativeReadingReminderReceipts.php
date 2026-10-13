@@ -171,6 +171,10 @@ class ProcessNativeReadingReminderReceipts extends Command
             app(OperationalFailureReporter::class)->reportNativePushRetryExhausted();
         }
 
+        if ($unavailableCount > 0) {
+            app(OperationalFailureReporter::class)->reportNativePushReceiptUnavailable();
+        }
+
         return self::SUCCESS;
     }
 }
