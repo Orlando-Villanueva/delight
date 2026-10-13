@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\AnnouncementEmailTerminalFailureException;
 use App\Exceptions\NativePushUnknownOutcomeException;
+use App\Exceptions\OnboardingReminderProcessingFailureException;
 use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 use Sentry\State\Scope;
@@ -21,6 +22,10 @@ class OperationalFailureReporter
 
     public const TERMINAL_FAILURE = 'terminal_failure';
 
+    public const ONBOARDING_REMINDER_OPERATION = 'onboarding_reminder';
+
+    public const PROCESSING_FAILURE = 'processing_failure';
+
     private const REPORT_INTERVAL_SECONDS = 3600;
 
     public function reportNativePushUnknownOutcome(): void
@@ -33,6 +38,12 @@ class OperationalFailureReporter
     {
         $this->report(self::ANNOUNCEMENT_EMAIL_OPERATION, self::TERMINAL_FAILURE,
             new AnnouncementEmailTerminalFailureException('Announcement email processing recorded terminal delivery failures.'));
+    }
+
+    public function reportOnboardingReminderProcessingFailure(): void
+    {
+        $this->report(self::ONBOARDING_REMINDER_OPERATION, self::PROCESSING_FAILURE,
+            new OnboardingReminderProcessingFailureException('Onboarding reminder processing recorded failures.'));
     }
 
     private function report(string $operation, string $outcome, RuntimeException $exception): void

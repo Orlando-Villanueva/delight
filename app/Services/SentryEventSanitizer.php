@@ -30,6 +30,7 @@ class SentryEventSanitizer
         $permittedOutcomes = [
             OperationalFailureReporter::NATIVE_PUSH_OPERATION => OperationalFailureReporter::UNKNOWN_OUTCOME,
             OperationalFailureReporter::ANNOUNCEMENT_EMAIL_OPERATION => OperationalFailureReporter::TERMINAL_FAILURE,
+            OperationalFailureReporter::ONBOARDING_REMINDER_OPERATION => OperationalFailureReporter::PROCESSING_FAILURE,
         ];
         $operation = $tags['operation'] ?? null;
 

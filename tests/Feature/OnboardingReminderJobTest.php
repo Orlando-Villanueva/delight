@@ -5,8 +5,23 @@ use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\EmailService;
 use App\Services\OnboardingReminderProcessor;
+use App\Services\OperationalFailureReporter;
 use Carbon\Carbon;
+use Illuminate\Log\Logger as LaravelLogger;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Monolog\Formatter\LineFormatter;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger as MonologLogger;
+use Sentry\ClientBuilder;
+use Sentry\Event;
+use Sentry\Serializer\PayloadSerializer;
+use Sentry\State\HubInterface;
+use Sentry\Transport\Result;
+use Sentry\Transport\ResultStatus;
+use Sentry\Transport\TransportInterface;
+use Symfony\Component\Mailer\Exception\TransportException;
 
 beforeEach(function () {
     Mail::fake();
@@ -149,6 +164,7 @@ it('restores marker when email sending fails', function () {
 });
 
 it('scheduled command processes due reminders and reports a summary', function () {
+    $transport = onboardingFailureReportingTransport();
     $notDueUser = User::factory()->create([
         'onboarding_reminder_requested_at' => $this->now->copy()->subHours(3),
     ]);
@@ -163,9 +179,11 @@ it('scheduled command processes due reminders and reports a summary', function (
 
     expect($this->user->fresh()->onboarding_reminder_requested_at)->toBeNull();
     expect($notDueUser->fresh()->onboarding_reminder_requested_at?->equalTo($this->now->copy()->subHours(3)))->toBeTrue();
+    expect($transport->events)->toBeEmpty();
 });
 
 it('scheduled command continues after a failed reminder send', function () {
+    $transport = onboardingFailureReportingTransport();
     Mail::fake();
 
     $secondUser = User::factory()->create([
@@ -199,4 +217,110 @@ it('scheduled command continues after a failed reminder send', function () {
 
     expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($this->requestedAt))->toBeTrue();
     expect($secondUser->fresh()->onboarding_reminder_requested_at)->toBeNull();
+    expect($transport->events)->toHaveCount(1);
 });
+
+it('aggregates onboarding failures safely while preserving reminder restoration', function (string $failureMode, string $monitoringMode): void {
+    $secondUser = User::factory()->create(['onboarding_reminder_requested_at' => $this->requestedAt]);
+    config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
+    $transport = onboardingFailureReportingTransport($monitoringMode === 'transport unavailable');
+    $logs = new TestHandler;
+    Log::swap(new LaravelLogger(new MonologLogger('onboarding-test', [$logs])));
+    if ($monitoringMode === 'disabled') {
+        config(['sentry.dsn' => null]);
+    }
+    if ($monitoringMode === 'cache unavailable') {
+        Cache::shouldReceive('add')->once()->andThrow(new RuntimeException('Cache unavailable'));
+    }
+    if ($failureMode === 'false result') {
+        $this->mock(EmailService::class)->shouldReceive('sendWithErrorHandling')->twice()->andReturn(false);
+    } elseif ($failureMode === 'caught throwable') {
+        $this->mock(EmailService::class)->shouldReceive('sendWithErrorHandling')->twice()
+            ->andThrow(new Error('private-recipient@example.com'));
+    } else {
+        Mail::shouldReceive('to')->twice()->andThrow(new TransportException(
+            'private-recipient@example.com', previous: new RuntimeException('private-provider-secret'),
+        ));
+    }
+
+    $this->artisan('onboarding:send-reminders')
+        ->expectsOutput('Onboarding reminders processed: 0 sent, 0 skipped, 2 failed.')
+        ->assertSuccessful();
+
+    foreach ([$this->user, $secondUser] as $user) {
+        expect($user->fresh()->onboarding_reminder_requested_at?->equalTo($this->requestedAt))->toBeTrue();
+    }
+    $expectedReports = in_array($monitoringMode, ['available', 'transport unavailable'], true) ? 1 : 0;
+    expect($transport->events)->toHaveCount($expectedReports);
+    $reportLogs = array_values(array_filter($logs->getRecords(), fn ($record): bool => isset($record->context['exception'])));
+    expect($reportLogs)->toHaveCount($expectedReports);
+    if ($expectedReports === 1) {
+        $event = $transport->events[0];
+        expect($event->getTags())->toBe(['operation' => 'onboarding_reminder', 'outcome' => 'processing_failure']);
+        expect($event->getEnvironment())->toBe('testing');
+        expect($event->getRelease())->toBe('delight@test-release');
+        expect($event->getExceptions())->toHaveCount(1);
+        $payload = (new PayloadSerializer(app(ClientBuilder::class)->getOptions()))->serialize($event);
+        expect($payload)->not->toContain('private-recipient@example.com')->not->toContain('private-provider-secret');
+        $logOutput = (new LineFormatter)->format($reportLogs[0]);
+        expect($logOutput)->toContain('Onboarding reminder processing recorded failures.')
+            ->not->toContain('private-recipient@example.com')->not->toContain('private-provider-secret');
+    }
+})->with([
+    'false result' => ['false result', 'available'],
+    'outer catch' => ['caught throwable', 'available'],
+    'caught mail transport' => ['caught transport', 'available'],
+    'unavailable transport' => ['caught transport', 'transport unavailable'],
+    'unavailable cache' => ['caught transport', 'cache unavailable'],
+    'disabled capture' => ['caught transport', 'disabled'],
+]);
+
+it('bounds repeated onboarding failures independently and restores reporting after an hour', function (): void {
+    config(['cache.default' => 'database']);
+    $transport = onboardingFailureReportingTransport();
+    $this->mock(EmailService::class)->shouldReceive('sendWithErrorHandling')->times(3)->andReturn(false);
+
+    app(OperationalFailureReporter::class)->reportAnnouncementEmailTerminalFailure();
+    $this->artisan('onboarding:send-reminders')->assertSuccessful();
+    expect($transport->events)->toHaveCount(2);
+    $this->travel(59)->minutes();
+    $this->artisan('onboarding:send-reminders')->assertSuccessful();
+    expect($transport->events)->toHaveCount(2);
+    $this->travel(1)->minutes();
+    $this->artisan('onboarding:send-reminders')->assertSuccessful();
+
+    expect($transport->events)->toHaveCount(3);
+    expect($this->user->fresh()->onboarding_reminder_requested_at?->equalTo($this->requestedAt))->toBeTrue();
+    report(new LogicException('Unrelated operation'));
+    expect($transport->events[3]->getTags())->toBeEmpty();
+});
+
+function onboardingFailureReportingTransport(bool $unavailable = false): TransportInterface
+{
+    config(['sentry.dsn' => 'https://public@example.invalid/1']);
+    $transport = new class($unavailable) implements TransportInterface
+    {
+        /** @var list<Event> */
+        public array $events = [];
+
+        public function __construct(private bool $unavailable) {}
+
+        public function send(Event $event): Result
+        {
+            $this->events[] = $event;
+            if ($this->unavailable) {
+                throw new RuntimeException('Transport unavailable');
+            }
+
+            return new Result(ResultStatus::success(), $event);
+        }
+
+        public function close(?int $timeout = null): Result
+        {
+            return new Result(ResultStatus::success());
+        }
+    };
+    app(HubInterface::class)->bindClient(app(ClientBuilder::class)->setTransport($transport)->getClient());
+
+    return $transport;
+}

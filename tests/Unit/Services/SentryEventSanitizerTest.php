@@ -85,6 +85,7 @@ it('sends only permitted diagnostics when private values appear throughout the e
 })->with([
     'native push' => ['native_push_dispatch', 'unknown_outcome'],
     'announcement email' => ['announcement_email_delivery', 'terminal_failure'],
+    'onboarding reminder' => ['onboarding_reminder', 'processing_failure'],
 ]);
 
 it('drops operational labels unless both values are explicitly permitted', function (array $tags): void {
@@ -99,6 +100,7 @@ it('drops operational labels unless both values are explicitly permitted', funct
     'missing outcome' => [['operation' => 'native_push_dispatch']],
     'ordinary tags' => [['recipient' => 'private-reader@example.com']],
     'mismatched operation and outcome' => [['operation' => 'announcement_email_delivery', 'outcome' => 'unknown_outcome']],
+    'mismatched onboarding outcome' => [['operation' => 'onboarding_reminder', 'outcome' => 'terminal_failure']],
 ]);
 
 it('discards message-only events without invoking the transport', function (): void {
