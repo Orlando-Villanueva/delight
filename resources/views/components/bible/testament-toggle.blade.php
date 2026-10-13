@@ -7,19 +7,28 @@
 <div {{ $attributes->merge(['class' => 'relative w-full sm:w-auto']) }}
     id="{{ $id }}">
     @if ($variant !== 'desktop')
-        <div class="sm:hidden">
-            <label for="{{ $id }}-mobile-select" class="sr-only">Bible section</label>
-            <select id="{{ $id }}-mobile-select"
-                x-model="activeTestament"
-                x-on:change="setTestament($event.target.value)"
-                class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-gray-800 shadow-none transition-colors focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-primary-400 dark:focus:ring-primary-400">
-                <option value="Old">Old Testament</option>
-                @if ($showDeuterocanonical)
-                    <option value="Deuterocanonical">Deuterocanonical</option>
-                @endif
-                <option value="New">New Testament</option>
-            </select>
-        </div>
+        <fieldset class="min-w-0 sm:hidden">
+            <legend class="sr-only">Bible section</legend>
+            <div @class([
+                'grid gap-1 rounded-lg border border-gray-300 bg-gray-100 p-1 dark:border-gray-600 dark:bg-gray-900',
+                'grid-cols-1' => $showDeuterocanonical,
+                'grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))]' => ! $showDeuterocanonical,
+            ])>
+                @foreach (['Old' => 'Old Testament', 'New' => 'New Testament'] + ($showDeuterocanonical ? ['Deuterocanonical' => 'Deuterocanonical'] : []) as $section => $label)
+                    <div class="min-w-0">
+                        <input type="radio" id="{{ $id }}-mobile-{{ strtolower($section) }}"
+                            name="{{ $id }}-mobile-section" value="{{ $section }}"
+                            x-bind:checked="activeTestament === '{{ $section }}'"
+                            x-on:change="setTestament($event.target.value)"
+                            class="peer sr-only">
+                        <label for="{{ $id }}-mobile-{{ strtolower($section) }}"
+                            class="flex min-h-11 cursor-pointer items-center justify-center rounded border border-transparent px-2 py-2 text-center text-sm font-medium leading-normal wrap-anywhere text-gray-700 transition-colors hover:bg-gray-200 peer-checked:border-primary-500 peer-checked:bg-white peer-checked:hover:bg-white peer-checked:text-primary-700 peer-checked:shadow-sm peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary-600 dark:text-gray-300 dark:hover:bg-gray-800 dark:peer-checked:border-primary-400 dark:peer-checked:bg-gray-700 dark:peer-checked:hover:bg-gray-700 dark:peer-checked:text-primary-300 dark:peer-focus-visible:outline-primary-400">
+                            {{ $label }}
+                        </label>
+                    </div>
+                @endforeach
+            </div>
+        </fieldset>
     @endif
 
     @if ($variant !== 'mobile')
