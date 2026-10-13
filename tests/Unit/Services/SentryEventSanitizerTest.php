@@ -47,7 +47,7 @@ it('sends only permitted diagnostics when private values appear throughout the e
         ->setRequest(['url' => 'https://example.com/'.$private, 'data' => ['notes' => $private], 'headers' => ['Authorization' => $private], 'cookies' => $private])
         ->setUser(UserDataBag::createFromArray(['email' => $private, 'ip_address' => '192.0.2.1']))
         ->setExtra(['nested' => ['push_token' => $private]])
-        ->setTags(['recipient' => $private])
+        ->setTags(['recipient' => $private, 'operation' => 'native_push_dispatch', 'outcome' => 'unknown_outcome'])
         ->setContext('private', ['reflection' => $private])
         ->setTransaction($private)
         ->setFingerprint([$private])
@@ -78,10 +78,24 @@ it('sends only permitted diagnostics when private values appear throughout the e
         'lineno' => 42,
         'in_app' => true,
     ]);
-    foreach (['request', 'user', 'extra', 'tags', 'contexts', 'transaction', 'fingerprint', 'server_name', 'logger', 'breadcrumbs', 'message'] as $key) {
+    expect($data['tags'])->toBe(['operation' => 'native_push_dispatch', 'outcome' => 'unknown_outcome']);
+    foreach (['request', 'user', 'extra', 'contexts', 'transaction', 'fingerprint', 'server_name', 'logger', 'breadcrumbs', 'message'] as $key) {
         expect($data)->not->toHaveKey($key);
     }
 });
+
+it('drops operational labels unless both values are explicitly permitted', function (array $tags): void {
+    $event = Event::createEvent()
+        ->setTags($tags)
+        ->setExceptions([new ExceptionDataBag(new RuntimeException('Private failure'))]);
+
+    expect(SentryEventSanitizer::sanitize($event)->getTags())->toBeEmpty();
+})->with([
+    'unknown operation' => [['operation' => 'private-reader@example.com', 'outcome' => 'unknown_outcome']],
+    'unknown outcome' => [['operation' => 'native_push_dispatch', 'outcome' => 'ExpoPushToken[secret]']],
+    'missing outcome' => [['operation' => 'native_push_dispatch']],
+    'ordinary tags' => [['recipient' => 'private-reader@example.com']],
+]);
 
 it('discards message-only events without invoking the transport', function (): void {
     $transport = Mockery::mock(TransportInterface::class);

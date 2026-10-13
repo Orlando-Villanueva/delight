@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\NativePushReceiptStatus;
+use App\Exceptions\NativePushUnknownOutcomeException;
 use App\Jobs\SendNativeReadingReminderPushBatch;
 use App\Models\NativePushRegistration;
 use App\Models\NativePushReminderDelivery;
@@ -13,8 +14,20 @@ use App\Services\ReadingReminderConditionService;
 use Carbon\Carbon;
 use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Log\Logger as LaravelLogger;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger as MonologLogger;
+use Sentry\ClientBuilder;
+use Sentry\Event;
+use Sentry\Serializer\PayloadSerializer;
+use Sentry\State\HubInterface;
+use Sentry\Transport\Result;
+use Sentry\Transport\ResultStatus;
+use Sentry\Transport\TransportInterface;
 
 afterEach(function (): void {
     Carbon::setTestNow();
@@ -370,7 +383,9 @@ it('retries rate-limited push tickets with bounded backoff without losing other 
     'stops after the retry limit' => [3, null],
 ]);
 
-it('does not resend a batch after an ambiguous Expo send timeout', function (): void {
+it('reports an ambiguous Expo send safely without resending the batch', function (string $monitoringMode): void {
+    $logStream = fopen('php://memory', 'w+');
+    Log::swap(new LaravelLogger(new MonologLogger('native-push-test', [new StreamHandler($logStream)])));
     Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
     $device = nativeReminderDevice();
     $delivery = NativePushReminderDelivery::factory()->create([
@@ -380,13 +395,24 @@ it('does not resend a batch after an ambiguous Expo send timeout', function (): 
         'scheduled_for_at' => now(),
         'token_hash' => $device['registration']->token_hash,
     ]);
+    config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
+    $transport = nativePushReportingTransport($monitoringMode === 'transport unavailable');
+
+    if ($monitoringMode === 'disabled') {
+        config(['sentry.dsn' => null]);
+    }
+
+    if ($monitoringMode === 'cache unavailable') {
+        Cache::shouldReceive('add')->once()->andThrow(new RuntimeException('Cache unavailable'));
+    }
+
     Http::preventStrayRequests();
     $sendAttempts = 0;
     Http::fake([
         'https://exp.host/--/api/v2/push/send' => function () use (&$sendAttempts) {
             $sendAttempts++;
 
-            throw new ConnectionException('Read timed out.');
+            throw new ConnectionException('Read timed out: private-reader@example.com ExpoPushToken[secret]');
         },
     ]);
     $batch = new SendNativeReadingReminderPushBatch([$delivery->id]);
@@ -408,7 +434,83 @@ it('does not resend a batch after an ambiguous Expo send timeout', function (): 
     );
 
     expect($sendAttempts)->toBe(1);
-});
+    rewind($logStream);
+    $logOutput = stream_get_contents($logStream);
+    fclose($logStream);
+    expect($logOutput)->toContain('Native reminder send outcome is unknown; retry suppressed to prevent duplicates.')
+        ->not->toContain('private-reader@example.com')
+        ->not->toContain('ExpoPushToken[secret]');
+    expect($delivery->fresh()->expo_retry_at)->toBeNull();
+    expect($transport->events)->toHaveCount(in_array($monitoringMode, ['available', 'transport unavailable'], true) ? 1 : 0);
+
+    if ($transport->events !== []) {
+        $event = $transport->events[0];
+        expect($logOutput)->toContain('Native push send outcome is unknown.');
+        expect($event->getExceptions())->toHaveCount(1);
+        expect($event->getExceptions()[0]->getType())->toBe(NativePushUnknownOutcomeException::class);
+        expect($event->getTags())->toBe(['operation' => 'native_push_dispatch', 'outcome' => 'unknown_outcome']);
+        expect($event->getEnvironment())->toBe('testing');
+        expect($event->getRelease())->toBe('delight@test-release');
+        expect($event->getExceptions()[0]->getMechanism()->isHandled())->toBeTrue();
+        $payload = (new PayloadSerializer(app(ClientBuilder::class)->getOptions()))->serialize($event);
+        expect($payload)->not->toContain('private-reader@example.com')->not->toContain('ExpoPushToken[secret]');
+    }
+})->with(['available', 'transport unavailable', 'cache unavailable', 'disabled']);
+
+it('bounds reports across failed push batches and allows another report after an hour', function (string $cacheStore, bool $unavailable): void {
+    $this->travelTo(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
+    config(['cache.default' => $cacheStore]);
+    $transport = nativePushReportingTransport($unavailable);
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://exp.host/--/api/v2/push/send' => Http::response(['data' => []]),
+    ]);
+
+    $sendBatch = function (): void {
+        $deliveries = [];
+
+        foreach (range(1, 2) as $recipient) {
+            $device = nativeReminderDevice();
+            $deliveries[] = NativePushReminderDelivery::factory()->create([
+                'native_push_registration_id' => $device['registration']->id,
+                'reminder_type' => 'daily_reading',
+                'reminder_date' => '2026-05-26',
+                'scheduled_for_at' => now(),
+                'token_hash' => $device['registration']->token_hash,
+            ]);
+        }
+
+        (new SendNativeReadingReminderPushBatch(array_map(fn ($delivery): int => $delivery->id, $deliveries)))->handle(
+            app(ExpoPushService::class),
+            app(ReadingReminderConditionService::class),
+            app(NativePushRateLimitRetryService::class),
+        );
+
+        foreach ($deliveries as $delivery) {
+            expect($delivery->fresh()->failed_at)->not->toBeNull();
+            expect($delivery->fresh()->expo_retry_at)->toBeNull();
+        }
+    };
+
+    $sendBatch();
+    $this->travel(59)->minutes();
+    $sendBatch();
+    expect($transport->events)->toHaveCount(1);
+    $this->travel(1)->minutes();
+    $sendBatch();
+
+    expect($transport->events)->toHaveCount(2);
+    Http::assertSentCount(3);
+
+    report(new LogicException('Unrelated operation'));
+
+    expect($transport->events)->toHaveCount(3);
+    expect($transport->events[2]->getTags())->toBeEmpty();
+})->with([
+    'in-memory gate' => ['array', false],
+    'persistent database gate' => ['database', false],
+    'persistent gate with unavailable transport' => ['database', true],
+]);
 
 it('marks a delivery failed after Expo requests fail without a ticket response', function (): void {
     Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
@@ -808,4 +910,35 @@ function nativeReminderDevice(?User $user = null, ?string $address = null): arra
     ]);
 
     return compact('user', 'registration', 'preference') + ['plainTextToken' => $session->plainTextToken];
+}
+
+function nativePushReportingTransport(bool $unavailable = false): TransportInterface
+{
+    config(['sentry.dsn' => 'https://public@example.invalid/1']);
+    $transport = new class($unavailable) implements TransportInterface
+    {
+        /** @var list<Event> */
+        public array $events = [];
+
+        public function __construct(private bool $unavailable) {}
+
+        public function send(Event $event): Result
+        {
+            $this->events[] = $event;
+
+            if ($this->unavailable) {
+                throw new RuntimeException('Transport unavailable');
+            }
+
+            return new Result(ResultStatus::success(), $event);
+        }
+
+        public function close(?int $timeout = null): Result
+        {
+            return new Result(ResultStatus::success());
+        }
+    };
+    app(HubInterface::class)->bindClient(app(ClientBuilder::class)->setTransport($transport)->getClient());
+
+    return $transport;
 }

@@ -9,6 +9,7 @@ use App\Models\NativePushReminderDelivery;
 use App\Models\User;
 use App\Services\ExpoPushService;
 use App\Services\NativePushRateLimitRetryService;
+use App\Services\OperationalFailureReporter;
 use App\Services\ReadingReminderConditionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -121,6 +122,8 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
                 'delivery_ids' => array_map(fn (NativePushReminderDelivery $delivery): int => $delivery->id, $eligibleDeliveries),
                 'exception_type' => $exception::class,
             ]);
+
+            app(OperationalFailureReporter::class)->reportNativePushUnknownOutcome();
 
             return;
         }
