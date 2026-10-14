@@ -13,10 +13,8 @@ use Sentry\MonitorConfig;
 use Sentry\MonitorSchedule;
 use Sentry\Serializer\PayloadSerializer;
 use Sentry\State\HubInterface;
-use Sentry\Transport\Result;
-use Sentry\Transport\ResultStatus;
-use Sentry\Transport\TransportInterface;
 use Sentry\UserDataBag;
+use Tests\Support\RecordingSentryTransport;
 
 it('sends only permitted check-in fields through the configured SDK privacy boundary', function (): void {
     config([
@@ -25,7 +23,7 @@ it('sends only permitted check-in fields through the configured SDK privacy boun
         'sentry.environment' => 'testing',
         'sentry.release' => 'delight@test-release',
     ]);
-    $transport = schedulerCheckInTransport();
+    $transport = RecordingSentryTransport::bind();
     $private = 'private-reader@example.com';
     $event = Event::createCheckIn()->setCheckIn(new CheckIn(
         SentryCheckInSanitizer::ANNOUNCEMENT_MONITOR_SLUG, CheckInStatus::ok(),
@@ -73,7 +71,7 @@ it('drops events without a check-in payload', function (bool $checkInType): void
 
 it('attaches check-ins only to the opted-in announcement schedule and tolerates transport failures', function (bool $enabled, ?string $dsn, int $expected, bool $unavailable): void {
     config(['services.sentry.announcement_cron_enabled' => $enabled, 'sentry.dsn' => $dsn]);
-    $transport = schedulerCheckInTransport($unavailable);
+    $transport = RecordingSentryTransport::bind($unavailable, 'Test transport unavailable', false);
     app(ConsoleSchedulingIntegration::class)->onBoot(app(Dispatcher::class));
     $schedule = new Schedule;
     ScheduleFacade::swap($schedule);
@@ -99,33 +97,3 @@ it('attaches check-ins only to the opted-in announcement schedule and tolerates 
     'Sentry disabled' => [true, null, 0, false],
     'transport unavailable' => [true, 'https://public@example.invalid/1', 2, true],
 ]);
-
-function schedulerCheckInTransport(bool $unavailable = false): TransportInterface
-{
-    $transport = new class($unavailable) implements TransportInterface
-    {
-        /** @var list<Event> */
-        public array $events = [];
-
-        public function __construct(private bool $unavailable) {}
-
-        public function send(Event $event): Result
-        {
-            $this->events[] = $event;
-
-            if ($this->unavailable) {
-                throw new RuntimeException('Test transport unavailable');
-            }
-
-            return new Result(ResultStatus::success(), $event);
-        }
-
-        public function close(?int $timeout = null): Result
-        {
-            return new Result(ResultStatus::success());
-        }
-    };
-    app(HubInterface::class)->bindClient(app(ClientBuilder::class)->setTransport($transport)->getClient());
-
-    return $transport;
-}

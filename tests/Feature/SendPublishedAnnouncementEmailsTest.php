@@ -16,16 +16,12 @@ use Illuminate\Support\Facades\Mail;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger as MonologLogger;
 use Sentry\ClientBuilder;
-use Sentry\Event;
 use Sentry\Serializer\PayloadSerializer;
-use Sentry\State\HubInterface;
-use Sentry\Transport\Result;
-use Sentry\Transport\ResultStatus;
-use Sentry\Transport\TransportInterface;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Mailer\Exception\HttpTransportException;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mailer\Exception\UnexpectedResponseException;
+use Tests\Support\RecordingSentryTransport;
 
 use function Pest\Laravel\mock;
 
@@ -208,7 +204,7 @@ it('submits the one retry when its five minute delay has elapsed', function () {
 });
 
 it('marks a second transient failure terminally failed', function () {
-    $transport = announcementFailureReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Carbon::setTestNow('2026-08-31 12:00:00');
     $delivery = pendingAnnouncementEmailDelivery();
     Mail::shouldReceive('to')->twice()->andThrow(transientAnnouncementEmailException());
@@ -230,7 +226,7 @@ it('reports newly failed or uncertain announcement outcomes once per run without
     Log::swap(new LaravelLogger(new MonologLogger('announcement-test', [new StreamHandler($logStream)])));
     $deliveries = [pendingAnnouncementEmailDelivery(), pendingAnnouncementEmailDelivery()];
     config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
-    $transport = announcementFailureReportingTransport($monitoringMode === 'transport unavailable');
+    $transport = RecordingSentryTransport::bind($monitoringMode === 'transport unavailable');
     if ($monitoringMode === 'disabled') {
         config(['sentry.dsn' => null]);
     }
@@ -278,7 +274,7 @@ it('reports newly failed or uncertain announcement outcomes once per run without
 it('suppresses repeated announcement incidents for an hour with separate outcome gates', function (string $outcome): void {
     $this->travelTo(now());
     config(['cache.default' => 'database']);
-    $transport = announcementFailureReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Mail::shouldReceive('to')->times(3)->andThrow($outcome === 'terminal_failure'
         ? permanentAnnouncementEmailException()
         : new TransportException('Unknown send outcome'));
@@ -305,7 +301,7 @@ it('suppresses repeated announcement incidents for an hour with separate outcome
 })->with(['terminal_failure', 'uncertain_outcome']);
 
 it('keeps nonterminal and expected announcement outcomes quiet', function (string $outcome): void {
-    $transport = announcementFailureReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     $delivery = pendingAnnouncementEmailDelivery($outcome === 'historical failure' ? ['failed_at' => now()] : []);
     if ($outcome === 'skipped') {
         $delivery->user->update(['marketing_emails_opted_out_at' => now()]);
@@ -379,7 +375,7 @@ it('marks a permanent smtp rejection terminal on its first attempt', function ()
 });
 
 it('fails visibly and preserves an unexpected sending error for uncertain reconciliation', function () {
-    $transport = announcementFailureReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Carbon::setTestNow('2026-08-31 12:00:00');
     $delivery = pendingAnnouncementEmailDelivery();
     Mail::shouldReceive('to')->once()->andThrow(new RuntimeException('Announcement view could not render.'));
@@ -437,7 +433,7 @@ it('does not report a provider-accepted delivery as failed when recording succes
 });
 
 it('marks an interrupted send uncertain without retrying it', function () {
-    $transport = announcementFailureReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Mail::fake();
     Carbon::setTestNow('2026-08-31 12:30:00');
     $delivery = pendingAnnouncementEmailDelivery([
@@ -456,7 +452,7 @@ it('marks an interrupted send uncertain without retrying it', function () {
 });
 
 it('an exact emergency retry accepts only a terminally failed delivery', function () {
-    $transport = announcementFailureReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Mail::fake();
     $failed = pendingAnnouncementEmailDelivery([
         'attempt_count' => 2,
@@ -548,34 +544,4 @@ function permanentAnnouncementEmailException(): HttpTransportException
         'Recipient rejected (code 400).',
         new MockResponse('', ['http_code' => 400])
     );
-}
-
-function announcementFailureReportingTransport(bool $unavailable = false): TransportInterface
-{
-    config(['sentry.dsn' => 'https://public@example.invalid/1']);
-    $transport = new class($unavailable) implements TransportInterface
-    {
-        /** @var list<Event> */
-        public array $events = [];
-
-        public function __construct(private bool $unavailable) {}
-
-        public function send(Event $event): Result
-        {
-            $this->events[] = $event;
-            if ($this->unavailable) {
-                throw new RuntimeException('Transport unavailable');
-            }
-
-            return new Result(ResultStatus::success(), $event);
-        }
-
-        public function close(?int $timeout = null): Result
-        {
-            return new Result(ResultStatus::success());
-        }
-    };
-    app(HubInterface::class)->bindClient(app(ClientBuilder::class)->setTransport($transport)->getClient());
-
-    return $transport;
 }

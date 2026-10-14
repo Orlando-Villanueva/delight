@@ -24,12 +24,8 @@ use Illuminate\Support\Facades\Queue;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger as MonologLogger;
 use Sentry\ClientBuilder;
-use Sentry\Event;
 use Sentry\Serializer\PayloadSerializer;
-use Sentry\State\HubInterface;
-use Sentry\Transport\Result;
-use Sentry\Transport\ResultStatus;
-use Sentry\Transport\TransportInterface;
+use Tests\Support\RecordingSentryTransport;
 
 afterEach(function (): void {
     Carbon::setTestNow();
@@ -324,7 +320,7 @@ it('stores redacted Expo ticket diagnostics for a failed delivery', function ():
 });
 
 it('retries rate-limited push tickets with bounded backoff without losing other batch results', function (int $retryCount, ?int $expectedDelayMinutes): void {
-    $transport = nativePushReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
     $device = nativeReminderDevice();
     $rateLimitedDelivery = NativePushReminderDelivery::factory()->create([
@@ -400,7 +396,7 @@ it('reports an ambiguous Expo send safely without resending the batch', function
         'token_hash' => $device['registration']->token_hash,
     ]);
     config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
-    $transport = nativePushReportingTransport($monitoringMode === 'transport unavailable');
+    $transport = RecordingSentryTransport::bind($monitoringMode === 'transport unavailable');
 
     if ($monitoringMode === 'disabled') {
         config(['sentry.dsn' => null]);
@@ -464,7 +460,7 @@ it('reports an ambiguous Expo send safely without resending the batch', function
 it('bounds reports across failed push batches and allows another report after an hour', function (string $cacheStore, bool $unavailable): void {
     $this->travelTo(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
     config(['cache.default' => $cacheStore]);
-    $transport = nativePushReportingTransport($unavailable);
+    $transport = RecordingSentryTransport::bind($unavailable);
     Http::preventStrayRequests();
     Http::fake([
         'https://exp.host/--/api/v2/push/send' => Http::response(['data' => []]),
@@ -535,7 +531,7 @@ it('marks a delivery failed after Expo requests fail without a ticket response',
 });
 
 it('removes a registration when Expo immediately rejects its token as unregistered', function (): void {
-    $transport = nativePushReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Carbon::setTestNow(Carbon::parse('2026-05-26 09:05:00', 'America/Toronto'));
     $device = nativeReminderDevice(address: 'ExpoPushToken[invalid]');
     $delivery = NativePushReminderDelivery::factory()->create([
@@ -606,7 +602,7 @@ it('preserves a rotated registration when an old ticket reports DeviceNotRegiste
 });
 
 it('removes only the matching registration after a DeviceNotRegistered receipt', function (): void {
-    $transport = nativePushReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Carbon::setTestNow(Carbon::parse('2026-05-26 10:00:00', 'America/Toronto'));
     $device = nativeReminderDevice();
     $delivery = NativePushReminderDelivery::factory()->create([
@@ -657,7 +653,7 @@ it('does not remove a newly rotated address when an old receipt reports DeviceNo
 });
 
 it('stops polling for a receipt after Expo retention expires', function (): void {
-    $transport = nativePushReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Carbon::setTestNow(Carbon::parse('2026-05-26 10:00:00', 'America/Toronto'));
     $expiredDevice = nativeReminderDevice();
     $expiredDelivery = NativePushReminderDelivery::factory()->create([
@@ -698,7 +694,7 @@ it('stops polling for a receipt after Expo retention expires', function (): void
 });
 
 it('schedules MessageRateExceeded receipts with exponential backoff', function (int $retryCount, int $delaySeconds): void {
-    $transport = nativePushReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Carbon::setTestNow(Carbon::parse('2026-05-26 10:00:00', 'America/Toronto'));
     $device = nativeReminderDevice();
     $delivery = NativePushReminderDelivery::factory()->create([
@@ -926,17 +922,7 @@ function nativeReminderDevice(?User $user = null, ?string $address = null): arra
 
 it('reports exhausted native push retries once while preserving terminal outcomes', function (string $stage, string $monitoringMode): void {
     $this->travelTo(Carbon::parse('2026-05-26 10:00:00', 'America/Toronto'));
-    config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
-    $transport = nativePushReportingTransport($monitoringMode === 'transport unavailable');
-    $logStream = fopen('php://memory', 'w+');
-    Log::swap(new LaravelLogger(new MonologLogger('push-exhaustion-test', [new StreamHandler($logStream)])));
-    if ($monitoringMode === 'disabled') {
-        config(['sentry.dsn' => null]);
-    }
-    if ($monitoringMode === 'cache unavailable') {
-        Cache::shouldReceive('add')->once()->andThrow(new RuntimeException('Cache unavailable'));
-    }
-    Queue::fake();
+    [$transport, $logStream] = prepareNativePushReportingTest($monitoringMode, 'push-exhaustion-test');
     fakeExhaustedNativePushResponses();
 
     $deliveries = processExhaustedNativePushDeliveries($stage);
@@ -986,7 +972,7 @@ it('reports exhausted native push retries once while preserving terminal outcome
 it('shares native retry exhaustion suppression across tickets and receipts and expires it after an hour', function (): void {
     $this->travelTo(Carbon::parse('2026-05-26 10:00:00', 'America/Toronto'));
     config(['cache.default' => 'database']);
-    $transport = nativePushReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     fakeExhaustedNativePushResponses();
     Queue::fake();
 
@@ -1048,17 +1034,7 @@ function processExhaustedNativePushDeliveries(string $stage): array
 it('aggregates newly unavailable receipts without polling or resending them', function (string $monitoringMode): void {
     $this->travelTo(Carbon::parse('2026-05-26 10:00:00', 'America/Toronto'));
     $deliveries = [pendingNativeReceiptSentAt(now()->subHours(24)), pendingNativeReceiptSentAt(now()->subHours(25))];
-    config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
-    $transport = nativePushReportingTransport($monitoringMode === 'transport unavailable');
-    $logStream = fopen('php://memory', 'w+');
-    Log::swap(new LaravelLogger(new MonologLogger('receipt-test', [new StreamHandler($logStream)])));
-    if ($monitoringMode === 'disabled') {
-        config(['sentry.dsn' => null]);
-    }
-    if ($monitoringMode === 'cache unavailable') {
-        Cache::shouldReceive('add')->once()->andThrow(new RuntimeException('Cache unavailable'));
-    }
-    Queue::fake();
+    [$transport, $logStream] = prepareNativePushReportingTest($monitoringMode, 'receipt-test');
     Http::preventStrayRequests();
     Http::fake(['https://exp.host/--/api/v2/push/getReceipts' => Http::response(['data' => []])]);
 
@@ -1101,7 +1077,7 @@ it('aggregates newly unavailable receipts without polling or resending them', fu
 it('suppresses new unavailable receipt reports for an hour independently of retry exhaustion', function (): void {
     $this->travelTo(Carbon::parse('2026-05-26 10:00:00', 'America/Toronto'));
     config(['cache.default' => 'database']);
-    $transport = nativePushReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Queue::fake();
     Http::preventStrayRequests();
     Http::fake(['https://exp.host/--/api/v2/push/getReceipts' => Http::response(['data' => []])]);
@@ -1140,33 +1116,20 @@ function pendingNativeReceiptSentAt(CarbonInterface $sentAt): NativePushReminder
     ]);
 }
 
-function nativePushReportingTransport(bool $unavailable = false): TransportInterface
+/** @return array{RecordingSentryTransport, resource} */
+function prepareNativePushReportingTest(string $monitoringMode, string $logName): array
 {
-    config(['sentry.dsn' => 'https://public@example.invalid/1']);
-    $transport = new class($unavailable) implements TransportInterface
-    {
-        /** @var list<Event> */
-        public array $events = [];
+    config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
+    $transport = RecordingSentryTransport::bind($monitoringMode === 'transport unavailable');
+    $logStream = fopen('php://memory', 'w+');
+    Log::swap(new LaravelLogger(new MonologLogger($logName, [new StreamHandler($logStream)])));
+    if ($monitoringMode === 'disabled') {
+        config(['sentry.dsn' => null]);
+    }
+    if ($monitoringMode === 'cache unavailable') {
+        Cache::shouldReceive('add')->once()->andThrow(new RuntimeException('Cache unavailable'));
+    }
+    Queue::fake();
 
-        public function __construct(private bool $unavailable) {}
-
-        public function send(Event $event): Result
-        {
-            $this->events[] = $event;
-
-            if ($this->unavailable) {
-                throw new RuntimeException('Transport unavailable');
-            }
-
-            return new Result(ResultStatus::success(), $event);
-        }
-
-        public function close(?int $timeout = null): Result
-        {
-            return new Result(ResultStatus::success());
-        }
-    };
-    app(HubInterface::class)->bindClient(app(ClientBuilder::class)->setTransport($transport)->getClient());
-
-    return $transport;
+    return [$transport, $logStream];
 }

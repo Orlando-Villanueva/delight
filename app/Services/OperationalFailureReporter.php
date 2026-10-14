@@ -77,6 +77,11 @@ class OperationalFailureReporter
             new NativePushReceiptUnavailableException('Native push receipts became unavailable after the retention period.'));
     }
 
+    /**
+     * Reports each operation and outcome at most once per interval.
+     *
+     * Monitoring failures are swallowed so they cannot change delivery state or release the reporting gate.
+     */
     private function report(string $operation, string $outcome, RuntimeException $exception): void
     {
         if (! config('sentry.dsn')) {
@@ -98,7 +103,6 @@ class OperationalFailureReporter
                 report($exception);
             });
         } catch (Throwable) {
-            // Monitoring must not change delivery state or release the reporting gate during an outage.
         }
     }
 }

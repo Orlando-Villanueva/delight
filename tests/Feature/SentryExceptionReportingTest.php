@@ -10,18 +10,15 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use Sentry\ClientBuilder;
-use Sentry\Event;
 use Sentry\HttpClient\HttpClientInterface;
 use Sentry\Serializer\PayloadSerializer;
 use Sentry\State\HubInterface;
-use Sentry\Transport\Result;
-use Sentry\Transport\ResultStatus;
-use Sentry\Transport\TransportInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Tests\Support\RecordingSentryTransport;
 
 it('captures one sanitized exception and preserves the 500 response', function (bool $json, bool $unavailable): void {
     config(['app.debug' => false, 'sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
-    $transport = sentryReportingTransport($unavailable);
+    $transport = RecordingSentryTransport::bind($unavailable);
     $builder = app(ClientBuilder::class);
     $private = 'reader-secret@example.com';
     Route::post('/sentry-test-failure', function () use ($private): never {
@@ -53,7 +50,7 @@ it('captures one sanitized exception and preserves the 500 response', function (
 ]);
 
 it('preserves expected error responses without sending incidents', function (string $exceptionType, int $status): void {
-    $transport = sentryReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Route::get('/sentry-test-expected-error', function () use ($exceptionType): never {
         throw match ($exceptionType) {
             'validation' => ValidationException::withMessages(['notes' => 'The notes field is required.']),
@@ -78,7 +75,7 @@ it('preserves expected error responses without sending incidents', function (str
 ]);
 
 it('captures existing explicit reports while the request continues successfully', function (): void {
-    $transport = sentryReportingTransport();
+    $transport = RecordingSentryTransport::bind();
     Route::get('/sentry-test-report', function (): string {
         report(new RuntimeException('Caught operational failure'));
 
@@ -109,7 +106,7 @@ it('keeps default capture disabled when a request throws', function (): void {
 });
 
 it('captures each worker failure once and preserves retry and terminal failure state', function (bool $unavailable): void {
-    $transport = sentryReportingTransport($unavailable);
+    $transport = RecordingSentryTransport::bind($unavailable);
     Cache::forget('sentry-test-job-failed');
     Queue::connection('database')->push(new SentryReportingFailingJob);
     $worker = app('queue.worker');
@@ -128,38 +125,6 @@ it('captures each worker failure once and preserves retry and terminal failure s
     $this->assertDatabaseCount('jobs', 0);
     expect(Cache::get('sentry-test-job-failed'))->toBeTrue();
 })->with(['available' => false, 'unavailable' => true]);
-
-function sentryReportingTransport(bool $unavailable = false): TransportInterface
-{
-    config(['sentry.dsn' => 'https://public@example.invalid/1']);
-    $transport = new class($unavailable) implements TransportInterface
-    {
-        /** @var list<Event> */
-        public array $events = [];
-
-        public function __construct(private bool $unavailable) {}
-
-        public function send(Event $event): Result
-        {
-            $this->events[] = $event;
-
-            if ($this->unavailable) {
-                throw new RuntimeException('Transport unavailable');
-            }
-
-            return new Result(ResultStatus::success(), $event);
-        }
-
-        public function close(?int $timeout = null): Result
-        {
-            return new Result(ResultStatus::success());
-        }
-    };
-    $client = app(ClientBuilder::class)->setTransport($transport)->getClient();
-    app(HubInterface::class)->bindClient($client);
-
-    return $transport;
-}
 
 class SentryReportingFailingJob implements ShouldQueue
 {
