@@ -3,13 +3,16 @@
 use Illuminate\Console\Events\ScheduledBackgroundTaskFinished;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Event as EventFacade;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
+use Sentry\CheckIn;
 use Sentry\ClientBuilder;
 use Sentry\Event;
+use Sentry\Laravel\Features\ConsoleSchedulingIntegration;
 use Sentry\Serializer\PayloadSerializer;
 use Sentry\State\HubInterface;
 use Sentry\Transport\Result;
@@ -55,6 +58,7 @@ $transport = new class($directory) implements TransportInterface
     public function send(Event $event): Result
     {
         $record = [
+            'type' => (string) $event->getType(),
             'types' => array_map(fn ($exception): string => $exception->getType(), $event->getExceptions()),
             'payload' => (new PayloadSerializer(app(ClientBuilder::class)->getOptions()))->serialize($event),
         ];
@@ -68,7 +72,31 @@ $transport = new class($directory) implements TransportInterface
         return new Result(ResultStatus::success());
     }
 };
-app(HubInterface::class)->bindClient(app(ClientBuilder::class)->setTransport($transport)->getClient());
+$builder = app(ClientBuilder::class)->setTransport($transport);
+if (getenv('DEL352_PROOF_CALLBACK') === 'monitor_filtered') {
+    $builder->getOptions()->setBeforeSendCheckInCallback(static function (Event $event): ?Event {
+        $checkIn = $event->getCheckIn();
+        if ($checkIn === null || $checkIn->getMonitorSlug() !== 'del352-scheduler-proof') {
+            return null;
+        }
+
+        return Event::createCheckIn($event->getId())->setCheckIn(new CheckIn(
+            'del352-scheduler-proof', $checkIn->getStatus(), $checkIn->getId(),
+            'delight@scheduler-proof', 'testing', $checkIn->getDuration(),
+        ));
+    });
+}
+app(HubInterface::class)->bindClient($builder->getClient());
+if (str_starts_with((string) getenv('DEL352_PROOF_CALLBACK'), 'monitor')) {
+    app(ConsoleSchedulingIntegration::class)->onBoot(app(Dispatcher::class));
+    app(HubInterface::class)->configureScope(static function ($scope): void {
+        $scope->setContext('trace', [
+            'trace_id' => str_repeat('a', 32), 'span_id' => str_repeat('b', 16),
+            'private_note' => 'private-check-in-secret@example.com',
+        ]);
+        $scope->setTag('recipient', 'private-check-in-secret@example.com');
+    });
+}
 
 Artisan::command('proof:work', function (): int {
     return match (getenv('DEL352_PROOF_OUTCOME')) {
@@ -82,6 +110,9 @@ Artisan::command('proof:work', function (): int {
 $schedule = new Schedule;
 $app->instance(Schedule::class, $schedule);
 $scheduled = $schedule->command('proof:work')->everyMinute()->withoutOverlapping()->runInBackground();
+if (str_starts_with((string) getenv('DEL352_PROOF_CALLBACK'), 'monitor')) {
+    $scheduled->sentryMonitor('del352-scheduler-proof', updateMonitorConfig: false);
+}
 $scheduled->onSuccess(function () use ($directory): void {
     file_put_contents($directory.'/hooks.jsonl', "\"success\"\n", FILE_APPEND | LOCK_EX);
 });
