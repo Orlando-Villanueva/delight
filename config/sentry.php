@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\SentryCheckInSanitizer;
 use App\Services\SentryEventSanitizer;
 
 return [
@@ -7,6 +8,7 @@ return [
     'environment' => env('SENTRY_ENVIRONMENT', env('APP_ENV', 'production')),
     'release' => env('SENTRY_RELEASE'),
     'before_send' => [SentryEventSanitizer::class, 'sanitize'],
+    'before_send_check_in' => [SentryCheckInSanitizer::class, 'sanitize'],
     'send_default_pii' => false,
     'max_request_body_size' => 'none',
     'max_breadcrumbs' => 0,

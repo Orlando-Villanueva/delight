@@ -9,6 +9,7 @@ use App\Models\NativePushReminderDelivery;
 use App\Models\User;
 use App\Services\ExpoPushService;
 use App\Services\NativePushRateLimitRetryService;
+use App\Services\OperationalFailureReporter;
 use App\Services\ReadingReminderConditionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -122,8 +123,12 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
                 'exception_type' => $exception::class,
             ]);
 
+            app(OperationalFailureReporter::class)->reportNativePushUnknownOutcome();
+
             return;
         }
+
+        $hasExhaustedRetries = false;
 
         foreach ($eligibleDeliveries as $index => $delivery) {
             $ticket = $tickets[$index] ?? null;
@@ -172,6 +177,10 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
                     'expo_retry_at' => null,
                 ])->save();
 
+                if ($ticketError === NativePushRateLimitRetryService::ERROR_CODE) {
+                    $hasExhaustedRetries = true;
+                }
+
                 if ($ticketError === 'DeviceNotRegistered') {
                     NativePushRegistration::query()
                         ->whereKey($delivery->native_push_registration_id)
@@ -194,6 +203,10 @@ class SendNativeReadingReminderPushBatch implements ShouldQueue
                 'failed_at' => null,
                 'failure_reason' => null,
             ])->save();
+        }
+
+        if ($hasExhaustedRetries) {
+            app(OperationalFailureReporter::class)->reportNativePushRetryExhausted();
         }
     }
 

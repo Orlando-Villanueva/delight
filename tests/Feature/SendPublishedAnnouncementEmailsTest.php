@@ -5,14 +5,23 @@ use App\Models\Announcement;
 use App\Models\AnnouncementEmailDelivery;
 use App\Models\User;
 use App\Services\AnnouncementEmailDeliveryService;
+use App\Services\OperationalFailureReporter;
 use Carbon\Carbon;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Log\Logger as LaravelLogger;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger as MonologLogger;
+use Sentry\ClientBuilder;
+use Sentry\Serializer\PayloadSerializer;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Mailer\Exception\HttpTransportException;
+use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mailer\Exception\UnexpectedResponseException;
+use Tests\Support\RecordingSentryTransport;
 
 use function Pest\Laravel\mock;
 
@@ -195,11 +204,13 @@ it('submits the one retry when its five minute delay has elapsed', function () {
 });
 
 it('marks a second transient failure terminally failed', function () {
+    $transport = RecordingSentryTransport::bind();
     Carbon::setTestNow('2026-08-31 12:00:00');
     $delivery = pendingAnnouncementEmailDelivery();
     Mail::shouldReceive('to')->twice()->andThrow(transientAnnouncementEmailException());
 
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
+    expect($transport->events)->toBeEmpty();
     Carbon::setTestNow(now()->addMinutes(5));
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
 
@@ -207,7 +218,104 @@ it('marks a second transient failure terminally failed', function () {
         ->and($delivery->fresh()->next_attempt_at)->toBeNull()
         ->and($delivery->fresh()->failed_at)->not->toBeNull()
         ->and($delivery->fresh()->failure_reason)->toContain('Mailgun unavailable');
+    expect($transport->events)->toHaveCount(1);
 });
+
+it('reports newly failed or uncertain announcement outcomes once per run without changing persisted outcomes', function (string $monitoringMode, string $outcome): void {
+    $logStream = fopen('php://memory', 'w+');
+    Log::swap(new LaravelLogger(new MonologLogger('announcement-test', [new StreamHandler($logStream)])));
+    $deliveries = [pendingAnnouncementEmailDelivery(), pendingAnnouncementEmailDelivery()];
+    config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
+    $transport = RecordingSentryTransport::bind($monitoringMode === 'transport unavailable');
+    if ($monitoringMode === 'disabled') {
+        config(['sentry.dsn' => null]);
+    }
+    if ($monitoringMode === 'cache unavailable') {
+        $lock = Cache::lock('send-published-announcement-emails', 1200);
+        Cache::shouldReceive('lock')->with('send-published-announcement-emails', 1200)->twice()->andReturn($lock);
+        Cache::shouldReceive('add')->once()->andThrow(new RuntimeException('Cache unavailable'));
+    }
+    Mail::shouldReceive('to')->twice()->andThrow(new HttpTransportException(
+        'Provider response could not be processed.',
+        new MockResponse('', ['http_code' => $outcome === 'terminal_failure' ? 400 : 200]),
+        previous: new RuntimeException('private-recipient@example.com'),
+    ));
+
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    rewind($logStream);
+    $logOutput = stream_get_contents($logStream);
+    fclose($logStream);
+    expect($logOutput)->toContain('Announcement email delivery attempt did not succeed.')
+        ->not->toContain('private-recipient@example.com');
+    foreach ($deliveries as $delivery) {
+        expect($delivery->fresh()->failed_at !== null)->toBe($outcome === 'terminal_failure');
+        expect($delivery->fresh()->uncertain_at !== null)->toBe($outcome === 'uncertain_outcome');
+        expect($delivery->fresh()->attempt_count)->toBe(1);
+        expect($delivery->fresh()->next_attempt_at)->toBeNull();
+    }
+    expect($transport->events)->toHaveCount(in_array($monitoringMode, ['available', 'transport unavailable'], true) ? 1 : 0);
+    if ($transport->events !== []) {
+        $event = $transport->events[0];
+        expect($logOutput)->toContain($outcome === 'terminal_failure'
+            ? 'Announcement email processing recorded terminal delivery failures.'
+            : 'Announcement email processing recorded uncertain delivery outcomes.');
+        expect($event->getTags())->toBe(['operation' => 'announcement_email_delivery', 'outcome' => $outcome]);
+        expect($event->getEnvironment())->toBe('testing');
+        expect($event->getRelease())->toBe('delight@test-release');
+        expect($event->getExceptions())->toHaveCount(1);
+        $payload = (new PayloadSerializer(app(ClientBuilder::class)->getOptions()))->serialize($event);
+        expect($payload)->not->toContain('private-recipient@example.com')->not->toContain('Provider response could not be processed');
+    }
+})->with(['available', 'transport unavailable', 'cache unavailable', 'disabled'])
+    ->with(['terminal_failure', 'uncertain_outcome']);
+
+it('suppresses repeated announcement incidents for an hour with separate outcome gates', function (string $outcome): void {
+    $this->travelTo(now());
+    config(['cache.default' => 'database']);
+    $transport = RecordingSentryTransport::bind();
+    Mail::shouldReceive('to')->times(3)->andThrow($outcome === 'terminal_failure'
+        ? permanentAnnouncementEmailException()
+        : new TransportException('Unknown send outcome'));
+
+    if ($outcome === 'terminal_failure') {
+        app(OperationalFailureReporter::class)->reportAnnouncementEmailUncertainOutcome();
+    } else {
+        app(OperationalFailureReporter::class)->reportAnnouncementEmailTerminalFailure();
+    }
+    pendingAnnouncementEmailDelivery();
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+    expect($transport->events)->toHaveCount(2);
+    $this->travel(59)->minutes();
+    pendingAnnouncementEmailDelivery();
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+    expect($transport->events)->toHaveCount(2);
+    $this->travel(1)->minutes();
+    pendingAnnouncementEmailDelivery();
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($transport->events)->toHaveCount(3);
+    report(new LogicException('Unrelated operation'));
+    expect($transport->events[3]->getTags())->toBeEmpty();
+})->with(['terminal_failure', 'uncertain_outcome']);
+
+it('keeps nonterminal and expected announcement outcomes quiet', function (string $outcome): void {
+    $transport = RecordingSentryTransport::bind();
+    $delivery = pendingAnnouncementEmailDelivery($outcome === 'historical failure' ? ['failed_at' => now()] : []);
+    if ($outcome === 'skipped') {
+        $delivery->user->update(['marketing_emails_opted_out_at' => now()]);
+    }
+    if ($outcome === 'retryable') {
+        Mail::shouldReceive('to')->once()->andThrow(transientAnnouncementEmailException());
+    } else {
+        Mail::fake();
+    }
+
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($transport->events)->toBeEmpty();
+})->with(['sent', 'skipped', 'retryable', 'historical failure']);
 
 it('marks a permanent submission failure terminal on its first attempt', function () {
     $delivery = pendingAnnouncementEmailDelivery();
@@ -267,12 +375,14 @@ it('marks a permanent smtp rejection terminal on its first attempt', function ()
 });
 
 it('fails visibly and preserves an unexpected sending error for uncertain reconciliation', function () {
+    $transport = RecordingSentryTransport::bind();
     Carbon::setTestNow('2026-08-31 12:00:00');
     $delivery = pendingAnnouncementEmailDelivery();
     Mail::shouldReceive('to')->once()->andThrow(new RuntimeException('Announcement view could not render.'));
 
     expect(fn () => Artisan::call('announcements:send-published-emails'))
         ->toThrow(RuntimeException::class, 'Announcement view could not render.');
+    expect($transport->events)->toBeEmpty();
 
     expect($delivery->fresh()->attempt_count)->toBe(1)
         ->and($delivery->fresh()->sending_at)->not->toBeNull()
@@ -289,6 +399,8 @@ it('fails visibly and preserves an unexpected sending error for uncertain reconc
         ->and($delivery->fresh()->uncertain_at)->not->toBeNull()
         ->and($delivery->fresh()->failure_reason)
         ->toBe('Delivery outcome is uncertain after an interrupted send attempt.');
+    expect($transport->events)->toHaveCount(1);
+    expect($transport->events[0]->getTags())->toBe(['operation' => 'announcement_email_delivery', 'outcome' => 'uncertain_outcome']);
 });
 
 it('does not report a provider-accepted delivery as failed when recording success breaks', function () {
@@ -321,6 +433,7 @@ it('does not report a provider-accepted delivery as failed when recording succes
 });
 
 it('marks an interrupted send uncertain without retrying it', function () {
+    $transport = RecordingSentryTransport::bind();
     Mail::fake();
     Carbon::setTestNow('2026-08-31 12:30:00');
     $delivery = pendingAnnouncementEmailDelivery([
@@ -329,14 +442,17 @@ it('marks an interrupted send uncertain without retrying it', function () {
     ]);
 
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
+    Carbon::setTestNow(now()->addHour());
     $this->artisan('announcements:send-published-emails')->assertSuccessful();
 
     Mail::assertNothingSent();
     expect($delivery->fresh()->uncertain_at)->not->toBeNull()
         ->and($delivery->fresh()->attempt_count)->toBe(1);
+    expect($transport->events)->toHaveCount(1);
 });
 
 it('an exact emergency retry accepts only a terminally failed delivery', function () {
+    $transport = RecordingSentryTransport::bind();
     Mail::fake();
     $failed = pendingAnnouncementEmailDelivery([
         'attempt_count' => 2,
@@ -356,7 +472,62 @@ it('an exact emergency retry accepts only a terminally failed delivery', functio
 
     $this->artisan("announcements:send-published-emails --retry-delivery={$uncertain->id}")
         ->assertFailed();
+    expect($transport->events)->toBeEmpty();
 });
+
+it('reports failed and uncertain outcomes from emergency retries', function (string $outcome): void {
+    config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
+    $transport = RecordingSentryTransport::bind();
+    $delivery = pendingAnnouncementEmailDelivery([
+        'attempt_count' => 2,
+        'failed_at' => now(),
+        'failure_reason' => 'Previous delivery failed.',
+    ]);
+    Mail::shouldReceive('to')->once()->andThrow($outcome === 'terminal_failure'
+        ? permanentAnnouncementEmailException()
+        : new TransportException('Provider response was not received.'));
+
+    $this->artisan("announcements:send-published-emails --retry-delivery={$delivery->id}")
+        ->assertSuccessful();
+
+    $freshDelivery = $delivery->fresh();
+    expect($freshDelivery->failed_at !== null)->toBe($outcome === 'terminal_failure')
+        ->and($freshDelivery->uncertain_at !== null)->toBe($outcome === 'uncertain_outcome');
+    expect($transport->events)->toHaveCount(1)
+        ->and($transport->events[0]->getTags())->toBe([
+            'operation' => 'announcement_email_delivery',
+            'outcome' => $outcome,
+        ]);
+})->with(['terminal failure' => 'terminal_failure', 'uncertain outcome' => 'uncertain_outcome']);
+
+it('keeps nonterminal emergency retry outcomes quiet', function (string $outcome): void {
+    $transport = RecordingSentryTransport::bind();
+    $delivery = pendingAnnouncementEmailDelivery([
+        'attempt_count' => 0,
+        'failed_at' => now(),
+        'failure_reason' => 'Previous delivery failed.',
+    ]);
+
+    if ($outcome === 'retryable') {
+        Mail::shouldReceive('to')->once()->andThrow(transientAnnouncementEmailException());
+    } else {
+        $delivery->user->update(['marketing_emails_opted_out_at' => now()]);
+        Mail::fake();
+    }
+
+    $this->artisan("announcements:send-published-emails --retry-delivery={$delivery->id}")
+        ->assertSuccessful();
+
+    if ($outcome === 'retryable') {
+        expect($delivery->fresh()->next_attempt_at)->not->toBeNull()
+            ->and($delivery->fresh()->failed_at)->toBeNull();
+    } else {
+        expect($delivery->fresh()->skipped_at)->not->toBeNull();
+        Mail::assertNothingSent();
+    }
+
+    expect($transport->events)->toBeEmpty();
+})->with(['retryable', 'skipped']);
 
 it('fails cleanly if an emergency retry delivery disappears before sending', function () {
     $delivery = pendingAnnouncementEmailDelivery([

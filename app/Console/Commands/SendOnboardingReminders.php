@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\User;
 use App\Services\OnboardingReminderProcessor;
+use App\Services\OperationalFailureReporter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -42,6 +43,10 @@ class SendOnboardingReminders extends Command
         $this->info($message);
 
         Log::info($message, $summary);
+
+        if ($summary[OnboardingReminderProcessor::STATUS_FAILED] > 0) {
+            app(OperationalFailureReporter::class)->reportOnboardingReminderProcessingFailure();
+        }
 
         return self::SUCCESS;
     }

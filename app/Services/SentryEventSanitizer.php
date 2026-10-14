@@ -25,6 +25,25 @@ class SentryEventSanitizer
             ->setEnvironment($event->getEnvironment())
             ->setRelease($event->getRelease());
 
+        $tags = $event->getTags();
+
+        $permittedOutcomes = [
+            OperationalFailureReporter::NATIVE_PUSH_OPERATION => [OperationalFailureReporter::UNKNOWN_OUTCOME],
+            OperationalFailureReporter::NATIVE_PUSH_DELIVERY_OPERATION => [OperationalFailureReporter::RETRY_EXHAUSTED],
+            OperationalFailureReporter::NATIVE_PUSH_RECEIPTS_OPERATION => [OperationalFailureReporter::RECEIPT_UNAVAILABLE],
+            OperationalFailureReporter::ANNOUNCEMENT_EMAIL_OPERATION => [OperationalFailureReporter::TERMINAL_FAILURE, OperationalFailureReporter::UNCERTAIN_OUTCOME],
+            OperationalFailureReporter::ONBOARDING_REMINDER_OPERATION => [OperationalFailureReporter::PROCESSING_FAILURE],
+        ];
+        $operation = $tags['operation'] ?? null;
+
+        if (is_string($operation) && isset($permittedOutcomes[$operation])
+            && in_array($tags['outcome'] ?? null, $permittedOutcomes[$operation], true)) {
+            $sanitized->setTags([
+                'operation' => $operation,
+                'outcome' => $tags['outcome'],
+            ]);
+        }
+
         $exceptions = [];
 
         foreach ($event->getExceptions() as $exception) {

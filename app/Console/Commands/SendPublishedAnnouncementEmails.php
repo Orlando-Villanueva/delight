@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\AnnouncementEmailDelivery;
 use App\Services\AnnouncementEmailDeliveryService;
+use App\Services\OperationalFailureReporter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -66,6 +67,13 @@ class SendPublishedAnnouncementEmails extends Command
                 }
 
                 $result = $deliveryService->processDelivery($refreshedDelivery);
+
+                if ($result === 'failed') {
+                    app(OperationalFailureReporter::class)->reportAnnouncementEmailTerminalFailure();
+                } elseif ($result === 'uncertain') {
+                    app(OperationalFailureReporter::class)->reportAnnouncementEmailUncertainOutcome();
+                }
+
                 $deliveryService->completeFinishedBroadcasts();
                 $durationMilliseconds = $this->durationMilliseconds($startedAt);
                 $this->info("Announcement email delivery {$delivery->id}: {$result}.");
@@ -104,6 +112,14 @@ class SendPublishedAnnouncementEmails extends Command
                     ...$summary,
                     'pending_count' => $pendingCount,
                 ]);
+            }
+
+            if ($summary['failed'] > 0) {
+                app(OperationalFailureReporter::class)->reportAnnouncementEmailTerminalFailure();
+            }
+
+            if ($summary['uncertain'] > 0) {
+                app(OperationalFailureReporter::class)->reportAnnouncementEmailUncertainOutcome();
             }
 
             return self::SUCCESS;
