@@ -475,6 +475,60 @@ it('an exact emergency retry accepts only a terminally failed delivery', functio
     expect($transport->events)->toBeEmpty();
 });
 
+it('reports failed and uncertain outcomes from emergency retries', function (string $outcome): void {
+    config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
+    $transport = RecordingSentryTransport::bind();
+    $delivery = pendingAnnouncementEmailDelivery([
+        'attempt_count' => 2,
+        'failed_at' => now(),
+        'failure_reason' => 'Previous delivery failed.',
+    ]);
+    Mail::shouldReceive('to')->once()->andThrow($outcome === 'terminal_failure'
+        ? permanentAnnouncementEmailException()
+        : new TransportException('Provider response was not received.'));
+
+    $this->artisan("announcements:send-published-emails --retry-delivery={$delivery->id}")
+        ->assertSuccessful();
+
+    $freshDelivery = $delivery->fresh();
+    expect($freshDelivery->failed_at !== null)->toBe($outcome === 'terminal_failure')
+        ->and($freshDelivery->uncertain_at !== null)->toBe($outcome === 'uncertain_outcome');
+    expect($transport->events)->toHaveCount(1)
+        ->and($transport->events[0]->getTags())->toBe([
+            'operation' => 'announcement_email_delivery',
+            'outcome' => $outcome,
+        ]);
+})->with(['terminal failure' => 'terminal_failure', 'uncertain outcome' => 'uncertain_outcome']);
+
+it('keeps nonterminal emergency retry outcomes quiet', function (string $outcome): void {
+    $transport = RecordingSentryTransport::bind();
+    $delivery = pendingAnnouncementEmailDelivery([
+        'attempt_count' => 0,
+        'failed_at' => now(),
+        'failure_reason' => 'Previous delivery failed.',
+    ]);
+
+    if ($outcome === 'retryable') {
+        Mail::shouldReceive('to')->once()->andThrow(transientAnnouncementEmailException());
+    } else {
+        $delivery->user->update(['marketing_emails_opted_out_at' => now()]);
+        Mail::fake();
+    }
+
+    $this->artisan("announcements:send-published-emails --retry-delivery={$delivery->id}")
+        ->assertSuccessful();
+
+    if ($outcome === 'retryable') {
+        expect($delivery->fresh()->next_attempt_at)->not->toBeNull()
+            ->and($delivery->fresh()->failed_at)->toBeNull();
+    } else {
+        expect($delivery->fresh()->skipped_at)->not->toBeNull();
+        Mail::assertNothingSent();
+    }
+
+    expect($transport->events)->toBeEmpty();
+})->with(['retryable', 'skipped']);
+
 it('fails cleanly if an emergency retry delivery disappears before sending', function () {
     $delivery = pendingAnnouncementEmailDelivery([
         'attempt_count' => 2,

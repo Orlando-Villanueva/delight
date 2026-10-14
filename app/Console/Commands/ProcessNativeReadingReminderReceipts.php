@@ -26,6 +26,7 @@ class ProcessNativeReadingReminderReceipts extends Command
         $processedCount = 0;
         $unavailableCount = 0;
         $retryQueuedCount = 0;
+        $hasReportedUnavailable = false;
         $hasExhaustedRetries = false;
         $now = now();
         $cutoff = $now->copy()->subMinutes((int) config('services.expo.receipt_delay_minutes', 15));
@@ -38,8 +39,8 @@ class ProcessNativeReadingReminderReceipts extends Command
             ->whereNull('expo_receipt_checked_at')
             ->where('sent_at', '<=', $receiptExpiredBefore)
             ->orderBy('id')
-            ->chunkById(1000, function ($deliveries) use (&$unavailableCount, $now): void {
-                $unavailableCount += NativePushReminderDelivery::query()
+            ->chunkById(1000, function ($deliveries) use (&$unavailableCount, &$hasReportedUnavailable, $now): void {
+                $markedUnavailableCount = NativePushReminderDelivery::query()
                     ->whereKey($deliveries->modelKeys())
                     ->where('expo_receipt_status', NativePushReceiptStatus::Pending->value)
                     ->whereNull('expo_receipt_checked_at')
@@ -49,6 +50,12 @@ class ProcessNativeReadingReminderReceipts extends Command
                         'expo_receipt_checked_at' => $now,
                         'updated_at' => $now,
                     ]);
+                $unavailableCount += $markedUnavailableCount;
+
+                if ($markedUnavailableCount > 0 && ! $hasReportedUnavailable) {
+                    $hasReportedUnavailable = true;
+                    app(OperationalFailureReporter::class)->reportNativePushReceiptUnavailable();
+                }
             });
 
         NativePushReminderDelivery::query()
@@ -114,8 +121,9 @@ class ProcessNativeReadingReminderReceipts extends Command
                     ])->save();
                     $processedCount++;
 
-                    if ($errorCode === NativePushRateLimitRetryService::ERROR_CODE) {
+                    if ($errorCode === NativePushRateLimitRetryService::ERROR_CODE && ! $hasExhaustedRetries) {
                         $hasExhaustedRetries = true;
+                        app(OperationalFailureReporter::class)->reportNativePushRetryExhausted();
                     }
 
                     if ($errorCode === 'DeviceNotRegistered') {
@@ -166,14 +174,6 @@ class ProcessNativeReadingReminderReceipts extends Command
             });
 
         $this->info("Native reading reminder receipts processed: {$processedCount}; unavailable after retention: {$unavailableCount}; rate-limited retries queued: {$retryQueuedCount}.");
-
-        if ($hasExhaustedRetries) {
-            app(OperationalFailureReporter::class)->reportNativePushRetryExhausted();
-        }
-
-        if ($unavailableCount > 0) {
-            app(OperationalFailureReporter::class)->reportNativePushReceiptUnavailable();
-        }
 
         return self::SUCCESS;
     }

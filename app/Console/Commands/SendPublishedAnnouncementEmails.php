@@ -67,6 +67,13 @@ class SendPublishedAnnouncementEmails extends Command
                 }
 
                 $result = $deliveryService->processDelivery($refreshedDelivery);
+
+                if ($result === 'failed') {
+                    app(OperationalFailureReporter::class)->reportAnnouncementEmailTerminalFailure();
+                } elseif ($result === 'uncertain') {
+                    app(OperationalFailureReporter::class)->reportAnnouncementEmailUncertainOutcome();
+                }
+
                 $deliveryService->completeFinishedBroadcasts();
                 $durationMilliseconds = $this->durationMilliseconds($startedAt);
                 $this->info("Announcement email delivery {$delivery->id}: {$result}.");

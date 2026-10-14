@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\ProcessNativeReadingReminderReceipts;
 use App\Enums\NativePushReceiptStatus;
 use App\Exceptions\NativePushUnknownOutcomeException;
 use App\Jobs\SendNativeReadingReminderPushBatch;
@@ -691,6 +692,93 @@ it('stops polling for a receipt after Expo retention expires', function (): void
     Http::assertSent(fn ($request): bool => $request->url() === 'https://exp.host/--/api/v2/push/getReceipts'
         && $request->data()['ids'] === ['ticket-pending']);
     expect($transport->events)->toHaveCount(1);
+});
+
+it('reports expired receipts when later receipt polling fails and keeps them unavailable', function (): void {
+    $this->travelTo(Carbon::parse('2026-05-26 10:00:00', 'America/Toronto'));
+    config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
+    $transport = RecordingSentryTransport::bind();
+    $expiredDelivery = pendingNativeReceiptSentAt(now()->subHours(25));
+    $pollableDelivery = pendingNativeReceiptSentAt(now()->subHour());
+    $realExpo = app(ExpoPushService::class);
+    $expo = Mockery::mock(ExpoPushService::class);
+    $expo->shouldReceive('receipts')->once()->andThrow(new RuntimeException('Receipt polling failed.'));
+    $this->app->instance(ExpoPushService::class, $expo);
+
+    try {
+        app(ProcessNativeReadingReminderReceipts::class)->handle(
+            app(ExpoPushService::class),
+            app(NativePushRateLimitRetryService::class),
+        );
+
+        test()->fail('Receipt polling failures must still escape the command.');
+    } catch (RuntimeException $exception) {
+        expect($exception->getMessage())->toBe('Receipt polling failed.');
+    }
+
+    expect($expiredDelivery->fresh()->expo_receipt_status)->toBe(NativePushReceiptStatus::Unavailable)
+        ->and($expiredDelivery->fresh()->expo_receipt_checked_at)->not->toBeNull()
+        ->and($pollableDelivery->fresh()->expo_receipt_status)->toBe(NativePushReceiptStatus::Pending);
+    expect($transport->events)->toHaveCount(1)
+        ->and($transport->events[0]->getTags())->toBe([
+            'operation' => 'native_push_receipts',
+            'outcome' => 'receipt_unavailable',
+        ]);
+
+    $this->app->instance(ExpoPushService::class, $realExpo);
+    Http::preventStrayRequests();
+    Http::fake(['https://exp.host/--/api/v2/push/getReceipts' => Http::response(['data' => []])]);
+    $this->artisan('push:process-native-reading-reminder-receipts')->assertSuccessful();
+
+    expect($expiredDelivery->fresh()->expo_receipt_status)->toBe(NativePushReceiptStatus::Unavailable)
+        ->and($transport->events)->toHaveCount(1);
+});
+
+it('reports exhausted receipt retries when later retry dispatch fails', function (): void {
+    $this->travelTo(Carbon::parse('2026-05-26 10:00:00', 'America/Toronto'));
+    config(['sentry.environment' => 'testing', 'sentry.release' => 'delight@test-release']);
+    $transport = RecordingSentryTransport::bind();
+    $exhaustedDelivery = pendingNativeReceiptSentAt(now()->subHour());
+    $exhaustedDelivery->forceFill(['expo_retry_count' => 3])->save();
+    $queuedDevice = nativeReminderDevice();
+    $retryableDelivery = NativePushReminderDelivery::factory()->create([
+        'native_push_registration_id' => $queuedDevice['registration']->id,
+        'reminder_date' => '2026-05-26',
+        'scheduled_for_at' => now()->subMinutes(20),
+        'token_hash' => $queuedDevice['registration']->token_hash,
+        'expo_receipt_status' => NativePushReceiptStatus::RetryPending,
+        'expo_retry_at' => now()->subMinute(),
+    ]);
+    Http::preventStrayRequests();
+    Http::fake(['https://exp.host/--/api/v2/push/getReceipts' => Http::response([
+        'data' => [$exhaustedDelivery->expo_ticket_id => [
+            'status' => 'error',
+            'details' => ['error' => NativePushRateLimitRetryService::ERROR_CODE],
+        ]],
+    ])]);
+    $dispatcher = Mockery::mock(Dispatcher::class);
+    $dispatcher->shouldReceive('dispatch')->once()->andThrow(new RuntimeException('Queue unavailable.'));
+    $this->app->instance(Dispatcher::class, $dispatcher);
+
+    try {
+        app(ProcessNativeReadingReminderReceipts::class)->handle(
+            app(ExpoPushService::class),
+            app(NativePushRateLimitRetryService::class),
+        );
+
+        test()->fail('Queue dispatch failures must still escape the command.');
+    } catch (RuntimeException $exception) {
+        expect($exception->getMessage())->toBe('Queue unavailable.');
+    }
+
+    expect($exhaustedDelivery->fresh()->expo_receipt_status)->toBe(NativePushReceiptStatus::Error)
+        ->and($exhaustedDelivery->fresh()->expo_retry_count)->toBe(3)
+        ->and($retryableDelivery->fresh()->expo_retry_at)->toBeGreaterThan(now());
+    expect($transport->events)->toHaveCount(1)
+        ->and($transport->events[0]->getTags())->toBe([
+            'operation' => 'native_push_delivery',
+            'outcome' => 'retry_exhausted',
+        ]);
 });
 
 it('schedules MessageRateExceeded receipts with exponential backoff', function (int $retryCount, int $delaySeconds): void {
