@@ -76,7 +76,7 @@ it('proves background check-in linkage and a separate check-in privacy boundary'
         expect($payloads[1]['status'])->toBe($outcome === 'success' ? 'ok' : 'error');
         expect($payloads[0]['check_in_id'])->toBe($payloads[1]['check_in_id']);
         foreach ($checkIns as $index => $record) {
-            expect($payloads[$index]['monitor_slug'])->toBe('del352-scheduler-proof');
+            expect($payloads[$index]['monitor_slug'])->toBe('announcement-email-scheduler');
             expect($payloads[$index]['environment'])->toBe('testing');
             expect($payloads[$index]['release'])->toBe('delight@scheduler-proof');
             expect($payloads[$index])->not->toHaveKey('monitor_config');

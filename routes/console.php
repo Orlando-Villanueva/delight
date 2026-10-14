@@ -5,6 +5,7 @@ use App\Console\Commands\DispatchReadingReminderPushes;
 use App\Console\Commands\ProcessNativeReadingReminderReceipts;
 use App\Console\Commands\SendOnboardingReminders;
 use App\Console\Commands\SendPublishedAnnouncementEmails;
+use App\Services\SentryCheckInSanitizer;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -39,8 +40,12 @@ Schedule::command(ProcessNativeReadingReminderReceipts::class)
     ->onOneServer()
     ->withoutOverlapping();
 
-Schedule::command(SendPublishedAnnouncementEmails::class)
+$announcementSchedule = Schedule::command(SendPublishedAnnouncementEmails::class)
     ->everyFiveMinutes()
     ->onOneServer()
     ->withoutOverlapping(30)
     ->runInBackground();
+
+if (config('services.sentry.announcement_cron_enabled') && config('sentry.dsn')) {
+    $announcementSchedule->sentryMonitor(SentryCheckInSanitizer::ANNOUNCEMENT_MONITOR_SLUG, updateMonitorConfig: false);
+}

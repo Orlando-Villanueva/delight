@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\SentryCheckInSanitizer;
 use Illuminate\Console\Events\ScheduledBackgroundTaskFinished;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Console\Kernel;
@@ -9,7 +10,6 @@ use Illuminate\Support\Facades\Event as EventFacade;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
-use Sentry\CheckIn;
 use Sentry\ClientBuilder;
 use Sentry\Event;
 use Sentry\Laravel\Features\ConsoleSchedulingIntegration;
@@ -46,6 +46,7 @@ config([
     'sentry.dsn' => 'https://public@example.invalid/1',
     'sentry.environment' => 'testing',
     'sentry.release' => 'delight@scheduler-proof',
+    'services.sentry.announcement_cron_enabled' => getenv('DEL352_PROOF_CALLBACK') === 'monitor_filtered',
 ]);
 Http::preventStrayRequests();
 Mail::fake();
@@ -73,18 +74,8 @@ $transport = new class($directory) implements TransportInterface
     }
 };
 $builder = app(ClientBuilder::class)->setTransport($transport);
-if (getenv('DEL352_PROOF_CALLBACK') === 'monitor_filtered') {
-    $builder->getOptions()->setBeforeSendCheckInCallback(static function (Event $event): ?Event {
-        $checkIn = $event->getCheckIn();
-        if ($checkIn === null || $checkIn->getMonitorSlug() !== 'del352-scheduler-proof') {
-            return null;
-        }
-
-        return Event::createCheckIn($event->getId())->setCheckIn(new CheckIn(
-            'del352-scheduler-proof', $checkIn->getStatus(), $checkIn->getId(),
-            'delight@scheduler-proof', 'testing', $checkIn->getDuration(),
-        ));
-    });
+if (getenv('DEL352_PROOF_CALLBACK') !== 'monitor_filtered') {
+    $builder->getOptions()->setBeforeSendCheckInCallback(static fn (Event $event): Event => $event);
 }
 app(HubInterface::class)->bindClient($builder->getClient());
 if (str_starts_with((string) getenv('DEL352_PROOF_CALLBACK'), 'monitor')) {
@@ -111,7 +102,7 @@ $schedule = new Schedule;
 $app->instance(Schedule::class, $schedule);
 $scheduled = $schedule->command('proof:work')->everyMinute()->withoutOverlapping()->runInBackground();
 if (str_starts_with((string) getenv('DEL352_PROOF_CALLBACK'), 'monitor')) {
-    $scheduled->sentryMonitor('del352-scheduler-proof', updateMonitorConfig: false);
+    $scheduled->sentryMonitor(SentryCheckInSanitizer::ANNOUNCEMENT_MONITOR_SLUG, updateMonitorConfig: false);
 }
 $scheduled->onSuccess(function () use ($directory): void {
     file_put_contents($directory.'/hooks.jsonl', "\"success\"\n", FILE_APPEND | LOCK_EX);
