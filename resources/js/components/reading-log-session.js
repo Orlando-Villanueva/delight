@@ -1,5 +1,36 @@
 export function createReadingLogSession(snapshot) {
-    return { snapshot: structuredClone(snapshot), pending: null, uncertain: false };
+    return { snapshot: structuredClone(snapshot), pending: null, outcome: null, dateContext: null, uncertain: false };
+}
+
+export function updateReadingLogSnapshot(session, snapshot) {
+    session.snapshot = structuredClone(snapshot);
+}
+
+export function updateReadingLogDateContext(session, dates) {
+    session.dateContext = structuredClone(dates);
+}
+
+export function initializeReadingLogForm(session, config) {
+    const configIsNewer = session.dateContext && config.dates.today > session.dateContext.today;
+    const dates = { ...(configIsNewer || !session.dateContext ? config.dates : session.dateContext) };
+    updateReadingLogDateContext(session, dates);
+    const values = structuredClone(session.snapshot.values);
+    if (![dates.today, dates.yesterday].includes(values.date_read)) {
+        values.date_read = dates.today;
+        updateReadingLogSnapshot(session, { ...session.snapshot, values });
+    }
+
+    return { dates, values };
+}
+
+export function setReadingLogUncertain(session, uncertain) {
+    session.uncertain = uncertain;
+}
+
+export function consumeReadingLogOutcome(session) {
+    const outcome = session.outcome;
+    session.outcome = null;
+    return outcome;
 }
 
 export function submitReadingLog(session, values, { url, csrfToken, fetcher = globalThis.fetch, onSaved = () => {} }) {
@@ -20,6 +51,13 @@ export function submitReadingLog(session, values, { url, csrfToken, fetcher = gl
             } else if (response.status === 422) {
                 const data = await response.json();
                 outcome = { kind: 'validation', errors: data.errors ?? {}, errorScopes: data.error_scopes ?? {} };
+                if (data.form?.dates && data.form?.values?.date_read) {
+                    updateReadingLogDateContext(session, data.form.dates);
+                    updateReadingLogSnapshot(session, {
+                        ...session.snapshot,
+                        values: { ...session.snapshot.values, date_read: data.form.values.date_read },
+                    });
+                }
             } else if (!response.ok) {
                 outcome = { kind: response.status >= 500 ? 'uncertain' : 'failure' };
             } else {
@@ -29,14 +67,16 @@ export function submitReadingLog(session, values, { url, csrfToken, fetcher = gl
                     || typeof data.celebration_html !== 'string') {
                     throw new Error('Unrecognized reading response');
                 }
-                session.snapshot = { values: { ...data.form.values }, collection: 'old', notesOpen: false };
+                updateReadingLogDateContext(session, data.form.dates);
+                updateReadingLogSnapshot(session, { values: { ...data.form.values }, collection: 'old', notesOpen: false });
                 outcome = { kind: 'success', data };
                 onSaved();
             }
         } catch {
             outcome = { kind: 'uncertain' };
         }
-        session.uncertain = outcome.kind === 'uncertain';
+        setReadingLogUncertain(session, outcome.kind === 'uncertain');
+        session.outcome = outcome;
         return outcome;
     })().finally(() => { session.pending = null; });
     return session.pending;

@@ -69,6 +69,7 @@ class StoreReadingLogRequest extends FormRequest
     /** @param array<string, array<int, string>> $errors */
     public function validationResponse(array $errors): Response
     {
+        $readingCalendar = $this->container->make(ReadingCalendarService::class);
         $errorScopes = [];
         if (isset($errors['chapter_range'])) {
             $errors['start_chapter'] = $errors['chapter_range'];
@@ -77,15 +78,23 @@ class StoreReadingLogRequest extends FormRequest
         }
 
         if ($this->wantsJson()) {
+            $today = $readingCalendar->todayFor($this->user())->toDateString();
+            $yesterday = $readingCalendar->yesterdayFor($this->user())->toDateString();
+
             return response()->json([
                 'message' => ValidationException::withMessages($errors)->getMessage(),
                 'errors' => $errors,
                 'error_scopes' => $errorScopes,
+                'form' => [
+                    'dates' => ['today' => $today, 'yesterday' => $yesterday],
+                    'values' => [
+                        'date_read' => $this->input('date_read') === $yesterday ? $yesterday : $today,
+                    ],
+                ],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $bibleReferenceService = $this->container->make(BibleReferenceService::class);
-        $readingCalendar = $this->container->make(ReadingCalendarService::class);
         $readingFormService = $this->container->make(ReadingFormService::class);
         $yesterday = $readingCalendar->yesterdayFor($this->user())->toDateString();
         $data = array_merge([

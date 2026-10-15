@@ -99,6 +99,26 @@ it('returns the existing range message as a JSON field error', function () {
     $this->assertDatabaseCount('reading_logs', 0);
 });
 
+it('refreshes the JSON date choices after account-local midnight and keeps yesterday selected', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-10-14 03:59:59', 'UTC'));
+    $user = User::factory()->create(['reading_timezone' => 'America/Toronto']);
+
+    $initialForm = $this->actingAs($user)->get(route('logs.create'));
+    expect(readingLogIslandProps($initialForm)['dates'])->toBe(['today' => '2026-10-13', 'yesterday' => '2026-10-12']);
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-14 04:00:00', 'UTC'));
+    $response = $this->postJson(route('logs.store'), [
+        'book_id' => 43, 'start_chapter' => 1000, 'date_read' => '2026-10-13',
+        'notes_text' => 'Keep this draft.',
+    ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors('start_chapter')
+        ->assertJsonPath('form.dates', ['today' => '2026-10-14', 'yesterday' => '2026-10-13'])
+        ->assertJsonPath('form.values.date_read', '2026-10-13');
+    $this->assertDatabaseCount('reading_logs', 0);
+});
+
 it('returns 422 for a repeated save without adding chapters or repeating celebrations', function () {
     $user = User::factory()->create(['reading_timezone' => 'America/Toronto']);
     $values = ['book_id' => 43, 'start_chapter' => 1, 'date_read' => '2026-10-12'];

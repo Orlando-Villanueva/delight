@@ -99,6 +99,7 @@ class ReadingLogController extends Controller
 
             if ($request->wantsJson()) {
                 $formContext = $this->readingFormService->getFormContextData($user);
+                $celebration = $this->achievementService->getCelebrationPayload($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay);
 
                 return response()->json([
                     'message' => "{$log->passage_text} recorded for {$log->date_read->format('M d, Y')}",
@@ -121,8 +122,8 @@ class ReadingLogController extends Controller
                             'notes_text' => '',
                         ],
                     ],
-                    'celebration' => $this->achievementService->getCelebrationPayload($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay),
-                    'celebration_html' => $this->achievementCelebrationFragment($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay),
+                    'celebration' => $celebration,
+                    'celebration_html' => $this->achievementCelebrationFragment($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay, $celebration),
                 ]);
             }
 
@@ -168,9 +169,9 @@ class ReadingLogController extends Controller
         }
     }
 
-    private function achievementCelebrationFragment(User $user, Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): string
+    private function achievementCelebrationFragment(User $user, Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay, ?array $payload = null): string
     {
-        $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log, $isFirstReadingOfDay);
+        $payload ??= $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log, $isFirstReadingOfDay);
 
         if (empty($payload['earned']) && empty($payload['record'])) {
             return '';

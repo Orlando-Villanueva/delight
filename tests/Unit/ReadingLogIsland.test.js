@@ -1,7 +1,8 @@
 import test from 'node:test';
+import { reactive } from 'vue';
 import { createNoticeTimer } from '../../resources/js/components/transient-notice-timer.js';
 import assert from 'node:assert/strict';
-import { createReadingLogSession, submitReadingLog } from '../../resources/js/components/reading-log-session.js';
+import { consumeReadingLogOutcome, createReadingLogSession, initializeReadingLogForm, submitReadingLog } from '../../resources/js/components/reading-log-session.js';
 import { installReadingLogIslands } from '../../resources/js/components/reading-log-lifecycle.js';
 
 const draft = () => ({ values: { book_id: '43', start_chapter: '3', end_chapter: '1', date_read: '2026-10-14', notes_text: 'Private draft' }, collection: 'new', notesOpen: true });
@@ -32,6 +33,7 @@ test('coalesces concurrent saves and resets only on confirmed success', async ()
     assert.equal((await first).kind, 'success');
     assert.equal(session.snapshot.values.notes_text, '');
     assert.equal(session.snapshot.notesOpen, false);
+    assert.deepEqual(session.dateContext, success().form.dates);
     assert.equal(session.pending, null);
     assert.equal(notified, 1);
 });
@@ -223,4 +225,154 @@ test('preserves shared error scope metadata alongside the existing field error c
     const outcome = await submitReadingLog(session, session.snapshot.values, options(async () => response(422, { errors, error_scopes })));
     assert.deepEqual(outcome, { kind: 'validation', errors, errorScopes: error_scopes });
     assert.deepEqual(session.snapshot, draft());
+});
+
+test('applies refreshed date choices without replacing the rest of a validation draft', async () => {
+    const session = createReadingLogSession(draft());
+    const data = {
+        errors: { start_chapter: ['Invalid chapter range for the selected book.'] }, error_scopes: {},
+        form: { dates: { today: '2026-10-15', yesterday: '2026-10-14' }, values: { date_read: '2026-10-14' } },
+    };
+
+    const outcome = await submitReadingLog(session, session.snapshot.values, options(async () => response(422, data)));
+
+    assert.deepEqual(session.dateContext, data.form.dates);
+    assert.deepEqual(session.snapshot, draft());
+});
+
+test('keeps refreshed validation dates through outcome consumption and remount with stale config', async () => {
+    const session = createReadingLogSession({
+        ...draft(),
+        values: { ...draft().values, date_read: '2026-10-13' },
+    });
+    const staleConfig = { dates: { today: '2026-10-13', yesterday: '2026-10-12' } };
+    const responseData = {
+        errors: { start_chapter: ['Invalid chapter range for the selected book.'] },
+        form: { dates: { today: '2026-10-14', yesterday: '2026-10-13' }, values: { date_read: '2026-10-13' } },
+    };
+
+    const outcome = await submitReadingLog(session, session.snapshot.values, options(async () => response(422, responseData)));
+    assert.equal(outcome.kind, 'validation');
+    assert.equal(consumeReadingLogOutcome(session).kind, 'validation');
+    assert.equal(consumeReadingLogOutcome(session), null);
+
+    const remounted = initializeReadingLogForm(session, staleConfig);
+
+    assert.deepEqual(remounted.dates, responseData.form.dates);
+    assert.equal(remounted.values.date_read, '2026-10-13');
+    assert.equal(remounted.values.notes_text, 'Private draft');
+    assert.equal(remounted.values.start_chapter, '3');
+});
+
+test('does not let an unconsumed validation outcome roll a newer remount calendar backward', async () => {
+    const session = createReadingLogSession({
+        ...draft(),
+        values: { ...draft().values, date_read: '2026-10-14' },
+    });
+    const serverDates = { today: '2026-10-14', yesterday: '2026-10-13' };
+    const responseData = {
+        errors: { start_chapter: ['Invalid chapter range for the selected book.'] },
+        form: { dates: serverDates, values: { date_read: '2026-10-13' } },
+    };
+    const outcome = await submitReadingLog(session, session.snapshot.values, options(async () => response(422, responseData)));
+    assert.equal(outcome.kind, 'validation');
+
+    const latestDates = { today: '2026-10-15', yesterday: '2026-10-14' };
+    const mounted = initializeReadingLogForm(session, { dates: latestDates });
+    const consumed = consumeReadingLogOutcome(session);
+    assert.equal(consumed.kind, 'validation');
+    const applied = initializeReadingLogForm(session, {
+        dates: mounted.dates,
+    });
+
+    assert.deepEqual(mounted.dates, latestDates);
+    assert.deepEqual(applied.dates, latestDates);
+    assert.equal(applied.values.date_read, '2026-10-15');
+    assert.equal(applied.values.notes_text, 'Private draft');
+    assert.equal(applied.values.start_chapter, '3');
+});
+
+test('applies a successful reset using the latest date context after remount', async () => {
+    const session = createReadingLogSession(draft());
+
+    await submitReadingLog(session, session.snapshot.values, options(async () => response(200, success())));
+    assert.equal(consumeReadingLogOutcome(session).kind, 'success');
+    const applied = initializeReadingLogForm(session, {
+        dates: { today: '2026-10-15', yesterday: '2026-10-14' },
+    });
+
+    assert.deepEqual(applied.dates, { today: '2026-10-15', yesterday: '2026-10-14' });
+    assert.equal(applied.values.date_read, '2026-10-14');
+});
+
+test('uses newer fetched date context over an older session calendar', () => {
+    const session = createReadingLogSession({
+        ...draft(),
+        values: { ...draft().values, date_read: '2026-10-14' },
+    });
+    session.dateContext = { today: '2026-10-14', yesterday: '2026-10-13' };
+
+    const initialized = initializeReadingLogForm(session, {
+        dates: { today: '2026-10-15', yesterday: '2026-10-14' },
+    });
+
+    assert.deepEqual(initialized.dates, { today: '2026-10-15', yesterday: '2026-10-14' });
+    assert.equal(initialized.values.date_read, '2026-10-14');
+    assert.deepEqual(session.dateContext, initialized.dates);
+});
+
+test('makes settled validation, session and failure outcomes available once after remount', async () => {
+    const cases = [
+        ['validation', response(422, { errors: { date_read: ['Choose a current date.'] } })],
+        ['session', response(419, {})],
+        ['failure', response(403, {})],
+    ];
+
+    for (const [kind, result] of cases) {
+        const env = environment();
+        const firstApp = env.apps[0];
+        const session = firstApp.props.session;
+        let resolve;
+        const pending = submitReadingLog(session, session.snapshot.values, options(() => new Promise((done) => { resolve = done; })));
+
+        env.fire(env.document, 'htmx:beforeCleanupElement', { elt: env.document.root });
+        resolve(result);
+        assert.equal((await pending).kind, kind);
+        assert.equal(session.outcome.kind, kind);
+        env.document.root = env.root();
+        env.fire(env.document, 'htmx:afterSwap');
+        assert.equal(env.apps[1].props.session, session);
+        assert.equal(consumeReadingLogOutcome(session).kind, kind);
+        assert.equal(consumeReadingLogOutcome(session), null);
+        assert.deepEqual(session.snapshot.values, draft().values);
+    }
+});
+
+test('continues a pending request after remount and consumes its result once', async () => {
+    const env = environment();
+    const session = env.apps[0].props.session;
+    let resolve;
+    const pending = submitReadingLog(session, session.snapshot.values, options(() => new Promise((done) => { resolve = done; })));
+
+    env.fire(env.document, 'htmx:beforeCleanupElement', { elt: env.document.root });
+    env.document.root = env.root();
+    env.fire(env.document, 'htmx:afterSwap');
+    assert.equal(env.apps[1].props.session, session);
+    assert.notEqual(session.pending, null);
+
+    resolve(response(500, {}));
+    assert.equal((await pending).kind, 'uncertain');
+    assert.equal(consumeReadingLogOutcome(session).kind, 'uncertain');
+    assert.equal(consumeReadingLogOutcome(session), null);
+    assert.deepEqual(session.snapshot.values, draft().values);
+});
+
+
+test('accepts newer reactive date choices while applying an older settled response', () => {
+    const session = createReadingLogSession(draft());
+    session.dateContext = { today: '2026-10-14', yesterday: '2026-10-13' };
+    const currentDates = reactive({ today: '2026-10-15', yesterday: '2026-10-14' });
+    const initialized = initializeReadingLogForm(session, { dates: currentDates });
+    assert.deepEqual(initialized.dates, { today: '2026-10-15', yesterday: '2026-10-14' });
+    assert.equal(initialized.values.date_read, '2026-10-14');
 });

@@ -4,7 +4,9 @@ export function installReadingLogIslands(createApp, ReadingLogForm, { document, 
     const mounted = new Map();
     const drafts = new Map();
     let entrySequence = 0;
-    const documentKey = `${Date.now()}:${Math.random()}`;
+    const randomWords = new Uint32Array(4);
+    globalThis.crypto.getRandomValues(randomWords);
+    const documentKey = `${Date.now()}:${[...randomWords].map((word) => word.toString(36)).join('')}`;
     const nextEntryKey = () => `${documentKey}:${++entrySequence}`;
     let entryKey = nextEntryKey();
 

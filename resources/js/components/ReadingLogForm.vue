@@ -1,20 +1,20 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { submitReadingLog } from './reading-log-session.js';
+import { consumeReadingLogOutcome, initializeReadingLogForm, setReadingLogUncertain, submitReadingLog, updateReadingLogSnapshot } from './reading-log-session.js';
 import TransientNotice from './TransientNotice.vue';
 
 const { config, session } = defineProps(['config', 'session']);
 const messages = config.messages;
+const initialForm = initializeReadingLogForm(session, config);
 const form = ref(null);
 const collectionButton = ref(null);
 const collectionMenu = ref(null);
 const menuOpen = ref(false);
 const books = ref(config.books);
 const recentBooks = ref(config.recentBooks);
-const dates = ref(config.dates);
-const values = reactive({ ...session.snapshot.values });
+const dates = ref(initialForm.dates);
+const values = reactive({ ...initialForm.values });
 if (!books.value.some((book) => String(book.id) === String(values.book_id))) values.book_id = '';
-if (![dates.value.today, dates.value.yesterday].includes(values.date_read)) values.date_read = dates.value.today;
 const collection = ref(books.value.find((book) => String(book.id) === String(values.book_id))?.testament ?? session.snapshot.collection);
 const notesOpen = ref(session.snapshot.notesOpen || Boolean(values.notes_text));
 const errors = ref(config.errors);
@@ -43,7 +43,7 @@ const chapterNote = computed(() => {
 
 function snapshot() {
     // A pending save owns the submitted snapshot until its result settles.
-    if (!session.pending) session.snapshot = { values: { ...values }, collection: collection.value, notesOpen: notesOpen.value };
+    if (!session.pending) updateReadingLogSnapshot(session, { values: { ...values }, collection: collection.value, notesOpen: notesOpen.value });
 }
 watch([values, collection, notesOpen], snapshot, { deep: true, flush: 'sync' });
 
@@ -84,15 +84,17 @@ function recentScroll() {
     scrollTimer = setTimeout(() => { isScrolling.value = false; }, 700);
 }
 async function handleOutcome(pending) {
-    const outcome = await pending;
+    const settledOutcome = await pending;
     if (!active) return;
+    const outcome = consumeReadingLogOutcome(session) ?? settledOutcome;
     saving.value = false;
     if (outcome.kind === 'success') {
         const data = outcome.data;
+        const refreshedForm = initializeReadingLogForm(session, { dates: dates.value });
         books.value = data.form.books;
         recentBooks.value = data.form.recent_books;
-        dates.value = data.form.dates;
-        Object.assign(values, data.form.values);
+        dates.value = refreshedForm.dates;
+        Object.assign(values, refreshedForm.values);
         collection.value = 'old';
         notesOpen.value = false;
         errors.value = {};
@@ -110,6 +112,9 @@ async function handleOutcome(pending) {
             window.htmx.swap('#achievement-celebration-root', data.celebration_html, { swapStyle: 'none' });
         }
     } else if (outcome.kind === 'validation') {
+        const refreshedForm = initializeReadingLogForm(session, { dates: dates.value });
+        dates.value = refreshedForm.dates;
+        values.date_read = refreshedForm.values.date_read;
         errors.value = outcome.errors;
         errorScopes.value = outcome.errorScopes;
         if (errors.value.notes_text) notesOpen.value = true;
@@ -144,7 +149,7 @@ async function dismissSuccess(restoreFocus) {
 }
 function celebrationClosed() { celebrationPending.value = false; }
 function allowRetry() {
-    session.uncertain = false;
+    setReadingLogUncertain(session, false);
     uncertain.value = false;
     notice.value = '';
 }
@@ -153,6 +158,7 @@ onMounted(() => {
     document.addEventListener('click', outsideClick);
     document.addEventListener('achievement-celebration-closed', celebrationClosed);
     if (session.pending) handleOutcome(session.pending);
+    else if (session.outcome) handleOutcome(Promise.resolve(session.outcome));
 });
 onBeforeUnmount(() => {
     active = false;
