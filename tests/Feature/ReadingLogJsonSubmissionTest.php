@@ -185,3 +185,19 @@ it('renders range errors once below both chapter inputs in the native fallback',
     expect(preg_match_all('/<input[^>]+aria-describedby="chapter-range-error"/', $response->getContent()))->toBe(2);
     $this->assertDatabaseCount('reading_logs', 0);
 });
+
+it('keeps full reading pages and HTMX fragments separate in browser caches', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('logs.create'))
+        ->assertOk()
+        ->assertHeader('Vary', 'HX-Request')
+        ->assertSee('<!DOCTYPE html>', false)
+        ->assertSee('data-reading-log-island', false);
+
+    $this->get(route('logs.create'), ['HX-Request' => 'true'])
+        ->assertOk()
+        ->assertHeader('Vary', 'HX-Request')
+        ->assertDontSee('<!DOCTYPE html>', false)
+        ->assertSee('data-reading-log-island', false);
+});

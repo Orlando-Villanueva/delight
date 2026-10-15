@@ -57,7 +57,12 @@ class ReadingLogController extends Controller
         $data = array_merge(compact('books', 'errors'), $formContext);
 
         // Return appropriate view based on request type
-        return response()->htmx('logs.create', 'page-content', $data);
+        $response = response()->htmx('logs.create', 'page-content', $data);
+        if (! $response instanceof Response) {
+            $response = response($response);
+        }
+
+        return $response->setVary('HX-Request', false);
     }
 
     /**
