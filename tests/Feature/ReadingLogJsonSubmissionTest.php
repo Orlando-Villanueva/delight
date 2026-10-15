@@ -40,7 +40,9 @@ it('returns fresh form defaults and server celebrations after saving a chapter r
         ])
         ->assertJsonCount(1, 'form.recent_books')
         ->assertJsonPath('form.recent_books.0.id', 43)
-        ->assertJsonPath('celebration.reading.passage', 'John 1-3');
+        ->assertJsonPath('celebration.reading.passage', 'John 1-3')
+        ->assertJsonStructure(['celebration_html']);
+    expect($response->json('celebration_html'))->toContain('achievement-celebration-modal');
 
     expect(collect($response->json('form.books'))->pluck('id'))->toContain(43)->not->toContain(67);
     expect(collect($response->json('celebration.earned'))->pluck('display_name'))->toContain('First reading');
@@ -92,7 +94,8 @@ it('returns the existing range message as a JSON field error', function () {
 
     $this->actingAs($user)->postJson(route('logs.store'), [
         'book_id' => 43, 'start_chapter' => 3, 'end_chapter' => 1, 'date_read' => '2026-10-13',
-    ])->assertUnprocessable()->assertJsonPath('errors.start_chapter.0', 'Invalid chapter range for the selected book.');
+    ])->assertUnprocessable()->assertJsonPath('errors.start_chapter.0', 'Invalid chapter range for the selected book.')
+        ->assertJsonPath('error_scopes.start_chapter', 'chapter_range');
     $this->assertDatabaseCount('reading_logs', 0);
 });
 
@@ -105,6 +108,7 @@ it('returns 422 for a repeated save without adding chapters or repeating celebra
 
     $this->postJson(route('logs.store'), $values)->assertUnprocessable()
         ->assertJsonPath('errors.start_chapter.0', 'You have already logged one or more of these chapters for yesterday.')
+        ->assertJsonPath('error_scopes.start_chapter', 'chapter_range')
         ->assertJsonMissingPath('celebration');
 
     $this->assertDatabaseCount('reading_logs', 1);
@@ -143,7 +147,6 @@ it('preserves the submitted draft in HTML after form request validation fails', 
 
     $response->assertOk()->assertHeader('Content-Type', 'text/html; charset=utf-8')
         ->assertSee('Invalid chapter range for the selected book.')
-        ->assertSee("initialBookId: '43'", false)
         ->assertSee('value="3"', false)->assertSee('value="1"', false)
         ->assertSee('Keep this draft.');
     expect($response->getContent())->toMatch('/<input[^>]+id="yesterday"[^>]+checked/s');
@@ -153,3 +156,32 @@ it('preserves the submitted draft in HTML after form request validation fails', 
     'direct web submission' => [[], false],
     'htmx AJAX submission' => [['HX-Request' => 'true', 'X-Requested-With' => 'XMLHttpRequest', 'Accept' => '*/*'], true],
 ]);
+
+it('keeps individual chapter rule failures scoped to their own fields', function (array $values, string $field) {
+    $user = User::factory()->create(['reading_timezone' => 'America/Toronto']);
+
+    $this->actingAs($user)->postJson(route('logs.store'), array_replace([
+        'book_id' => 43, 'start_chapter' => 1, 'date_read' => '2026-10-13',
+    ], $values))->assertUnprocessable()
+        ->assertJsonValidationErrors($field)
+        ->assertJsonPath('error_scopes', []);
+    $this->assertDatabaseCount('reading_logs', 0);
+})->with([
+    'missing start' => [['start_chapter' => null], 'start_chapter'],
+    'nonnumeric end' => [['end_chapter' => 'abc'], 'end_chapter'],
+    'end below one' => [['end_chapter' => 0], 'end_chapter'],
+]);
+
+it('renders range errors once below both chapter inputs in the native fallback', function () {
+    $user = User::factory()->create(['reading_timezone' => 'America/Toronto']);
+
+    $response = $this->actingAs($user)->post(route('logs.store'), [
+        'book_id' => 43, 'start_chapter' => 3, 'end_chapter' => 1, 'date_read' => '2026-10-13',
+    ], ['HX-Request' => 'true']);
+
+    $response->assertOk()->assertSee('id="chapter-range-error"', false)
+        ->assertDontSee('id="start_chapter-error"', false);
+    expect(readingLogIslandProps($response)['errorScopes'])->toBe(['start_chapter' => 'chapter_range']);
+    expect(preg_match_all('/<input[^>]+aria-describedby="chapter-range-error"/', $response->getContent()))->toBe(2);
+    $this->assertDatabaseCount('reading_logs', 0);
+});

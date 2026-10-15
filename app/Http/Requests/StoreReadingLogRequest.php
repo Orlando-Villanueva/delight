@@ -55,7 +55,7 @@ class StoreReadingLogRequest extends FormRequest
                 if ($start > $end || ! $bibleReferenceService->validateChapterRange(
                     $this->input('book_id'), $start, $end, $this->user()->includesDeuterocanonicalBooks()
                 )) {
-                    $validator->errors()->add('start_chapter', 'Invalid chapter range for the selected book.');
+                    $validator->errors()->add('chapter_range', 'Invalid chapter range for the selected book.');
                 }
             },
         ];
@@ -69,10 +69,18 @@ class StoreReadingLogRequest extends FormRequest
     /** @param array<string, array<int, string>> $errors */
     public function validationResponse(array $errors): Response
     {
+        $errorScopes = [];
+        if (isset($errors['chapter_range'])) {
+            $errors['start_chapter'] = $errors['chapter_range'];
+            unset($errors['chapter_range']);
+            $errorScopes['start_chapter'] = 'chapter_range';
+        }
+
         if ($this->wantsJson()) {
             return response()->json([
                 'message' => ValidationException::withMessages($errors)->getMessage(),
                 'errors' => $errors,
+                'error_scopes' => $errorScopes,
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -83,6 +91,7 @@ class StoreReadingLogRequest extends FormRequest
         $data = array_merge([
             'books' => $bibleReferenceService->listBibleBooks(null, 'en', $this->user()->includesDeuterocanonicalBooks()),
             'errors' => new MessageBag($errors),
+            'errorScopes' => $errorScopes,
             'selectedDateRead' => $this->input('date_read') === $yesterday
                 ? $yesterday
                 : $readingCalendar->todayFor($this->user())->toDateString(),

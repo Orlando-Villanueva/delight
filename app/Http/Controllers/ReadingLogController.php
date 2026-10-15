@@ -117,6 +117,7 @@ class ReadingLogController extends Controller
                         ],
                     ],
                     'celebration' => $this->achievementService->getCelebrationPayload($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay),
+                    'celebration_html' => $this->achievementCelebrationFragment($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay),
                 ]);
             }
 
@@ -147,7 +148,7 @@ class ReadingLogController extends Controller
         } catch (ValidationException $e) {
             return $request->validationResponse($e->errors());
         } catch (InvalidArgumentException $e) {
-            return $request->validationResponse(['start_chapter' => [$e->getMessage()]]);
+            return $request->validationResponse(['chapter_range' => [$e->getMessage()]]);
         } catch (QueryException $e) {
             if (! in_array((string) $e->getCode(), ['23000', '23505'], true)) {
                 throw $e;
@@ -157,7 +158,7 @@ class ReadingLogController extends Controller
             $dateLabel = $request->input('date_read') === $yesterday ? 'yesterday' : 'today';
 
             return $request->validationResponse([
-                'start_chapter' => ["You have already logged one or more of these chapters for {$dateLabel}."],
+                'chapter_range' => ["You have already logged one or more of these chapters for {$dateLabel}."],
             ]);
         }
     }

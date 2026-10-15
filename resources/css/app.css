@@ -8,6 +8,7 @@
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+@source '../**/*.vue';
 @source '../../node_modules/flowbite';
 
 /* Bible Habit Brand Colors for reference */
