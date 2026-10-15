@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\OnboardingStep;
 use App\Http\Requests\DeleteReadingChaptersRequest;
+use App\Http\Requests\StoreReadingLogRequest;
 use App\Http\Requests\UpdateReadingNotesRequest;
 use App\Models\ReadingLog;
 use App\Models\User;
@@ -18,7 +19,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\MessageBag;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Response;
@@ -57,54 +57,24 @@ class ReadingLogController extends Controller
         $data = array_merge(compact('books', 'errors'), $formContext);
 
         // Return appropriate view based on request type
-        return response()->htmx('logs.create', 'page-content', $data);
+        $response = response()->htmx('logs.create', 'page-content', $data);
+        if (! $response instanceof Response) {
+            $response = response($response);
+        }
+
+        return $response->setVary('HX-Request', false);
     }
 
     /**
      * Store a newly created reading log.
      */
-    public function store(Request $request)
+    public function store(StoreReadingLogRequest $request)
     {
         try {
-            // Late Logging Grace: Only allow today or yesterday
-            $today = $this->readingCalendar->todayFor($request->user())->toDateString();
-            $yesterday = $this->readingCalendar->yesterdayFor($request->user())->toDateString();
-
+            $validated = $request->validated();
             $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
-
-            $validated = $request->validate([
-                'book_id' => [
-                    'required',
-                    'integer',
-                    Rule::in(collect($this->bibleReferenceService->listBibleBooks(includeDeuterocanonical: $includeDeuterocanonical))->pluck('id')->all()),
-                ],
-                'start_chapter' => 'required|integer|min:1',
-                'end_chapter' => 'nullable|integer|min:1',
-                'date_read' => "required|date|in:{$today},{$yesterday}",
-                'notes_text' => 'nullable|string|max:1000',
-            ]);
-
             $start = (int) $validated['start_chapter'];
             $end = isset($validated['end_chapter']) ? (int) $validated['end_chapter'] : $start;
-
-            // Ensure start <= end (unless end was not provided, in which case it defaulted to start)
-            if ($start > $end) {
-                throw ValidationException::withMessages([
-                    'start_chapter' => 'Invalid chapter range for the selected book.',
-                ]);
-            }
-
-            // Validate chapter range using service
-            if (! $this->bibleReferenceService->validateChapterRange(
-                $validated['book_id'],
-                $start,
-                $end,
-                $includeDeuterocanonical
-            )) {
-                throw ValidationException::withMessages([
-                    'start_chapter' => 'Invalid chapter range for the selected book.',
-                ]);
-            }
 
             // Format passage text using service
             $validated['passage_text'] = $this->bibleReferenceService->formatBibleReferenceRange(
@@ -126,6 +96,36 @@ class ReadingLogController extends Controller
             // Create reading log using service
             $result = $this->readingLogService->logReadingWithResult($user, $validated);
             $log = $result->log;
+
+            if ($request->wantsJson()) {
+                $formContext = $this->readingFormService->getFormContextData($user);
+                $celebration = $this->achievementService->getCelebrationPayload($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay);
+
+                return response()->json([
+                    'message' => "{$log->passage_text} recorded for {$log->date_read->format('M d, Y')}",
+                    'reading' => [
+                        'passage_text' => $log->passage_text,
+                        'date_read' => $log->date_read->toDateString(),
+                    ],
+                    'form' => [
+                        'books' => $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical),
+                        'recent_books' => $formContext['recentBooks'],
+                        'dates' => [
+                            'today' => $this->readingCalendar->todayFor($user)->toDateString(),
+                            'yesterday' => $this->readingCalendar->yesterdayFor($user)->toDateString(),
+                        ],
+                        'values' => [
+                            'book_id' => '',
+                            'start_chapter' => '',
+                            'end_chapter' => '',
+                            'date_read' => $this->readingCalendar->todayFor($user)->toDateString(),
+                            'notes_text' => '',
+                        ],
+                    ],
+                    'celebration' => $celebration,
+                    'celebration_html' => $this->achievementCelebrationFragment($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay, $celebration),
+                ]);
+            }
 
             // Check if this is an HTMX request for the form replacement
             if ($request->header('HX-Request')) {
@@ -152,75 +152,26 @@ class ReadingLogController extends Controller
                 return view('partials.reading-log-success-message', compact('log'));
             }
         } catch (ValidationException $e) {
-            // Get books data for form re-display
-            $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
-            $books = $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical);
-
-            // Pass errors directly to the view
-            $errors = new MessageBag($e->errors());
-
-            // Get form context data
-            $formContext = $this->readingFormService->getFormContextData($request->user());
-            $selectedDateRead = $this->selectedDateReadForForm($request);
-            $submittedFormValues = $this->submittedValuesForForm($request);
-
-            // Return appropriate fragment or view based on request type
-            return response()->htmx('logs.create', 'reading-form', array_merge(
-                compact('books', 'errors', 'selectedDateRead'),
-                $submittedFormValues,
-                $formContext
-            ));
+            return $request->validationResponse($e->errors());
         } catch (InvalidArgumentException $e) {
-            // Get books data for form re-display
-            $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
-            $books = $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical);
-
-            // Create error bag for form display
-            $errors = new MessageBag(['start_chapter' => [$e->getMessage()]]);
-
-            // Get form context data
-            $formContext = $this->readingFormService->getFormContextData($request->user());
-            $selectedDateRead = $this->selectedDateReadForForm($request);
-            $submittedFormValues = $this->submittedValuesForForm($request);
-
-            // Return appropriate fragment or view based on request type
-            return response()->htmx('logs.create', 'reading-form', array_merge(
-                compact('books', 'errors', 'selectedDateRead'),
-                $submittedFormValues,
-                $formContext
-            ));
+            return $request->validationResponse(['chapter_range' => [$e->getMessage()]]);
         } catch (QueryException $e) {
-            // Handle unique constraint violation (duplicate reading log)
-            if (in_array((string) $e->getCode(), ['23000', '23505'], true)) {
-                // Get books data for form re-display
-                $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
-                $books = $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical);
-
-                // Create error bag for form display
-                $dateLabel = $request->input('date_read') === $yesterday ? 'yesterday' : 'today';
-                $errors = new MessageBag(['start_chapter' => ["You have already logged one or more of these chapters for {$dateLabel}."]]);
-
-                // Get form context data
-                $formContext = $this->readingFormService->getFormContextData($request->user());
-                $selectedDateRead = $this->selectedDateReadForForm($request);
-                $submittedFormValues = $this->submittedValuesForForm($request);
-
-                // Return appropriate fragment or view based on request type
-                return response()->htmx('logs.create', 'reading-form', array_merge(
-                    compact('books', 'errors', 'selectedDateRead'),
-                    $submittedFormValues,
-                    $formContext
-                ));
+            if (! in_array((string) $e->getCode(), ['23000', '23505'], true)) {
+                throw $e;
             }
 
-            // Re-throw if it's a different database error
-            throw $e;
+            $yesterday = $this->readingCalendar->yesterdayFor($request->user())->toDateString();
+            $dateLabel = $request->input('date_read') === $yesterday ? 'yesterday' : 'today';
+
+            return $request->validationResponse([
+                'chapter_range' => ["You have already logged one or more of these chapters for {$dateLabel}."],
+            ]);
         }
     }
 
-    private function achievementCelebrationFragment(User $user, Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): string
+    private function achievementCelebrationFragment(User $user, Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay, ?array $payload = null): string
     {
-        $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log, $isFirstReadingOfDay);
+        $payload ??= $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log, $isFirstReadingOfDay);
 
         if (empty($payload['earned']) && empty($payload['record'])) {
             return '';
@@ -229,35 +180,6 @@ class ReadingLogController extends Controller
         return view('components.celebrations.achievement-unlocks', [
             'payload' => $payload,
         ])->render();
-    }
-
-    private function selectedDateReadForForm(Request $request): string
-    {
-        $yesterday = $this->readingCalendar->yesterdayFor($request->user())->toDateString();
-
-        return $request->input('date_read') === $yesterday
-            ? $yesterday
-            : $this->readingCalendar->todayFor($request->user())->toDateString();
-    }
-
-    /**
-     * @return array{selectedBookId:string,selectedStartChapter:string,selectedEndChapter:string,selectedNotesText:string}
-     */
-    private function submittedValuesForForm(Request $request): array
-    {
-        return [
-            'selectedBookId' => $this->scalarInputForForm($request, 'book_id'),
-            'selectedStartChapter' => $this->scalarInputForForm($request, 'start_chapter'),
-            'selectedEndChapter' => $this->scalarInputForForm($request, 'end_chapter'),
-            'selectedNotesText' => $this->scalarInputForForm($request, 'notes_text'),
-        ];
-    }
-
-    private function scalarInputForForm(Request $request, string $key): string
-    {
-        $value = $request->input($key, '');
-
-        return is_scalar($value) ? (string) $value : '';
     }
 
     /**

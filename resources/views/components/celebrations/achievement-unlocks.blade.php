@@ -29,6 +29,7 @@
             x-show="open"
             x-transition.opacity
             x-init="
+                $watch('open', value => { if (!value) $dispatch('achievement-celebration-closed'); });
                 $nextTick(() => $refs.closeButton?.focus());
                 setTimeout(() => progressReady = true, 120);
                 if (typeof window.confetti === 'function') {

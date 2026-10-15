@@ -204,9 +204,9 @@ describe('HTMX Navigation Requests', function () {
         $response = $this->actingAs($user)->get(route('logs.create'));
 
         $response->assertSuccessful();
-        $response->assertSee('hx-indicator="#save-loading"', false);
-        $response->assertSee('id="save-loading"', false);
-        $response->assertSee('htmx-indicator-hidden">Log Reading', false);
+        $response->assertSee('data-reading-log-island', false);
+        $response->assertSee('<form method="POST" action="'.route('logs.store').'"', false);
+        $response->assertSee('Log Reading', false);
     });
 
     it('wires offline retry buttons to reset scroll before reloading', function () {
@@ -254,14 +254,12 @@ describe('Navigation Routes', function () {
         $response->assertSeeText('Yesterday');
         $response->assertSeeText('Today');
         $response->assertSeeText('Forgot to log? Choose yesterday.');
-        $response->assertSee('data-date-read-segmented-control', false);
+        $response->assertSee('data-reading-log-island', false);
+        $response->assertSee('name="date_read" value="'.today()->toDateString().'" checked', false);
+        $response->assertSee('name="date_read" value="'.today()->subDay()->toDateString().'"', false);
         $response->assertDontSee('Logging for today', false);
         $response->assertDontSee('Grace period help', false);
-        $this->assertMatchesRegularExpression('/for="today".*?Today.*?for="yesterday".*?Yesterday/s', $response->getContent());
-        $this->assertMatchesRegularExpression('/id="today".*?checked/s', $response->getContent());
-        $this->assertMatchesRegularExpression('/class="[^"]*peer-checked:bg-primary-50[^"]*peer-checked:text-primary-700[^"]*peer-focus-visible:ring-2/', $response->getContent());
-        $response->assertDontSee('peer-checked:ring-1', false);
-        $response->assertDontSee('peer-checked:ring-primary-500', false);
+        $response->assertSee('id="today"', false)->assertSee('id="yesterday"', false);
     });
 
     it('keeps yesterday available when yesterday is already logged', function () {

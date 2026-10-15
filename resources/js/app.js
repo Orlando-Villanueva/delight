@@ -1,4 +1,5 @@
 import './bootstrap';
+import { initReadingLogIslands } from './components/reading-log-islands.js';
 import confetti from 'canvas-confetti';
 import { authenticatedShell } from './components/authenticated-shell.js';
 import { initAchievementHistory } from './components/achievement-history.js';
@@ -51,6 +52,7 @@ const initFlowbiteWithPatches = () => {
 };
 
 if (typeof document !== 'undefined') {
+    initReadingLogIslands();
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initAchievementHistory, { once: true });
     } else {

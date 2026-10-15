@@ -90,6 +90,11 @@
 
         <!-- Mobile: Bottom Bar -->
         <x-navigation.mobile-bottom-bar class="lg:hidden" />
+
+        <div class="pointer-events-none fixed inset-x-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-stack-loading flex justify-center lg:bottom-6 lg:left-[calc(var(--notice-sidebar)+1rem)]"
+            x-bind:style="{ '--notice-sidebar': sidebarCollapsed ? '5rem' : '16rem' }">
+            <div id="transient-notice-root" class="w-full max-w-md" x-ignore hx-disable></div>
+        </div>
     </div>
 
     {{-- Global container for HTMX out-of-band modal swaps --}}

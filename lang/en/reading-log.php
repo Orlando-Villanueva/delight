@@ -1,0 +1,33 @@
+<?php
+
+return [
+    'when' => 'When did you read?',
+    'today' => 'Today',
+    'yesterday' => 'Yesterday',
+    'date_help' => 'Forgot to log? Choose yesterday.',
+    'book' => 'Bible book',
+    'select_book' => 'Select a book...',
+    'book_label' => 'Select Bible book',
+    'collections' => ['old' => 'Old Testament', 'deuterocanonical' => 'Deuterocanonical', 'new' => 'New Testament'],
+    'recent' => 'Recent',
+    'start' => 'Start Chapter',
+    'end' => 'End Chapter (Optional)',
+    'start_placeholder' => 'e.g. 1',
+    'end_placeholder' => 'e.g. 5',
+    'add_note' => 'Add a note or reflection',
+    'note' => 'Note or reflection',
+    'note_placeholder' => 'Share any thoughts, insights, or questions from your reading...',
+    'chapter_notes' => [
+        'esther_additions' => 'Esther 11-16 are the Greek additions in Vulgate/Douay-Rheims-style numbering.',
+        'daniel_additions' => 'Daniel 3 includes the Prayer of Azariah and Song of the Three Young Men; Daniel 13 is Susanna; Daniel 14 is Bel and the Dragon.',
+    ],
+    'save' => 'Log Reading',
+    'saving' => 'Saving...',
+    'saved' => ':passage logged for :date.',
+    'dismiss_success' => 'Dismiss confirmation',
+    'session_error' => 'Your session has expired. Your entries are still here. Sign in or reload before trying again.',
+    'request_error' => 'The reading could not be saved. Your entries are still here. Try again.',
+    'uncertain_error' => 'We could not confirm whether your reading was saved. Your entries are still here. Check History before trying again.',
+    'check_history' => 'Check History (opens a new tab)',
+    'retry_checked' => 'I checked History — allow another save',
+];

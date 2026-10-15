@@ -32,8 +32,7 @@ it('drops malformed array inputs when preserving values after htmx validation re
     ], ['HX-Request' => 'true']);
 
     $response->assertSuccessful()
-        ->assertSee('data-recent-book-suggestion="43"', false)
-        ->assertSee("initialBookId: ''", false)
+        ->assertSee('data-reading-log-island', false)
         ->assertDontSee('Array');
 
     expect($response->getContent())->toMatch('/<input[^>]+name="start_chapter"[^>]+value=""/s')
@@ -46,8 +45,8 @@ it('does not render recent book suggestions when the user has no reading history
     $this->actingAs($user)
         ->get(route('logs.create'))
         ->assertSuccessful()
-        ->assertDontSee('data-recent-books', false)
-        ->assertDontSee('data-recent-book-suggestion', false);
+        ->assertSee('data-reading-log-island', false)
+        ->assertSee('&quot;recentBooks&quot;:[]', false);
 });
 
 it('renders up to three distinct recent books ordered by latest reading recency', function () {
@@ -61,35 +60,14 @@ it('renders up to three distinct recent books ordered by latest reading recency'
 
     $response = $this->actingAs($user)->get(route('logs.create'));
 
-    $response->assertSuccessful()
-        ->assertSee('data-recent-books', false)
-        ->assertSee('Recent')
-        ->assertDontSee('RECENTLY READ')
-        ->assertDontSee('Tap a book to fill the selector.')
-        ->assertDontSee('Choose another book')
-        ->assertSee('recent-books-rail -mt-1 flex max-w-full items-center gap-2 overflow-x-auto py-1', false)
-        ->assertSee('isScrollingRecentBooks', false)
-        ->assertSee('@scroll.passive', false)
-        ->assertSee('if (! isScrollingRecentBooks) isScrollingRecentBooks = true', false)
-        ->assertSee("'is-scrolling': isScrollingRecentBooks", false)
-        ->assertSee('role="group" aria-labelledby="recent-books-label"', false)
-        ->assertDontSee('x-bind:aria-pressed', false)
-        ->assertDontSee('ring-primary-500/25', false)
-        ->assertDontSee('active:border-accent-400', false)
-        ->assertDontSee('active:bg-accent-50', false)
-        ->assertSee('inline-flex min-h-9 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-full', false)
-        ->assertSee('h-1.5 w-1.5 shrink-0 rounded-full', false)
-        ->assertSee('focus-visible:ring-2', false)
-        ->assertDontSee('grid grid-cols-1 gap-2 sm:grid-cols-3', false)
-        ->assertDontSee('inline-flex min-h-11 w-full items-center', false)
-        ->assertSeeInOrder([
-            'data-recent-book-suggestion="1"',
-            'data-recent-book-suggestion="40"',
-            'data-recent-book-suggestion="43"',
-        ], false)
-        ->assertDontSee('data-recent-book-suggestion="19"', false);
+    $response->assertSuccessful();
+    $props = readingLogIslandProps($response);
+    expect(array_column($props['recentBooks'], 'id'))->toBe([1, 40, 43]);
+    expect($props['values']['book_id'])->toBe('');
+    $response->assertSee('data-reading-log-island', false)
+        ->assertSee('x-ignore hx-disable hx-history="false"', false)
+        ->assertDontSee('readingLogForm(');
 
-    expect(substr_count($response->getContent(), 'data-recent-book-suggestion='))->toBe(3);
 });
 
 it('renders only the available recent books when fewer than three distinct books exist', function () {
@@ -100,13 +78,9 @@ it('renders only the available recent books when fewer than three distinct books
 
     $response = $this->actingAs($user)->get(route('logs.create'));
 
-    $response->assertSuccessful()
-        ->assertSeeInOrder([
-            'data-recent-book-suggestion="43"',
-            'data-recent-book-suggestion="1"',
-        ], false);
+    $response->assertSuccessful();
+    expect(array_column(readingLogIslandProps($response)['recentBooks'], 'id'))->toBe([43, 1]);
 
-    expect(substr_count($response->getContent(), 'data-recent-book-suggestion='))->toBe(2);
 });
 
 it('filters deuterocanonical recent books by the current canon preference before limiting', function () {
@@ -117,26 +91,13 @@ it('filters deuterocanonical recent books by the current canon preference before
     createRecentBookLog($user, 40, '2026-06-22', '2026-06-22 12:00:00');
     createRecentBookLog($user, 43, '2026-06-21', '2026-06-21 12:00:00');
 
-    $this->actingAs($user)
-        ->get(route('logs.create'))
-        ->assertSuccessful()
-        ->assertDontSee('data-recent-book-suggestion="67"', false)
-        ->assertSeeInOrder([
-            'data-recent-book-suggestion="1"',
-            'data-recent-book-suggestion="40"',
-            'data-recent-book-suggestion="43"',
-        ], false);
+    $response = $this->actingAs($user)->get(route('logs.create'))->assertSuccessful();
+    expect(array_column(readingLogIslandProps($response)['recentBooks'], 'id'))->toBe([1, 40, 43]);
 
     $user->forceFill(['deuterocanonical_books_enabled_at' => now()])->save();
+    $response = $this->actingAs($user)->get(route('logs.create'))->assertSuccessful();
+    expect(array_column(readingLogIslandProps($response)['recentBooks'], 'id'))->toBe([67, 1, 40]);
 
-    $this->actingAs($user)
-        ->get(route('logs.create'))
-        ->assertSuccessful()
-        ->assertSeeInOrder([
-            'data-recent-book-suggestion="67"',
-            'data-recent-book-suggestion="1"',
-            'data-recent-book-suggestion="40"',
-        ], false);
 });
 
 it('preserves selected book, chapter input, notes, and suggestions after htmx validation replacement', function () {
@@ -155,8 +116,6 @@ it('preserves selected book, chapter input, notes, and suggestions after htmx va
 
     $response->assertSuccessful()
         ->assertSee('Invalid chapter range')
-        ->assertSee('data-recent-book-suggestion="43"', false)
-        ->assertSee("initialBookId: '43'", false)
         ->assertSee('value="10"', false)
         ->assertSee('value="5"', false)
         ->assertSee('Keep this reflection visible.');
@@ -178,13 +137,8 @@ it('refreshes suggestions and resets chapter and note inputs after a successful 
     $response->assertSuccessful()
         ->assertHeader('HX-Trigger', 'readingLogAdded')
         ->assertSee('Matthew 4 recorded')
-        ->assertSeeInOrder([
-            'data-recent-book-suggestion="40"',
-            'data-recent-book-suggestion="43"',
-            'data-recent-book-suggestion="1"',
-        ], false)
-        ->assertSee("initialBookId: ''", false)
         ->assertDontSee('Do not carry this forward.');
 
+    expect(array_column(readingLogIslandProps($response)['recentBooks'], 'id'))->toBe([40, 43, 1]);
     expect($response->getContent())->toMatch('/<input[^>]+name="start_chapter"[^>]+value=""/s');
 });
