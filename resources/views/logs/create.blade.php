@@ -24,6 +24,8 @@
                         'locale' => app()->getLocale(),
                         'submitUrl' => route('logs.store'),
                         'historyUrl' => route('logs.index'),
+                        'achievementsUrl' => route('achievements.index'),
+                        'achievementBadgeBaseUrl' => asset('images/achievements'),
                         'csrfToken' => csrf_token(),
                         'books' => array_values($books),
                         'recentBooks' => array_values($recentBooks ?? []),

@@ -41,8 +41,8 @@ it('returns fresh form defaults and server celebrations after saving a chapter r
         ->assertJsonCount(1, 'form.recent_books')
         ->assertJsonPath('form.recent_books.0.id', 43)
         ->assertJsonPath('celebration.reading.passage', 'John 1-3')
-        ->assertJsonStructure(['celebration_html']);
-    expect($response->json('celebration_html'))->toContain('achievement-celebration-modal');
+        ->assertJsonStructure(['celebration' => ['earned', 'progress', 'record', 'reading']])
+        ->assertJsonMissingPath('celebration_html');
 
     expect(collect($response->json('form.books'))->pluck('id'))->toContain(43)->not->toContain(67);
     expect(collect($response->json('celebration.earned'))->pluck('display_name'))->toContain('First reading');
@@ -52,6 +52,21 @@ it('returns fresh form defaults and server celebrations after saving a chapter r
         'user_id' => $user->id, 'book_id' => 43, 'chapter' => 1,
         'date_read' => '2026-10-12 00:00:00', 'notes_text' => 'Keep this reflection with the reading.',
     ]);
+});
+
+it('returns an empty celebration for an ordinary subsequent reading', function () {
+    $user = User::factory()->create(['reading_timezone' => 'America/Toronto']);
+    $this->actingAs($user)->postJson(route('logs.store'), [
+        'book_id' => 43, 'start_chapter' => 1, 'date_read' => '2026-10-13',
+    ])->assertOk();
+
+    $this->postJson(route('logs.store'), [
+        'book_id' => 43, 'start_chapter' => 2, 'date_read' => '2026-10-13',
+    ])->assertOk()
+        ->assertJsonPath('celebration.earned', [])
+        ->assertJsonPath('celebration.record', null)
+        ->assertJsonMissingPath('celebration_html');
+    $this->assertDatabaseCount('reading_logs', 2);
 });
 
 it('saves an opted-in addition as a single chapter and returns the available canon', function () {

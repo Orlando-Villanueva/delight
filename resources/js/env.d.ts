@@ -1,5 +1,12 @@
+type ReadingConfettiOptions = { particleCount: number; spread: number; origin: { y: number }; disableForReducedMotion: boolean };
+
+type ReadingConfetti = {
+    (options: ReadingConfettiOptions): void;
+    reset(): void;
+};
+
 interface Window {
-    htmx?: {
-        swap(target: string, content: string, options: { swapStyle: string }): void;
+    confetti?: ReadingConfetti & {
+        create(canvas: HTMLCanvasElement, options: { resize: boolean }): ReadingConfetti;
     };
 }

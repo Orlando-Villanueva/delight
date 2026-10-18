@@ -77,14 +77,16 @@
             </template>
         </div>
     </form>
-    <TransientNotice :message="success" :suspended="celebrationPending" :dismiss-label="messages.dismiss_success" @dismiss="dismissSuccess" />
+    <ReadingCelebration v-if="celebration" :payload="celebration" :achievements-url="config.achievementsUrl" :badge-base-url="config.achievementBadgeBaseUrl" @close="closeCelebration" />
+    <TransientNotice :message="success" :suspended="Boolean(celebration)" :dismiss-label="messages.dismiss_success" @dismiss="dismissSuccess" />
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { consumeReadingLogOutcome, initializeReadingLogForm, setReadingLogUncertain, submitReadingLog, updateReadingLogSnapshot } from '@/components/reading-log-session.ts';
+import ReadingCelebration from '@/components/ReadingCelebration.vue';
 import TransientNotice from '@/components/TransientNotice.vue';
-import type { BibleBook, ReadingFormConfig, ReadingOutcome, ReadingSession, ReadingValues } from '@/components/reading-log-types';
+import type { BibleBook, ReadingCelebration as ReadingCelebrationPayload, ReadingFormConfig, ReadingOutcome, ReadingSession, ReadingValues } from '@/components/reading-log-types';
 
 const { config, session } = defineProps<{ config: ReadingFormConfig; session: ReadingSession }>();
 const messages = config.messages;
@@ -111,7 +113,7 @@ function chapterDescription(field: keyof ReadingValues) {
 }
 const saving = ref(Boolean(session.pending));
 const success = ref(config.successMessage);
-const celebrationPending = ref(false);
+const celebration = ref<ReadingCelebrationPayload | null>(null);
 const notice = ref(session.uncertain ? messages.uncertain_error : '');
 const uncertain = ref(session.uncertain);
 const isScrolling = ref(false);
@@ -200,16 +202,12 @@ async function handleOutcome(pending: Promise<ReadingOutcome>) {
         errorScopes.value = {};
         notice.value = '';
         uncertain.value = false;
-        celebrationPending.value = Boolean(data.celebration_html && window.htmx);
+        celebration.value = data.celebration.earned.length || data.celebration.record ? data.celebration : null;
         const dateLabel = new Intl.DateTimeFormat(config.locale ?? 'en', {
             month: 'short', day: 'numeric', timeZone: 'UTC',
         }).format(new Date(`${data.reading.date_read}T12:00:00Z`));
         success.value = messages.saved.replace(':passage', data.reading.passage_text).replace(':date', dateLabel);
         snapshot();
-        // This existing Alpine celebration is outside the Vue-owned form.
-        if (data.celebration_html && window.htmx) {
-            window.htmx.swap('#achievement-celebration-root', data.celebration_html, { swapStyle: 'none' });
-        }
     } else if (outcome.kind === 'validation') {
         const refreshedForm = initializeReadingLogForm(session, { dates: dates.value });
         dates.value = refreshedForm.dates;
@@ -249,7 +247,11 @@ async function dismissSuccess(restoreFocus: boolean) {
     }
 }
 
-function celebrationClosed() { celebrationPending.value = false; }
+async function closeCelebration() {
+    celebration.value = null;
+    await nextTick();
+    form.value?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus();
+}
 
 function allowRetry() {
     setReadingLogUncertain(session, false);
@@ -259,7 +261,6 @@ function allowRetry() {
 
 onMounted(() => {
     document.addEventListener('click', outsideClick);
-    document.addEventListener('achievement-celebration-closed', celebrationClosed);
     if (session.pending) handleOutcome(session.pending);
     else if (session.outcome) handleOutcome(Promise.resolve(session.outcome));
 });
@@ -269,6 +270,5 @@ onBeforeUnmount(() => {
     snapshot();
     clearTimeout(scrollTimer);
     document.removeEventListener('click', outsideClick);
-    document.removeEventListener('achievement-celebration-closed', celebrationClosed);
 });
 </script>

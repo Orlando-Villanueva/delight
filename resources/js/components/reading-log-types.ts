@@ -12,11 +12,35 @@ export type ReadingErrors = Partial<Record<keyof ReadingValues | 'chapter_range'
 export type ReadingErrorScopes = Partial<Record<keyof ReadingValues, string>>;
 export type ReadingSnapshot = { values: ReadingValues; collection: string; notesOpen: boolean };
 
+export type CelebrationAchievement = {
+    id: number;
+    display_name: string;
+    description: string;
+    icon: string;
+    is_repeat_book_completion: boolean;
+};
+
+export type CelebrationProgress = {
+    display_name: string;
+    icon: string;
+    current: number;
+    target: number;
+    progress_percent: number;
+    unit: 'percent' | 'days';
+};
+
+export type ReadingCelebration = {
+    earned: CelebrationAchievement[];
+    progress: CelebrationProgress[];
+    record: { eyebrow: string; title: string; description: string; icon: string } | null;
+    reading: { passage: string; date: string };
+};
+
 export type ReadingSuccess = {
     message: string;
     reading: { passage_text: string; date_read: string };
     form: { values: ReadingValues; dates: ReadingDates; books: BibleBook[]; recent_books: BibleBook[] };
-    celebration_html: string;
+    celebration: ReadingCelebration;
 };
 
 export type ReadingOutcome =
@@ -46,6 +70,8 @@ export type ReadingFormConfig = {
     locale: string;
     submitUrl: string;
     historyUrl: string;
+    achievementsUrl: string;
+    achievementBadgeBaseUrl: string;
     csrfToken: string;
     books: BibleBook[];
     recentBooks: BibleBook[];

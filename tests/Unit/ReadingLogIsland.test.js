@@ -6,7 +6,7 @@ import { consumeReadingLogOutcome, createReadingLogSession, initializeReadingLog
 import { installReadingLogIslands } from '../../resources/js/components/reading-log-lifecycle.js';
 
 const draft = () => ({ values: { book_id: '43', start_chapter: '3', end_chapter: '1', date_read: '2026-10-14', notes_text: 'Private draft' }, collection: 'new', notesOpen: true });
-const success = () => ({ message: 'John 1 recorded', form: { values: { book_id: '', start_chapter: '', end_chapter: '', date_read: '2026-10-14', notes_text: '' }, dates: { today: '2026-10-14', yesterday: '2026-10-13' }, books: [], recent_books: [] }, celebration_html: '' });
+const success = () => ({ message: 'John 1 recorded', form: { values: { book_id: '', start_chapter: '', end_chapter: '', date_read: '2026-10-14', notes_text: '' }, dates: { today: '2026-10-14', yesterday: '2026-10-13' }, books: [], recent_books: [] }, celebration: { earned: [], progress: [], record: null, reading: { passage: 'John 1', date: 'Oct 14, 2026' } } });
 const response = (status, data) => ({ status, ok: status >= 200 && status < 300, json: async () => data });
 const options = (fetcher) => ({ url: '/logs', csrfToken: 'test-csrf', fetcher });
 
@@ -51,6 +51,7 @@ for (const [label, fetcher] of [
     ['lost response', async () => { throw new TypeError('Network failure'); }],
     ['server error', async () => response(500, {})],
     ['malformed success', async () => response(200, {})],
+    ['missing celebration data', async () => response(200, { ...success(), celebration: undefined })],
 ]) {
     test(`requires an explicit decision before retrying an uncertain ${label}`, async () => {
         const session = createReadingLogSession(draft());

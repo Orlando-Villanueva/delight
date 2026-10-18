@@ -151,6 +151,7 @@ class AchievementService
                 'current' => $achievement['current'],
                 'target' => $achievement['target'],
                 'progress_percent' => $achievement['progress_percent'],
+                'unit' => str_starts_with($achievement['achievement_key'], 'bible_progress_') ? 'percent' : 'days',
             ])
             ->values()
             ->all();

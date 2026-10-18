@@ -66,7 +66,7 @@ export function submitReadingLog(session: ReadingSession, values: ReadingValues,
                 const data = await response.json() as ReadingSuccess;
                 if (!data.form?.values || !data.form?.dates || !Array.isArray(data.form?.books)
                     || !Array.isArray(data.form?.recent_books) || typeof data.message !== 'string'
-                    || typeof data.celebration_html !== 'string') {
+                    || !Array.isArray(data.celebration?.earned) || !Array.isArray(data.celebration?.progress)) {
                     throw new Error('Unrecognized reading response');
                 }
                 updateReadingLogDateContext(session, data.form.dates);
