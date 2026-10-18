@@ -32,6 +32,7 @@
     "vite": "^7.1.9"
   },
   "dependencies": {
+    "@inertiajs/vue3": "^3.9.1",
     "@tailwindcss/typography": "^0.5.19",
     "axios": "^1.12.2",
     "canvas-confetti": "^1.9.4",

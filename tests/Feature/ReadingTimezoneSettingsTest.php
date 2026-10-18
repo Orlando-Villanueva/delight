@@ -7,19 +7,15 @@ use App\Services\ReadingCalendarService;
 use App\Services\UserStatisticsService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Inertia\Testing\AssertableInertia;
 
 it('shows the saved timezone alongside other preferences in the same accessible settings form', function () {
     $user = User::factory()->create(['reading_timezone' => 'Asia/Tokyo']);
-    $html = $this->actingAs($user)->get(route('settings.edit'))->assertOk()->getContent();
-    $dom = new DOMDocument;
-    @$dom->loadHTML($html);
-    $xpath = new DOMXPath($dom);
-
-    expect($xpath->query('//label[@for="reading_timezone"]')->item(0)->textContent)->toContain('Time zone');
-    expect($xpath->query('//select[@name="reading_timezone"]/option[@selected]')->item(0)->getAttribute('value'))->toBe('Asia/Tokyo');
-    expect($xpath->query('//select[@name="reading_timezone" and contains(@class, "shadow-none")]')->length)->toBe(1);
-    expect($xpath->query('//select[@name="reading_timezone"]/ancestor::form//input[@name="daily_reading_reminder_enabled" and @type="checkbox"]')->length)->toBe(1);
-    expect($xpath->query('//input[@name="push_notification_timezone"]')->length)->toBe(0);
+    $this->actingAs($user)->get(route('settings.edit'))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Settings', false)
+            ->where('values.reading_timezone', 'Asia/Tokyo')
+            ->where('values.daily_reading_reminder_enabled', false)
+            ->has('readingTimezoneOptions.Asia/Tokyo')->etc());
 });
 
 it('requires authentication to correct the reading timezone', function () {
@@ -131,9 +127,10 @@ it('labels timezones with their current offset including daylight saving and fra
     $this->travelTo(Carbon::parse($date, 'UTC'));
     $user = User::factory()->create(['reading_timezone' => 'America/Toronto']);
     $this->actingAs($user)->get(route('settings.edit'))->assertOk()
-        ->assertSee('Toronto — America/Toronto (UTC'.$torontoOffset.')')
-        ->assertSee('Tokyo — Asia/Tokyo (UTC+09:00)')
-        ->assertSee('Kathmandu — Asia/Kathmandu (UTC+05:45)');
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('readingTimezoneOptions.America/Toronto', 'Toronto — America/Toronto (UTC'.$torontoOffset.')')
+            ->where('readingTimezoneOptions.Asia/Tokyo', 'Tokyo — Asia/Tokyo (UTC+09:00)')
+            ->where('readingTimezoneOptions.Asia/Kathmandu', 'Kathmandu — Asia/Kathmandu (UTC+05:45)')->etc());
 })->with([
     'summer' => ['2026-07-10 12:00:00', '-04:00'],
     'winter' => ['2026-01-10 12:00:00', '-05:00'],

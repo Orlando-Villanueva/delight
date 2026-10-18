@@ -1,174 +1,3 @@
-<script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { consumeReadingLogOutcome, initializeReadingLogForm, setReadingLogUncertain, submitReadingLog, updateReadingLogSnapshot } from './reading-log-session.js';
-import TransientNotice from './TransientNotice.vue';
-
-const { config, session } = defineProps(['config', 'session']);
-const messages = config.messages;
-const initialForm = initializeReadingLogForm(session, config);
-const form = ref(null);
-const collectionButton = ref(null);
-const collectionMenu = ref(null);
-const menuOpen = ref(false);
-const books = ref(config.books);
-const recentBooks = ref(config.recentBooks);
-const dates = ref(initialForm.dates);
-const values = reactive({ ...initialForm.values });
-if (!books.value.some((book) => String(book.id) === String(values.book_id))) values.book_id = '';
-const collection = ref(books.value.find((book) => String(book.id) === String(values.book_id))?.testament ?? session.snapshot.collection);
-const notesOpen = ref(session.snapshot.notesOpen || Boolean(values.notes_text));
-const errors = ref(config.errors);
-const errorScopes = ref(config.errorScopes ?? {});
-const rangeErrors = computed(() => errorScopes.value.start_chapter === 'chapter_range' ? (errors.value.start_chapter ?? []) : []);
-const chapterFieldError = (field) => field === 'start_chapter' && rangeErrors.value.length ? null : errors.value[field];
-function chapterDescription(field) {
-    return [chapterFieldError(field) ? `${field}-error` : '', rangeErrors.value.length ? 'chapter-range-error' : ''].filter(Boolean).join(' ') || undefined;
-}
-const saving = ref(Boolean(session.pending));
-const success = ref(config.successMessage);
-const celebrationPending = ref(false);
-const notice = ref(session.uncertain ? messages.uncertain_error : '');
-const uncertain = ref(session.uncertain);
-const isScrolling = ref(false);
-let scrollTimer;
-let active = true;
-const collections = computed(() => Object.entries(messages.collections).filter(([key]) => books.value.some((book) => book.testament === key)));
-const visibleBooks = computed(() => books.value.filter((book) => book.testament === collection.value));
-const selectedBook = computed(() => books.value.find((book) => String(book.id) === String(values.book_id)));
-const chapterNote = computed(() => {
-    if (selectedBook.value?.id === 17 && selectedBook.value.chapters === 16) return messages.chapter_notes.esther_additions;
-    if (selectedBook.value?.id === 27 && selectedBook.value.chapters === 14) return messages.chapter_notes.daniel_additions;
-    return '';
-});
-
-function snapshot() {
-    // A pending save owns the submitted snapshot until its result settles.
-    if (!session.pending) updateReadingLogSnapshot(session, { values: { ...values }, collection: collection.value, notesOpen: notesOpen.value });
-}
-watch([values, collection, notesOpen], snapshot, { deep: true, flush: 'sync' });
-
-function closeMenu(focus = false) {
-    menuOpen.value = false;
-    if (focus) collectionButton.value?.focus();
-}
-function chooseCollection(key) {
-    collection.value = key;
-    // Keep the submitted ID consistent with the visibly selected book.
-    if (!visibleBooks.value.some((book) => String(book.id) === String(values.book_id))) values.book_id = '';
-    closeMenu(true);
-}
-function selectRecent(book) {
-    collection.value = book.testament;
-    values.book_id = String(book.id);
-}
-async function openMenu() {
-    menuOpen.value = true;
-    await nextTick();
-    collectionMenu.value?.querySelector('button')?.focus();
-}
-function menuKeys(event) {
-    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault();
-    const buttons = [...collectionMenu.value.querySelectorAll('button')];
-    const current = buttons.indexOf(document.activeElement);
-    const index = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
-        : (current + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
-    buttons[index]?.focus();
-}
-function outsideClick(event) {
-    if (!collectionMenu.value?.contains(event.target) && !collectionButton.value?.contains(event.target)) closeMenu();
-}
-function recentScroll() {
-    isScrolling.value = true;
-    clearTimeout(scrollTimer);
-    scrollTimer = setTimeout(() => { isScrolling.value = false; }, 700);
-}
-async function handleOutcome(pending) {
-    const settledOutcome = await pending;
-    if (!active) return;
-    const outcome = consumeReadingLogOutcome(session) ?? settledOutcome;
-    saving.value = false;
-    if (outcome.kind === 'success') {
-        const data = outcome.data;
-        const refreshedForm = initializeReadingLogForm(session, { dates: dates.value });
-        books.value = data.form.books;
-        recentBooks.value = data.form.recent_books;
-        dates.value = refreshedForm.dates;
-        Object.assign(values, refreshedForm.values);
-        collection.value = 'old';
-        notesOpen.value = false;
-        errors.value = {};
-        errorScopes.value = {};
-        notice.value = '';
-        uncertain.value = false;
-        celebrationPending.value = Boolean(data.celebration_html && window.htmx);
-        const dateLabel = new Intl.DateTimeFormat(config.locale ?? 'en', {
-            month: 'short', day: 'numeric', timeZone: 'UTC',
-        }).format(new Date(`${data.reading.date_read}T12:00:00Z`));
-        success.value = messages.saved.replace(':passage', data.reading.passage_text).replace(':date', dateLabel);
-        snapshot();
-        // This existing Alpine celebration is outside the Vue-owned form.
-        if (data.celebration_html && window.htmx) {
-            window.htmx.swap('#achievement-celebration-root', data.celebration_html, { swapStyle: 'none' });
-        }
-    } else if (outcome.kind === 'validation') {
-        const refreshedForm = initializeReadingLogForm(session, { dates: dates.value });
-        dates.value = refreshedForm.dates;
-        values.date_read = refreshedForm.values.date_read;
-        errors.value = outcome.errors;
-        errorScopes.value = outcome.errorScopes;
-        if (errors.value.notes_text) notesOpen.value = true;
-        notice.value = '';
-        await nextTick();
-        form.value?.querySelector('[aria-invalid="true"]')?.focus();
-    } else {
-        uncertain.value = outcome.kind === 'uncertain';
-        notice.value = outcome.kind === 'session' ? messages.session_error
-            : uncertain.value ? messages.uncertain_error : messages.request_error;
-    }
-}
-async function submit() {
-    if (saving.value || uncertain.value) return;
-    snapshot();
-    saving.value = true;
-    errors.value = {};
-    errorScopes.value = {};
-    notice.value = '';
-    success.value = '';
-    await handleOutcome(submitReadingLog(session, values, {
-        url: config.submitUrl, csrfToken: config.csrfToken,
-        onSaved: () => document.body.dispatchEvent(new CustomEvent('readingLogAdded', { bubbles: true })),
-    }));
-}
-async function dismissSuccess(restoreFocus) {
-    success.value = '';
-    if (restoreFocus) {
-        await nextTick();
-        form.value?.querySelector('button[type="submit"]')?.focus();
-    }
-}
-function celebrationClosed() { celebrationPending.value = false; }
-function allowRetry() {
-    setReadingLogUncertain(session, false);
-    uncertain.value = false;
-    notice.value = '';
-}
-
-onMounted(() => {
-    document.addEventListener('click', outsideClick);
-    document.addEventListener('achievement-celebration-closed', celebrationClosed);
-    if (session.pending) handleOutcome(session.pending);
-    else if (session.outcome) handleOutcome(Promise.resolve(session.outcome));
-});
-onBeforeUnmount(() => {
-    active = false;
-    snapshot();
-    clearTimeout(scrollTimer);
-    document.removeEventListener('click', outsideClick);
-    document.removeEventListener('achievement-celebration-closed', celebrationClosed);
-});
-</script>
-
 <template>
     <form ref="form" class="space-y-6" :aria-busy="saving" @submit.prevent="submit">
         <fieldset class="m-0 min-w-0 space-y-6 border-0 p-0" :disabled="saving">
@@ -250,3 +79,190 @@ onBeforeUnmount(() => {
     </form>
     <TransientNotice :message="success" :suspended="celebrationPending" :dismiss-label="messages.dismiss_success" @dismiss="dismissSuccess" />
 </template>
+
+<script setup>
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { consumeReadingLogOutcome, initializeReadingLogForm, setReadingLogUncertain, submitReadingLog, updateReadingLogSnapshot } from '@/components/reading-log-session.js';
+import TransientNotice from '@/components/TransientNotice.vue';
+
+const { config, session } = defineProps(['config', 'session']);
+const messages = config.messages;
+
+const initialForm = initializeReadingLogForm(session, config);
+const form = ref(null);
+const collectionButton = ref(null);
+const collectionMenu = ref(null);
+const menuOpen = ref(false);
+const books = ref(config.books);
+const recentBooks = ref(config.recentBooks);
+const dates = ref(initialForm.dates);
+const values = reactive({ ...initialForm.values });
+if (!books.value.some((book) => String(book.id) === String(values.book_id))) values.book_id = '';
+const collection = ref(books.value.find((book) => String(book.id) === String(values.book_id))?.testament ?? session.snapshot.collection);
+const notesOpen = ref(session.snapshot.notesOpen || Boolean(values.notes_text));
+const errors = ref(config.errors);
+const errorScopes = ref(config.errorScopes ?? {});
+const rangeErrors = computed(() => errorScopes.value.start_chapter === 'chapter_range' ? (errors.value.start_chapter ?? []) : []);
+const chapterFieldError = (field) => field === 'start_chapter' && rangeErrors.value.length ? null : errors.value[field];
+
+function chapterDescription(field) {
+    return [chapterFieldError(field) ? `${field}-error` : '', rangeErrors.value.length ? 'chapter-range-error' : ''].filter(Boolean).join(' ') || undefined;
+}
+const saving = ref(Boolean(session.pending));
+const success = ref(config.successMessage);
+const celebrationPending = ref(false);
+const notice = ref(session.uncertain ? messages.uncertain_error : '');
+const uncertain = ref(session.uncertain);
+const isScrolling = ref(false);
+let scrollTimer;
+let active = true;
+
+const collections = computed(() => Object.entries(messages.collections).filter(([key]) => books.value.some((book) => book.testament === key)));
+const visibleBooks = computed(() => books.value.filter((book) => book.testament === collection.value));
+const selectedBook = computed(() => books.value.find((book) => String(book.id) === String(values.book_id)));
+const chapterNote = computed(() => {
+    if (selectedBook.value?.id === 17 && selectedBook.value.chapters === 16) return messages.chapter_notes.esther_additions;
+    if (selectedBook.value?.id === 27 && selectedBook.value.chapters === 14) return messages.chapter_notes.daniel_additions;
+    return '';
+});
+
+function snapshot() {
+    // A pending save owns the submitted snapshot until its result settles.
+    if (!session.pending) updateReadingLogSnapshot(session, { values: { ...values }, collection: collection.value, notesOpen: notesOpen.value });
+}
+
+watch([values, collection, notesOpen], snapshot, { deep: true, flush: 'sync' });
+
+function closeMenu(focus = false) {
+    menuOpen.value = false;
+    if (focus) collectionButton.value?.focus();
+}
+
+function chooseCollection(key) {
+    collection.value = key;
+    // Keep the submitted ID consistent with the visibly selected book.
+    if (!visibleBooks.value.some((book) => String(book.id) === String(values.book_id))) values.book_id = '';
+    closeMenu(true);
+}
+
+function selectRecent(book) {
+    collection.value = book.testament;
+    values.book_id = String(book.id);
+}
+
+async function openMenu() {
+    menuOpen.value = true;
+    await nextTick();
+    collectionMenu.value?.querySelector('button')?.focus();
+}
+
+function menuKeys(event) {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const buttons = [...collectionMenu.value.querySelectorAll('button')];
+    const current = buttons.indexOf(document.activeElement);
+    const index = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
+        : (current + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
+    buttons[index]?.focus();
+}
+
+function outsideClick(event) {
+    if (!collectionMenu.value?.contains(event.target) && !collectionButton.value?.contains(event.target)) closeMenu();
+}
+
+function recentScroll() {
+    isScrolling.value = true;
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => { isScrolling.value = false; }, 700);
+}
+
+async function handleOutcome(pending) {
+    const settledOutcome = await pending;
+    if (!active) return;
+    const outcome = consumeReadingLogOutcome(session) ?? settledOutcome;
+    saving.value = false;
+    if (outcome.kind === 'success') {
+        const data = outcome.data;
+        const refreshedForm = initializeReadingLogForm(session, { dates: dates.value });
+        books.value = data.form.books;
+        recentBooks.value = data.form.recent_books;
+        dates.value = refreshedForm.dates;
+        Object.assign(values, refreshedForm.values);
+        collection.value = 'old';
+        notesOpen.value = false;
+        errors.value = {};
+        errorScopes.value = {};
+        notice.value = '';
+        uncertain.value = false;
+        celebrationPending.value = Boolean(data.celebration_html && window.htmx);
+        const dateLabel = new Intl.DateTimeFormat(config.locale ?? 'en', {
+            month: 'short', day: 'numeric', timeZone: 'UTC',
+        }).format(new Date(`${data.reading.date_read}T12:00:00Z`));
+        success.value = messages.saved.replace(':passage', data.reading.passage_text).replace(':date', dateLabel);
+        snapshot();
+        // This existing Alpine celebration is outside the Vue-owned form.
+        if (data.celebration_html && window.htmx) {
+            window.htmx.swap('#achievement-celebration-root', data.celebration_html, { swapStyle: 'none' });
+        }
+    } else if (outcome.kind === 'validation') {
+        const refreshedForm = initializeReadingLogForm(session, { dates: dates.value });
+        dates.value = refreshedForm.dates;
+        values.date_read = refreshedForm.values.date_read;
+        errors.value = outcome.errors;
+        errorScopes.value = outcome.errorScopes;
+        if (errors.value.notes_text) notesOpen.value = true;
+        notice.value = '';
+        await nextTick();
+        form.value?.querySelector('[aria-invalid="true"]')?.focus();
+    } else {
+        uncertain.value = outcome.kind === 'uncertain';
+        notice.value = outcome.kind === 'session' ? messages.session_error
+            : uncertain.value ? messages.uncertain_error : messages.request_error;
+    }
+}
+
+async function submit() {
+    if (saving.value || uncertain.value) return;
+    snapshot();
+    saving.value = true;
+    errors.value = {};
+    errorScopes.value = {};
+    notice.value = '';
+    success.value = '';
+    await handleOutcome(submitReadingLog(session, values, {
+        url: config.submitUrl, csrfToken: config.csrfToken,
+        onSaved: () => document.body.dispatchEvent(new CustomEvent('readingLogAdded', { bubbles: true })),
+    }));
+}
+
+async function dismissSuccess(restoreFocus) {
+    success.value = '';
+    if (restoreFocus) {
+        await nextTick();
+        form.value?.querySelector('button[type="submit"]')?.focus();
+    }
+}
+
+function celebrationClosed() { celebrationPending.value = false; }
+
+function allowRetry() {
+    setReadingLogUncertain(session, false);
+    uncertain.value = false;
+    notice.value = '';
+}
+
+onMounted(() => {
+    document.addEventListener('click', outsideClick);
+    document.addEventListener('achievement-celebration-closed', celebrationClosed);
+    if (session.pending) handleOutcome(session.pending);
+    else if (session.outcome) handleOutcome(Promise.resolve(session.outcome));
+});
+
+onBeforeUnmount(() => {
+    active = false;
+    snapshot();
+    clearTimeout(scrollTimer);
+    document.removeEventListener('click', outsideClick);
+    document.removeEventListener('achievement-celebration-closed', celebrationClosed);
+});
+</script>

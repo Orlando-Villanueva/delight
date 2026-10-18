@@ -2,7 +2,7 @@
 
 function readingReminderSettingsJavascript(): string
 {
-    return file_get_contents(__DIR__.'/../../resources/js/app.js');
+    return file_get_contents(__DIR__.'/../../resources/js/components/browser-reminders.js');
 }
 
 it('restores previous reminder device state when current-device unsubscribe fails', function () {

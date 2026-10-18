@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\AnnualRecapService;
 use App\Services\ReadingCalendarService;
 use Illuminate\Support\Facades\Cache;
+use Inertia\Testing\AssertableInertia;
 
 it('requires authentication to view settings', function () {
     $this->get(route('settings.edit'))
@@ -19,12 +20,8 @@ it('shows the Catholic canon setting as disabled by default', function () {
     $response = $this->actingAs($user)->get(route('settings.edit'));
 
     $response->assertSuccessful()
-        ->assertViewIs('settings.edit')
-        ->assertSee('Settings')
-        ->assertSee('Manage your reading preferences.')
-        ->assertSee('Deuterocanonical books')
-        ->assertSee('name="include_deuterocanonical"', false)
-        ->assertSee('Disabled');
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Settings', false)
+            ->where('values.include_deuterocanonical', false)->etc());
 
     expect($user->fresh()->includesDeuterocanonicalBooks())->toBeFalse();
 });

@@ -8,11 +8,13 @@ use App\Services\ReadingCalendarService;
 use App\Services\ReadingPlanService;
 use App\Services\UserStatisticsService;
 use DateTimeZone;
-use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class SettingsController extends Controller
 {
@@ -26,7 +28,7 @@ class SettingsController extends Controller
     /**
      * Show account settings.
      */
-    public function edit(): View
+    public function edit(Request $request): InertiaResponse
     {
         $timezone = $this->readingCalendar->timezoneFor(auth()->user());
         $timezones = array_unique([...DateTimeZone::listIdentifiers(), $timezone]);
@@ -34,8 +36,24 @@ class SettingsController extends Controller
 
         $referenceTime = now()->toImmutable();
 
-        return view('settings.edit', [
-            'readingTimezone' => $timezone,
+        $user = $request->user();
+
+        return Inertia::render('Settings', [
+            'values' => [
+                'include_deuterocanonical' => $user->includesDeuterocanonicalBooks(),
+                'daily_reading_reminder_enabled' => $user->hasDailyReadingReminderEnabled(),
+                'streak_warning_enabled' => $user->hasStreakWarningEnabled(),
+                'reading_timezone' => $timezone,
+            ],
+            'updateUrl' => route('settings.update'),
+            'push' => [
+                'accountHasDevices' => $user->pushSubscriptions()->exists(),
+                'publicKey' => config('webpush.vapid.public_key'),
+                'subscriptionUrl' => route('push.subscriptions.store'),
+                'statusUrl' => route('push.subscriptions.status'),
+                'unsubscribeUrl' => route('push.subscriptions.destroy'),
+                'disconnectAllUrl' => route('push.subscriptions.destroy-all'),
+            ],
             'readingTimezoneOptions' => array_combine($timezones, array_map(
                 fn (string $zone): string => str_replace('_', ' ', basename($zone))
                     .' — '.$zone.' (UTC'.$referenceTime->setTimezone($zone)->format('P').')',
@@ -123,7 +141,7 @@ class SettingsController extends Controller
             $freshUser = $user->fresh();
         }
 
-        if ($request->expectsJson()) {
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
             $response = [
                 'include_deuterocanonical' => $freshUser->includesDeuterocanonicalBooks(),
                 'daily_reading_reminder_enabled' => $freshUser->hasDailyReadingReminderEnabled(),
