@@ -1,5 +1,5 @@
 import '@/bootstrap';
-import { createApp, h } from 'vue';
+import { createApp, h, type DefineComponent } from 'vue';
 import { createInertiaApp, router } from '@inertiajs/vue3';
 import ReaderLayout from '@/components/ReaderLayout.vue';
 
@@ -8,10 +8,10 @@ window.addEventListener('pagehide', () => router.clearHistory());
 
 createInertiaApp({
     resolve: async (name) => {
-        const pages = import.meta.glob('./pages/*.vue');
+        const pages = import.meta.glob<{ default: DefineComponent & { layout?: typeof ReaderLayout } }>('./pages/*.vue');
         const page = await pages[`./pages/${name}.vue`]();
         page.default.layout = ReaderLayout;
-        return page;
+        return page.default;
     },
     setup({ el, App, props, plugin }) {
         return createApp({ render: () => h(App, props) })

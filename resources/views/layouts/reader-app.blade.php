@@ -16,7 +16,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700" rel="stylesheet">
-    @vite(['resources/css/app.css', 'resources/js/reader.js'])
+    @vite(['resources/css/app.css', 'resources/js/reader.ts'])
     @inertiaHead
 </head>
 <body class="bg-[#F5F7FA] dark:bg-gray-900 text-gray-600 min-h-screen font-sans antialiased">

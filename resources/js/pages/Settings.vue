@@ -96,18 +96,19 @@
     </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import BrowserReminders from '@/components/BrowserReminders.vue';
+import type { ReaderPageProps, SettingsProps } from '@/reader-types';
 
-const props = defineProps({ values: Object, updateUrl: String, push: Object, readingTimezoneOptions: Object });
-const page = usePage();
+const props = defineProps<SettingsProps>();
+const page = usePage<ReaderPageProps>();
 const form = useForm({ ...props.values });
-const element = ref(null);
+const element = ref<HTMLFormElement | null>(null);
 const deviceBusy = ref(false);
 
-const reminders = [
+const reminders: { name: 'daily_reading_reminder_enabled' | 'streak_warning_enabled'; label: string; help: string }[] = [
     { name: 'daily_reading_reminder_enabled', label: '09:00 daily reminder', help: 'Sends only when today has no reading log.' },
     {
         name: 'streak_warning_enabled',
@@ -121,18 +122,18 @@ function save() {
     if (form.processing || deviceBusy.value) return;
     form.patch(props.updateUrl, {
         preserveScroll: true,
-        onSuccess: (response) => {
-            Object.assign(form, response.props.values);
-            form.defaults({ ...response.props.values });
+        onSuccess: () => {
+            Object.assign(form, props.values);
+            form.defaults({ ...props.values });
         },
         onError: async () => {
             await nextTick();
-            element.value?.querySelector('[aria-invalid="true"]')?.focus();
+            element.value?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
         },
     });
 }
 
-function warnBeforeLeaving(event) {
+function warnBeforeLeaving(event: BeforeUnloadEvent) {
     if (form.isDirty || form.processing || deviceBusy.value) {
         event.preventDefault();
         event.returnValue = '';

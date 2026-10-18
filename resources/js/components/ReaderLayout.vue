@@ -71,11 +71,7 @@
                         <details
                             ref="notifications"
                             class="relative"
-                            @toggle="
-                                (event) => {
-                                    if (event.target.open) loadNotifications();
-                                }
-                            "
+                            @toggle="loadNotifications"
                         >
                             <summary
                                 class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full text-gray-500 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-gray-300"
@@ -133,9 +129,9 @@
                                 </div>
                                 <div class="p-2">
                                     <a
-                                        v-for="key in ['settings', 'recap', 'feedback', ...(reader.urls.admin ? ['admin'] : [])]"
+                                        v-for="key in accountLinks"
                                         :key="key"
-                                        :href="reader.urls[key]"
+                                        :href="reader.urls[key] ?? undefined"
                                         class="block rounded-lg px-3 py-3 text-sm hover:bg-gray-100 focus-visible:outline-2 dark:text-gray-300 dark:hover:bg-gray-700"
                                         >{{ m[key] }}</a
                                     >
@@ -190,11 +186,12 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import type { ReaderPageProps } from '@/reader-types';
 
-const page = usePage();
+const page = usePage<ReaderPageProps>();
 const reader = computed(() => page.props.reader);
 
 const m = {
@@ -218,12 +215,18 @@ const m = {
 
 const collapsed = ref(false);
 const userToggled = ref(false);
-const profile = ref(null);
-const notifications = ref(null);
+const profile = ref<HTMLDetailsElement | null>(null);
+const notifications = ref<HTMLDetailsElement | null>(null);
 const notificationHtml = ref('');
 const notificationError = ref(false);
 
-const links = computed(() => [
+const accountLinks = computed(() => {
+    const keys: ('settings' | 'recap' | 'feedback' | 'admin')[] = ['settings', 'recap', 'feedback'];
+    if (reader.value.urls.admin) keys.push('admin');
+    return keys;
+});
+
+const links = computed<{ key: 'dashboard' | 'plans' | 'log' | 'history' | 'achievements'; mobileLabel: string; href: string; icon: string }[]>(() => [
     {
         key: 'dashboard',
         mobileLabel: 'Home',
@@ -256,7 +259,8 @@ const links = computed(() => [
     },
 ]);
 
-async function loadNotifications() {
+async function loadNotifications(event?: Event) {
+    if (event?.type === 'toggle' && event.target instanceof HTMLDetailsElement && !event.target.open) return;
     notificationError.value = false;
     try {
         const response = await fetch(reader.value.urls.notifications, {
@@ -270,16 +274,16 @@ async function loadNotifications() {
     }
 }
 
-function closeMenus(event) {
-    for (const menu of [profile.value, notifications.value]) if (menu && !menu.contains(event.target)) menu.open = false;
+function closeMenus(event: MouseEvent) {
+    for (const menu of [profile.value, notifications.value]) if (menu && !(event.target instanceof Node && menu.contains(event.target))) menu.open = false;
 }
 
-function escapeMenus(event) {
+function escapeMenus(event: KeyboardEvent) {
     if (event.key !== 'Escape') return;
     for (const menu of [profile.value, notifications.value])
         if (menu?.open) {
             menu.open = false;
-            menu.querySelector('summary').focus();
+            menu.querySelector('summary')?.focus();
         }
 }
 

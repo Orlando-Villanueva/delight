@@ -12,15 +12,15 @@
     </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { createNoticeTimer } from '@/components/transient-notice-timer.js';
+import { createNoticeTimer } from '@/components/transient-notice-timer.ts';
 
-const props = defineProps({ message: { type: String, default: '' }, dismissLabel: { type: String, required: true }, suspended: Boolean });
-const emit = defineEmits(['dismiss']);
+const props = withDefaults(defineProps<{ message?: string; dismissLabel: string; suspended?: boolean }>(), { message: '', suspended: false });
+const emit = defineEmits<{ dismiss: [restoreFocus: boolean] }>();
 const visible = ref(false);
 const announcement = ref('');
-const notice = ref(null);
+const notice = ref<HTMLElement | null>(null);
 let mounted = false;
 const timer = createNoticeTimer(() => dismiss());
 
@@ -62,8 +62,8 @@ function syncVisibility() {
     else timer.resume('background');
 }
 
-function focusOut(event) {
-    if (!event.currentTarget.contains(event.relatedTarget)) timer.resume('focus');
+function focusOut(event: FocusEvent) {
+    if (!(event.currentTarget instanceof HTMLElement) || !(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) timer.resume('focus');
 }
 
 onMounted(() => {

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import { reactive } from 'vue';
-import { createNoticeTimer } from '../../resources/js/components/transient-notice-timer.js';
+import { createNoticeTimer } from '../../resources/js/components/transient-notice-timer.ts';
 import assert from 'node:assert/strict';
-import { consumeReadingLogOutcome, createReadingLogSession, initializeReadingLogForm, submitReadingLog } from '../../resources/js/components/reading-log-session.js';
+import { consumeReadingLogOutcome, createReadingLogSession, initializeReadingLogForm, submitReadingLog } from '../../resources/js/components/reading-log-session.ts';
 import { installReadingLogIslands } from '../../resources/js/components/reading-log-lifecycle.js';
 
 const draft = () => ({ values: { book_id: '43', start_chapter: '3', end_chapter: '1', date_read: '2026-10-14', notes_text: 'Private draft' }, collection: 'new', notesOpen: true });

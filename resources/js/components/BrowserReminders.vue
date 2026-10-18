@@ -100,17 +100,19 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue';
 import { installBrowserReminders } from '@/components/browser-reminders.js';
+import type { BrowserReminderConfig } from '@/reader-types';
 
-const props = defineProps({ config: Object, csrfToken: String });
-const emit = defineEmits(['busy']);
-const root = ref(null);
+const props = defineProps<{ config: BrowserReminderConfig; csrfToken: string }>();
+const emit = defineEmits<{ busy: [value: boolean] }>();
+const root = ref<HTMLElement | null>(null);
 
-let dispose;
+let dispose: (() => void) | undefined;
 
 onMounted(() => {
+    if (!root.value) return;
     dispose = installBrowserReminders(root.value, props.csrfToken, (busy) => {
         emit('busy', busy);
     });

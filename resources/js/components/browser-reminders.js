@@ -1,3 +1,9 @@
+/**
+ * @param {HTMLElement} root
+ * @param {string} csrfToken
+ * @param {(busy: boolean) => void} [onBusy]
+ * @returns {() => void}
+ */
 export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
     const controller = new AbortController();
     const timers = new Set();

@@ -1,4 +1,4 @@
-import { createReadingLogSession } from './reading-log-session.js';
+import { createReadingLogSession } from './reading-log-session.ts';
 
 export function installReadingLogIslands(createApp, ReadingLogForm, { document, window, history, location }) {
     const mounted = new Map();

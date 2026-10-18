@@ -4,7 +4,7 @@
             <fieldset class="space-y-2">
                 <legend class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ messages.when }}</legend>
                 <div data-date-read-segmented-control class="grid grid-cols-2 overflow-hidden rounded-lg border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-700">
-                    <div v-for="day in ['today', 'yesterday']" :key="day" class="flex items-center" :class="day === 'yesterday' ? 'border-l border-gray-300 dark:border-gray-600' : ''">
+                    <div v-for="day in (['today', 'yesterday'] as const)" :key="day" class="flex items-center" :class="day === 'yesterday' ? 'border-l border-gray-300 dark:border-gray-600' : ''">
                         <input :id="day" v-model="values.date_read" type="radio" name="date_read" :value="dates[day]" class="peer sr-only" :aria-invalid="Boolean(errors.date_read)" :aria-describedby="errors.date_read ? 'date_read-error' : undefined">
                         <label :for="day" class="flex w-full cursor-pointer items-center justify-center bg-transparent px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 peer-checked:bg-primary-50 peer-checked:text-primary-700 peer-checked:hover:bg-primary-50 peer-focus-visible:relative peer-focus-visible:z-10 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-primary-500 peer-focus-visible:ring-inset dark:text-gray-200 dark:hover:bg-gray-600 dark:peer-checked:bg-primary-900/30 dark:peer-checked:text-primary-300 dark:peer-checked:hover:bg-primary-900/30">{{ messages[day] }}</label>
                     </div>
@@ -15,7 +15,7 @@
 
             <div class="space-y-3">
                 <label for="book_id" class="form-label">{{ messages.book }}</label>
-                <div class="relative flex" @keydown.esc.prevent="closeMenu(true)" @focusout="event => { if (!event.currentTarget.contains(event.relatedTarget)) closeMenu(); }">
+                <div class="relative flex" @keydown.esc.prevent="closeMenu(true)" @focusout="collectionFocusOut">
                     <button id="testament-button" ref="collectionButton" type="button" aria-controls="testament-dropdown" :aria-expanded="menuOpen" class="z-10 inline-flex shrink-0 items-center rounded-s-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:z-10 focus-visible:border-primary-500 focus:outline-none focus-visible:outline-1 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus-visible:border-primary-400 dark:focus-visible:outline-primary-400" @click="menuOpen ? closeMenu() : openMenu()" @keydown.down.prevent="openMenu">
                         <span>{{ messages.collections[collection] }}</span>
                         <svg class="ms-2.5 h-2.5 w-2.5" aria-hidden="true" fill="none" viewBox="0 0 10 6"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4" /></svg>
@@ -46,7 +46,7 @@
                     <div v-for="field in ['start_chapter', 'end_chapter']" :key="field">
                         <label :for="field" class="form-label">{{ field === 'start_chapter' ? messages.start : messages.end }}</label>
                         <input :id="field" v-model="values[field]" :name="field" type="text" inputmode="numeric" pattern="[0-9]*" class="form-input" :required="field === 'start_chapter'" :placeholder="selectedBook ? (field === 'start_chapter' ? '1' : String(selectedBook.chapters)) : (field === 'start_chapter' ? messages.start_placeholder : messages.end_placeholder)" :aria-invalid="Boolean(chapterFieldError(field) || rangeErrors.length)" :aria-describedby="chapterDescription(field)">
-                        <p v-if="chapterFieldError(field)" :id="`${field}-error`" class="form-error" role="alert">{{ chapterFieldError(field)[0] }}</p>
+                        <p v-if="chapterFieldError(field)" :id="`${field}-error`" class="form-error" role="alert">{{ chapterFieldError(field)?.[0] }}</p>
                     </div>
                 </div>
                 <p v-if="rangeErrors.length" id="chapter-range-error" class="form-error mt-2" role="alert">{{ rangeErrors[0] }}</p>
@@ -54,7 +54,7 @@
             </div>
 
             <div class="space-y-3">
-                <button v-if="!notesOpen" type="button" class="inline-flex items-center gap-2 text-sm font-medium text-primary-600 transition hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300" @click="notesOpen = true; nextTick(() => form.querySelector('#notes_text')?.focus())"><span aria-hidden="true">+</span>{{ messages.add_note }}</button>
+                <button v-if="!notesOpen" type="button" class="inline-flex items-center gap-2 text-sm font-medium text-primary-600 transition hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300" @click="notesOpen = true; nextTick(() => form?.querySelector<HTMLTextAreaElement>('#notes_text')?.focus())"><span aria-hidden="true">+</span>{{ messages.add_note }}</button>
                 <div v-show="notesOpen" class="space-y-1">
                     <div class="flex items-baseline justify-between gap-3">
                         <label for="notes_text" class="form-label">{{ messages.note }}</label>
@@ -80,18 +80,19 @@
     <TransientNotice :message="success" :suspended="celebrationPending" :dismiss-label="messages.dismiss_success" @dismiss="dismissSuccess" />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { consumeReadingLogOutcome, initializeReadingLogForm, setReadingLogUncertain, submitReadingLog, updateReadingLogSnapshot } from '@/components/reading-log-session.js';
+import { consumeReadingLogOutcome, initializeReadingLogForm, setReadingLogUncertain, submitReadingLog, updateReadingLogSnapshot } from '@/components/reading-log-session.ts';
 import TransientNotice from '@/components/TransientNotice.vue';
+import type { BibleBook, ReadingFormConfig, ReadingOutcome, ReadingSession, ReadingValues } from '@/components/reading-log-types';
 
-const { config, session } = defineProps(['config', 'session']);
+const { config, session } = defineProps<{ config: ReadingFormConfig; session: ReadingSession }>();
 const messages = config.messages;
 
 const initialForm = initializeReadingLogForm(session, config);
-const form = ref(null);
-const collectionButton = ref(null);
-const collectionMenu = ref(null);
+const form = ref<HTMLFormElement | null>(null);
+const collectionButton = ref<HTMLButtonElement | null>(null);
+const collectionMenu = ref<HTMLDivElement | null>(null);
 const menuOpen = ref(false);
 const books = ref(config.books);
 const recentBooks = ref(config.recentBooks);
@@ -103,9 +104,9 @@ const notesOpen = ref(session.snapshot.notesOpen || Boolean(values.notes_text));
 const errors = ref(config.errors);
 const errorScopes = ref(config.errorScopes ?? {});
 const rangeErrors = computed(() => errorScopes.value.start_chapter === 'chapter_range' ? (errors.value.start_chapter ?? []) : []);
-const chapterFieldError = (field) => field === 'start_chapter' && rangeErrors.value.length ? null : errors.value[field];
+const chapterFieldError = (field: keyof ReadingValues) => field === 'start_chapter' && rangeErrors.value.length ? null : errors.value[field];
 
-function chapterDescription(field) {
+function chapterDescription(field: keyof ReadingValues) {
     return [chapterFieldError(field) ? `${field}-error` : '', rangeErrors.value.length ? 'chapter-range-error' : ''].filter(Boolean).join(' ') || undefined;
 }
 const saving = ref(Boolean(session.pending));
@@ -114,7 +115,7 @@ const celebrationPending = ref(false);
 const notice = ref(session.uncertain ? messages.uncertain_error : '');
 const uncertain = ref(session.uncertain);
 const isScrolling = ref(false);
-let scrollTimer;
+let scrollTimer: ReturnType<typeof setTimeout> | undefined;
 let active = true;
 
 const collections = computed(() => Object.entries(messages.collections).filter(([key]) => books.value.some((book) => book.testament === key)));
@@ -138,14 +139,14 @@ function closeMenu(focus = false) {
     if (focus) collectionButton.value?.focus();
 }
 
-function chooseCollection(key) {
+function chooseCollection(key: string) {
     collection.value = key;
     // Keep the submitted ID consistent with the visibly selected book.
     if (!visibleBooks.value.some((book) => String(book.id) === String(values.book_id))) values.book_id = '';
     closeMenu(true);
 }
 
-function selectRecent(book) {
+function selectRecent(book: BibleBook) {
     collection.value = book.testament;
     values.book_id = String(book.id);
 }
@@ -156,18 +157,23 @@ async function openMenu() {
     collectionMenu.value?.querySelector('button')?.focus();
 }
 
-function menuKeys(event) {
+function menuKeys(event: KeyboardEvent) {
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
+    if (!collectionMenu.value) return;
     const buttons = [...collectionMenu.value.querySelectorAll('button')];
-    const current = buttons.indexOf(document.activeElement);
+    const current = buttons.findIndex(button => button === document.activeElement);
     const index = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
         : (current + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
     buttons[index]?.focus();
 }
 
-function outsideClick(event) {
-    if (!collectionMenu.value?.contains(event.target) && !collectionButton.value?.contains(event.target)) closeMenu();
+function collectionFocusOut(event: FocusEvent) {
+    if (!(event.currentTarget instanceof HTMLElement) || !(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) closeMenu();
+}
+
+function outsideClick(event: MouseEvent) {
+    if (event.target instanceof Node && !collectionMenu.value?.contains(event.target) && !collectionButton.value?.contains(event.target)) closeMenu();
 }
 
 function recentScroll() {
@@ -176,7 +182,7 @@ function recentScroll() {
     scrollTimer = setTimeout(() => { isScrolling.value = false; }, 700);
 }
 
-async function handleOutcome(pending) {
+async function handleOutcome(pending: Promise<ReadingOutcome>) {
     const settledOutcome = await pending;
     if (!active) return;
     const outcome = consumeReadingLogOutcome(session) ?? settledOutcome;
@@ -213,7 +219,7 @@ async function handleOutcome(pending) {
         if (errors.value.notes_text) notesOpen.value = true;
         notice.value = '';
         await nextTick();
-        form.value?.querySelector('[aria-invalid="true"]')?.focus();
+        form.value?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
     } else {
         uncertain.value = outcome.kind === 'uncertain';
         notice.value = outcome.kind === 'session' ? messages.session_error
@@ -235,11 +241,11 @@ async function submit() {
     }));
 }
 
-async function dismissSuccess(restoreFocus) {
+async function dismissSuccess(restoreFocus: boolean) {
     success.value = '';
     if (restoreFocus) {
         await nextTick();
-        form.value?.querySelector('button[type="submit"]')?.focus();
+        form.value?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus();
     }
 }
 
