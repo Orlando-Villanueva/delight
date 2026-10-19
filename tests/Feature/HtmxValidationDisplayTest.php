@@ -55,14 +55,7 @@ class HtmxValidationDisplayTest extends TestCase
             'date_read' => today()->toDateString(),
         ], ['HX-Request' => 'true']);
 
-        $response->assertStatus(200); // HTMX returns 200 with error form
-
-        // Assert error message is present in the HTML
-        $response->assertSee('Invalid chapter range');
-
-        // Assert success message is NOT present in the HTML
-        $response->assertDontSee('Genesis 1 recorded');
-        $response->assertDontSee('✅');
-        $response->assertSee('Invalid chapter range');
+        $response->assertRedirect(route('logs.create'))->assertSessionHasErrors('start_chapter');
+        $this->assertFalse(session()->has('success'));
     }
 }

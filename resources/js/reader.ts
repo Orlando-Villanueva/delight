@@ -1,7 +1,10 @@
 import '@/bootstrap';
 import { createApp, h, type DefineComponent } from 'vue';
 import { createInertiaApp, router } from '@inertiajs/vue3';
+import confetti from 'canvas-confetti';
 import ReaderLayout from '@/components/ReaderLayout.vue';
+
+window.confetti = confetti;
 
 // Legacy pages can log out without Inertia; do not carry account history into them.
 window.addEventListener('pagehide', () => router.clearHistory());

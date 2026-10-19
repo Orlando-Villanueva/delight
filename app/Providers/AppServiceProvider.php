@@ -48,7 +48,7 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
-        View::composer(['logs.create', 'partials.reading-log-list', 'partials.reading-log-items'], function ($view): void {
+        View::composer(['partials.reading-log-list', 'partials.reading-log-items'], function ($view): void {
             if ($user = auth()->user()) {
                 $view->with('readingToday', app(ReadingCalendarService::class)->todayFor($user));
             }

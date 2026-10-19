@@ -1,41 +1,24 @@
 <template>
-    <div class="flex h-dvh">
+    <div class="flex h-dvh [--reader-header-height:4rem]">
         <aside
-            class="hidden shrink-0 flex-col border-r border-gray-200 overflow-hidden bg-white pt-20 transition-[width] motion-reduce:transition-none dark:border-gray-700 dark:bg-gray-800 lg:flex"
+            class="hidden shrink-0 flex-col border-r border-gray-200/70 overflow-hidden bg-white pt-[calc(var(--reader-header-height)+0.75rem)] transition-[width] motion-reduce:transition-none dark:border-gray-700/70 dark:bg-gray-800 lg:flex"
             :class="collapsed ? 'w-16' : 'w-64'"
         >
-            <div class="flex h-14 items-center px-2" :class="collapsed ? 'justify-center' : 'justify-end'">
-                <button
-                    type="button"
-                    class="inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-600 hover:bg-primary-50 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-gray-300 dark:hover:bg-gray-700"
-                    :aria-expanded="!collapsed"
-                    :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-                    :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-                    aria-controls="reader-sidebar-navigation"
-                    @click="
-                        userToggled = true;
-                        collapsed = !collapsed;
-                    "
-                >
-                    <svg class="h-5 w-5" aria-hidden="true" fill="none" viewBox="0 0 24 24">
-                        <path
-                            stroke="currentColor"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            :d="collapsed ? 'm9 6 6 6-6 6' : 'm15 6-6 6 6 6'"
-                        />
-                    </svg>
-                </button>
-            </div>
             <nav id="reader-sidebar-navigation" :aria-label="m.navigation" class="flex flex-col gap-1 px-2">
-                <a
+                <component
+                    :is="link.key === 'log' ? Link : 'a'"
                     v-for="link in links"
                     :key="link.key"
                     :href="link.href"
                     :title="m[link.key]"
-                    class="flex min-h-12 items-center rounded-lg text-gray-900 hover:bg-primary-50 active:bg-primary-100 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-white dark:hover:bg-gray-700 dark:active:bg-gray-600"
-                    :class="collapsed ? 'justify-center px-0' : 'gap-3 px-3'"
+                    class="flex min-h-12 items-center rounded-lg active:bg-primary-100 focus-visible:outline-2 focus-visible:outline-primary-500 dark:active:bg-gray-600"
+                    :aria-current="isCurrent(link.href) ? 'page' : undefined"
+                    :class="[
+                        collapsed ? 'justify-center px-0' : 'gap-3 px-3',
+                        isCurrent(link.href)
+                            ? 'bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-900/40 dark:text-primary-300 dark:hover:bg-primary-900/60'
+                            : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700',
+                    ]"
                     ><svg
                         class="h-6 w-6 shrink-0"
                         viewBox="0 0 24 24"
@@ -48,25 +31,50 @@
                     >
                         <circle v-if="link.key === 'achievements'" cx="12" cy="8" r="6" />
                         <path :d="link.icon" /></svg
-                    ><span class="whitespace-nowrap" :class="collapsed ? 'sr-only' : ''">{{ m[link.key] }}</span></a
+                    ><span class="whitespace-nowrap" :class="collapsed ? 'sr-only' : ''">{{ m[link.key] }}</span></component
                 >
             </nav>
         </aside>
-        <div class="flex min-w-0 flex-1 flex-col lg:pt-16">
+        <div class="flex min-w-0 flex-1 flex-col lg:pt-[var(--reader-header-height)]">
             <header
-                class="z-stack-nav border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 lg:fixed lg:inset-x-0 lg:top-0"
+                class="z-stack-nav border-b border-gray-200/70 bg-white dark:border-gray-700/70 dark:bg-gray-800 lg:fixed lg:inset-x-0 lg:top-0 lg:h-[var(--reader-header-height)]"
             >
-                <div class="flex items-center justify-between gap-3 px-mobile-safe pt-mobile-safe pb-3 lg:px-5 lg:py-3">
-                    <a :href="reader.urls.dashboard" class="flex items-center gap-3 font-semibold text-gray-900 dark:text-white"
-                        ><img :src="reader.logoUrl" :alt="reader.appName + ' Logo'" class="h-8 w-8" /><span class="text-lg sm:text-xl">{{
-                            reader.appName
-                        }}</span></a
-                    >
+                <div class="flex items-center justify-between gap-3 pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 lg:h-full lg:pl-0 lg:pr-5 lg:py-0">
+                    <div class="flex min-w-0 items-center">
+                        <div class="shrink-0 overflow-hidden transition-[width] motion-reduce:transition-none" :class="collapsed ? 'lg:w-16' : 'lg:w-64'">
+                            <a :href="reader.urls.dashboard" :aria-label="reader.appName" class="flex items-center gap-3 font-semibold text-gray-900 dark:text-white lg:gap-0">
+                                <img :src="reader.logoUrl" alt="" class="h-8 w-8 shrink-0 lg:mx-4" />
+                                <span class="whitespace-nowrap text-lg sm:text-xl" :class="collapsed ? 'lg:hidden' : ''">{{ reader.appName }}</span>
+                            </a>
+                        </div>
+                        <button
+                            type="button"
+                            class="ml-2 hidden h-11 w-11 shrink-0 lg:inline-flex items-center justify-center rounded-lg text-gray-600 hover:bg-primary-50 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-gray-300 dark:hover:bg-gray-700"
+                            :aria-expanded="!collapsed"
+                            :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                            :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                            aria-controls="reader-sidebar-navigation"
+                            @click="
+                                userToggled = true;
+                                collapsed = !collapsed;
+                            "
+                        >
+                            <svg class="h-5 w-5" aria-hidden="true" fill="none" viewBox="0 0 24 24">
+                                <path
+                                    stroke="currentColor"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    :d="collapsed ? 'm9 6 6 6-6 6' : 'm15 6-6 6 6 6'"
+                                />
+                            </svg>
+                        </button>
+                    </div>
                     <div class="flex items-center gap-3">
-                        <a
+                        <Link
                             :href="reader.urls.log"
                             class="hidden rounded-full bg-accent-500 px-5 py-2 text-sm font-medium text-white hover:bg-accent-600 lg:inline-flex"
-                            >{{ m.log }}</a
+                            >{{ m.log }}</Link
                         >
                         <details
                             ref="notifications"
@@ -128,12 +136,13 @@
                                     </p>
                                 </div>
                                 <div class="p-2">
-                                    <a
+                                    <component
+                                        :is="key === 'settings' ? Link : 'a'"
                                         v-for="key in accountLinks"
                                         :key="key"
                                         :href="reader.urls[key] ?? undefined"
                                         class="block rounded-lg px-3 py-3 text-sm hover:bg-gray-100 focus-visible:outline-2 dark:text-gray-300 dark:hover:bg-gray-700"
-                                        >{{ m[key] }}</a
+                                        >{{ m[key] }}</component
                                     >
                                     <form :action="reader.urls.logout" method="post">
                                         <input type="hidden" name="_token" :value="reader.csrfToken" /><button
@@ -156,11 +165,13 @@
             :aria-label="m.navigation"
             class="fixed bottom-mobile-nav-safe left-1/2 z-stack-nav grid h-16 w-full max-w-lg -translate-x-1/2 grid-cols-5 rounded-full border border-gray-200 bg-white/80 shadow-xl backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80 lg:hidden"
         >
-            <a
+            <component
+                :is="link.key === 'log' ? Link : 'a'"
                 v-for="link in links"
                 :key="link.key"
                 :href="link.href"
                 :aria-label="m[link.key]"
+                :aria-current="isCurrent(link.href) ? 'page' : undefined"
                 class="flex flex-col items-center justify-center gap-1 rounded-full px-1 transition-colors active:bg-gray-200/70 focus-visible:outline-2 focus-visible:outline-primary-500 dark:active:bg-gray-700/80"
                 :class="
                     link.key === 'log'
@@ -181,14 +192,14 @@
                     <path :d="link.icon" />
                 </svg>
                 <span class="text-[10px] leading-4 font-medium">{{ link.mobileLabel }}</span>
-            </a>
+            </component>
         </nav>
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import type { ReaderPageProps } from '@/reader-types';
 
 const page = usePage<ReaderPageProps>();
@@ -258,6 +269,10 @@ const links = computed<{ key: 'dashboard' | 'plans' | 'log' | 'history' | 'achie
         icon: 'M15.477 12.89 17 22l-5-3-5 3 1.523-9.11',
     },
 ]);
+
+function isCurrent(href: string) {
+    return new URL(page.url, 'https://reader.invalid').pathname === new URL(href, 'https://reader.invalid').pathname;
+}
 
 async function loadNotifications(event?: Event) {
     if (event?.type === 'toggle' && event.target instanceof HTMLDetailsElement && !event.target.open) return;

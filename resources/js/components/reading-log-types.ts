@@ -66,7 +66,6 @@ export type ReadingMessages = Record<
 };
 
 export type ReadingFormConfig = {
-    userId: string;
     locale: string;
     submitUrl: string;
     historyUrl: string;

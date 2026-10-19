@@ -106,11 +106,9 @@ it('returns exactly the dates accepted by web reading validation', function (): 
             'start_chapter' => 3,
             'date_read' => Carbon::parse($dates['yesterday'])->subDay()->toDateString(),
         ])
-        ->assertSuccessful()
-        ->assertViewHas('errors');
+        ->assertRedirect(route('logs.create'))->assertSessionHasErrors('date_read');
 
-    expect($invalidDateResponse->viewData('errors')->has('date_read'))->toBeTrue()
-        ->and($user->readingLogs()->count())->toBe(2);
+    expect($user->readingLogs()->count())->toBe(2);
 });
 
 it('returns canon-aware books and filters recent books before limiting', function (): void {

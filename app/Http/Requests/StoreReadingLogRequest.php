@@ -4,12 +4,10 @@ namespace App\Http\Requests;
 
 use App\Services\BibleReferenceService;
 use App\Services\ReadingCalendarService;
-use App\Services\ReadingFormService;
 use App\Services\ReadingLogService;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Support\MessageBag;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
@@ -94,33 +92,6 @@ class StoreReadingLogRequest extends FormRequest
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $bibleReferenceService = $this->container->make(BibleReferenceService::class);
-        $readingFormService = $this->container->make(ReadingFormService::class);
-        $yesterday = $readingCalendar->yesterdayFor($this->user())->toDateString();
-        $data = array_merge([
-            'books' => $bibleReferenceService->listBibleBooks(null, 'en', $this->user()->includesDeuterocanonicalBooks()),
-            'errors' => new MessageBag($errors),
-            'errorScopes' => $errorScopes,
-            'selectedDateRead' => $this->input('date_read') === $yesterday
-                ? $yesterday
-                : $readingCalendar->todayFor($this->user())->toDateString(),
-            'selectedBookId' => $this->scalarInputForForm('book_id'),
-            'selectedStartChapter' => $this->scalarInputForForm('start_chapter'),
-            'selectedEndChapter' => $this->scalarInputForForm('end_chapter'),
-            'selectedNotesText' => $this->scalarInputForForm('notes_text'),
-        ], $readingFormService->getFormContextData($this->user()));
-
-        if ($this->header('HX-Request')) {
-            return response(view('logs.create', $data)->fragment('reading-form'));
-        }
-
-        return response()->view('logs.create', $data);
-    }
-
-    private function scalarInputForForm(string $key): string
-    {
-        $value = $this->input($key, '');
-
-        return is_scalar($value) ? (string) $value : '';
+        return redirect()->route('logs.create')->withErrors($errors);
     }
 }

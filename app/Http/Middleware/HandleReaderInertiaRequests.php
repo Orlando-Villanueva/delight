@@ -15,16 +15,16 @@ class HandleReaderInertiaRequests extends Middleware
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->is('settings')) {
+        if (! $request->is('settings', 'logs/create')) {
             return $next($request);
         }
 
         if ($request->isMethod('GET') && $request->header('HX-Request')) {
-            return response('', 200)->header('HX-Redirect', route('settings.edit'));
+            return response('', 200)->header('HX-Redirect', $request->url());
         }
 
         if (! $request->user() && $request->header('X-Inertia')) {
-            $request->session()->put('url.intended', route('settings.edit'));
+            $request->session()->put('url.intended', $request->url());
 
             return Inertia::location(route('login'));
         }

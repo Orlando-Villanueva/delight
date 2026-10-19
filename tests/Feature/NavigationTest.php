@@ -9,6 +9,7 @@ use App\Models\User;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
 
@@ -204,9 +205,8 @@ describe('HTMX Navigation Requests', function () {
         $response = $this->actingAs($user)->get(route('logs.create'));
 
         $response->assertSuccessful();
-        $response->assertSee('data-reading-log-island', false);
-        $response->assertSee('<form method="POST" action="'.route('logs.store').'"', false);
-        $response->assertSee('Log Reading', false);
+        $response->assertDontSee('data-reading-log-island', false);
+        expect(readingLogPageProps($response)['submitUrl'])->toBe(route('logs.store'));
     });
 
     it('wires offline retry buttons to reset scroll before reloading', function () {
@@ -238,50 +238,22 @@ describe('Navigation Routes', function () {
         $response = $this->actingAs($user)->get(route('logs.create'));
 
         $response->assertSuccessful();
-        $response->assertSee('Log Reading');
-        $response->assertSee("Record today's Bible reading.");
+        $response->assertInertia(fn (AssertableInertia $page) => $page->component('LogReading', false));
     });
 
-    it('always shows today and yesterday on the log form', function () {
-        $user = User::factory()->create([
-            'created_at' => today()->subMonth(),
-        ]);
-
-        $response = $this->actingAs($user)->get(route('logs.create'));
-
-        $response->assertSuccessful();
-        $response->assertSeeText('When did you read?');
-        $response->assertSeeText('Yesterday');
-        $response->assertSeeText('Today');
-        $response->assertSeeText('Forgot to log? Choose yesterday.');
-        $response->assertSee('data-reading-log-island', false);
-        $response->assertSee('name="date_read" value="'.today()->toDateString().'" checked', false);
-        $response->assertSee('name="date_read" value="'.today()->subDay()->toDateString().'"', false);
-        $response->assertDontSee('Logging for today', false);
-        $response->assertDontSee('Grace period help', false);
-        $response->assertSee('id="today"', false)->assertSee('id="yesterday"', false);
+    it('provides today and yesterday as reading date choices', function () {
+        $user = User::factory()->create(['reading_timezone' => 'UTC']);
+        $response = $this->actingAs($user)->get(route('logs.create'))->assertOk();
+        $config = readingLogPageProps($response);
+        expect($config['dates'])->toBe(['today' => today()->toDateString(), 'yesterday' => today()->subDay()->toDateString()])
+            ->and($config['values']['date_read'])->toBe(today()->toDateString());
     });
 
     it('keeps yesterday available when yesterday is already logged', function () {
-        $user = User::factory()->create([
-            'created_at' => today()->subMonth(),
-        ]);
-
-        ReadingLog::factory()->create([
-            'user_id' => $user->id,
-            'book_id' => 1,
-            'chapter' => 1,
-            'date_read' => today()->subDay()->toDateString(),
-        ]);
-
-        $response = $this->actingAs($user)->get(route('logs.create'));
-
-        $response->assertSuccessful();
-        $response->assertSeeText('When did you read?');
-        $response->assertSeeText('Yesterday');
-        $response->assertSeeText('Today');
-        $response->assertSeeText('Forgot to log? Choose yesterday.');
-        $response->assertDontSee('Logging for today', false);
+        $user = User::factory()->create(['reading_timezone' => 'UTC']);
+        ReadingLog::factory()->for($user)->create(['date_read' => today()->subDay()->toDateString()]);
+        $response = $this->actingAs($user)->get(route('logs.create'))->assertOk();
+        expect(readingLogPageProps($response)['dates']['yesterday'])->toBe(today()->subDay()->toDateString());
     });
 
     it('navigates to reading history successfully', function () {

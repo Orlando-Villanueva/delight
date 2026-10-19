@@ -89,6 +89,7 @@ import TransientNotice from '@/components/TransientNotice.vue';
 import type { BibleBook, ReadingCelebration as ReadingCelebrationPayload, ReadingFormConfig, ReadingOutcome, ReadingSession, ReadingValues } from '@/components/reading-log-types';
 
 const { config, session } = defineProps<{ config: ReadingFormConfig; session: ReadingSession }>();
+const emit = defineEmits<{ leaveWarning: [needed: boolean] }>();
 const messages = config.messages;
 
 const initialForm = initializeReadingLogForm(session, config);
@@ -117,6 +118,9 @@ const celebration = ref<ReadingCelebrationPayload | null>(null);
 const notice = ref(session.uncertain ? messages.uncertain_error : '');
 const uncertain = ref(session.uncertain);
 const isScrolling = ref(false);
+const needsLeaveWarning = computed(() => saving.value || uncertain.value || Boolean(values.book_id || values.start_chapter || values.end_chapter || values.notes_text || values.date_read !== dates.value.today));
+
+watch(needsLeaveWarning, needed => emit('leaveWarning', needed), { immediate: true });
 let scrollTimer: ReturnType<typeof setTimeout> | undefined;
 let active = true;
 

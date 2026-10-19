@@ -39,11 +39,9 @@ it('renders and accepts the same web reading dates as mobile for accounts ahead 
     $this->travelTo(Carbon::parse($instant, 'UTC'));
     $user = User::factory()->create();
 
-    $this->actingAs($user)->withUnencryptedCookie('reading_timezone_report', $timezone)
-        ->get(route('logs.create'))->assertOk()
-        ->assertSee('value="'.$today.'"', false)
-        ->assertSee('value="'.$yesterday.'"', false)
-        ->assertDontSee('reading_timezone_report=', false);
+    $page = $this->actingAs($user)->withUnencryptedCookie('reading_timezone_report', $timezone)
+        ->get(route('logs.create'))->assertOk()->assertDontSee('reading_timezone_report=', false);
+    expect(readingLogPageProps($page)['dates'])->toBe(['today' => $today, 'yesterday' => $yesterday]);
 
     $this->post(route('logs.store'), [
         'book_id' => 1, 'start_chapter' => 1, 'date_read' => $today,

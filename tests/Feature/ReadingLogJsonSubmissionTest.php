@@ -119,7 +119,7 @@ it('refreshes the JSON date choices after account-local midnight and keeps yeste
     $user = User::factory()->create(['reading_timezone' => 'America/Toronto']);
 
     $initialForm = $this->actingAs($user)->get(route('logs.create'));
-    expect(readingLogIslandProps($initialForm)['dates'])->toBe(['today' => '2026-10-13', 'yesterday' => '2026-10-12']);
+    expect(readingLogPageProps($initialForm)['dates'])->toBe(['today' => '2026-10-13', 'yesterday' => '2026-10-12']);
 
     $this->travelTo(CarbonImmutable::parse('2026-10-14 04:00:00', 'UTC'));
     $response = $this->postJson(route('logs.store'), [
@@ -157,7 +157,7 @@ it('keeps AJAX HTMX submissions on the HTML response contract', function () {
         'book_id' => 43, 'start_chapter' => 1, 'date_read' => '2026-10-13',
     ], ['HX-Request' => 'true', 'X-Requested-With' => 'XMLHttpRequest', 'Accept' => '*/*'])
         ->assertOk()->assertHeader('HX-Trigger', 'readingLogAdded')
-        ->assertSee('id="reading-log-form-container"', false)->assertSee('John 1 recorded');
+        ->assertSee('John 1 recorded');
     $this->assertDatabaseCount('reading_logs', 1);
 });
 
@@ -172,24 +172,18 @@ it('returns only base field errors before evaluating chapter ranges', function (
     $this->assertDatabaseCount('reading_logs', 0);
 });
 
-it('preserves the submitted draft in HTML after form request validation fails', function (array $headers, bool $fragment) {
+it('redirects non-JSON validation to the reader without flashing a private draft', function (array $headers, bool $fragment) {
     $user = User::factory()->create(['reading_timezone' => 'America/Toronto']);
 
-    $response = $this->actingAs($user)->post(route('logs.store'), [
+    $this->actingAs($user)->post(route('logs.store'), [
         'book_id' => 43, 'start_chapter' => 3, 'end_chapter' => 1,
-        'date_read' => '2026-10-12', 'notes_text' => 'Keep this draft.',
-    ], $headers);
-
-    $response->assertOk()->assertHeader('Content-Type', 'text/html; charset=utf-8')
-        ->assertSee('Invalid chapter range for the selected book.')
-        ->assertSee('value="3"', false)->assertSee('value="1"', false)
-        ->assertSee('Keep this draft.');
-    expect($response->getContent())->toMatch('/<input[^>]+id="yesterday"[^>]+checked/s');
-    expect(str_contains($response->getContent(), '<!DOCTYPE html>'))->toBe(! $fragment);
+        'date_read' => '2026-10-12', 'notes_text' => 'Keep this draft private.',
+    ], $headers)->assertRedirect(route('logs.create'))
+        ->assertSessionHasErrors('start_chapter')->assertSessionMissing('_old_input');
     $this->assertDatabaseCount('reading_logs', 0);
 })->with([
     'direct web submission' => [[], false],
-    'htmx AJAX submission' => [['HX-Request' => 'true', 'X-Requested-With' => 'XMLHttpRequest', 'Accept' => '*/*'], true],
+    'legacy htmx submission' => [['HX-Request' => 'true'], true],
 ]);
 
 it('keeps individual chapter rule failures scoped to their own fields', function (array $values, string $field) {
@@ -207,32 +201,22 @@ it('keeps individual chapter rule failures scoped to their own fields', function
     'end below one' => [['end_chapter' => 0], 'end_chapter'],
 ]);
 
-it('renders range errors once below both chapter inputs in the native fallback', function () {
+it('returns range errors once with a shared field scope for the Vue form', function () {
     $user = User::factory()->create(['reading_timezone' => 'America/Toronto']);
 
-    $response = $this->actingAs($user)->post(route('logs.store'), [
+    $this->actingAs($user)->postJson(route('logs.store'), [
         'book_id' => 43, 'start_chapter' => 3, 'end_chapter' => 1, 'date_read' => '2026-10-13',
-    ], ['HX-Request' => 'true']);
-
-    $response->assertOk()->assertSee('id="chapter-range-error"', false)
-        ->assertDontSee('id="start_chapter-error"', false);
-    expect(readingLogIslandProps($response)['errorScopes'])->toBe(['start_chapter' => 'chapter_range']);
-    expect(preg_match_all('/<input[^>]+aria-describedby="chapter-range-error"/', $response->getContent()))->toBe(2);
+    ])->assertUnprocessable()->assertJsonPath('error_scopes', ['start_chapter' => 'chapter_range'])
+        ->assertJsonCount(1, 'errors.start_chapter')->assertJsonMissingPath('errors.end_chapter');
     $this->assertDatabaseCount('reading_logs', 0);
 });
 
-it('keeps full reading pages and HTMX fragments separate in browser caches', function () {
+it('redirects legacy navigation into the Inertia reading page', function () {
     $this->actingAs(User::factory()->create());
 
-    $this->get(route('logs.create'))
-        ->assertOk()
-        ->assertHeader('Vary', 'HX-Request')
-        ->assertSee('<!DOCTYPE html>', false)
-        ->assertSee('data-reading-log-island', false);
-
+    $this->get(route('logs.create'))->assertOk()->assertSee('<!DOCTYPE html>', false)
+        ->assertDontSee('data-reading-log-island', false)->assertDontSee('htmx.min.js', false)
+        ->assertHeader('Cache-Control', 'no-store, private');
     $this->get(route('logs.create'), ['HX-Request' => 'true'])
-        ->assertOk()
-        ->assertHeader('Vary', 'HX-Request')
-        ->assertDontSee('<!DOCTYPE html>', false)
-        ->assertSee('data-reading-log-island', false);
+        ->assertOk()->assertHeader('HX-Redirect', route('logs.create'))->assertContent('');
 });

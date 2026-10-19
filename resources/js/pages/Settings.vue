@@ -97,8 +97,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { useLeaveWarning } from '@/useLeaveWarning';
 import BrowserReminders from '@/components/BrowserReminders.vue';
 import type { ReaderPageProps, SettingsProps } from '@/reader-types';
 
@@ -133,14 +134,5 @@ function save() {
     });
 }
 
-function warnBeforeLeaving(event: BeforeUnloadEvent) {
-    if (form.isDirty || form.processing || deviceBusy.value) {
-        event.preventDefault();
-        event.returnValue = '';
-    }
-}
-
-onMounted(() => window.addEventListener('beforeunload', warnBeforeLeaving));
-
-onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeLeaving));
+useLeaveWarning(() => form.isDirty || form.processing || deviceBusy.value, 'Leave without saving your settings?');
 </script>

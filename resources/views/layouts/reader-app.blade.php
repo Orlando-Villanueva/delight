@@ -21,6 +21,7 @@
 </head>
 <body class="bg-[#F5F7FA] dark:bg-gray-900 text-gray-600 min-h-screen font-sans antialiased">
     @inertia
-    <noscript><p class="p-6">Enable JavaScript to manage your settings.</p></noscript>
+    <div id="transient-notice-root" class="pointer-events-none fixed inset-x-4 bottom-mobile-nav-safe z-stack-modal flex flex-col items-center gap-3 pb-20 lg:pb-6"></div>
+    <noscript><p class="p-6">Enable JavaScript to use the reader.</p></noscript>
 </body>
 </html>

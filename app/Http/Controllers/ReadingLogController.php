@@ -18,8 +18,9 @@ use App\Services\UserStatisticsService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\MessageBag;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -35,34 +36,37 @@ class ReadingLogController extends Controller
         private ReadingCalendarService $readingCalendar
     ) {}
 
-    /**
-     * Show the form for creating a new reading log.
-     * Returns either the page view or HTMX content partial based on request type.
-     */
-    public function create(Request $request)
+    /** Show the JavaScript reader form. */
+    public function create(Request $request): InertiaResponse
     {
-        if ($this->onboardingService->shouldTrackPreFirstReading($request->user())) {
-            $this->onboardingService->recordStep($request->user(), OnboardingStep::LogFlowReached);
+        $user = $request->user();
+        if ($this->onboardingService->shouldTrackPreFirstReading($user)) {
+            $this->onboardingService->recordStep($user, OnboardingStep::LogFlowReached);
         }
 
-        $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
-        $books = $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical);
+        $today = $this->readingCalendar->todayFor($user);
 
-        // Pass empty error bag for consistent template behavior
-        $errors = new MessageBag;
-
-        // Get form context data
-        $formContext = $this->readingFormService->getFormContextData($request->user());
-
-        $data = array_merge(compact('books', 'errors'), $formContext);
-
-        // Return appropriate view based on request type
-        $response = response()->htmx('logs.create', 'page-content', $data);
-        if (! $response instanceof Response) {
-            $response = response($response);
-        }
-
-        return $response->setVary('HX-Request', false);
+        return Inertia::render('LogReading', [
+            'config' => [
+                'locale' => app()->getLocale(),
+                'submitUrl' => route('logs.store'),
+                'historyUrl' => route('logs.index'),
+                'achievementsUrl' => route('achievements.index'),
+                'achievementBadgeBaseUrl' => asset('images/achievements'),
+                'csrfToken' => csrf_token(),
+                'books' => $this->bibleReferenceService->listBibleBooks(null, 'en', $user->includesDeuterocanonicalBooks()),
+                'recentBooks' => $this->readingFormService->getRecentBooksForForm($user),
+                'dates' => ['today' => $today->toDateString(), 'yesterday' => $today->subDay()->toDateString()],
+                'values' => [
+                    'book_id' => '', 'start_chapter' => '', 'end_chapter' => '',
+                    'date_read' => $today->toDateString(), 'notes_text' => '',
+                ],
+                'errors' => (object) [],
+                'errorScopes' => (object) [],
+                'successMessage' => '',
+                'messages' => __('reading-log'),
+            ],
+        ]);
     }
 
     /**
@@ -128,19 +132,7 @@ class ReadingLogController extends Controller
 
             // Check if this is an HTMX request for the form replacement
             if ($request->header('HX-Request')) {
-                // Get fresh form data for page display
-                $books = $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical);
-                $errors = new MessageBag;
-                $formContext = $this->readingFormService->getFormContextData($request->user());
-
-                // Set success message for HTMX response (don't flash to session to avoid persistence issues)
-                $successMessage = "{$log->passage_text} recorded for {$log->date_read->format('M d, Y')}";
-
-                // Return just the form fragment with success message and reset form
-                $content = view('logs.create', array_merge(
-                    compact('books', 'errors', 'successMessage'),
-                    $formContext
-                ))->fragment('reading-form');
+                $content = view('partials.reading-log-success-message', compact('log'))->render();
 
                 $content .= $this->achievementCelebrationFragment($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay);
 

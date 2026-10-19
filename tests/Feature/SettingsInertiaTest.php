@@ -50,7 +50,9 @@ it('takes an expired Inertia settings session to login', function () {
         ->assertStatus(409)->assertHeader('X-Inertia-Location', route('login'));
 });
 
-it('keeps the reading form on its existing renderer', function () {
+it('serves the reading form through the Inertia reader shell', function () {
     $this->actingAs(User::factory()->create())->get(route('logs.create'))
-        ->assertOk()->assertSee('htmx.min.js', false)->assertHeaderMissing('X-Inertia');
+        ->assertOk()->assertDontSee('htmx.min.js', false)
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('LogReading', false)
+            ->where('config.values.notes_text', '')->etc());
 });

@@ -3,7 +3,6 @@ import { reactive } from 'vue';
 import { createNoticeTimer } from '../../resources/js/components/transient-notice-timer.ts';
 import assert from 'node:assert/strict';
 import { consumeReadingLogOutcome, createReadingLogSession, initializeReadingLogForm, submitReadingLog } from '../../resources/js/components/reading-log-session.ts';
-import { installReadingLogIslands } from '../../resources/js/components/reading-log-lifecycle.js';
 
 const draft = () => ({ values: { book_id: '43', start_chapter: '3', end_chapter: '1', date_read: '2026-10-14', notes_text: 'Private draft' }, collection: 'new', notesOpen: true });
 const success = () => ({ message: 'John 1 recorded', form: { values: { book_id: '', start_chapter: '', end_chapter: '', date_read: '2026-10-14', notes_text: '' }, dates: { today: '2026-10-14', yesterday: '2026-10-13' }, books: [], recent_books: [] }, celebration: { earned: [], progress: [], record: null, reading: { passage: 'John 1', date: 'Oct 14, 2026' } } });
@@ -77,67 +76,21 @@ for (const status of [401, 419, 403, 429]) {
     });
 }
 
-function environment() {
-    const config = { userId: '1', values: draft().values, books: [{ id: 43, testament: 'new' }], errors: {} };
-    const root = () => ({ dataset: { props: JSON.stringify(config) } });
-    const document = Object.assign(new EventTarget(), { readyState: 'complete', root: root(), querySelectorAll() { return this.root ? [this.root] : []; } });
-    const window = new EventTarget();
-    const history = { state: {}, replaceState(state) { this.state = state; } };
-    const location = { href: 'http://delight.test/logs/create' };
-    const apps = [];
-    const createApp = (component, props) => {
-        const app = { props, unmounted: 0, mount() {}, unmount() { this.unmounted++; } };
-        apps.push(app);
-        return app;
-    };
-    const fire = (target, name, detail = {}) => target.dispatchEvent(Object.assign(new Event(name), { detail }));
-    installReadingLogIslands(createApp, {}, { document, window, history, location });
-    return { config, document, window, history, location, apps, root, fire };
-}
-
-test('mounts once per root and restores the correct draft per history entry', () => {
-    const env = environment();
-    const { document, window, history, apps, root, fire } = env;
-    const firstSession = apps[0].props.session;
-    firstSession.snapshot.values.notes_text = 'First entry draft';
-    const firstKey = history.state.readingLogEntry;
-    fire(document, 'htmx:afterSwap');
-    assert.equal(apps.length, 1);
-
-    // HTMX overwrites state when saving a page, before announcing the history update.
-    history.state = { htmx: true };
-    fire(document, 'htmx:beforeHistoryUpdate');
-    assert.equal(history.state.readingLogEntry, firstKey);
-    history.state = { htmx: true };
-    fire(document, 'htmx:pushedIntoHistory');
-    assert.notEqual(history.state.readingLogEntry, firstKey);
-    fire(document, 'htmx:beforeCleanupElement', { elt: document.root });
-    assert.equal(apps[0].unmounted, 1);
-    document.root = root();
-    fire(document, 'htmx:afterSwap');
-    assert.notEqual(apps[1].props.session, firstSession);
-
-    window.dispatchEvent(Object.assign(new Event('popstate'), { state: { htmx: true, readingLogEntry: firstKey } }));
-    fire(document, 'htmx:beforeCleanupElement', { elt: document.root });
-    history.state = { htmx: true };
-    document.root = root();
-    fire(document, 'htmx:afterSwap');
-    fire(document, 'htmx:historyRestore');
-    assert.equal(apps.length, 3);
-    assert.equal(apps[2].props.session, firstSession);
-    assert.equal(apps[2].props.session.snapshot.values.notes_text, 'First entry draft');
-    assert.equal(history.state.readingLogEntry, firstKey);
+test('starts with a clean draft when returning to a new reading page', () => {
+    const initial = { ...draft(), values: { ...draft().values, notes_text: '' } };
+    const first = createReadingLogSession(initial);
+    first.snapshot.values.notes_text = 'Discard this draft';
+    const returned = createReadingLogSession(initial);
+    assert.equal(returned.snapshot.values.notes_text, '');
+    assert.equal(returned.pending, null);
+    assert.equal(returned.outcome, null);
 });
 
-test('keeps drafts separate for different authenticated users', () => {
-    const { document, apps, root, config, fire } = environment();
-    apps[0].props.session.snapshot.values.notes_text = 'User one only';
-    fire(document, 'htmx:beforeCleanupElement', { elt: document.root });
-    config.userId = '2';
-    document.root = root();
-    fire(document, 'htmx:afterSwap');
-    assert.notEqual(apps[0].props.session, apps[1].props.session);
-    assert.equal(apps[1].props.session.snapshot.values.notes_text, 'Private draft');
+test('keeps independently mounted reading pages separate', () => {
+    const first = createReadingLogSession(draft());
+    const second = createReadingLogSession(draft());
+    first.snapshot.values.notes_text = 'First page only';
+    assert.equal(second.snapshot.values.notes_text, 'Private draft');
 });
 
 function noticeClock() {
@@ -293,7 +246,7 @@ test('does not let an unconsumed validation outcome roll a newer remount calenda
     assert.equal(applied.values.start_chapter, '3');
 });
 
-test('applies a successful reset using the latest date context after remount', async () => {
+test('applies a successful reset using the latest date context after settling', async () => {
     const session = createReadingLogSession(draft());
 
     await submitReadingLog(session, session.snapshot.values, options(async () => response(200, success())));
@@ -322,7 +275,7 @@ test('uses newer fetched date context over an older session calendar', () => {
     assert.deepEqual(session.dateContext, initialized.dates);
 });
 
-test('makes settled validation, session and failure outcomes available once after remount', async () => {
+test('makes settled validation, session and failure outcomes available once after settling', async () => {
     const cases = [
         ['validation', response(422, { errors: { date_read: ['Choose a current date.'] } })],
         ['session', response(419, {})],
@@ -330,35 +283,25 @@ test('makes settled validation, session and failure outcomes available once afte
     ];
 
     for (const [kind, result] of cases) {
-        const env = environment();
-        const firstApp = env.apps[0];
-        const session = firstApp.props.session;
+
+        const session = createReadingLogSession(draft());
         let resolve;
         const pending = submitReadingLog(session, session.snapshot.values, options(() => new Promise((done) => { resolve = done; })));
 
-        env.fire(env.document, 'htmx:beforeCleanupElement', { elt: env.document.root });
         resolve(result);
         assert.equal((await pending).kind, kind);
         assert.equal(session.outcome.kind, kind);
-        env.document.root = env.root();
-        env.fire(env.document, 'htmx:afterSwap');
-        assert.equal(env.apps[1].props.session, session);
         assert.equal(consumeReadingLogOutcome(session).kind, kind);
         assert.equal(consumeReadingLogOutcome(session), null);
         assert.deepEqual(session.snapshot.values, draft().values);
     }
 });
 
-test('continues a pending request after remount and consumes its result once', async () => {
-    const env = environment();
-    const session = env.apps[0].props.session;
+test('continues a pending request after settling and consumes its result once', async () => {
+    const session = createReadingLogSession(draft());
     let resolve;
     const pending = submitReadingLog(session, session.snapshot.values, options(() => new Promise((done) => { resolve = done; })));
 
-    env.fire(env.document, 'htmx:beforeCleanupElement', { elt: env.document.root });
-    env.document.root = env.root();
-    env.fire(env.document, 'htmx:afterSwap');
-    assert.equal(env.apps[1].props.session, session);
     assert.notEqual(session.pending, null);
 
     resolve(response(500, {}));

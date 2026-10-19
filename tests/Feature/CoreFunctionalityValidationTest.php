@@ -245,8 +245,7 @@ class CoreFunctionalityValidationTest extends TestCase
         ];
 
         $response = $this->actingAs($user)->post('/logs', $invalidData);
-        $response->assertStatus(200); // Returns form with errors
-        $response->assertSee('Log Reading'); // Form is redisplayed
+        $response->assertRedirect(route('logs.create'))->assertSessionHasErrors(['book_id', 'start_chapter', 'date_read']);
     }
 
     /**

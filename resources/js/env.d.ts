@@ -10,3 +10,8 @@ interface Window {
         create(canvas: HTMLCanvasElement, options: { resize: boolean }): ReadingConfetti;
     };
 }
+
+declare module 'canvas-confetti' {
+    const confetti: NonNullable<Window['confetti']>;
+    export default confetti;
+}
