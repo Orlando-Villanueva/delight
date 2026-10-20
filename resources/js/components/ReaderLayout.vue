@@ -6,7 +6,7 @@
         >
             <nav id="reader-sidebar-navigation" :aria-label="m.navigation" class="flex flex-col gap-1 px-2">
                 <component
-                    :is="link.key === 'log' ? Link : 'a'"
+                    :is="['log', 'achievements'].includes(link.key) ? Link : 'a'"
                     v-for="link in links"
                     :key="link.key"
                     :href="link.href"
@@ -166,18 +166,21 @@
             class="fixed bottom-mobile-nav-safe left-1/2 z-stack-nav grid h-16 w-full max-w-lg -translate-x-1/2 grid-cols-5 rounded-full border border-gray-200 bg-white/80 shadow-xl backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80 lg:hidden"
         >
             <component
-                :is="link.key === 'log' ? Link : 'a'"
+                :is="['log', 'achievements'].includes(link.key) ? Link : 'a'"
                 v-for="link in links"
                 :key="link.key"
                 :href="link.href"
                 :aria-label="m[link.key]"
                 :aria-current="isCurrent(link.href) ? 'page' : undefined"
                 class="flex flex-col items-center justify-center gap-1 rounded-full px-1 transition-colors active:bg-gray-200/70 focus-visible:outline-2 focus-visible:outline-primary-500 dark:active:bg-gray-700/80"
-                :class="
+                :class="[
+                    isCurrent(link.href) ? 'bg-primary-50 dark:bg-primary-900/40' : '',
                     link.key === 'log'
                         ? 'text-accent-500 active:text-accent-700 dark:active:text-accent-300'
-                        : 'text-gray-600 active:text-gray-900 dark:text-gray-400 dark:active:text-white'
-                "
+                        : (isCurrent(link.href)
+                            ? 'text-primary-700 dark:text-primary-300'
+                            : 'text-gray-600 active:text-gray-900 dark:text-gray-400 dark:active:text-white'),
+                ]"
                 ><svg
                     class="h-6 w-6"
                     viewBox="0 0 24 24"

@@ -1,7 +1,6 @@
 import '@/bootstrap';
 import confetti from 'canvas-confetti';
 import { authenticatedShell } from '@/components/authenticated-shell.js';
-import { initAchievementHistory } from '@/components/achievement-history.js';
 import { deleteChapterSelectionState } from '@/components/delete-chapter-selection.js';
 import { bookProgressComponent } from '@/components/book-progress.js';
 
@@ -51,12 +50,6 @@ const initFlowbiteWithPatches = () => {
 };
 
 if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initAchievementHistory, { once: true });
-    } else {
-        initAchievementHistory();
-    }
-
     document.addEventListener('DOMContentLoaded', () => {
         initFlowbiteWithPatches();
 

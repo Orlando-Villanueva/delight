@@ -6,6 +6,7 @@ use App\Models\UserAchievement;
 use App\Services\AchievementService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
@@ -106,35 +107,25 @@ it('renders earned achievements and curated next goals on the trophy shelf', fun
 
     $response = $this->actingAs($user)->get(route('achievements.index'));
 
-    $response->assertSuccessful()
-        ->assertSee('Achievements')
-        ->assertSee('Permanent milestones from your Bible reading journey.')
-        ->assertSee('Next goals')
-        ->assertSee('The closest milestones in your reading journey.')
-        ->assertSee('Almost finished')
-        ->assertSee('Genesis')
-        ->assertSee('46/50 chapters')
-        ->assertSee('4 left')
-        ->assertSee('Completion 2 · 18/21 chapters · 3 left')
-        ->assertSee('Missing 7, 19, 28, 41')
-        ->assertDontSee('Exodus')
-        ->assertDontSee('Latest wins')
-        ->assertDontSee('Recently earned achievements')
-        ->assertSee('Completed John')
-        ->assertSee('images/achievements/badge-book-completed.png')
-        ->assertSee('images/achievements/badge-streak.png')
-        ->assertSee('Completed on May 6, 2026')
-        ->assertDontSee('View 1 completions')
-        ->assertSee('Read on May 5, 2026')
-        ->assertSee('7-day reading streak')
-        ->assertSee('25% Bible progress')
-        ->assertSee('In progress')
-        ->assertDontSee('Later milestones')
-        ->assertDontSee('Weekly consistency')
-        ->assertDontSee('4-week target streak')
-        ->assertDontSee('Locked');
-
-    expect(substr_count($response->getContent(), 'You completed John.'))->toBe(1);
+    $response->assertSuccessful()->assertInertia(fn (Assert $page) => $page
+        ->component('Achievements')
+        ->where('badgeBaseUrl', asset('images/achievements'))
+        ->has('categories', 2)
+        ->where('categories.0.key', 'firsts')
+        ->where('categories.0.label', 'First milestones')
+        ->where('nextGoals.books', fn ($goals): bool => collect($goals)->contains(fn (array $goal): bool => $goal['name'] === 'Genesis'
+            && $goal['chaptersRead'] === 46
+            && $goal['totalChapters'] === 50
+            && $goal['chaptersRemaining'] === 4
+            && $goal['missingChapters'] === [7, 19, 28, 41]))
+        ->where('nextGoals.progress', fn ($goals): bool => collect($goals)->contains(fn (array $goal): bool => $goal['kind'] === 'longest_streak' && $goal['unit'] === 'days')
+            && collect($goals)->contains(fn (array $goal): bool => $goal['kind'] === 'bible_progress' && $goal['unit'] === 'percent'))
+        ->where('categories.1.achievements.0.name', 'Completed John')
+        ->where('categories.1.achievements.0.description', 'You completed John.')
+        ->where('categories.1.achievements.0.icon', 'book-open')
+        ->where('categories.1.achievements.0.earnedOn', '2026-05-06')
+        ->missing('categories.1.achievements.0.metadata')
+        ->missing('categories.1.achievements.0.user_id'));
 });
 
 it('shows the first reading date with its passage without repeating the award date', function () {
@@ -145,8 +136,50 @@ it('shows the first reading date with its passage without repeating the award da
     ]);
 
     $this->actingAs($user)->get(route('achievements.index'))
-        ->assertSee('Genesis 1 · Read on May 1, 2025')
-        ->assertDontSee('Earned May 6, 2026');
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Achievements')
+            ->where('categories.0.achievements.0.reading', [
+                'passage' => 'Genesis 1',
+                'date' => '2025-05-01',
+            ])
+            ->where('categories.0.achievements.0.earnedOn', '2026-05-06'));
+});
+
+it('includes a newly started short book among the closest completion goals', function () {
+    $user = User::factory()->create();
+    achievement_page_read_chapters($user, 50, 'Philippians', [1]);
+
+    $response = $this->actingAs($user)->get(route('achievements.index'));
+
+    $response->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('Achievements')
+        ->has('nextGoals.books', 1)
+        ->where('nextGoals.books.0.name', 'Philippians')
+        ->where('nextGoals.books.0.chaptersRead', 1)
+        ->where('nextGoals.books.0.totalChapters', 4)
+        ->where('nextGoals.books.0.missingChapters', [2, 3, 4]));
+});
+
+it('omits empty categories and incomplete first-reading details', function () {
+    $user = User::factory()->create();
+
+    $emptyShelfResponse = $this->actingAs($user)->get(route('achievements.index'));
+
+    $emptyShelfResponse->assertInertia(fn (Assert $page) => $page
+        ->component('Achievements')
+        ->where('categories', [])
+        ->where('nextGoals.books', [])
+        ->where('nextGoals.progress', []));
+
+    UserAchievement::factory()->for($user)->create([
+        'metadata' => ['passage' => 'Genesis 1'],
+    ]);
+
+    $this->actingAs($user)->get(route('achievements.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Achievements')
+            ->where('categories.0.achievements.0.reading', null)
+            ->where('categories.0.achievements.0.earnedOn', '2026-05-06'));
 });
 
 it('summarizes grouped book completions and keeps their full history available', function () {
@@ -177,32 +210,17 @@ it('summarizes grouped book completions and keeps their full history available',
 
     $response = $this->actingAs($user)->get(route('achievements.index'));
 
-    $response->assertSee('Latest completion: May 6, 2026')
-        ->assertSee('History')
-        ->assertSee('aria-label="View all 3 completions for Completed Genesis"', false)
-        ->assertSee('data-achievement-history-dialog', false)
-        ->assertSee('role="dialog"', false)
-        ->assertSee('aria-modal="false"', false)
-        ->assertSee('aria-hidden="true"', false)
-        ->assertSee('aria-haspopup="dialog"', false)
-        ->assertSee('aria-expanded="false"', false)
-        ->assertSee('Completed Genesis history')
-        ->assertSee('data-achievement-history-close', false)
-        ->assertSee('data-achievement-history-backdrop', false)
-        ->assertDontSee('×3')
-        ->assertDontSee('<details', false)
-        ->assertSeeInOrder([
-            'Completed Genesis',
-            'You completed Genesis.',
-            'Latest completion: May 6, 2026',
-            'History',
-            'Completed Genesis history',
-            'Earned May 1, 2025',
-            'Completed on March 12, 2026',
-            'Completed on May 6, 2026',
-        ]);
-
-    expect(substr_count($response->getContent(), 'You completed Genesis.'))->toBe(1);
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('Achievements')
+        ->where('categories.0.achievements.0.name', 'Completed Genesis')
+        ->where('categories.0.achievements.0.count', 3)
+        ->where('categories.0.achievements.0.completions', [
+            ['completedOn' => null, 'earnedOn' => '2025-05-01'],
+            ['completedOn' => '2026-03-12', 'earnedOn' => '2026-05-06'],
+            ['completedOn' => '2026-05-06', 'earnedOn' => '2026-05-06'],
+        ])
+        ->missing('categories.0.achievements.0.metadata')
+        ->missing('categories.0.achievements.0.context_key'));
 });
 
 it('shows completion histories for grouped testament and Bible awards', function () {
@@ -216,7 +234,7 @@ it('shows completion histories for grouped testament and Bible awards', function
             UserAchievement::factory()->for($user)->create([
                 'achievement_key' => $type['key'],
                 'context_key' => "{$type['context']}:completion:{$number}",
-                'category' => 'completions',
+                'category' => $type['key'] === 'testament_completed' ? 'testaments' : 'bible',
                 'display_name' => $type['name'],
                 'metadata' => [...$type['metadata'], 'completion_number' => $number],
                 'earned_at' => '2026-05-06',
@@ -227,28 +245,22 @@ it('shows completion histories for grouped testament and Bible awards', function
 
     $response = $this->actingAs($user)->get(route('achievements.index'));
 
-    $response->assertSee('Completed Old Testament')
-        ->assertSee('Completed Bible')
-        ->assertSee('aria-label="View all 2 completions for Completed Old Testament"', false)
-        ->assertSee('aria-label="View all 2 completions for Completed Bible"', false)
-        ->assertSee('Completed on May 1, 2025')
-        ->assertSee('Latest completion: May 6, 2026');
-
-    expect(substr_count($response->getContent(), 'data-achievement-history-open='))->toBe(2);
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('Achievements')
+        ->where('categories.0.achievements.0.name', 'Completed Old Testament')
+        ->where('categories.0.achievements.0.count', 2)
+        ->where('categories.1.achievements.0.name', 'Completed Bible')
+        ->where('categories.1.achievements.0.count', 2));
 });
 
-it('returns the achievements content fragment for htmx navigation', function () {
+it('redirects htmx navigation to the full achievements page', function () {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->get(route('achievements.index'), [
         'HX-Request' => 'true',
     ]);
 
-    $response->assertSuccessful()
-        ->assertSee('Achievements')
-        ->assertSee('Permanent milestones from your Bible reading journey.')
-        ->assertDontSee('<html', false)
-        ->assertDontSee('<!DOCTYPE', false);
+    $response->assertSuccessful()->assertHeader('HX-Redirect', route('achievements.index'));
 });
 
 it('links achievements from navigation and shows a dashboard teaser', function () {

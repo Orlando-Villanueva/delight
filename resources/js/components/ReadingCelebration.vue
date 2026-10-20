@@ -57,7 +57,7 @@
                 </div>
                 <div class="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-6 py-5 dark:border-gray-700 dark:bg-gray-900/30 sm:flex-row-reverse sm:px-8">
                     <button type="button" class="min-h-11 w-full rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:bg-primary-500 dark:hover:bg-primary-600 sm:w-auto" @click="emit('close')">Keep reading</button>
-                    <a v-if="payload.earned.length" :href="achievementsUrl" class="inline-flex min-h-11 w-full items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-gray-200 dark:hover:bg-gray-700 sm:w-auto">View trophy shelf</a>
+                    <Link v-if="payload.earned.length" :href="achievementsUrl" class="inline-flex min-h-11 w-full items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-gray-200 dark:hover:bg-gray-700 sm:w-auto">View trophy shelf</Link>
                 </div>
             </div>
         </dialog>
@@ -66,6 +66,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import AchievementBadge from '@/components/AchievementBadge.vue';
 import type { CelebrationAchievement, ReadingCelebration } from '@/components/reading-log-types';
 
