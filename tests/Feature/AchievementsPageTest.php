@@ -168,6 +168,7 @@ it('omits empty categories and incomplete first-reading details', function () {
     $emptyShelfResponse->assertInertia(fn (Assert $page) => $page
         ->component('Achievements')
         ->where('categories', [])
+        ->where('latestAchievement', null)
         ->where('nextGoals.books', [])
         ->where('nextGoals.progress', []));
 
@@ -180,6 +181,80 @@ it('omits empty categories and incomplete first-reading details', function () {
             ->component('Achievements')
             ->where('categories.0.achievements.0.reading', null)
             ->where('categories.0.achievements.0.earnedOn', '2026-05-06'));
+});
+
+it('highlights the latest awarded completion even when its reading date is older', function () {
+    $user = User::factory()->create();
+    UserAchievement::factory()->for($user)->create([
+        'achievement_key' => 'book_completed',
+        'context_key' => 'book:43',
+        'category' => 'books',
+        'display_name' => 'Completed John',
+        'icon' => 'book-open',
+        'metadata' => ['book_id' => 43, 'completion_number' => 1],
+        'earned_at' => '2026-05-01 10:00:00',
+        'completed_on' => '2026-05-01',
+    ]);
+    UserAchievement::factory()->for($user)->create([
+        'achievement_key' => 'book_completed',
+        'context_key' => 'book:8',
+        'category' => 'books',
+        'display_name' => 'Completed Ruth',
+        'earned_at' => '2026-05-05 10:00:00',
+        'completed_on' => '2026-05-05',
+    ]);
+    UserAchievement::factory()->for($user)->create([
+        'achievement_key' => 'book_completed',
+        'context_key' => 'book:43:completion:2',
+        'category' => 'books',
+        'display_name' => 'Completed John',
+        'icon' => 'book-open',
+        'metadata' => ['book_id' => 43, 'completion_number' => 2],
+        'earned_at' => '2026-05-06 10:00:00',
+        'completed_on' => '2026-01-01',
+    ]);
+    UserAchievement::factory()->for($user)->create([
+        'achievement_key' => 'personal_best_streak',
+        'context_key' => 'personal-best:8',
+        'earned_at' => '2026-05-07 10:00:00',
+    ]);
+    UserAchievement::factory()->create(['earned_at' => '2026-05-08 10:00:00']);
+
+    $response = $this->actingAs($user)->get(route('achievements.index'));
+
+    $response->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('Achievements')
+        ->where('latestAchievement', [
+            'name' => 'Completed John',
+            'icon' => 'book-open',
+            'earnedOn' => '2026-05-06',
+        ]));
+});
+
+it('breaks identical award timestamps by the newest award id', function () {
+    $user = User::factory()->create();
+    UserAchievement::factory()->for($user)->create(['sort_order' => 100]);
+    UserAchievement::factory()->for($user)->create([
+        'achievement_key' => 'reading_streak_7',
+        'context_key' => 'streak:7',
+        'category' => 'streaks',
+        'sort_order' => 10,
+    ]);
+    $latestAward = UserAchievement::factory()->for($user)->create([
+        'achievement_key' => 'first_month',
+        'context_key' => 'reading-days:30',
+        'display_name' => 'First 30 reading days',
+        'icon' => 'calendar-check',
+        'sort_order' => 30,
+    ]);
+
+    $response = $this->actingAs($user)->get(route('achievements.index'));
+
+    $response->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('Achievements')
+        ->where('latestAchievement.name', 'First 30 reading days'));
+
+    expect(app(AchievementService::class)->getDashboardMilestone($user)['latest']->id)->toBe($latestAward->id);
 });
 
 it('summarizes grouped book completions and keeps their full history available', function () {

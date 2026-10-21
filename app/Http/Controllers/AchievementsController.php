@@ -17,6 +17,7 @@ class AchievementsController extends Controller
     public function index(Request $request): InertiaResponse
     {
         $shelf = $this->achievementService->getShelfData($request->user());
+        $latest = $shelf['latest'];
         $categoryLabels = config('achievements.categories', []);
         $earnedByCategory = $shelf['earned'];
         $categories = [];
@@ -109,6 +110,11 @@ class AchievementsController extends Controller
             'badgeBaseUrl' => asset('images/achievements'),
             'categories' => $categories,
             'nextGoals' => $nextGoals,
+            'latestAchievement' => $latest ? [
+                'name' => $latest->display_name,
+                'icon' => $latest->icon,
+                'earnedOn' => $latest->earned_at->toDateString(),
+            ] : null,
         ]);
     }
 }

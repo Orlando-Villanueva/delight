@@ -5,6 +5,16 @@
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Achievements</h1>
             <p class="mt-1 text-gray-600 dark:text-gray-400">Permanent milestones from your Bible reading journey.</p>
         </header>
+        <section v-if="latestAchievement" aria-labelledby="latest-achievement-title" class="flex items-center gap-3 rounded-xl border border-primary-200 bg-primary-50/50 px-4 py-3 dark:border-primary-800 dark:bg-primary-900/20">
+            <AchievementBadge :icon="latestAchievement.icon" :base-url="badgeBaseUrl" />
+            <div class="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <div class="min-w-0">
+                    <h2 id="latest-achievement-title" class="text-xs font-semibold text-primary-700 dark:text-primary-300">Latest achievement</h2>
+                    <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{{ latestAchievement.name }}</p>
+                </div>
+                <p class="text-xs text-gray-600 dark:text-gray-400">Awarded <time :datetime="latestAchievement.earnedOn">{{ formatDate(latestAchievement.earnedOn) }}</time></p>
+            </div>
+        </section>
         <section v-if="nextGoals.books.length || nextGoals.progress.length" aria-labelledby="next-goals-title" class="space-y-4">
             <div>
                 <h2 id="next-goals-title" class="text-lg font-semibold text-gray-900 dark:text-white">Next goals</h2>

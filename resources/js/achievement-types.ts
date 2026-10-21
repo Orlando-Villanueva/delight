@@ -38,6 +38,7 @@ export type AchievementProgressGoal = {
 
 export type AchievementsProps = {
     badgeBaseUrl: string;
+    latestAchievement: { name: string; icon: string; earnedOn: string } | null;
     categories: { key: string; label: string; achievements: EarnedAchievement[] }[];
     nextGoals: { books: AchievementBookGoal[]; progress: AchievementProgressGoal[] };
 };
