@@ -1,11 +1,6 @@
 <template>
-    <Teleport to="body">
-        <dialog ref="dialog" aria-labelledby="reading-celebration-title" class="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none items-center justify-center overflow-y-auto bg-transparent p-4 text-gray-950 backdrop:bg-gray-950/70 backdrop:backdrop-blur-sm open:flex dark:text-white" @cancel.prevent="emit('close')" @click.self="emit('close')">
-            <canvas ref="confettiCanvas" aria-hidden="true" class="pointer-events-none fixed inset-0 z-20 h-full w-full"></canvas>
-            <div class="relative max-h-full w-full max-w-lg overflow-y-auto rounded-xl bg-white shadow-xl dark:bg-gray-800">
-                <button ref="closeButton" type="button" aria-label="Close celebration" class="absolute end-2 top-2 z-10 inline-flex size-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200 hover:text-gray-900 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-white" @click="emit('close')">
-                    <svg class="size-3" aria-hidden="true" fill="none" viewBox="0 0 14 14"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" /></svg>
-                </button>
+    <ReaderDialog labelledby="reading-celebration-title" close-label="Close celebration" size="lg" @close="emit('close')">
+        <template #overlay><canvas ref="confettiCanvas" aria-hidden="true" class="pointer-events-none fixed inset-0 z-20 h-full w-full"></canvas></template>
                 <div class="px-6 pb-6 pt-8 sm:px-8">
                     <div class="mb-5 flex justify-center"><AchievementBadge :icon="heroIcon" :base-url="badgeBaseUrl" size="xl" /></div>
                     <div class="text-center">
@@ -59,21 +54,18 @@
                     <button type="button" class="min-h-11 w-full rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:bg-primary-500 dark:hover:bg-primary-600 sm:w-auto" @click="emit('close')">Keep reading</button>
                     <Link v-if="payload.earned.length" :href="achievementsUrl" class="inline-flex min-h-11 w-full items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-gray-200 dark:hover:bg-gray-700 sm:w-auto">View trophy shelf</Link>
                 </div>
-            </div>
-        </dialog>
-    </Teleport>
+    </ReaderDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import AchievementBadge from '@/components/AchievementBadge.vue';
+import ReaderDialog from '@/components/ReaderDialog.vue';
 import type { CelebrationAchievement, ReadingCelebration } from '@/components/reading-log-types';
 
 const { payload } = defineProps<{ payload: ReadingCelebration; achievementsUrl: string; badgeBaseUrl: string }>();
 const emit = defineEmits<{ close: [] }>();
-const dialog = ref<HTMLDialogElement | null>(null);
-const closeButton = ref<HTMLButtonElement | null>(null);
 const confettiCanvas = ref<HTMLCanvasElement | null>(null);
 const progressReady = ref(false);
 let confetti: ReadingConfetti | undefined;
@@ -93,8 +85,6 @@ function achievementDescription(achievement: CelebrationAchievement) {
 }
 
 onMounted(() => {
-    dialog.value?.showModal();
-    closeButton.value?.focus();
     progressTimer = setTimeout(() => { progressReady.value = true; }, 120);
     if (confettiCanvas.value && window.confetti) {
         confetti = window.confetti.create(confettiCanvas.value, { resize: true });
@@ -105,6 +95,5 @@ onMounted(() => {
 onBeforeUnmount(() => {
     clearTimeout(progressTimer);
     confetti?.reset();
-    dialog.value?.close();
 });
 </script>

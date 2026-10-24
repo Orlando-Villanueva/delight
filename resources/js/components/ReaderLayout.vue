@@ -6,15 +6,14 @@
         >
             <nav id="reader-sidebar-navigation" :aria-label="m.navigation" class="flex flex-col gap-1 px-2">
                 <component
-                    :is="['log', 'achievements'].includes(link.key) ? Link : 'a'"
+                    :is="['log', 'history', 'achievements'].includes(link.key) ? Link : 'a'"
                     v-for="link in links"
                     :key="link.key"
                     :href="link.href"
                     :title="m[link.key]"
-                    class="flex min-h-12 items-center rounded-lg active:bg-primary-100 focus-visible:outline-2 focus-visible:outline-primary-500 dark:active:bg-gray-600"
+                    class="flex min-h-12 items-center gap-3 rounded-lg px-3 active:bg-primary-100 focus-visible:outline-2 focus-visible:outline-primary-500 dark:active:bg-gray-600"
                     :aria-current="isCurrent(link.href) ? 'page' : undefined"
                     :class="[
-                        collapsed ? 'justify-center px-0' : 'gap-3 px-3',
                         isCurrent(link.href)
                             ? 'bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-900/40 dark:text-primary-300 dark:hover:bg-primary-900/60'
                             : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700',
@@ -166,7 +165,7 @@
             class="fixed bottom-mobile-nav-safe left-1/2 z-stack-nav grid h-16 w-full max-w-lg -translate-x-1/2 grid-cols-5 rounded-full border border-gray-200 bg-white/80 shadow-xl backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80 lg:hidden"
         >
             <component
-                :is="['log', 'achievements'].includes(link.key) ? Link : 'a'"
+                :is="['log', 'history', 'achievements'].includes(link.key) ? Link : 'a'"
                 v-for="link in links"
                 :key="link.key"
                 :href="link.href"

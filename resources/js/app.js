@@ -1,13 +1,11 @@
 import '@/bootstrap';
 import confetti from 'canvas-confetti';
 import { authenticatedShell } from '@/components/authenticated-shell.js';
-import { deleteChapterSelectionState } from '@/components/delete-chapter-selection.js';
 import { bookProgressComponent } from '@/components/book-progress.js';
 
 globalThis.confetti = confetti;
 globalThis.authenticatedShell = authenticatedShell;
 globalThis.bookProgressComponent = bookProgressComponent;
-globalThis.deleteChapterSelectionState = deleteChapterSelectionState;
 
 const applyFlowbiteBackdropPatch = () => {
     if (typeof window === 'undefined' || !window.Modal || window.Modal.__backdropPatched) {

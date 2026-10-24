@@ -6,12 +6,8 @@ use Carbon\Carbon;
 use Illuminate\Testing\TestResponse;
 
 const READING_HISTORY_DATE = '2026-08-11';
-const READING_HISTORY_DATE_LABEL = 'Aug 11, 2026';
 const READING_HISTORY_PSALMS_123 = 'Psalms 123';
 const READING_HISTORY_JOHN_4 = 'John 4';
-const READING_HISTORY_ONE_CHAPTER = '1 chapter';
-const READING_HISTORY_THREE_CHAPTERS = '3 chapters';
-const READING_HISTORY_FOUR_CHAPTERS = '4 chapters';
 const READING_HISTORY_PSALMS_BOOK_ID = 19;
 const READING_HISTORY_JOHN_BOOK_ID = 43;
 
@@ -46,21 +42,9 @@ function getReadingHistory(User $user): TestResponse
     return test()->actingAs($user)->get(route('logs.index'));
 }
 
-function readingHistoryDayHeaderCountPattern(?string $countLabel = null): string
-{
-    $date = preg_quote(READING_HISTORY_DATE_LABEL, '/');
-
-    if ($countLabel === null) {
-        return '/<time[^>]*>\s*'.$date.'\s*<\/time>\s*<span/';
-    }
-
-    return '/<time[^>]*>\s*'.$date.'\s*<\/time>\s*<span[^>]*>\s*'.preg_quote($countLabel, '/').'\s*<\/span>/';
-}
-
-it('hides the day chapter count when the day total is one', function () {
+it('provides typed group data for a single reading and its note', function () {
     $user = User::factory()->create();
-
-    createReadingHistoryLog($user, [
+    $log = createReadingHistoryLog($user, [
         'book_id' => READING_HISTORY_PSALMS_BOOK_ID,
         'chapter' => 123,
         'passage_text' => READING_HISTORY_PSALMS_123,
@@ -68,25 +52,29 @@ it('hides the day chapter count when the day total is one', function () {
         'created_at' => readingHistoryDate()->setTime(8, 15),
     ]);
 
-    $response = getReadingHistory($user);
-
-    $response->assertSuccessful()
-        ->assertSee(READING_HISTORY_DATE_LABEL, false)
-        ->assertSee(READING_HISTORY_PSALMS_123, false)
-        ->assertSee('A quiet psalm.', false)
-        ->assertSee('Logged at 8:15 AM', false)
-        ->assertSee('aria-label="Edit note"', false)
-        ->assertSee('aria-label="Delete reading"', false)
-        ->assertDontSee(READING_HISTORY_ONE_CHAPTER, false)
-        ->assertDontSee('chapters', false)
-        ->assertDontSee('bg-primary-100 text-primary-800', false);
-
-    expect($response->getContent())->not->toMatch(readingHistoryDayHeaderCountPattern());
+    getReadingHistory($user)->assertInertia(fn ($page) => $page
+        ->component('History')
+        ->where('today', now()->toDateString())
+        ->where('hasLogs', true)
+        ->has('days', 1)
+        ->where('days.0.date', READING_HISTORY_DATE)
+        ->where('days.0.label', 'Aug 11, 2026')
+        ->has('days.0.groups', 1)
+        ->where('days.0.groups.0.id', $log->id)
+        ->where('days.0.groups.0.passage', READING_HISTORY_PSALMS_123)
+        ->where('days.0.groups.0.notes', 'A quiet psalm.')
+        ->where('days.0.groups.0.timeLabel', '8:15 AM')
+        ->where('days.0.groups.0.chapterCount', 1)
+        ->where('days.0.groups.0.chapters.0.id', $log->id)
+        ->where('days.0.groups.0.chapters.0.chapter', 123)
+        ->where('days.0.groups.0.noteUrl', route('logs.notes.update', $log))
+        ->where('days.0.groups.0.deleteUrl', route('logs.destroy', $log))
+        ->where('days.0.groups.0.deleteChaptersUrl', route('logs.chapters.destroy', $log))
+    );
 });
 
-it('puts a multi-chapter range count on the passage line and omits the day total', function () {
+it('groups a contiguous multi-chapter range into one History group', function () {
     $user = User::factory()->create();
-
     createReadingHistoryRange(
         $user,
         READING_HISTORY_PSALMS_BOOK_ID,
@@ -96,32 +84,25 @@ it('puts a multi-chapter range count on the passage line and omits the day total
         readingHistoryDate()->setTime(7, 30),
     );
 
-    $response = getReadingHistory($user);
-
-    $response->assertSuccessful()
-        ->assertSee(READING_HISTORY_DATE_LABEL, false)
-        ->assertSee('Psalms 112-114', false)
-        ->assertSee(READING_HISTORY_THREE_CHAPTERS, false)
-        ->assertSee('shrink-0 text-nowrap text-xs font-normal text-gray-500 dark:text-gray-400', false)
-        ->assertSee('Logged at 7:30 AM', false)
-        ->assertDontSee(READING_HISTORY_ONE_CHAPTER, false)
-        ->assertDontSee('bg-primary-100 text-primary-800', false);
-
-    expect($response->getContent())->not->toMatch(
-        readingHistoryDayHeaderCountPattern(READING_HISTORY_THREE_CHAPTERS)
+    getReadingHistory($user)->assertInertia(fn ($page) => $page
+        ->component('History')
+        ->has('days.0.groups', 1)
+        ->where('days.0.groups.0.passage', 'Psalms 112-114')
+        ->where('days.0.groups.0.chapterCount', 3)
+        ->has('days.0.groups.0.chapters', 3)
+        ->where('days.0.groups.0.chapters.0.chapter', 112)
+        ->where('days.0.groups.0.chapters.2.chapter', 114)
     );
 });
 
-it('keeps a day total for mixed single-chapter entries and omits per-card counts', function () {
+it('preserves separate groups and their notes within the same day', function () {
     $user = User::factory()->create();
-
     createReadingHistoryLog($user, [
         'book_id' => READING_HISTORY_PSALMS_BOOK_ID,
         'chapter' => 123,
         'passage_text' => READING_HISTORY_PSALMS_123,
         'created_at' => readingHistoryDate()->setTime(8, 0),
     ]);
-
     createReadingHistoryLog($user, [
         'book_id' => READING_HISTORY_JOHN_BOOK_ID,
         'chapter' => 4,
@@ -130,28 +111,19 @@ it('keeps a day total for mixed single-chapter entries and omits per-card counts
         'created_at' => readingHistoryDate()->setTime(9, 45),
     ]);
 
-    $response = getReadingHistory($user);
-
-    $response->assertSuccessful()
-        ->assertSee(READING_HISTORY_DATE_LABEL, false)
-        ->assertSee('2 chapters', false)
-        ->assertSee(READING_HISTORY_PSALMS_123, false)
-        ->assertSee(READING_HISTORY_JOHN_4, false)
-        ->assertSee('The woman at the well.', false)
-        ->assertSee('Logged at 8:00 AM', false)
-        ->assertSee('Logged at 9:45 AM', false)
-        ->assertDontSee(READING_HISTORY_ONE_CHAPTER, false)
-        ->assertDontSee(READING_HISTORY_THREE_CHAPTERS, false);
-
-    expect($response->getContent())
-        ->toMatch(readingHistoryDayHeaderCountPattern('2 chapters'))
-        ->and(substr_count($response->getContent(), '2 chapters'))->toBe(1)
-        ->and(substr_count($response->getContent(), 'chapters'))->toBe(1);
+    getReadingHistory($user)->assertInertia(fn ($page) => $page
+        ->component('History')
+        ->has('days.0.groups', 2)
+        ->where('days.0.groups.0.passage', READING_HISTORY_JOHN_4)
+        ->where('days.0.groups.0.notes', 'The woman at the well.')
+        ->where('days.0.groups.1.passage', READING_HISTORY_PSALMS_123)
+        ->where('days.0.groups.0.chapterCount', 1)
+        ->where('days.0.groups.1.chapterCount', 1)
+    );
 });
 
-it('shows a day total for mixed entries and a passage-line count only on the range', function () {
+it('keeps the grouped chapter count when a day mixes a range and a separate reading', function () {
     $user = User::factory()->create();
-
     createReadingHistoryRange(
         $user,
         READING_HISTORY_PSALMS_BOOK_ID,
@@ -160,7 +132,6 @@ it('shows a day total for mixed entries and a passage-line count only on the ran
         114,
         readingHistoryDate()->setTime(7, 30),
     );
-
     createReadingHistoryLog($user, [
         'book_id' => READING_HISTORY_JOHN_BOOK_ID,
         'chapter' => 4,
@@ -168,19 +139,13 @@ it('shows a day total for mixed entries and a passage-line count only on the ran
         'created_at' => readingHistoryDate()->setTime(9, 45),
     ]);
 
-    $response = getReadingHistory($user);
-
-    $response->assertSuccessful()
-        ->assertSee(READING_HISTORY_DATE_LABEL, false)
-        ->assertSee(READING_HISTORY_FOUR_CHAPTERS, false)
-        ->assertSee('Psalms 112-114', false)
-        ->assertSee(READING_HISTORY_THREE_CHAPTERS, false)
-        ->assertSee(READING_HISTORY_JOHN_4, false)
-        ->assertSee('text-xs font-medium text-gray-500 dark:text-gray-400', false)
-        ->assertSee('shrink-0 text-nowrap text-xs font-normal text-gray-500 dark:text-gray-400', false)
-        ->assertDontSee(READING_HISTORY_ONE_CHAPTER, false);
-
-    expect($response->getContent())
-        ->toMatch(readingHistoryDayHeaderCountPattern(READING_HISTORY_FOUR_CHAPTERS))
-        ->and(substr_count($response->getContent(), READING_HISTORY_FOUR_CHAPTERS))->toBe(1);
+    getReadingHistory($user)->assertInertia(fn ($page) => $page
+        ->component('History')
+        ->has('days.0.groups', 2)
+        ->where('days.0.groups.0.passage', READING_HISTORY_JOHN_4)
+        ->where('days.0.groups.0.chapterCount', 1)
+        ->where('days.0.groups.1.passage', 'Psalms 112-114')
+        ->where('days.0.groups.1.chapterCount', 3)
+        ->has('days.0.groups.1.chapters', 3)
+    );
 });

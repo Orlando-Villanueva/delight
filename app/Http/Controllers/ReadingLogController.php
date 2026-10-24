@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\OnboardingStep;
 use App\Http\Requests\DeleteReadingChaptersRequest;
+use App\Http\Requests\GetOlderReadingHistoryRequest;
 use App\Http\Requests\StoreReadingLogRequest;
 use App\Http\Requests\UpdateReadingNotesRequest;
 use App\Models\ReadingLog;
@@ -13,9 +14,11 @@ use App\Services\BibleReferenceService;
 use App\Services\OnboardingService;
 use App\Services\ReadingCalendarService;
 use App\Services\ReadingFormService;
+use App\Services\ReadingHistoryDayData;
 use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -174,29 +177,26 @@ class ReadingLogController extends Controller
     }
 
     /**
-     * Display a listing of reading logs with infinite scroll pagination.
-     * Supports both HTMX content loading and direct page access.
+     * Display the reader History timeline.
      */
-    public function index(Request $request)
+    public function index(Request $request): InertiaResponse
     {
-        $logs = $this->readingLogService->getPaginatedDayGroupsFor($request, $this->userStatisticsService);
+        $user = $request->user();
+        $history = $this->readingLogService->getHistoryDays($user, $this->userStatisticsService);
 
-        if ($request->header('HX-Request')) {
-            // If it's an infinite scroll request (has page parameter), return just the new cards
-            if ($request->has('page') && $request->get('page') > 1) {
-                $cardsHtml = $this->readingLogService->renderReadingLogCardsHtml($logs);
+        return Inertia::render('History', [
+            ...$history,
+            'today' => $this->readingCalendar->todayFor($user)->toDateString(),
+        ]);
+    }
 
-                return response($cardsHtml);
-            }
-
-            // If this is a refresh request (from readingLogAdded trigger), return just the list
-            if ($request->has('refresh')) {
-                return view('partials.reading-log-list', compact('logs'));
-            }
-        }
-
-        // Return full page for direct access or page container for HTMX navigation
-        return response()->htmx('logs.index', 'page-content', compact('logs'));
+    public function older(GetOlderReadingHistoryRequest $request): JsonResponse
+    {
+        return response()->json($this->readingLogService->getHistoryDays(
+            $request->user(),
+            $this->userStatisticsService,
+            $request->validated('before')
+        ))->header('Cache-Control', 'private, no-store');
     }
 
     /**
@@ -210,31 +210,8 @@ class ReadingLogController extends Controller
             $user, $readingLog, $data['log_ids'], $data['notes_text']
         );
 
-        $dates = collect([$readingLog->date_read->format('Y-m-d')]);
-
-        $dayResponses = $this->readingLogService->getPreparedLogsForDates(
-            $user,
-            $dates->all(),
-            $this->userStatisticsService
-        );
-
-        $orderedResponses = $dates
-            ->mapWithKeys(fn ($date) => [$date => $dayResponses[$date] ?? null])
-            ->all();
-
-        if ($request->header('HX-Request')) {
-            $response = response()->view('partials.reading-log-update-response', [
-                'primaryDate' => $readingLog->date_read->format('Y-m-d'),
-                'dayResponses' => $orderedResponses,
-                'userHasLogs' => $this->readingLogService->userHasAnyLogs($user),
-            ]);
-
-            $triggerPayload = [
-                'hideModal' => ['id' => "edit-note-{$readingLog->id}"],
-                'readingLogUpdated' => ['date' => $readingLog->date_read->format('Y-m-d')],
-            ];
-
-            return $response->header('HX-Trigger', json_encode($triggerPayload));
+        if ($request->expectsJson()) {
+            return $this->historyMutationResponse($user, $readingLog->date_read->toDateString());
         }
 
         return redirect()
@@ -258,22 +235,8 @@ class ReadingLogController extends Controller
         // Delete the reading log (service handles book progress update)
         $this->readingLogService->deleteReadingLog($readingLog);
 
-        // For HTMX requests, return targeted day + modal updates
-        if ($request->header('HX-Request')) {
-            $dayResponses = $this->readingLogService->getPreparedLogsForDates(
-                $user,
-                [$date],
-                $this->userStatisticsService
-            );
-
-            // Ensure the response array contains the primary date key even when empty
-            $dayResponses = [$date => $dayResponses[$date] ?? null];
-
-            return view('partials.reading-log-update-response', [
-                'primaryDate' => $date,
-                'dayResponses' => $dayResponses,
-                'userHasLogs' => $this->readingLogService->userHasAnyLogs($user),
-            ]);
+        if ($request->expectsJson()) {
+            return $this->historyMutationResponse($user, $date);
         }
 
         // For non-HTMX requests, redirect back
@@ -290,24 +253,26 @@ class ReadingLogController extends Controller
         $date = $readingLog->date_read->format('Y-m-d');
         $this->readingLogService->deleteGroupChapters($user, $readingLog, $data['group_ids'], $data['log_ids']);
 
-        if ($request->header('HX-Request')) {
-            $dayResponses = $this->readingLogService->getPreparedLogsForDates(
-                $user,
-                [$date],
-                $this->userStatisticsService
-            );
-
-            $dayResponses = [$date => $dayResponses[$date] ?? null];
-
-            return response()->view('partials.reading-log-update-response', [
-                'primaryDate' => $date,
-                'dayResponses' => $dayResponses,
-                'userHasLogs' => $this->readingLogService->userHasAnyLogs($user),
-            ])->header('HX-Trigger', json_encode([
-                'hideModal' => ['id' => "delete-chapters-{$readingLog->id}"],
-            ]));
+        if ($request->expectsJson()) {
+            return $this->historyMutationResponse($user, $date);
         }
 
         return redirect()->route('logs.index')->with('success', 'Selected readings deleted successfully.');
+    }
+
+    private function historyMutationResponse(User $user, string $date): JsonResponse
+    {
+        $preparedDay = $this->readingLogService->getPreparedLogsForDate(
+            $user,
+            $date,
+            $this->userStatisticsService
+        );
+
+        return response()->json([
+            'day' => $preparedDay === null ? null : ReadingHistoryDayData::fromDisplayLogs($date, $preparedDay),
+            'date' => $date,
+            'today' => $this->readingCalendar->todayFor($user)->toDateString(),
+            'hasLogs' => $this->readingLogService->userHasAnyLogs($user),
+        ])->header('Cache-Control', 'private, no-store');
     }
 }

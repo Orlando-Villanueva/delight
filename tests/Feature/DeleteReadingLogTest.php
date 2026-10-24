@@ -4,11 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\ReadingLog;
 use App\Models\User;
-use App\Services\ReadingCalendarService;
 use App\Services\ReadingLogService;
-use App\Services\UserStatisticsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class DeleteReadingLogTest extends TestCase
@@ -194,9 +191,9 @@ class DeleteReadingLogTest extends TestCase
     }
 
     /**
-     * Test HTMX request returns updated log list
+     * Test JSON request returns updated log list
      */
-    public function test_htmx_delete_returns_updated_log_list(): void
+    public function test_json_delete_returns_updated_log_list(): void
     {
         $user = User::factory()->create();
 
@@ -209,17 +206,13 @@ class DeleteReadingLogTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->withHeaders(['HX-Request' => 'true'])
+            ->withHeaders(['Accept' => 'application/json'])
             ->delete(route('logs.destroy', $log));
 
         $response->assertSuccessful();
-        $response->assertViewIs('partials.reading-log-update-response');
-        $response->assertViewHas('primaryDate', today()->format('Y-m-d'));
-        $this->assertSame(
-            [today()->format('Y-m-d') => null],
-            $response->viewData('dayResponses')
-        );
-        $response->assertViewHas('userHasLogs', false);
+        $response->assertJsonPath('date', today()->toDateString())
+            ->assertJsonPath('day', null)
+            ->assertJsonPath('hasLogs', false);
     }
 
     /**
@@ -297,9 +290,9 @@ class DeleteReadingLogTest extends TestCase
     }
 
     /**
-     * Test HTMX batch deletion updates the rendered day fragment.
+     * Test JSON batch deletion updates the rendered day fragment.
      */
-    public function test_htmx_batch_delete_updates_day_fragment(): void
+    public function test_json_batch_delete_updates_day_fragment(): void
     {
         $user = User::factory()->create();
         $readingLogService = app(ReadingLogService::class);
@@ -315,25 +308,24 @@ class DeleteReadingLogTest extends TestCase
         $idsToDelete = $allLogs->pluck('id')->all();
 
         $response = $this->actingAs($user)
-            ->withHeaders(['HX-Request' => 'true'])
+            ->withHeaders(['Accept' => 'application/json'])
             ->delete(route('logs.chapters.destroy', $allLogs->first()), [
                 'group_ids' => $idsToDelete,
                 'log_ids' => $idsToDelete,
             ]);
 
         $response->assertSuccessful();
-        $response->assertViewIs('partials.reading-log-update-response');
+        $response->assertJsonPath('date', today()->toDateString());
         $response->assertDontSee('Genesis 1-3');
     }
 
     /**
-     * Ensure rendered reading log items use date-based IDs for HTMX targeting.
+     * Ensure History groups retain their date identity.
      */
-    public function test_reading_log_items_use_date_ids(): void
+    public function test_reading_log_items_retain_date_identity(): void
     {
         $user = User::factory()->create();
         $readingLogService = app(ReadingLogService::class);
-        $statisticsService = app(UserStatisticsService::class);
 
         $readingLogService->logReading($user, [
             'book_id' => 1,
@@ -342,24 +334,17 @@ class DeleteReadingLogTest extends TestCase
             'date_read' => today()->toDateString(),
         ]);
 
-        $request = Request::create('/logs', 'GET');
-        $request->setUserResolver(fn () => $user);
-
-        $paginatedLogs = $readingLogService->getPaginatedDayGroupsFor($request, $statisticsService);
-
-        $html = view('partials.reading-log-items', [
-            'readingToday' => app(ReadingCalendarService::class)->todayFor($user),
-            'logs' => $paginatedLogs,
-            'includeEmptyToday' => false,
-        ])->render();
-
-        $this->assertStringContainsString('id="reading-day-'.today()->format('Y-m-d').'"', $html);
+        $this->actingAs($user)->get(route('logs.index'))
+            ->assertInertia(fn ($page) => $page->component('History')
+                ->where('days.0.date', today()->toDateString())
+                ->has('days.0.groups.0.chapters', 2)
+            );
     }
 
     /**
-     * Test HTMX batch deletion updates remaining multi-chapter card.
+     * Test JSON batch deletion updates remaining multi-chapter card.
      */
-    public function test_htmx_batch_delete_updates_multi_chapter_card(): void
+    public function test_json_batch_delete_updates_multi_chapter_card(): void
     {
         $user = User::factory()->create();
         $readingLogService = app(ReadingLogService::class);
@@ -375,14 +360,14 @@ class DeleteReadingLogTest extends TestCase
         $firstLogId = $allLogs->first()->id;
 
         $response = $this->actingAs($user)
-            ->withHeaders(['HX-Request' => 'true'])
+            ->withHeaders(['Accept' => 'application/json'])
             ->delete(route('logs.chapters.destroy', $allLogs->first()), [
                 'group_ids' => $allLogs->pluck('id')->all(),
                 'log_ids' => [$firstLogId],
             ]);
 
         $response->assertSuccessful();
-        $response->assertViewIs('partials.reading-log-update-response');
+        $response->assertJsonPath('date', today()->toDateString());
         $response->assertDontSee('Genesis 1-3');
         $response->assertSee('Genesis 2-3');
     }

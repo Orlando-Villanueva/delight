@@ -15,7 +15,7 @@ class HandleReaderInertiaRequests extends Middleware
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->is('settings', 'logs/create', 'achievements')) {
+        if (! $request->is('settings', 'logs/create', 'logs', 'logs/*', 'achievements')) {
             return $next($request);
         }
 
@@ -32,7 +32,7 @@ class HandleReaderInertiaRequests extends Middleware
         Inertia::encryptHistory();
         $response = parent::handle($request, $next);
         $response->headers->set('Cache-Control', 'private, no-store');
-        $response->setVary(['HX-Request', 'X-Inertia'], false);
+        $response->setVary(['Accept', 'HX-Request', 'X-Inertia'], false);
 
         return $response;
     }

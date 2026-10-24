@@ -88,33 +88,25 @@
             <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Your first achievement appears here after you log a reading.</p>
         </section>
     </div>
-    <Teleport to="body">
-        <dialog ref="historyDialog" aria-labelledby="completion-history-title" class="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-xl border border-gray-200 bg-white p-0 text-gray-900 shadow-xl backdrop:bg-gray-950/60 backdrop:backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white" @close="selected = null" @click="closeOnBackdrop">
-            <template v-if="selected">
-                <header class="flex items-start justify-between gap-3 border-b border-gray-200 p-5 dark:border-gray-700">
-                    <div>
-                        <h2 id="completion-history-title" class="text-lg font-semibold">{{ selected.name }} history</h2>
-                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ selected.count }} completions</p>
-                    </div>
-                    <button type="button" autofocus :aria-label="`Close ${selected.name} history`" class="-mr-2 -mt-2 inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-gray-300 dark:hover:bg-gray-700" @click="historyDialog?.close()">
-                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg>
-                    </button>
-                </header>
-                <ol class="divide-y divide-gray-100 px-5 dark:divide-gray-700">
-                    <li v-for="(completion, index) in selected.completions" :key="index" class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-4 text-sm">
-                        <span class="text-gray-500 dark:text-gray-400">Completion {{ index + 1 }}</span>
-                        <span><span v-if="!completion.completedOn" class="text-gray-500 dark:text-gray-400">Awarded </span><time :datetime="completion.completedOn ?? completion.earnedOn">{{ formatDate(completion.completedOn ?? completion.earnedOn) }}</time></span>
-                    </li>
-                </ol>
-            </template>
-        </dialog>
-    </Teleport>
+    <ReaderDialog v-if="selected" labelledby="completion-history-title" :close-label="`Close ${selected.name} history`" @close="selected = null">
+        <header class="border-b border-gray-200 p-5 pe-16 dark:border-gray-700">
+            <h2 id="completion-history-title" class="text-lg font-semibold">{{ selected.name }} history</h2>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ selected.count }} completions</p>
+        </header>
+        <ol class="divide-y divide-gray-100 px-5 dark:divide-gray-700">
+            <li v-for="(completion, index) in selected.completions" :key="index" class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-4 text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Completion {{ index + 1 }}</span>
+                <span><span v-if="!completion.completedOn" class="text-gray-500 dark:text-gray-400">Awarded </span><time :datetime="completion.completedOn ?? completion.earnedOn">{{ formatDate(completion.completedOn ?? completion.earnedOn) }}</time></span>
+            </li>
+        </ol>
+    </ReaderDialog>
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref } from 'vue';
+import { ref } from 'vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import AchievementBadge from '@/components/AchievementBadge.vue';
+import ReaderDialog from '@/components/ReaderDialog.vue';
 import type { AchievementProgressGoal, AchievementsProps, EarnedAchievement } from '@/achievement-types';
 import type { ReaderPageProps } from '@/reader-types';
 
@@ -122,25 +114,14 @@ defineProps<AchievementsProps>();
 
 const page = usePage<ReaderPageProps>();
 const selected = ref<EarnedAchievement | null>(null);
-const historyDialog = ref<HTMLDialogElement | null>(null);
 const dateFormat = new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long', day: 'numeric' });
 
 function hasHistory(achievement: EarnedAchievement) {
     return achievement.count > 1 && achievement.completions.length > 0;
 }
 
-async function openHistory(achievement: EarnedAchievement) {
+function openHistory(achievement: EarnedAchievement) {
     selected.value = achievement;
-    await nextTick();
-    historyDialog.value?.showModal();
-}
-
-function closeOnBackdrop(event: MouseEvent) {
-    if (event.target !== historyDialog.value || !historyDialog.value) return;
-    const bounds = historyDialog.value.getBoundingClientRect();
-    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) {
-        historyDialog.value.close();
-    }
 }
 
 function formatDate(date: string) {
@@ -166,5 +147,4 @@ function achievementDate(achievement: EarnedAchievement) {
     return `${label} ${formatDate(latest?.completedOn ?? latest?.earnedOn ?? achievement.earnedOn)}`;
 }
 
-onBeforeUnmount(() => historyDialog.value?.close());
 </script>

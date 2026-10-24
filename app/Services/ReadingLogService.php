@@ -705,24 +705,6 @@ class ReadingLogService
         return $readingLog;
     }
 
-    /**
-     * Render reading log cards HTML for infinite scroll responses.
-     * Takes a collection of grouped logs and returns concatenated card HTML.
-     * Includes infinite scroll sentinel if there are more pages.
-     */
-    public function renderReadingLogCardsHtml($logs): string
-    {
-        return view('partials.reading-log-items', [
-            'logs' => $logs,
-            'includeEmptyToday' => false,
-        ])->render()
-        .view('partials.reading-log-modals', [
-            'logs' => $logs,
-            'modalsOutOfBand' => true,
-            'swapMethod' => 'beforeend',
-        ])->render();
-    }
-
     public function getPaginatedDayGroupsFor(
         Request $request,
         UserStatisticsService $statisticsService,
@@ -787,6 +769,44 @@ class ReadingLogService
         $paginator->appends($request->query());
 
         return $paginator;
+    }
+
+    /**
+     * Return a bounded History slice using an exclusive date cursor.
+     *
+     * @return array{days: array<int, array{date: string, label: string, groups: array<int, array<string, mixed>>}>, nextUrl: ?string, hasLogs: bool}
+     */
+    public function getHistoryDays(User $user, UserStatisticsService $statisticsService, ?string $before = null, int $perPage = 8): array
+    {
+        $dateQuery = $user->readingLogs()->select('date_read')->distinct();
+
+        if ($before !== null) {
+            $dateQuery->whereDate('date_read', '<', $before);
+        }
+
+        $dates = $dateQuery
+            ->orderByDesc('date_read')
+            ->limit($perPage + 1)
+            ->pluck('date_read')
+            ->map(fn ($date): string => Carbon::parse($date)->toDateString())
+            ->values();
+
+        $hasMore = $dates->count() > $perPage;
+        $pageDates = $dates->take($perPage)->values();
+        $preparedDays = $this->getPreparedLogsForDates($user, $pageDates->all(), $statisticsService);
+        $days = $pageDates->map(fn (string $date): array => ReadingHistoryDayData::fromDisplayLogs(
+            $date,
+            $preparedDays[$date] ?? collect()
+        ))->all();
+        $lastDate = $pageDates->last();
+
+        return [
+            'days' => $days,
+            'nextUrl' => $hasMore && $lastDate !== null
+                ? route('logs.older', ['before' => $lastDate])
+                : null,
+            'hasLogs' => $this->userHasAnyLogs($user),
+        ];
     }
 
     /**
@@ -857,31 +877,6 @@ class ReadingLogService
         return $group;
     }
 
-    /**
-     * Resolve owned records for redisplaying an invalid web note form.
-     * This does not validate group membership or authorize a note update.
-     */
-    public function getLogsForNoteForm(User $user, ReadingLog $primaryLog, array $logIds = []): Collection
-    {
-        $ids = collect($logIds)
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->push($primaryLog->id)
-            ->unique()
-            ->values();
-
-        if ($ids->isEmpty()) {
-            return collect([$primaryLog]);
-        }
-
-        $logs = ReadingLog::where('user_id', $user->id)
-            ->whereIn('id', $ids)
-            ->orderBy('chapter')
-            ->get();
-
-        return $logs->isEmpty() ? collect([$primaryLog]) : $logs;
-    }
-
     public function getPreparedLogsForDate(User $user, string $date, UserStatisticsService $statisticsService): ?Collection
     {
         $logsForDay = $user->readingLogs()
@@ -906,16 +901,16 @@ class ReadingLogService
             return [];
         }
 
-        return $uniqueDates->mapWithKeys(function ($date) use ($user, $statisticsService) {
-            $logsForDay = $user->readingLogs()
-                ->whereDate('date_read', $date)
-                ->get();
+        $byDate = $user->readingLogs()
+            ->whereIn(DB::raw('date(date_read)'), $uniqueDates)
+            ->orderByDesc('created_at')
+            ->get()
+            ->groupBy(fn (ReadingLog $log): string => $log->date_read->toDateString());
 
-            if ($logsForDay->isEmpty()) {
-                return [$date => null];
-            }
+        return $uniqueDates->mapWithKeys(function (string $date) use ($byDate, $user, $statisticsService): array {
+            $logsForDay = $byDate->get($date, collect());
 
-            return [$date => $this->prepareDisplayLogs($logsForDay, $statisticsService, $user)];
+            return [$date => $logsForDay->isEmpty() ? null : $this->prepareDisplayLogs($logsForDay, $statisticsService, $user)];
         })->all();
     }
 

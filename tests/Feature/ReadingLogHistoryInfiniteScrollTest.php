@@ -12,11 +12,9 @@ class ReadingLogHistoryInfiniteScrollTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_infinite_scroll_response_returns_timeline_markup(): void
+    public function test_older_history_uses_an_exclusive_date_cursor_and_returns_next_url(): void
     {
         $user = User::factory()->create();
-
-        // Create 17 consecutive days of logs (per-page limit is 8 days)
         foreach (range(0, 16) as $offset) {
             ReadingLog::factory()->create([
                 'user_id' => $user->id,
@@ -29,16 +27,63 @@ class ReadingLogHistoryInfiniteScrollTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($user)
-            ->withHeaders(['HX-Request' => 'true'])
-            ->get(route('logs.index', ['page' => 2]));
+        $firstPage = $this->actingAs($user)->get(route('logs.index'));
+        $firstPage->assertInertia(fn ($page) => $page
+            ->component('History')
+            ->has('days', 8)
+            ->where('hasLogs', true)
+            ->where('days.7.date', Carbon::today()->subDays(7)->toDateString())
+            ->where('nextUrl', route('logs.older', ['before' => Carbon::today()->subDays(7)->toDateString()]))
+        );
 
-        $response->assertOk();
-        $response->assertSee('id="reading-day-', false);
-        $response->assertSee('class="ms-6"', false);
-        $response->assertSee('id="infinite-scroll-sentinel"', false);
-        $response->assertSee('hx-target="this"', false);
-        $response->assertSee('hx-swap="outerHTML"', false);
-        $response->assertSee('hx-swap-oob="beforeend"', false);
+        $older = $this->get(route('logs.older', ['before' => Carbon::today()->subDays(7)->toDateString()]));
+        $older->assertOk()
+            ->assertJsonPath('days.0.date', Carbon::today()->subDays(8)->toDateString())
+            ->assertJsonPath('days.7.date', Carbon::today()->subDays(15)->toDateString())
+            ->assertJsonPath('hasLogs', true)
+            ->assertJsonPath('nextUrl', route('logs.older', ['before' => Carbon::today()->subDays(15)->toDateString()]));
+    }
+
+    public function test_older_history_rejects_invalid_cursor_dates(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->getJson(route('logs.older', ['before' => 'not-a-date']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('before');
+    }
+
+    public function test_cursor_does_not_skip_days_after_the_cursor_day_is_deleted(): void
+    {
+        $user = User::factory()->create();
+        foreach (range(0, 16) as $offset) {
+            ReadingLog::factory()->for($user)->create([
+                'book_id' => 1, 'chapter' => $offset + 1,
+                'date_read' => today()->subDays($offset)->toDateString(),
+            ]);
+        }
+        $cursorDate = today()->subDays(7)->toDateString();
+        $log = $user->readingLogs()->whereDate('date_read', $cursorDate)->firstOrFail();
+        $this->actingAs($user)->deleteJson(route('logs.destroy', $log))
+            ->assertOk()->assertJsonPath('day', null)->assertJsonPath('hasLogs', true);
+
+        $this->getJson(route('logs.older', ['before' => $cursorDate]))
+            ->assertOk()->assertJsonCount(8, 'days')
+            ->assertJsonPath('days.0.date', today()->subDays(8)->toDateString())
+            ->assertJsonPath('days.7.date', today()->subDays(15)->toDateString());
+    }
+
+    public function test_history_is_empty_for_new_readers_and_older_pages_are_owned(): void
+    {
+        $user = User::factory()->create();
+        ReadingLog::factory()->create(['date_read' => today()->subDay()->toDateString()]);
+        $this->getJson(route('logs.older', ['before' => today()->toDateString()]))->assertUnauthorized();
+        $this->actingAs($user)->get(route('logs.index'))->assertInertia(fn ($page) => $page
+            ->component('History')->where('days', [])->where('hasLogs', false)->where('nextUrl', null)
+        );
+        $this->getJson(route('logs.older', ['before' => today()->toDateString()]))
+            ->assertOk()->assertJsonPath('days', [])->assertJsonPath('hasLogs', false)
+            ->assertHeader('Cache-Control', 'no-store, private');
     }
 }

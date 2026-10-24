@@ -262,8 +262,7 @@ describe('Navigation Routes', function () {
         $response = $this->actingAs($user)->get(route('logs.index'));
 
         $response->assertSuccessful();
-        $response->assertSee('Reading History');
-        $response->assertSee('Review and manage past readings.');
+        $response->assertInertia(fn ($page) => $page->component('History')->has('days')->has('today'));
     });
 });
 
