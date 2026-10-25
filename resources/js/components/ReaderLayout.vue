@@ -6,7 +6,7 @@
         >
             <nav id="reader-sidebar-navigation" :aria-label="m.navigation" class="flex flex-col gap-1 px-2">
                 <component
-                    :is="['log', 'history', 'achievements'].includes(link.key) ? Link : 'a'"
+                    :is="['dashboard', 'log', 'history', 'achievements'].includes(link.key) ? Link : 'a'"
                     v-for="link in links"
                     :key="link.key"
                     :href="link.href"
@@ -41,10 +41,10 @@
                 <div class="flex items-center justify-between gap-3 pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 lg:h-full lg:pl-0 lg:pr-5 lg:py-0">
                     <div class="flex min-w-0 items-center">
                         <div class="shrink-0 overflow-hidden transition-[width] motion-reduce:transition-none" :class="collapsed ? 'lg:w-16' : 'lg:w-64'">
-                            <a :href="reader.urls.dashboard" :aria-label="reader.appName" class="flex items-center gap-3 font-semibold text-gray-900 dark:text-white lg:gap-0">
+                            <Link :href="reader.urls.dashboard" :aria-label="reader.appName" class="flex items-center gap-3 font-semibold text-gray-900 dark:text-white lg:gap-0">
                                 <img :src="reader.logoUrl" alt="" class="h-8 w-8 shrink-0 lg:mx-4" />
                                 <span class="whitespace-nowrap text-lg sm:text-xl" :class="collapsed ? 'lg:hidden' : ''">{{ reader.appName }}</span>
-                            </a>
+                            </Link>
                         </div>
                         <button
                             type="button"
@@ -140,6 +140,7 @@
                                         v-for="key in accountLinks"
                                         :key="key"
                                         :href="reader.urls[key] ?? undefined"
+                                        @click="closeNavigationMenus"
                                         class="block rounded-lg px-3 py-3 text-sm hover:bg-gray-100 focus-visible:outline-2 dark:text-gray-300 dark:hover:bg-gray-700"
                                         >{{ m[key] }}</component
                                     >
@@ -165,7 +166,7 @@
             class="fixed bottom-mobile-nav-safe left-1/2 z-stack-nav grid h-16 w-full max-w-lg -translate-x-1/2 grid-cols-5 rounded-full border border-gray-200 bg-white/80 shadow-xl backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80 lg:hidden"
         >
             <component
-                :is="['log', 'history', 'achievements'].includes(link.key) ? Link : 'a'"
+                :is="['dashboard', 'log', 'history', 'achievements'].includes(link.key) ? Link : 'a'"
                 v-for="link in links"
                 :key="link.key"
                 :href="link.href"
@@ -200,7 +201,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import type { ReaderPageProps } from '@/reader-types';
 
@@ -290,6 +291,12 @@ async function loadNotifications(event?: Event) {
         notificationError.value = true;
     }
 }
+
+function closeNavigationMenus() {
+    for (const menu of [profile.value, notifications.value]) if (menu) menu.open = false;
+}
+
+watch(() => page.url, closeNavigationMenus);
 
 function closeMenus(event: MouseEvent) {
     for (const menu of [profile.value, notifications.value]) if (menu && !(event.target instanceof Node && menu.contains(event.target))) menu.open = false;

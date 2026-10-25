@@ -347,20 +347,16 @@ it('links achievements from navigation and shows a dashboard teaser', function (
     $response = $this->actingAs($user)->get(route('dashboard'));
 
     $response->assertSuccessful()
-        ->assertSee(route('achievements.index'))
-        ->assertSee('Achievements')
-        ->assertSee('Next Milestone')
-        ->assertSee('View shelf')
-        ->assertSee('images/achievements/badge-streak.png')
-        ->assertSee('7-day reading streak')
-        ->assertSee('1/7')
-        ->assertSee('Latest trophy: <span class="font-medium text-gray-700 dark:text-gray-200">Completed John</span>', false)
-        ->assertSeeInOrder(['Daily Streak', 'Next Milestone', 'Days Read'])
-        ->assertSee('Best: 1')
-        ->assertDontSee('RECORD')
-        ->assertDontSee('Weekly Journey')
-        ->assertDontSee('First week')
-        ->assertDontSee('New longest streak');
+        ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('milestone.milestone.displayName', '7-day reading streak')
+            ->where('milestone.milestone.current', 1)
+            ->where('milestone.milestone.target', 7)
+            ->where('milestone.latest.displayName', 'Completed John')
+            ->where('badgeBaseUrl', asset('images/achievements'))
+            ->missing('milestone.latest.id')
+            ->missing('milestone.latest.user_id')
+            ->has('bookProgress.old_testament.processed_books.0.book_id')
+            ->has('bookProgress.old_testament.processed_books.0.chapter_count'));
 });
 
 it('shows the first reading milestone on the dashboard for new users', function () {
@@ -369,13 +365,11 @@ it('shows the first reading milestone on the dashboard for new users', function 
     $response = $this->actingAs($user)->get(route('dashboard'));
 
     $response->assertSuccessful()
-        ->assertSee('Next Milestone')
-        ->assertSee('First reading')
-        ->assertSee('0/1')
-        ->assertSee('images/achievements/badge-first-reading.png')
-        ->assertSeeInOrder(['Daily Streak', 'Next Milestone', 'Days Read'])
-        ->assertDontSee('RECORD')
-        ->assertDontSee('Weekly Journey');
+        ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('milestone.milestone.displayName', 'First reading')
+            ->where('milestone.milestone.current', 0)
+            ->where('milestone.milestone.target', 1)
+            ->where('milestone.latest', null));
 });
 
 it('falls back to the latest trophy on the dashboard when no milestone remains', function () {
@@ -391,11 +385,10 @@ it('falls back to the latest trophy on the dashboard when no milestone remains',
     $response = $this->actingAs($user)->get(route('dashboard'));
 
     $response->assertSuccessful()
-        ->assertSee('Next Milestone')
-        ->assertSee('Latest trophy: <span class="font-medium text-gray-700 dark:text-gray-200">100% Bible progress</span>', false)
-        ->assertSee('You completed the Bible by chapters.')
-        ->assertSee('images/achievements/badge-progress.png')
-        ->assertDontSee('First milestone');
+        ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('milestone.milestone', null)
+            ->where('milestone.latest.displayName', '100% Bible progress')
+            ->where('milestone.latest.description', 'You completed the Bible by chapters.'));
 });
 
 it('advertises achievements alongside the other landing page features', function () {

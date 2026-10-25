@@ -198,6 +198,6 @@ it('links to settings from the profile dropdown', function () {
     $response = $this->actingAs($user)->get(route('dashboard'));
 
     $response->assertSuccessful()
-        ->assertSee(route('settings.edit'), false)
-        ->assertSee('Settings');
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Dashboard', false)
+            ->where('reader.urls.settings', route('settings.edit')));
 });

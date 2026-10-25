@@ -8,6 +8,7 @@ use App\Services\ReadingLogService;
 use App\Services\ReadingPlanService;
 use App\Services\UserStatisticsService;
 use Carbon\Carbon;
+use Inertia\Testing\AssertableInertia as Assert;
 
 it('establishes the mobile calendar before returning dates and validating a reading', function () {
     $this->travelTo(Carbon::parse('2026-09-09 15:00:00', 'UTC'));
@@ -227,8 +228,9 @@ it('uses the pre-authentication timezone on the first dashboard response', funct
     $this->assertAuthenticated();
 
     $this->get(route('dashboard'))->assertOk()
-        ->assertViewHas('calendarData', fn ($data) => collect($data['calendar'])
-            ->first(fn ($day) => $day && $day['isToday'])['dateString'] === '2026-09-10')
+        ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('calendar.days', fn ($days): bool => collect($days)
+                ->contains(fn (?array $day): bool => $day !== null && $day['isToday'] && $day['date'] === '2026-09-10')))
         ->assertDontSee('data-reload-after-detection', false)
         ->assertCookieExpired('reading_timezone_report');
 

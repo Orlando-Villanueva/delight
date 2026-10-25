@@ -15,7 +15,7 @@ class HandleReaderInertiaRequests extends Middleware
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->is('settings', 'logs/create', 'logs', 'logs/*', 'achievements')) {
+        if (! $request->is('dashboard', 'settings', 'logs/create', 'logs', 'logs/*', 'achievements', 'onboarding/*')) {
             return $next($request);
         }
 

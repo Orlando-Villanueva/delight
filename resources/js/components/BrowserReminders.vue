@@ -13,16 +13,17 @@
         class="mt-6 flex flex-col gap-4 border-t border-gray-200 pt-6 dark:border-gray-700"
     >
         <div class="flex items-start justify-between gap-4">
-            <div class="space-y-2">
-                <div class="flex flex-wrap items-center gap-2">
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Web reading reminders</h2>
-                    <span
-                        title="Beta: available as an opt-in while browser notification support is being tested."
-                        class="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:border-primary-400/40 dark:bg-primary-900/60 dark:text-primary-200"
-                    >
-                        Beta
+            <div class="min-w-0 space-y-2">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    Web reading
+                    <span class="inline-flex items-center gap-2">
+                        reminders
+                        <span
+                            title="Beta: available as an opt-in while browser notification support is being tested."
+                            class="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:border-primary-400/40 dark:bg-primary-900/60 dark:text-primary-200"
+                        >Beta</span>
                     </span>
-                </div>
+                </h2>
                 <p class="text-sm font-medium text-gray-700 dark:text-gray-200">This browser · changes immediately</p>
                 <p data-reading-reminders-status hidden class="text-sm leading-6 text-gray-600 dark:text-gray-400"></p>
             </div>

@@ -7,7 +7,6 @@ use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
@@ -162,60 +161,54 @@ it('manual user statistics invalidation clears streak series caches', function (
         ->and(Cache::has(app(ReadingCalendarService::class)->cacheKey($user, "user_recent_reading_activity_series_{$user->id}")))->toBeFalse();
 });
 
-it('renders recent activity accessibility copy and exact values without streak era wording', function (): void {
-    $activitySeries = collect(range(1, 14))
-        ->map(fn (int $day): array => [
-            'date' => Carbon::parse('2024-01-01')->addDays($day - 1)->toDateString(),
-            'count' => $day === 14 ? 2 : 0,
-        ])
-        ->all();
+it('returns exact recent 14 day reading counts through the Dashboard contract', function (): void {
+    Carbon::setTestNow('2024-01-14 10:00:00');
+    $user = User::factory()->create();
 
-    $html = renderStreakCounterWithActivity($activitySeries);
+    createReadingActivityLog($user, '2023-12-31');
+    createReadingActivityLog($user, '2024-01-01');
+    createReadingActivityLog($user, '2024-01-07');
+    createReadingActivityLog($user, '2024-01-07', 2);
+    createReadingActivityLog($user, '2024-01-13');
+    createReadingActivityLog($user, '2024-01-14');
+    createReadingActivityLog($user, '2024-01-14', 2);
+    createReadingActivityLog($user, '2024-01-14', 3);
 
-    expect($html)
-        ->toContain('Recent 14-day reading activity')
-        ->toContain('Recent 14-day reading activity counts.')
-        ->toContain('Jan 1, 2024: 0 readings')
-        ->toContain('Jan 14, 2024: 2 readings')
-        ->not->toContain('since streak began')
-        ->not->toContain('current streak')
-        ->not->toContain('No readings logged in the last 14 days yet.');
+    $this->actingAs($user)->getJson(route('dashboard'))
+        ->assertOk()
+        ->assertJsonCount(14, 'streak.activity14DayCounts')
+        ->assertJsonPath('streak.activity14DayCounts.0', ['date' => '2024-01-01', 'count' => 1])
+        ->assertJsonPath('streak.activity14DayCounts.5', ['date' => '2024-01-06', 'count' => 0])
+        ->assertJsonPath('streak.activity14DayCounts.6', ['date' => '2024-01-07', 'count' => 2])
+        ->assertJsonPath('streak.activity14DayCounts.12', ['date' => '2024-01-13', 'count' => 1])
+        ->assertJsonPath('streak.activity14DayCounts.13', ['date' => '2024-01-14', 'count' => 3]);
 });
 
-it('renders an intentional zero activity state near the chart', function (): void {
-    $activitySeries = collect(range(1, 14))
-        ->map(fn (int $day): array => [
-            'date' => Carbon::parse('2024-01-01')->addDays($day - 1)->toDateString(),
-            'count' => 0,
-        ])
-        ->all();
+it('returns a zero-filled recent activity window when the Dashboard has no recent readings', function (): void {
+    Carbon::setTestNow('2024-01-14 10:00:00');
+    $user = User::factory()->create();
+    createReadingActivityLog($user, '2023-12-20');
 
-    $html = renderStreakCounterWithActivity($activitySeries);
-
-    expect($html)
-        ->toContain('Recent 14-day reading activity')
-        ->toContain('No readings were logged in this window.')
-        ->toContain('No readings logged in the last 14 days yet.')
-        ->toContain('Jan 14, 2024: 0 readings')
-        ->not->toContain('since streak began');
+    $this->actingAs($user)->getJson(route('dashboard'))
+        ->assertOk()
+        ->assertJsonCount(14, 'streak.activity14DayCounts')
+        ->assertJsonPath('streak.activity14DayCounts.0', ['date' => '2024-01-01', 'count' => 0])
+        ->assertJsonPath('streak.activity14DayCounts.13', ['date' => '2024-01-14', 'count' => 0]);
 });
 
-it('labels fallback streak series as current streak activity', function (): void {
-    $streakSeries = [
-        ['date' => '2024-01-13', 'count' => 1],
-        ['date' => '2024-01-14', 'count' => 1],
-    ];
+it('returns an exact current streak series separately from recent activity', function (): void {
+    Carbon::setTestNow('2024-01-14 10:00:00');
+    $user = User::factory()->create();
+    createReadingActivityLog($user, '2024-01-13');
+    createReadingActivityLog($user, '2024-01-14');
 
-    $html = renderStreakCounterWithActivity([], $streakSeries);
-
-    expect($html)
-        ->toContain('Current streak reading activity')
-        ->toContain('Current streak reading activity counts.')
-        ->toContain('At least one reading was logged during this streak.')
-        ->toContain('Jan 13, 2024: 1 reading')
-        ->toContain('Jan 14, 2024: 1 reading')
-        ->not->toContain('Recent 14-day reading activity')
-        ->not->toContain('No readings logged in the last 14 days yet.');
+    $this->actingAs($user)->getJson(route('dashboard'))
+        ->assertOk()
+        ->assertJsonPath('streak.currentStreak', 2)
+        ->assertJsonPath('streak.currentStreakCounts', [
+            ['date' => '2024-01-13', 'count' => 1],
+            ['date' => '2024-01-14', 'count' => 1],
+        ]);
 });
 
 function createReadingActivityLog(User $user, string $dateRead, int $chapter = 1): ReadingLog
@@ -226,24 +219,4 @@ function createReadingActivityLog(User $user, string $dateRead, int $chapter = 1
         'passage_text' => "Genesis {$chapter}",
         'date_read' => $dateRead,
     ]);
-}
-
-function renderStreakCounterWithActivity(array $activitySeries, array $streakSeries = []): string
-{
-    return Blade::render(
-        <<<'BLADE'
-        <x-ui.streak-counter
-            :current-streak="0"
-            :longest-streak="0"
-            :activity-series="$activitySeries"
-            :streak-series="$streakSeries"
-            :state-classes="$stateClasses"
-        />
-        BLADE,
-        [
-            'activitySeries' => $activitySeries,
-            'streakSeries' => $streakSeries,
-            'stateClasses' => ['showIcon' => false],
-        ],
-    );
 }

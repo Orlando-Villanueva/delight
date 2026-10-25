@@ -6,6 +6,7 @@ use App\Models\ReadingLog;
 use App\Models\User;
 use App\Services\ReadingLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class DeleteReadingLogTest extends TestCase
@@ -398,10 +399,9 @@ class DeleteReadingLogTest extends TestCase
         // Verify dashboard still loads successfully after deletion
         // (This verifies cache is properly invalidated and dashboard doesn't crash)
         $response = $this->actingAs($user)->get('/dashboard');
-        $response->assertSuccessful();
-        $response->assertSee('Dashboard');
-
-        // Verify the deleted reading doesn't appear
-        $response->assertDontSee('Genesis 1');
+        $response->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Dashboard', false)
+                ->where('summary.totalChapters', 0)
+                ->has('recentActivity', 0));
     }
 }

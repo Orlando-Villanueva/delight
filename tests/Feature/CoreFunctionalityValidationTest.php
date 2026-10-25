@@ -7,6 +7,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class CoreFunctionalityValidationTest extends TestCase
@@ -99,18 +100,25 @@ class CoreFunctionalityValidationTest extends TestCase
         $response = $this->actingAs($user)->get('/dashboard');
 
         $response->assertStatus(200);
+        $response->assertHeader('Cache-Control', 'no-store, private');
+        $response->assertViewHas('page', fn (array $page): bool => ($page['encryptHistory'] ?? false) === true);
 
-        // Check for key dashboard components (new UI)
-        $response->assertSee('Daily Streak');
-        $response->assertSee('Days Read');
-        $response->assertSee('Total Chapters');
-        $response->assertSee('Book Completions');
-        $response->assertSee('Avg/Day');
+        $response->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('summary.totalChapters', 2)
+            ->has('summary.daysRead')
+            ->has('summary.bookCompletions')
+            ->has('summary.averageChaptersPerDay')
+            ->has('recentActivity', 2)
+            ->where('recentActivity.0.passageText', 'Genesis 1')
+            ->where('recentActivity.1.passageText', 'Genesis 2'));
 
-        // Check for recent readings
-        $response->assertSee('Recent Readings');
-        $response->assertSee('Genesis 1');
-        $response->assertSee('Genesis 2');
+        $this->actingAs($user)->getJson(route('dashboard'))
+            ->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, private')
+            ->assertJsonPath('summary.totalChapters', 2)
+            ->assertJsonPath('recentActivity.0.passageText', 'Genesis 1')
+            ->assertJsonMissingPath('stats')
+            ->assertJsonMissingPath('user.password');
     }
 
     /**
@@ -204,15 +212,9 @@ class CoreFunctionalityValidationTest extends TestCase
         $response->assertSee('name="viewport"', false);
         $response->assertSee('width=device-width', false);
 
-        // Check for responsive grid classes
-        $response->assertSee('grid-cols-1', false);
-        $response->assertSee('sm:grid-cols-2', false);
-        $response->assertSee('2xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1.15fr)_minmax(17.5rem,0.85fr)]', false);
-        $response->assertSee('xl:grid-cols-4', false);
-
-        // Check for mobile-specific elements
-        $response->assertSee('lg:hidden', false); // Mobile navigation and FAB
-        $response->assertSee('hidden xl:block', false); // Desktop sidebar
+        // The Dashboard grid is client-rendered; this response provides its mobile viewport and Inertia mount.
+        $response->assertSee('id="app"', false);
+        $response->assertInertia(fn (Assert $page) => $page->component('Dashboard', false));
 
         // Test guest pages (logout first to clear authentication)
         auth()->logout();
@@ -282,11 +284,9 @@ class CoreFunctionalityValidationTest extends TestCase
         $response = $this->actingAs($user)->get('/dashboard');
         $response->assertStatus(200);
 
-        $response->assertViewHas('stats');
-        $stats = $response->viewData('stats');
-
-        $this->assertArrayNotHasKey('weekly_goal', $stats);
-        $this->assertEquals(3, $stats['reading_summary']['this_week_days']);
+        $response->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->has('summary')
+            ->missing('weeklyGoal'));
     }
 
     /**
@@ -311,10 +311,9 @@ class CoreFunctionalityValidationTest extends TestCase
         $response = $this->actingAs($user)->get('/dashboard');
         $response->assertStatus(200);
 
-        $stats = $response->viewData('stats');
-
-        $this->assertArrayNotHasKey('weekly_goal', $stats);
-        $this->assertEquals(4, $stats['reading_summary']['this_week_days']);
+        $response->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->has('summary')
+            ->missing('weeklyGoal'));
     }
 
     /**
@@ -359,24 +358,11 @@ class CoreFunctionalityValidationTest extends TestCase
         $response = $this->actingAs($user)->get('/dashboard');
         $response->assertStatus(200);
 
-        // Check that calendar data is present
-        $response->assertViewHas('calendarData');
-        $calendarData = $response->viewData('calendarData');
-
-        // Verify calendar data structure
-        $this->assertArrayHasKey('calendar', $calendarData);
-        $this->assertArrayHasKey('monthName', $calendarData);
-        $this->assertArrayHasKey('thisMonthReadings', $calendarData);
-        $this->assertArrayHasKey('thisMonthChapters', $calendarData);
-        $this->assertArrayHasKey('successRate', $calendarData);
-
-        // Verify statistics: 3 days read, 6 total chapters (1 + 3 + 2)
-        $this->assertEquals(3, $calendarData['thisMonthReadings']);
-        $this->assertEquals(6, $calendarData['thisMonthChapters']);
-
-        // Check that the calendar widget displays the chapters stat
-        $response->assertSee('Chapters');
-        $response->assertSee('6'); // Should show total chapters read
+        $response->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('calendar.thisMonthReadings', 3)
+            ->where('calendar.thisMonthChapters', 6)
+            ->has('calendar.days')
+            ->has('calendar.successRate'));
     }
 
     /**
@@ -389,17 +375,9 @@ class CoreFunctionalityValidationTest extends TestCase
         $response = $this->actingAs($user)->get('/dashboard');
         $response->assertStatus(200);
 
-        $response->assertViewHas('calendarData');
-        $calendarData = $response->viewData('calendarData');
-
-        // Verify empty state
-        $this->assertEquals(0, $calendarData['thisMonthReadings']);
-        $this->assertEquals(0, $calendarData['thisMonthChapters']);
-        $this->assertEquals(0, $calendarData['successRate']);
-
-        // Check that the calendar widget shows zeros
-        $response->assertSee('Days Read');
-        $response->assertSee('Chapters');
-        $response->assertSee('Success Rate');
+        $response->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('calendar.thisMonthReadings', 0)
+            ->where('calendar.thisMonthChapters', 0)
+            ->where('calendar.successRate', 0));
     }
 }

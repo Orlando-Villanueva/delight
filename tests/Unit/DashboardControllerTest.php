@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Http\Middleware\HandleReaderInertiaRequests;
 use App\Models\ReadingLog;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanSubscription;
@@ -11,7 +12,9 @@ use App\Services\StreakStateService;
 use App\Services\UserStatisticsService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class DashboardControllerTest extends TestCase
@@ -32,15 +35,17 @@ class DashboardControllerTest extends TestCase
         $this->actingAs($this->user);
     }
 
-    public function test_index_returns_dashboard_view_for_regular_request()
+    public function test_index_returns_dashboard_inertia_contract_for_regular_request(): void
     {
-        $response = $this->get('/dashboard');
-
-        $response->assertStatus(200);
-        $response->assertViewIs('dashboard');
-        $response->assertViewHas('hasReadToday');
-        $response->assertViewHas('streakState');
-        $response->assertViewHas('stats');
+        $this->get('/dashboard')->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+                ->has('hasReadToday')
+                ->has('streak.currentStreak')
+                ->has('streak.presentation.state')
+                ->has('summary.totalChapters')
+                ->has('calendar.days')
+                ->has('bookProgress')
+                ->has('milestone'));
     }
 
     public function test_index_ignores_a_stale_dashboard_cache_payload_after_progress_shape_changes(): void
@@ -56,40 +61,50 @@ class DashboardControllerTest extends TestCase
         );
         Cache::forget($calendar->dashboardStatisticsCacheKey($this->user));
 
-        $this->get('/dashboard')->assertOk();
+        $this->get('/dashboard')->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+                ->has('bookProgress.book_completions'));
     }
 
-    public function test_index_returns_fragment_for_htmx_request()
+    public function test_index_redirects_htmx_navigation_to_the_dashboard_url(): void
     {
         $response = $this->get('/dashboard', ['HX-Request' => 'true']);
 
-        $response->assertStatus(200);
-        // We look for the main content fragment container
-        $response->assertSee('id="main-content"', false);
-        $response->assertDontSee('<!DOCTYPE html>');
+        $response->assertOk()
+            ->assertHeader('HX-Redirect', route('dashboard'));
     }
 
-    public function test_index_computes_streak_state_correctly()
+    public function test_index_computes_streak_state_correctly(): void
     {
-        $response = $this->get('/dashboard');
-
-        $response->assertViewHas('streakState', function ($state) {
-            return in_array($state, ['inactive', 'active', 'warning']);
-        });
-
-        $response->assertViewHas('hasReadToday');
-        $response->assertViewHas('stats');
+        $this->get('/dashboard')->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+                ->where('streak.presentation.state', fn (string $state): bool => in_array($state, ['inactive', 'active', 'warning'], true))
+                ->has('hasReadToday')
+                ->has('streak'));
     }
 
-    public function test_index_renders_next_milestone_for_htmx_request()
+    public function test_index_exposes_the_next_milestone_in_its_dashboard_contract(): void
     {
-        $response = $this->get('/dashboard', ['HX-Request' => 'true']);
+        $this->getJson('/dashboard')->assertOk()
+            ->assertJsonStructure(['milestone' => ['latest', 'milestone']]);
+    }
 
-        $response->assertStatus(200);
+    public function test_index_returns_streak_state_for_json_clients(): void
+    {
+        Carbon::setTestNow('2026-05-16 14:00:00');
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 19,
+            'chapter' => 1,
+            'passage_text' => self::STREAK_PASSAGE_TEXT,
+            'date_read' => today()->subDay(),
+        ]);
 
-        // Match current content
-        $response->assertSee('Next Milestone');
-        $response->assertDontSee('Weekly Journey');
+        $this->getJson('/dashboard')->assertOk()
+            ->assertJsonPath('streak.presentation.state', 'active')
+            ->assertJsonPath('hasReadToday', false);
+
+        Carbon::setTestNow();
     }
 
     public function test_index_renders_pending_streak_status_before_warning_time()
@@ -106,13 +121,11 @@ class DashboardControllerTest extends TestCase
 
         $response = $this->get('/dashboard');
 
-        $response->assertStatus(200);
-        $response->assertSee('Not read today');
-        $response->assertDontSee('Keep your streak active.');
-        $response->assertSee(self::LOG_TODAY_LABEL);
-        $response->assertSee('href="'.route('logs.create').'"', false);
-        $response->assertSee('hx-push-url="true"', false);
-        $response->assertDontSee('Streak at risk');
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+                ->where('streak.presentation.state', 'active')
+                ->where('streak.presentation.showCta', true)
+                ->where('hasReadToday', false));
 
         Carbon::setTestNow();
     }
@@ -131,11 +144,11 @@ class DashboardControllerTest extends TestCase
 
         $response = $this->get('/dashboard');
 
-        $response->assertStatus(200);
-        $response->assertSee('Streak at risk');
-        $response->assertSee('text-accent-700 dark:text-accent-300', false);
-        $response->assertDontSee('Keep your 1-day streak.');
-        $response->assertSee(self::LOG_TODAY_LABEL);
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+                ->where('streak.presentation.state', 'warning')
+                ->where('streak.presentation.showCta', true)
+                ->where('hasReadToday', false));
 
         Carbon::setTestNow();
     }
@@ -154,8 +167,9 @@ class DashboardControllerTest extends TestCase
         ]);
 
         $this->get('/dashboard')
-            ->assertStatus(200)
-            ->assertSee('Streak at risk');
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+                ->where('streak.presentation.state', 'warning'));
 
         $this->travelBack();
     }
@@ -175,7 +189,8 @@ class DashboardControllerTest extends TestCase
 
         $this->get('/dashboard')
             ->assertStatus(200)
-            ->assertSee('Streak at risk');
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+                ->where('streak.presentation.state', 'warning'));
 
         expect(Cache::has("warning_state_{$this->user->id}_2026-05-16"))->toBeTrue()
             ->and(Cache::has("warning_state_{$this->user->id}_2026-05-17"))->toBeFalse();
@@ -190,9 +205,10 @@ class DashboardControllerTest extends TestCase
 
         $response = $this->get('/dashboard');
 
-        $response->assertStatus(200)
-            ->assertViewHas('showRecapCard', true)
-            ->assertViewHas('recapCardYear', 2025);
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+                ->where('recap.show', true)
+                ->where('recap.year', 2025));
 
         $this->travelBack();
     }
@@ -222,29 +238,7 @@ class DashboardControllerTest extends TestCase
         $this->travelBack();
     }
 
-    public function test_index_renders_streak_status_for_htmx_request()
-    {
-        Carbon::setTestNow('2026-05-16 14:00:00');
-
-        ReadingLog::factory()->create([
-            'user_id' => $this->user->id,
-            'book_id' => 19,
-            'chapter' => 1,
-            'passage_text' => self::STREAK_PASSAGE_TEXT,
-            'date_read' => today()->subDay(),
-        ]);
-
-        $response = $this->get('/dashboard', ['HX-Request' => 'true']);
-
-        $response->assertStatus(200);
-        $response->assertSee('Not read today');
-        $response->assertSee(self::LOG_TODAY_LABEL);
-        $response->assertDontSee('<!DOCTYPE html>');
-
-        Carbon::setTestNow();
-    }
-
-    public function test_index_uses_active_plan_for_cta()
+    public function test_dashboard_smart_plans_url_targets_the_active_plan()
     {
         Carbon::setTestNow('2026-01-10');
 
@@ -298,13 +292,31 @@ class DashboardControllerTest extends TestCase
 
         $response = $this->get('/dashboard');
 
-        $response->assertViewHas('planCta', function ($planCta) use ($activePlan) {
-            $this->assertTrue($planCta['showPlanCta']);
-            $this->assertSame($activePlan->id, $planCta['plan']->id);
-            $this->assertSame('Matthew 1', $planCta['planLabel']);
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+                ->where('reader.urls.plans', route('plans.today', $activePlan)));
 
-            return true;
-        });
+        Carbon::setTestNow();
+    }
+
+    public function test_index_renders_pending_streak_status_for_an_inertia_request(): void
+    {
+        Carbon::setTestNow('2026-05-16 14:00:00');
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 19,
+            'chapter' => 1,
+            'passage_text' => self::STREAK_PASSAGE_TEXT,
+            'date_read' => today()->subDay(),
+        ]);
+
+        $version = app(HandleReaderInertiaRequests::class)->version(Request::create('/dashboard'));
+
+        $this->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => $version])->get('/dashboard')->assertOk()
+            ->assertJsonPath('component', 'Dashboard')
+            ->assertJsonPath('props.streak.presentation.state', 'active')
+            ->assertJsonPath('props.streak.presentation.showCta', true)
+            ->assertJsonPath('props.hasReadToday', false);
 
         Carbon::setTestNow();
     }
