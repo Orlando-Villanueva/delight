@@ -2,7 +2,7 @@
     <Head title="Reading Plans" />
     <section class="mx-auto w-full max-w-3xl space-y-6" aria-labelledby="plans-title" :aria-busy="submitting || undefined">
         <header>
-            <h1 id="plans-title" class="text-2xl font-bold text-gray-900 dark:text-white">Reading Plans</h1>
+            <h1 id="plans-title" tabindex="-1" class="text-2xl font-bold text-gray-900 dark:text-white">Reading Plans</h1>
         </header>
         <p v-if="startDayError" role="alert" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
             {{ startDayError }}
@@ -28,7 +28,7 @@
                             <span v-if="!plan.subscription.active" class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">Paused</span>
                         </div>
                         <div>
-                            <div class="flex items-center justify-between gap-3 text-sm">
+                            <div class="flex flex-col items-start gap-1 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                                 <span class="text-gray-600 dark:text-gray-400">Day {{ plan.subscription.dayNumber }} of {{ plan.subscription.lastDay }}</span>
                                 <span class="font-medium text-primary-700 dark:text-primary-300">{{ plan.subscription.completedDays }} of {{ plan.subscription.trackedDays }} tracked days complete</span>
                             </div>
@@ -78,6 +78,7 @@
             <p class="mt-2 text-gray-500 dark:text-gray-400">Check back soon for new reading plans.</p>
         </div>
     </section>
+    <TransientNotice :message="success" dismiss-label="Dismiss notification" @dismiss="dismissSuccess" />
     <ReaderDialog v-if="selectedPlan" labelledby="plan-start-title" describedby="plan-start-desc" close-label="Close starting passage dialog" initial-focus="#plan-start-day" :busy="submitting" @close="closeStart">
         <header class="border-b border-gray-200 px-5 py-4 pe-16 dark:border-gray-700">
             <h2 id="plan-start-title" class="text-lg font-semibold">Start from a different passage</h2>
@@ -114,9 +115,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue';
-import { Head, usePage } from '@inertiajs/vue3';
+import { computed, nextTick, onMounted, ref } from 'vue';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import ReaderDialog from '@/components/ReaderDialog.vue';
+import TransientNotice from '@/components/TransientNotice.vue';
 import type { PlanCatalogueItem, PlansPageProps } from '@/plans-types';
 import type { ReaderPageProps } from '@/reader-types';
 
@@ -128,12 +130,27 @@ const selectedDay = ref(0);
 const confirmForm = ref<HTMLFormElement | null>(null);
 const returnFocus = ref<HTMLElement | null>(null);
 const submitting = ref(false);
+const success = ref(props.flash.success ?? '');
 
 const csrfToken = computed(() => page.props.reader.csrfToken);
 const selectedPlan = computed(() => props.plans.find((plan) => plan.slug === selectedSlug.value) ?? null);
 const showEarlierDaysNote = computed(() => selectedPlan.value !== null && selectedDay.value > selectedPlan.value.firstDay);
 const startDayError = computed(() => page.props.errors.start_day ?? '');
-const notice = computed(() => props.flash.error || props.flash.info || props.flash.success || '');
+const notice = computed(() => props.flash.error || props.flash.info || '');
+
+onMounted(() => {
+    if (!success.value) return;
+    router.replace<ReaderPageProps & PlansPageProps>({
+        props: current => ({ ...current, flash: { ...current.flash, success: null } }),
+        preserveState: true,
+        preserveScroll: true,
+    });
+});
+
+function dismissSuccess(restoreFocus: boolean) {
+    success.value = '';
+    if (restoreFocus) nextTick(() => document.getElementById('plans-title')?.focus());
+}
 
 function rememberFocus(target: EventTarget | null) {
     returnFocus.value = target instanceof HTMLElement ? target : null;

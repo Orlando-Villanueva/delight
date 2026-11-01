@@ -519,7 +519,7 @@ describe('Reading Plan Subscription', function () {
             ->delete(route('plans.unsubscribe', $this->plan));
 
         $response->assertRedirect(route('plans.index'))
-            ->assertSessionHas('success', 'You have unsubscribed from this plan.');
+            ->assertSessionHas('success', 'You have unsubscribed from Test.');
 
         $this->assertDatabaseMissing('reading_plan_subscriptions', [
             'user_id' => $this->user->id,

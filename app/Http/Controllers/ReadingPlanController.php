@@ -86,7 +86,7 @@ class ReadingPlanController extends Controller
         $user = $request->user();
         $this->planService->unsubscribe($user, $plan);
 
-        return $this->redirectToCatalogue($request, 'success', 'You have unsubscribed from this plan.');
+        return $this->redirectToCatalogue($request, 'success', "You have unsubscribed from {$plan->getShortName()}.");
     }
 
     /**
