@@ -16,7 +16,7 @@ uses(RefreshDatabase::class);
 const AUTHENTICATED_SHELL_SCRIPT = 'js/components/authenticated-shell.js';
 
 beforeEach(function () {
-    $this->getLegacyShell = fn (?User $user = null) => $this->actingAs($user ?? User::factory()->create())->get(route('plans.index'));
+    $this->getLegacyShell = fn (?User $user = null) => $this->actingAs($user ?? User::factory()->create())->get(route('feedback.create'));
     $this->getHtmx = fn (string $path, ?User $user = null) => $this->actingAs($user ?? User::factory()->create())->get($path, [
         'HX-Request' => 'true',
     ]);

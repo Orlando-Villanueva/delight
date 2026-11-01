@@ -6,15 +6,15 @@
         >
             <nav id="reader-sidebar-navigation" :aria-label="m.navigation" class="flex flex-col gap-1 px-2">
                 <component
-                    :is="['dashboard', 'log', 'history', 'achievements'].includes(link.key) ? Link : 'a'"
+                    :is="linkComponent(link)"
                     v-for="link in links"
                     :key="link.key"
                     :href="link.href"
                     :title="m[link.key]"
                     class="flex min-h-12 items-center gap-3 rounded-lg px-3 active:bg-primary-100 focus-visible:outline-2 focus-visible:outline-primary-500 dark:active:bg-gray-600"
-                    :aria-current="isCurrent(link.href) ? 'page' : undefined"
+                    :aria-current="isCurrent(link) ? 'page' : undefined"
                     :class="[
-                        isCurrent(link.href)
+                        isCurrent(link)
                             ? 'bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-900/40 dark:text-primary-300 dark:hover:bg-primary-900/60'
                             : 'text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700',
                     ]"
@@ -166,18 +166,18 @@
             class="fixed bottom-mobile-nav-safe left-1/2 z-stack-nav grid h-16 w-full max-w-lg -translate-x-1/2 grid-cols-5 rounded-full border border-gray-200 bg-white/80 shadow-xl backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80 lg:hidden"
         >
             <component
-                :is="['dashboard', 'log', 'history', 'achievements'].includes(link.key) ? Link : 'a'"
+                :is="linkComponent(link)"
                 v-for="link in links"
                 :key="link.key"
                 :href="link.href"
                 :aria-label="m[link.key]"
-                :aria-current="isCurrent(link.href) ? 'page' : undefined"
+                :aria-current="isCurrent(link) ? 'page' : undefined"
                 class="flex flex-col items-center justify-center gap-1 rounded-full px-1 transition-colors active:bg-gray-200/70 focus-visible:outline-2 focus-visible:outline-primary-500 dark:active:bg-gray-700/80"
                 :class="[
-                    isCurrent(link.href) ? 'bg-primary-50 dark:bg-primary-900/40' : '',
+                    isCurrent(link) ? 'bg-primary-50 dark:bg-primary-900/40' : '',
                     link.key === 'log'
                         ? 'text-accent-500 active:text-accent-700 dark:active:text-accent-300'
-                        : (isCurrent(link.href)
+                        : (isCurrent(link)
                             ? 'text-primary-700 dark:text-primary-300'
                             : 'text-gray-600 active:text-gray-900 dark:text-gray-400 dark:active:text-white'),
                 ]"
@@ -273,8 +273,26 @@ const links = computed<{ key: 'dashboard' | 'plans' | 'log' | 'history' | 'achie
     },
 ]);
 
-function isCurrent(href: string) {
-    return new URL(page.url, 'https://reader.invalid').pathname === new URL(href, 'https://reader.invalid').pathname;
+function pathname(value: string) {
+    return new URL(value, 'https://reader.invalid').pathname;
+}
+
+function linkComponent(link: { key: string; href: string }) {
+    if (link.key === 'plans') {
+        return pathname(link.href) === '/plans' ? Link : 'a';
+    }
+
+    return ['dashboard', 'log', 'history', 'achievements'].includes(link.key) ? Link : 'a';
+}
+
+function isCurrent(link: { key: string; href: string }) {
+    const current = pathname(page.url);
+
+    if (link.key === 'plans') {
+        return current === '/plans' || current.startsWith('/plans/');
+    }
+
+    return current === pathname(link.href);
 }
 
 async function loadNotifications(event?: Event) {

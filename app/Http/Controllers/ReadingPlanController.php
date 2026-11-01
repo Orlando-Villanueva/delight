@@ -19,6 +19,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class ReadingPlanController extends Controller
 {
@@ -33,42 +35,15 @@ class ReadingPlanController extends Controller
     /**
      * Display a listing of available reading plans.
      */
-    public function index(Request $request)
+    public function index(Request $request): InertiaResponse
     {
         $user = $request->user();
-        $plans = ReadingPlan::active()->availableTo($user)->get();
 
         if ($this->onboardingService->shouldTrackPreFirstReading($user)) {
             $this->onboardingService->recordStep($user, OnboardingStep::PlanBrowserReached);
         }
 
-        // Get user's subscriptions for each plan
-        $subscriptions = $user->readingPlanSubscriptions()
-            ->whereIn('reading_plan_id', $plans->pluck('id'))
-            ->with(['plan', 'dayCompletions.readingLog:id,book_id,chapter'])
-            ->get()
-            ->keyBy('reading_plan_id');
-
-        $plansWithStatus = $plans->map(function ($plan) use ($subscriptions) {
-            return [
-                'plan' => $plan,
-                'subscription' => $subscriptions->get($plan->id),
-                'is_subscribed' => $subscriptions->has($plan->id),
-            ];
-        });
-
-        $hasActivePlan = $subscriptions->contains(fn ($sub) => $sub->is_active);
-
-        $viewData = [
-            'plans' => $plansWithStatus,
-            'has_active_plan' => $hasActivePlan,
-        ];
-
-        if ($request->header('HX-Request')) {
-            return response()->htmx('plans.index', 'content', $viewData);
-        }
-
-        return view('plans.index', $viewData);
+        return Inertia::render('Plans', $this->catalogueProps($user));
     }
 
     /**
@@ -111,16 +86,7 @@ class ReadingPlanController extends Controller
         $user = $request->user();
         $this->planService->unsubscribe($user, $plan);
 
-        if ($request->header('HX-Request')) {
-            $mainContent = view('plans.index', $this->getPlansWithStatus($user))->fragment('content');
-            $oobContent = $this->planService->getPlansNavigationFragment($user);
-
-            return response($mainContent.$oobContent)
-                ->header('HX-Push-Url', route('plans.index'));
-        }
-
-        return redirect()->route('plans.index')
-            ->with('success', 'You have unsubscribed from this plan.');
+        return $this->redirectToCatalogue($request, 'success', 'You have unsubscribed from this plan.');
     }
 
     /**
@@ -139,14 +105,7 @@ class ReadingPlanController extends Controller
             ->first();
 
         if (! $subscription) {
-            if ($request->header('HX-Request')) {
-                return response()
-                    ->htmx('plans.index', 'content', $this->getPlansWithStatus($user))
-                    ->header('HX-Push-Url', route('plans.index'));
-            }
-
-            return redirect()->route('plans.index')
-                ->with('error', 'Subscription not found.');
+            return $this->redirectToCatalogue($request, 'error', 'Subscription not found.');
         }
 
         $this->planService->activate($subscription);
@@ -179,14 +138,7 @@ class ReadingPlanController extends Controller
             ->first();
 
         if (! $subscription) {
-            if ($request->header('HX-Request')) {
-                return response()
-                    ->htmx('plans.index', 'content', $this->getPlansWithStatus($user))
-                    ->header('HX-Push-Url', route('plans.index'));
-            }
-
-            return redirect()->route('plans.index')
-                ->with('info', 'Subscribe to this plan to see your daily reading.');
+            return $this->redirectToCatalogue($request, 'info', 'Subscribe to this plan to see your daily reading.');
         }
 
         $currentDay = $subscription->getDayNumber();
@@ -506,11 +458,13 @@ class ReadingPlanController extends Controller
     }
 
     /**
-     * Get plans with subscription status for a user.
-     *
-     * @return array{plans: Collection, has_active_plan: bool}
+     * @return array{
+     *     plans: list<array<string, mixed>>,
+     *     hasActivePlan: bool,
+     *     flash: array{info: ?string, error: ?string, success: ?string}
+     * }
      */
-    private function getPlansWithStatus($user): array
+    private function catalogueProps(User $user): array
     {
         $plans = ReadingPlan::active()->availableTo($user)->get();
         $subscriptions = $user->readingPlanSubscriptions()
@@ -519,29 +473,64 @@ class ReadingPlanController extends Controller
             ->get()
             ->keyBy('reading_plan_id');
 
-        $plansWithStatus = $plans->map(function ($plan) use ($subscriptions) {
-            return [
-                'plan' => $plan,
-                'subscription' => $subscriptions->get($plan->id),
-                'is_subscribed' => $subscriptions->has($plan->id),
-            ];
-        });
-
         return [
-            'plans' => $plansWithStatus,
-            'has_active_plan' => $subscriptions->contains(fn ($sub) => $sub->is_active),
+            'plans' => $plans->map(function (ReadingPlan $plan) use ($subscriptions): array {
+                $subscription = $subscriptions->get($plan->id);
+                $canStart = $subscription === null && $plan->getDaysCount() > 0;
+
+                return [
+                    'slug' => $plan->slug,
+                    'name' => $plan->getShortName(),
+                    'description' => $plan->description,
+                    'daysCount' => $plan->getDaysCount(),
+                    'canStart' => $canStart,
+                    'firstDay' => $plan->getFirstDayNumber(),
+                    'subscribeUrl' => $canStart ? route('plans.subscribe', $plan) : null,
+                    'days' => $canStart
+                        ? collect($plan->days ?? [])->map(function (array $day): array {
+                            $dayNumber = (int) $day['day'];
+
+                            return [
+                                'day' => $dayNumber,
+                                'optionLabel' => $day['label'].' - Day '.$dayNumber,
+                            ];
+                        })->values()->all()
+                        : [],
+                    'subscription' => $subscription instanceof ReadingPlanSubscription ? [
+                        'active' => (bool) $subscription->is_active,
+                        'dayNumber' => $subscription->getDayNumber(),
+                        'lastDay' => $plan->getLastDayNumber(),
+                        'completedDays' => $subscription->getCompletedDaysCount(),
+                        'trackedDays' => $subscription->getTrackedDaysCount(),
+                        'progress' => $subscription->getProgress(),
+                        'todayUrl' => route('plans.today', $plan),
+                    ] : null,
+                ];
+            })->values()->all(),
+            'hasActivePlan' => $subscriptions->contains(fn (ReadingPlanSubscription $subscription): bool => (bool) $subscription->is_active),
+            'flash' => [
+                'info' => session('info'),
+                'error' => session('error'),
+                'success' => session('success'),
+            ],
         ];
+    }
+
+    private function redirectToCatalogue(Request $request, ?string $flashKey = null, ?string $flashMessage = null): RedirectResponse|Response
+    {
+        if ($flashKey !== null && $flashMessage !== null) {
+            $request->session()->flash($flashKey, $flashMessage);
+        }
+
+        if ($request->header('HX-Request')) {
+            return response('', 200)->header('HX-Redirect', route('plans.index'));
+        }
+
+        return redirect()->route('plans.index');
     }
 
     private function unavailablePlanResponse(Request $request): Response|RedirectResponse
     {
-        if ($request->header('HX-Request')) {
-            return response()
-                ->htmx('plans.index', 'content', $this->getPlansWithStatus($request->user()))
-                ->header('HX-Push-Url', route('plans.index'));
-        }
-
-        return redirect()->route('plans.index')
-            ->with('info', 'Enable deuterocanonical books in Settings to use this plan.');
+        return $this->redirectToCatalogue($request, 'info', 'Enable deuterocanonical books in Settings to use this plan.');
     }
 }

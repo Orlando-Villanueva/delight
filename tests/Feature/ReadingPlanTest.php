@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia as Assert;
 use Mockery\MockInterface;
 
 uses(RefreshDatabase::class);
@@ -63,17 +64,30 @@ beforeEach(function () {
 
 describe('Reading Plans Index', function () {
     it('shows available reading plans to authenticated users', function () {
-        $response = $this->actingAs($this->user)
-            ->get(route('plans.index'));
+        $this->actingAs($this->user)
+            ->get(route('plans.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Plans')
+                ->has('plans', 1)
+                ->where('plans.0.slug', 'test-plan')
+                ->where('plans.0.name', 'Test')
+                ->where('plans.0.description', 'A test plan')
+                ->where('plans.0.canStart', true)
+                ->where('plans.0.firstDay', 1)
+                ->where('plans.0.subscribeUrl', route('plans.subscribe', $this->plan))
+                ->where('plans.0.days.0.optionLabel', 'Genesis 1-3 - Day 1')
+                ->where('plans.0.subscription', null)
+                ->where('hasActivePlan', false)
+                ->missing('subtitle')
+            );
+    });
 
-        $response->assertOk();
-        $response->assertSee('Reading Plans');
-        $response->assertSee('Structured guides to help you read the Bible consistently');
-        $response->assertSee('Test');
-        $response->assertDontSee('Test Reading Plan');
-        $response->assertSee('A test plan');
-        $response->assertSee('Start from Day 1');
-        $response->assertSee('Start from a different passage');
+    it('redirects an HTMX catalogue request to the Inertia page', function () {
+        $this->actingAs($this->user)
+            ->get(route('plans.index'), ['HX-Request' => 'true'])
+            ->assertOk()
+            ->assertHeader('HX-Redirect', route('plans.index'));
     });
 
     it('only shows the Catholic canonical plan when the Catholic canon is enabled', function () {
@@ -86,21 +100,29 @@ describe('Reading Plans Index', function () {
             'name' => 'Catholic Canonical Reading Plan',
         ]);
 
-        $this->actingAs($this->user)
+        $hidden = $this->actingAs($this->user)
             ->get(route('plans.index'))
             ->assertSuccessful()
-            ->assertSee($standardPlan->getShortName())
-            ->assertDontSee($catholicPlan->getShortName())
-            ->assertDontSee(route('plans.subscribe', $catholicPlan), false);
+            ->inertiaProps('plans');
+
+        expect(collect($hidden)->pluck('slug')->all())
+            ->toContain($standardPlan->slug)
+            ->not->toContain($catholicPlan->slug)
+            ->and(collect($hidden)->pluck('subscribeUrl')->all())
+            ->not->toContain(route('plans.subscribe', $catholicPlan));
 
         $this->user->forceFill(['deuterocanonical_books_enabled_at' => now()])->save();
 
-        $this->actingAs($this->user->fresh())
+        $visible = $this->actingAs($this->user->fresh())
             ->get(route('plans.index'))
             ->assertSuccessful()
-            ->assertSee($standardPlan->getShortName())
-            ->assertSee($catholicPlan->getShortName())
-            ->assertSee(route('plans.subscribe', $catholicPlan), false);
+            ->inertiaProps('plans');
+
+        expect(collect($visible)->pluck('slug')->all())
+            ->toContain($standardPlan->slug)
+            ->toContain($catholicPlan->slug)
+            ->and(collect($visible)->pluck('subscribeUrl')->all())
+            ->toContain(route('plans.subscribe', $catholicPlan));
     });
 
     it('ignores hidden Catholic canonical subscriptions when calculating visible plan status', function () {
@@ -118,55 +140,50 @@ describe('Reading Plans Index', function () {
         $this->actingAs($this->user)
             ->get(route('plans.index'))
             ->assertSuccessful()
-            ->assertDontSee($catholicPlan->getShortName())
-            ->assertDontSee('Starting this plan will pause your current active plan. Continue?');
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('hasActivePlan', false)
+                ->where('plans', fn ($plans): bool => collect($plans)->pluck('slug')->doesntContain('catholic-canonical'))
+            );
     });
 
-    it('renders one reusable starting passage modal for available plans', function () {
+    it('offers each available plan its own starting passage and day-one subscription', function () {
         $secondPlan = createTestPlan([
             'slug' => 'second-test-plan',
             'name' => 'Second Test Reading Plan',
         ]);
 
-        $response = $this->actingAs($this->user)
-            ->get(route('plans.index'));
+        $plans = $this->actingAs($this->user)
+            ->get(route('plans.index'))
+            ->assertOk()
+            ->inertiaProps('plans');
 
-        $response->assertOk();
-        $response->assertSee('id="reading-plan-start-modal"', false);
-        $response->assertSee('x-data="readingPlanStartModal()"', false);
-        $response->assertSee('data-reading-plan-start-data', false);
-        $response->assertSee('data-plan-slug="test-plan"', false);
-        $response->assertSee('data-plan-slug="second-test-plan"', false);
-        $response->assertSee(route('plans.subscribe', $this->plan), false);
-        $response->assertSee(route('plans.subscribe', $secondPlan), false);
-        $response->assertSee('method="POST" action="'.route('plans.subscribe', $this->plan).'"', false);
-        $response->assertSee('x-on:click', false);
-
-        expect(substr_count($response->getContent(), 'id="reading-plan-start-modal"'))->toBe(1);
+        expect(collect($plans)->pluck('subscribeUrl')->all())->toBe([
+            route('plans.subscribe', $this->plan),
+            route('plans.subscribe', $secondPlan),
+        ])->and(collect($plans)->pluck('days')->flatten(1)->pluck('optionLabel')->unique()->count())->toBeGreaterThan(1);
     });
 
     it('does not expose start controls for active plans without readings', function () {
         $this->plan->delete();
 
-        $emptyPlan = createTestPlan([
+        createTestPlan([
             'slug' => 'empty-test-plan',
             'name' => 'Empty Test Reading Plan',
             'days' => [],
         ]);
 
-        $response = $this->actingAs($this->user)
-            ->get(route('plans.index'));
-
-        $response->assertOk();
-        $response->assertSee('Empty');
-        $response->assertSee('0 days');
-        $response->assertSee('No readings available yet.');
-        $response->assertSee('Coming soon');
-        $response->assertDontSee('Start from Day 0');
-        $response->assertDontSee('Start from a different passage');
-        $response->assertDontSee('data-plan-slug="empty-test-plan"', false);
-        $response->assertDontSee('id="reading-plan-start-modal"', false);
-        $response->assertDontSee(route('plans.subscribe', $emptyPlan), false);
+        $this->actingAs($this->user)
+            ->get(route('plans.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('plans', 1)
+                ->where('plans.0.name', 'Empty Test')
+                ->where('plans.0.daysCount', 0)
+                ->where('plans.0.canStart', false)
+                ->where('plans.0.subscribeUrl', null)
+                ->where('plans.0.days', [])
+                ->where('plans.0.firstDay', 0)
+            );
     });
 
     it('uses the last plan day identifier in subscribed plan progress labels', function () {
@@ -183,12 +200,37 @@ describe('Reading Plans Index', function () {
             'is_active' => true,
         ]);
 
-        $response = $this->actingAs($this->user)
-            ->get(route('plans.index'));
+        $plans = collect($this->actingAs($this->user)
+            ->get(route('plans.index'))
+            ->assertOk()
+            ->inertiaProps('plans'));
 
-        $response->assertOk();
-        $response->assertSee('Day 3 of 3');
-        $response->assertDontSee('Day 3 of 2');
+        $subscribed = $plans->firstWhere('slug', 'sparse-index-plan');
+
+        expect($subscribed['subscription']['active'])->toBeTrue()
+            ->and($subscribed['subscription']['dayNumber'])->toBe(3)
+            ->and($subscribed['subscription']['lastDay'])->toBe(3)
+            ->and($subscribed['subscription']['todayUrl'])->toBe(route('plans.today', $plan))
+            ->and($subscribed['days'])->toBe([]);
+    });
+
+    it('keeps a paused subscription distinct from the active plan', function () {
+        ReadingPlanSubscription::create([
+            'user_id' => $this->user->id,
+            'reading_plan_id' => $this->plan->id,
+            'started_at' => Carbon::today(),
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('plans.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('hasActivePlan', false)
+                ->where('plans.0.subscription.active', false)
+                ->where('plans.0.canStart', false)
+                ->where('plans.0.subscribeUrl', null)
+            );
     });
 
     it('eager loads day completions for subscribed plans on the index', function () {
@@ -408,6 +450,13 @@ describe('Reading Plan Subscription', function () {
             ->assertSessionHasErrors('start_day');
 
         expect(ReadingPlanSubscription::count())->toBe(0);
+
+        $this->get(route('plans.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Plans')
+                ->has('errors.start_day')
+            );
     })->with([0, 3]);
 
     it('does not change the starting day of an existing subscription', function () {
@@ -469,7 +518,8 @@ describe('Reading Plan Subscription', function () {
         $response = $this->actingAs($this->user)
             ->delete(route('plans.unsubscribe', $this->plan));
 
-        $response->assertRedirect(route('plans.index'));
+        $response->assertRedirect(route('plans.index'))
+            ->assertSessionHas('success', 'You have unsubscribed from this plan.');
 
         $this->assertDatabaseMissing('reading_plan_subscriptions', [
             'user_id' => $this->user->id,
@@ -488,7 +538,8 @@ describe("Today's Reading", function () {
         $response = $this->actingAs($this->user)
             ->get(route('plans.today', $this->plan));
 
-        $response->assertRedirect(route('plans.index'));
+        $response->assertRedirect(route('plans.index'))
+            ->assertSessionHas('info', 'Subscribe to this plan to see your daily reading.');
     });
 
     it("shows today's reading for subscribed user", function () {
