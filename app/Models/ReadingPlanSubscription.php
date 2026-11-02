@@ -231,9 +231,16 @@ class ReadingPlanSubscription extends Model
             ->map(fn ($dayCompletions) => $dayCompletions->map(fn ($completion) => $completion->readingLog));
 
         $completedDayNumbers = [];
+        $readingsByDay = [];
+
+        foreach ($this->plan->days ?? [] as $reading) {
+            if (is_int($reading['day']) && ! array_key_exists($reading['day'], $readingsByDay)) {
+                $readingsByDay[$reading['day']] = $reading;
+            }
+        }
 
         foreach ($trackedDayNumbers as $dayNumber) {
-            $reading = $this->plan->getDayReading($dayNumber);
+            $reading = $readingsByDay[$dayNumber] ?? null;
 
             if (! $reading) {
                 continue;

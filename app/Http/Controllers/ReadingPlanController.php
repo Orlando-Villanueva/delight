@@ -63,15 +63,7 @@ class ReadingPlanController extends Controller
         }
 
         if ($request->header('HX-Request')) {
-            // Redirect to today's reading after subscribing
-            $mainContent = view('plans.today', $this->getTodayViewData($subscription))->fragment('content');
-            $oobContent = $this->planService->getPlansNavigationFragment($user);
-
-            return response($mainContent.$oobContent)
-                ->header('HX-Trigger', json_encode([
-                    'hideModal' => ['id' => 'reading-plan-start-modal'],
-                ]))
-                ->header('HX-Push-Url', route('plans.today', $plan));
+            return response('', 200)->header('HX-Redirect', route('plans.today', $plan));
         }
 
         return redirect()->route('plans.today', $plan)
@@ -111,11 +103,7 @@ class ReadingPlanController extends Controller
         $this->planService->activate($subscription);
 
         if ($request->header('HX-Request')) {
-            $mainContent = view('plans.today', $this->getTodayViewData($subscription->fresh()))->fragment('reading-list');
-            $oobContent = $this->planService->getPlansNavigationFragment($user);
-
-            return response($mainContent.$oobContent)
-                ->header('HX-Push-Url', route('plans.today', $plan));
+            return response('', 200)->header('HX-Redirect', route('plans.today', $plan));
         }
 
         return redirect()->route('plans.today', $plan)
@@ -147,13 +135,11 @@ class ReadingPlanController extends Controller
             : $currentDay;
         $viewDay = $subscription->plan->getValidDayNumber($requestedDay, $currentDay);
 
-        $viewData = $this->getTodayViewData($subscription, $viewDay, $currentDay);
-
         if ($request->header('HX-Request')) {
-            return response()->htmx('plans.today', 'content', $viewData);
+            return response('', 200)->header('HX-Redirect', route('plans.today', ['plan' => $plan, 'day' => $viewDay]));
         }
 
-        return view('plans.today', $viewData);
+        return Inertia::render('PlanToday', $this->mapTodayProps($subscription, $viewDay, $currentDay));
     }
 
     /**
@@ -215,13 +201,13 @@ class ReadingPlanController extends Controller
 
         $result = $this->planService->logChapter($user, $subscription, $dayNumber, $chapter, $this->readingCalendar->todayFor($user)->toMutable());
 
-        // Return updated today view
-        $viewData = $this->getTodayViewData($subscription, $dayNumber);
+        $celebration = $this->achievementService->getCelebrationPayload($user, $result->awardedAchievements, $result->log, $result->isFirstReadingOfDay);
 
-        $content = view('plans.today', $viewData)->fragment('reading-list');
-        $content .= $this->achievementCelebrationFragment($user, $result->awardedAchievements, $result->log, $result->isFirstReadingOfDay);
+        if (empty($celebration['earned']) && empty($celebration['record'])) {
+            $celebration = null;
+        }
 
-        return response($content);
+        return $this->todayMutationResponse($request, $subscription, $dayNumber, $celebration);
     }
 
     /**
@@ -248,13 +234,7 @@ class ReadingPlanController extends Controller
 
         $results = $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, $this->readingCalendar->todayFor($user)->toMutable());
 
-        // Return updated today view
-        $viewData = $this->getTodayViewData($subscription, $dayNumber);
-
-        $content = view('plans.today', $viewData)->fragment('reading-list');
-        $content .= $this->achievementCelebrationFragmentForResults($user, $results);
-
-        return response($content);
+        return $this->todayMutationResponse($request, $subscription, $dayNumber, $this->celebrationPayloadForResults($user, $results));
     }
 
     /**
@@ -289,46 +269,96 @@ class ReadingPlanController extends Controller
             }
         }
 
-        $viewData = $this->getTodayViewData($subscription, $dayNumber);
-
-        $content = view('plans.today', $viewData)->fragment('reading-list');
-
-        if (isset($results)) {
-            $content .= $this->achievementCelebrationFragmentForResults($user, $results);
-        }
-
-        return response($content);
+        return $this->todayMutationResponse($request, $subscription, $dayNumber, isset($results) ? $this->celebrationPayloadForResults($user, $results) : null);
     }
 
-    private function achievementCelebrationFragmentForResults(User $user, Collection $results): string
+    /**
+     * @param  array<string, mixed>|null  $celebration
+     */
+    private function todayMutationResponse(Request $request, ReadingPlanSubscription $subscription, int $dayNumber, ?array $celebration = null): JsonResponse|Response
     {
-        $awardedAchievements = $results
-            ->flatMap(fn ($result) => $result->awardedAchievements)
-            ->unique('id')
-            ->values();
+        if ($request->header('HX-Request')) {
+            return response('', 200)->header('HX-Redirect', route('plans.today', ['plan' => $subscription->plan, 'day' => $dayNumber]));
+        }
 
+        return response()->json([
+            'today' => $this->mapTodayProps($subscription->fresh(), $dayNumber),
+            'celebration' => $celebration,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mapTodayProps(ReadingPlanSubscription $subscription, int $dayNumber, ?int $currentDay = null): array
+    {
+        $data = $this->getTodayViewData($subscription, $dayNumber, $currentDay);
+        $plan = $data['plan'];
+        $reading = $data['reading'];
+
+        return [
+            'plan' => ['name' => $plan->getShortName(), 'slug' => $plan->slug],
+            'subscription' => ['startDay' => $subscription->start_day],
+            'reading' => $reading ? [
+                'chapters' => collect($reading['chapters'])->map(fn (array $chapter): array => [
+                    'bookId' => (int) $chapter['book_id'],
+                    'bookName' => (string) $chapter['book_name'],
+                    'chapter' => (int) $chapter['chapter'],
+                    'completed' => (bool) $chapter['completed'],
+                ])->values()->all(),
+                'completedCount' => (int) $reading['completed_count'],
+                'totalCount' => (int) $reading['total_count'],
+                'allCompleted' => (bool) $reading['all_completed'],
+            ] : null,
+            'dayNumber' => (int) $data['day_number'],
+            'currentDay' => (int) $data['current_day'],
+            'totalDays' => (int) $data['total_days'],
+            'previousDay' => $data['previous_day'],
+            'nextDay' => $data['next_day'],
+            'progress' => (float) $data['progress'],
+            'isComplete' => (bool) $data['is_complete'],
+            'isActive' => (bool) $data['is_active'],
+            'isBeforeTracking' => (bool) $data['is_before_tracking'],
+            'hasOtherActivePlan' => (bool) $data['has_other_active_plan'],
+            'completedDaysCount' => (int) $data['completed_days_count'],
+            'trackedDaysCount' => (int) $data['tracked_days_count'],
+            'unlinkedTodayChaptersCount' => (int) $data['unlinked_today_chapters_count'],
+            'unlinkedTodayChaptersTotal' => (int) $data['unlinked_today_chapters_total'],
+            'urls' => [
+                'today' => route('plans.today', $plan),
+                'catalogue' => route('plans.index'),
+                'activate' => route('plans.activate', $plan),
+                'unsubscribe' => route('plans.unsubscribe', $plan),
+                'logChapter' => route('plans.logChapter', $plan),
+                'logAll' => route('plans.logAll', $plan),
+                'applyReadings' => route('plans.applyTodaysReadings', $plan),
+            ],
+            'achievementsUrl' => route('achievements.index'),
+            'achievementBadgeBaseUrl' => asset('images/achievements'),
+            'flash' => [
+                'success' => session()->pull('success'),
+                'info' => session()->pull('info'),
+                'error' => session()->pull('error'),
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $celebration
+     * @return array<string, mixed>|null
+     */
+    private function celebrationPayloadForResults(User $user, Collection $results): ?array
+    {
+        if ($results->isEmpty()) {
+            return null;
+        }
+
+        $awardedAchievements = $results->flatMap(fn ($result) => $result->awardedAchievements)->unique('id')->values();
         $lastResult = $results->last();
-
-        if (! $lastResult) {
-            return '';
-        }
-
         $isFirstReadingOfDay = $results->contains(fn ($result): bool => $result->isFirstReadingOfDay);
+        $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $lastResult->log, $isFirstReadingOfDay);
 
-        return $this->achievementCelebrationFragment($user, $awardedAchievements, $lastResult->log, $isFirstReadingOfDay);
-    }
-
-    private function achievementCelebrationFragment(User $user, Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): string
-    {
-        $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log, $isFirstReadingOfDay);
-
-        if (empty($payload['earned']) && empty($payload['record'])) {
-            return '';
-        }
-
-        return view('components.celebrations.achievement-unlocks', [
-            'payload' => $payload,
-        ])->render();
+        return empty($payload['earned']) && empty($payload['record']) ? null : $payload;
     }
 
     /**

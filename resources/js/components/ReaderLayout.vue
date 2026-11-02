@@ -202,11 +202,17 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import type { ReaderPageProps } from '@/reader-types';
 
 const page = usePage<ReaderPageProps>();
 const reader = computed(() => page.props.reader);
+
+const stopPlanHistoryRefresh = router.on('navigate', event => {
+    if (event.detail.type === 'history' && event.detail.page.component === 'PlanToday') {
+        router.reload();
+    }
+});
 
 const m = {
     navigation: 'Main navigation',
@@ -279,7 +285,7 @@ function pathname(value: string) {
 
 function linkComponent(link: { key: string; href: string }) {
     if (link.key === 'plans') {
-        return pathname(link.href) === '/plans' ? Link : 'a';
+        return Link;
     }
 
     return ['dashboard', 'log', 'history', 'achievements'].includes(link.key) ? Link : 'a';
@@ -341,6 +347,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    stopPlanHistoryRefresh();
     window.removeEventListener('resize', syncWidth);
     document.removeEventListener('click', closeMenus);
     document.removeEventListener('keydown', escapeMenus);

@@ -15,12 +15,12 @@ class HandleReaderInertiaRequests extends Middleware
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->is('dashboard', 'settings', 'logs/create', 'logs', 'logs/*', 'achievements', 'plans', 'onboarding/*')) {
+        if (! $request->is('dashboard', 'settings', 'logs/create', 'logs', 'logs/*', 'achievements', 'plans', 'plans/*', 'onboarding/*')) {
             return $next($request);
         }
 
         if ($request->isMethod('GET') && $request->header('HX-Request')) {
-            return response('', 200)->header('HX-Redirect', $request->url());
+            return response('', 200)->header('HX-Redirect', $request->fullUrl());
         }
 
         if (! $request->user() && $request->header('X-Inertia')) {

@@ -37,13 +37,13 @@
                             </div>
                         </div>
                     </div>
-                    <a
+                    <Link
                         :href="plan.subscription.todayUrl"
                         class="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary-500 sm:w-auto"
                         :class="plan.subscription.active ? 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600' : 'border border-gray-300 text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-700'"
                     >
                         {{ plan.subscription.active ? 'Continue Reading' : 'View Progress' }}
-                    </a>
+                    </Link>
                 </div>
                 <div v-else class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div class="min-w-0 flex-1">
@@ -62,13 +62,11 @@
                         </button>
                         <p v-else class="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">No readings available yet.</p>
                     </div>
-                    <form v-if="plan.canStart && plan.subscribeUrl" method="POST" :action="plan.subscribeUrl" class="w-full shrink-0 sm:w-auto" @submit="beginFirstDay($event)">
-                        <input type="hidden" name="_token" :value="csrfToken" />
-                        <input type="hidden" name="start_day" :value="plan.firstDay" />
-                        <button type="submit" :disabled="submitting" class="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-primary-500 disabled:cursor-wait disabled:opacity-60 sm:w-auto dark:bg-primary-500 dark:hover:bg-primary-600">
+                    <div v-if="plan.canStart && plan.subscribeUrl" class="w-full shrink-0 sm:w-auto">
+                        <button type="button" :disabled="submitting" class="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-primary-500 disabled:cursor-wait disabled:opacity-60 sm:w-auto dark:bg-primary-500 dark:hover:bg-primary-600" @click="beginFirstDay(plan, $event)">
                             Start from Day {{ plan.firstDay }}
                         </button>
-                    </form>
+                    </div>
                     <button v-else type="button" disabled class="inline-flex min-h-11 w-full cursor-not-allowed items-center justify-center rounded-lg bg-gray-100 px-4 text-sm font-medium text-gray-500 sm:w-auto dark:bg-gray-700 dark:text-gray-400">Coming soon</button>
                 </div>
             </article>
@@ -84,8 +82,7 @@
             <h2 id="plan-start-title" class="text-lg font-semibold">Start from a different passage</h2>
             <p id="plan-start-desc" class="mt-1 text-sm text-gray-600 dark:text-gray-400">Choose where tracking should begin for {{ selectedPlan.name }}.</p>
         </header>
-        <form method="POST" :action="selectedPlan.subscribeUrl || undefined" class="space-y-4 p-5" @submit="submitting = true">
-            <input type="hidden" name="_token" :value="csrfToken" />
+        <form class="space-y-4 p-5" @submit.prevent="beginSelectedPlan">
             <div>
                 <label for="plan-start-day" class="block text-sm font-medium text-gray-900 dark:text-white">Starting passage</label>
                 <select id="plan-start-day" v-model.number="selectedDay" name="start_day" class="mt-2 block min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
@@ -102,7 +99,7 @@
             </div>
         </form>
     </ReaderDialog>
-    <ReaderDialog v-if="confirmForm" labelledby="plan-pause-title" describedby="plan-pause-desc" close-label="Close pause confirmation" :busy="submitting" @close="cancelConfirmation">
+    <ReaderDialog v-if="confirmPlan" labelledby="plan-pause-title" describedby="plan-pause-desc" close-label="Close pause confirmation" :busy="submitting" @close="cancelConfirmation">
         <header class="border-b border-gray-200 px-5 py-4 pe-16 dark:border-gray-700">
             <h2 id="plan-pause-title" class="text-lg font-semibold">Pause your current plan?</h2>
             <p id="plan-pause-desc" class="mt-1 text-sm text-gray-600 dark:text-gray-400">Starting this plan will pause your current active plan.</p>
@@ -116,23 +113,24 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ReaderDialog from '@/components/ReaderDialog.vue';
 import TransientNotice from '@/components/TransientNotice.vue';
 import type { PlanCatalogueItem, PlansPageProps } from '@/plans-types';
 import type { ReaderPageProps } from '@/reader-types';
+
+defineOptions({ inheritAttrs: false });
 
 const props = defineProps<PlansPageProps>();
 
 const page = usePage<ReaderPageProps & { errors: Record<string, string> }>();
 const selectedSlug = ref<string | null>(null);
 const selectedDay = ref(0);
-const confirmForm = ref<HTMLFormElement | null>(null);
+const confirmPlan = ref<PlanCatalogueItem | null>(null);
 const returnFocus = ref<HTMLElement | null>(null);
 const submitting = ref(false);
 const success = ref(props.flash.success ?? '');
 
-const csrfToken = computed(() => page.props.reader.csrfToken);
 const selectedPlan = computed(() => props.plans.find((plan) => plan.slug === selectedSlug.value) ?? null);
 const showEarlierDaysNote = computed(() => selectedPlan.value !== null && selectedDay.value > selectedPlan.value.firstDay);
 const startDayError = computed(() => page.props.errors.start_day ?? '');
@@ -174,29 +172,39 @@ function closeStart() {
     restoreFocus();
 }
 
-function beginFirstDay(event: SubmitEvent) {
-    const form = event.currentTarget;
-    if (!(form instanceof HTMLFormElement) || submitting.value) {
-        event.preventDefault();
-        return;
-    }
+function beginFirstDay(plan: PlanCatalogueItem, event: MouseEvent) {
+    if (submitting.value || !plan.subscribeUrl) return;
     if (!props.hasActivePlan) {
-        submitting.value = true;
+        submitPlan(plan, plan.firstDay);
         return;
     }
-    event.preventDefault();
-    rememberFocus(event.submitter);
-    confirmForm.value = form;
+    rememberFocus(event.currentTarget);
+    confirmPlan.value = plan;
 }
 
 function cancelConfirmation() {
     if (submitting.value) return;
-    confirmForm.value = null;
+    confirmPlan.value = null;
     restoreFocus();
 }
 
 function confirmStart() {
+    if (confirmPlan.value) submitPlan(confirmPlan.value, confirmPlan.value.firstDay);
+}
+
+function beginSelectedPlan() {
+    if (selectedPlan.value) submitPlan(selectedPlan.value, selectedDay.value);
+}
+
+function submitPlan(plan: PlanCatalogueItem, startDay: number) {
+    if (!plan.subscribeUrl || submitting.value) return;
     submitting.value = true;
-    confirmForm.value?.submit();
+    router.post(plan.subscribeUrl, { start_day: startDay }, {
+        onFinish: () => {
+            submitting.value = false;
+            selectedSlug.value = null;
+            confirmPlan.value = null;
+        },
+    });
 }
 </script>
