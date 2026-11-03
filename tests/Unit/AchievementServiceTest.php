@@ -380,6 +380,7 @@ it('builds celebration payload with earned achievements and relevant locked prog
     $user = User::factory()->create();
 
     achievement_log_reading($user, today()->toDateString(), 1);
+    achievement_spread_bible_progress($user, 24);
 
     $log = $user->readingLogs()->first();
     $result = app(AchievementService::class)->evaluateAndAward($user);
@@ -389,6 +390,8 @@ it('builds celebration payload with earned achievements and relevant locked prog
         ->and(collect($payload['earned'])->pluck('display_name')->all())->toContain('First reading')
         ->and($payload['progress'])->not->toBeEmpty()
         ->and(collect($payload['progress'])->pluck('display_name')->all())->not->toContain('First reading')
+        ->and(collect($payload['progress'])->firstWhere('display_name', '25% Bible progress')['unit'])->toBe('percent')
+        ->and(collect($payload['progress'])->firstWhere('display_name', '7-day reading streak')['unit'])->toBe('days')
         ->and($payload['reading'])->toMatchArray([
             'passage' => 'Genesis 1',
             'date' => 'May 6, 2026',

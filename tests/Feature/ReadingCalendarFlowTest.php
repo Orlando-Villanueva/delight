@@ -8,6 +8,7 @@ use App\Services\ReadingLogService;
 use App\Services\ReadingPlanService;
 use App\Services\UserStatisticsService;
 use Carbon\Carbon;
+use Inertia\Testing\AssertableInertia as Assert;
 
 it('establishes the mobile calendar before returning dates and validating a reading', function () {
     $this->travelTo(Carbon::parse('2026-09-09 15:00:00', 'UTC'));
@@ -39,11 +40,9 @@ it('renders and accepts the same web reading dates as mobile for accounts ahead 
     $this->travelTo(Carbon::parse($instant, 'UTC'));
     $user = User::factory()->create();
 
-    $this->actingAs($user)->withUnencryptedCookie('reading_timezone_report', $timezone)
-        ->get(route('logs.create'))->assertOk()
-        ->assertSee('value="'.$today.'"', false)
-        ->assertSee('value="'.$yesterday.'"', false)
-        ->assertDontSee('reading_timezone_report=', false);
+    $page = $this->actingAs($user)->withUnencryptedCookie('reading_timezone_report', $timezone)
+        ->get(route('logs.create'))->assertOk()->assertDontSee('reading_timezone_report=', false);
+    expect(readingLogPageProps($page)['dates'])->toBe(['today' => $today, 'yesterday' => $yesterday]);
 
     $this->post(route('logs.store'), [
         'book_id' => 1, 'start_chapter' => 1, 'date_read' => $today,
@@ -229,8 +228,9 @@ it('uses the pre-authentication timezone on the first dashboard response', funct
     $this->assertAuthenticated();
 
     $this->get(route('dashboard'))->assertOk()
-        ->assertViewHas('calendarData', fn ($data) => collect($data['calendar'])
-            ->first(fn ($day) => $day && $day['isToday'])['dateString'] === '2026-09-10')
+        ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('calendar.days', fn ($days): bool => collect($days)
+                ->contains(fn (?array $day): bool => $day !== null && $day['isToday'] && $day['date'] === '2026-09-10')))
         ->assertDontSee('data-reload-after-detection', false)
         ->assertCookieExpired('reading_timezone_report');
 

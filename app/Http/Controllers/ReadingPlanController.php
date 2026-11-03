@@ -19,6 +19,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class ReadingPlanController extends Controller
 {
@@ -33,42 +35,15 @@ class ReadingPlanController extends Controller
     /**
      * Display a listing of available reading plans.
      */
-    public function index(Request $request)
+    public function index(Request $request): InertiaResponse
     {
         $user = $request->user();
-        $plans = ReadingPlan::active()->availableTo($user)->get();
 
         if ($this->onboardingService->shouldTrackPreFirstReading($user)) {
             $this->onboardingService->recordStep($user, OnboardingStep::PlanBrowserReached);
         }
 
-        // Get user's subscriptions for each plan
-        $subscriptions = $user->readingPlanSubscriptions()
-            ->whereIn('reading_plan_id', $plans->pluck('id'))
-            ->with(['plan', 'dayCompletions.readingLog:id,book_id,chapter'])
-            ->get()
-            ->keyBy('reading_plan_id');
-
-        $plansWithStatus = $plans->map(function ($plan) use ($subscriptions) {
-            return [
-                'plan' => $plan,
-                'subscription' => $subscriptions->get($plan->id),
-                'is_subscribed' => $subscriptions->has($plan->id),
-            ];
-        });
-
-        $hasActivePlan = $subscriptions->contains(fn ($sub) => $sub->is_active);
-
-        $viewData = [
-            'plans' => $plansWithStatus,
-            'has_active_plan' => $hasActivePlan,
-        ];
-
-        if ($request->header('HX-Request')) {
-            return response()->htmx('plans.index', 'content', $viewData);
-        }
-
-        return view('plans.index', $viewData);
+        return Inertia::render('Plans', $this->catalogueProps($user));
     }
 
     /**
@@ -88,15 +63,7 @@ class ReadingPlanController extends Controller
         }
 
         if ($request->header('HX-Request')) {
-            // Redirect to today's reading after subscribing
-            $mainContent = view('plans.today', $this->getTodayViewData($subscription))->fragment('content');
-            $oobContent = $this->planService->getPlansNavigationFragment($user);
-
-            return response($mainContent.$oobContent)
-                ->header('HX-Trigger', json_encode([
-                    'hideModal' => ['id' => 'reading-plan-start-modal'],
-                ]))
-                ->header('HX-Push-Url', route('plans.today', $plan));
+            return response('', 200)->header('HX-Redirect', route('plans.today', $plan));
         }
 
         return redirect()->route('plans.today', $plan)
@@ -111,16 +78,7 @@ class ReadingPlanController extends Controller
         $user = $request->user();
         $this->planService->unsubscribe($user, $plan);
 
-        if ($request->header('HX-Request')) {
-            $mainContent = view('plans.index', $this->getPlansWithStatus($user))->fragment('content');
-            $oobContent = $this->planService->getPlansNavigationFragment($user);
-
-            return response($mainContent.$oobContent)
-                ->header('HX-Push-Url', route('plans.index'));
-        }
-
-        return redirect()->route('plans.index')
-            ->with('success', 'You have unsubscribed from this plan.');
+        return $this->redirectToCatalogue($request, 'success', "You have unsubscribed from {$plan->getShortName()}.");
     }
 
     /**
@@ -139,24 +97,13 @@ class ReadingPlanController extends Controller
             ->first();
 
         if (! $subscription) {
-            if ($request->header('HX-Request')) {
-                return response()
-                    ->htmx('plans.index', 'content', $this->getPlansWithStatus($user))
-                    ->header('HX-Push-Url', route('plans.index'));
-            }
-
-            return redirect()->route('plans.index')
-                ->with('error', 'Subscription not found.');
+            return $this->redirectToCatalogue($request, 'error', 'Subscription not found.');
         }
 
         $this->planService->activate($subscription);
 
         if ($request->header('HX-Request')) {
-            $mainContent = view('plans.today', $this->getTodayViewData($subscription->fresh()))->fragment('reading-list');
-            $oobContent = $this->planService->getPlansNavigationFragment($user);
-
-            return response($mainContent.$oobContent)
-                ->header('HX-Push-Url', route('plans.today', $plan));
+            return response('', 200)->header('HX-Redirect', route('plans.today', $plan));
         }
 
         return redirect()->route('plans.today', $plan)
@@ -179,14 +126,7 @@ class ReadingPlanController extends Controller
             ->first();
 
         if (! $subscription) {
-            if ($request->header('HX-Request')) {
-                return response()
-                    ->htmx('plans.index', 'content', $this->getPlansWithStatus($user))
-                    ->header('HX-Push-Url', route('plans.index'));
-            }
-
-            return redirect()->route('plans.index')
-                ->with('info', 'Subscribe to this plan to see your daily reading.');
+            return $this->redirectToCatalogue($request, 'info', 'Subscribe to this plan to see your daily reading.');
         }
 
         $currentDay = $subscription->getDayNumber();
@@ -195,13 +135,11 @@ class ReadingPlanController extends Controller
             : $currentDay;
         $viewDay = $subscription->plan->getValidDayNumber($requestedDay, $currentDay);
 
-        $viewData = $this->getTodayViewData($subscription, $viewDay, $currentDay);
-
         if ($request->header('HX-Request')) {
-            return response()->htmx('plans.today', 'content', $viewData);
+            return response('', 200)->header('HX-Redirect', route('plans.today', ['plan' => $plan, 'day' => $viewDay]));
         }
 
-        return view('plans.today', $viewData);
+        return Inertia::render('PlanToday', $this->mapTodayProps($subscription, $viewDay, $currentDay));
     }
 
     /**
@@ -263,13 +201,13 @@ class ReadingPlanController extends Controller
 
         $result = $this->planService->logChapter($user, $subscription, $dayNumber, $chapter, $this->readingCalendar->todayFor($user)->toMutable());
 
-        // Return updated today view
-        $viewData = $this->getTodayViewData($subscription, $dayNumber);
+        $celebration = $this->achievementService->getCelebrationPayload($user, $result->awardedAchievements, $result->log, $result->isFirstReadingOfDay);
 
-        $content = view('plans.today', $viewData)->fragment('reading-list');
-        $content .= $this->achievementCelebrationFragment($user, $result->awardedAchievements, $result->log, $result->isFirstReadingOfDay);
+        if (empty($celebration['earned']) && empty($celebration['record'])) {
+            $celebration = null;
+        }
 
-        return response($content);
+        return $this->todayMutationResponse($request, $subscription, $dayNumber, $celebration);
     }
 
     /**
@@ -296,13 +234,7 @@ class ReadingPlanController extends Controller
 
         $results = $this->planService->logAllChapters($user, $subscription, $dayNumber, $chaptersToLog, $this->readingCalendar->todayFor($user)->toMutable());
 
-        // Return updated today view
-        $viewData = $this->getTodayViewData($subscription, $dayNumber);
-
-        $content = view('plans.today', $viewData)->fragment('reading-list');
-        $content .= $this->achievementCelebrationFragmentForResults($user, $results);
-
-        return response($content);
+        return $this->todayMutationResponse($request, $subscription, $dayNumber, $this->celebrationPayloadForResults($user, $results));
     }
 
     /**
@@ -337,46 +269,96 @@ class ReadingPlanController extends Controller
             }
         }
 
-        $viewData = $this->getTodayViewData($subscription, $dayNumber);
-
-        $content = view('plans.today', $viewData)->fragment('reading-list');
-
-        if (isset($results)) {
-            $content .= $this->achievementCelebrationFragmentForResults($user, $results);
-        }
-
-        return response($content);
+        return $this->todayMutationResponse($request, $subscription, $dayNumber, isset($results) ? $this->celebrationPayloadForResults($user, $results) : null);
     }
 
-    private function achievementCelebrationFragmentForResults(User $user, Collection $results): string
+    /**
+     * @param  array<string, mixed>|null  $celebration
+     */
+    private function todayMutationResponse(Request $request, ReadingPlanSubscription $subscription, int $dayNumber, ?array $celebration = null): JsonResponse|Response
     {
-        $awardedAchievements = $results
-            ->flatMap(fn ($result) => $result->awardedAchievements)
-            ->unique('id')
-            ->values();
+        if ($request->header('HX-Request')) {
+            return response('', 200)->header('HX-Redirect', route('plans.today', ['plan' => $subscription->plan, 'day' => $dayNumber]));
+        }
 
+        return response()->json([
+            'today' => $this->mapTodayProps($subscription->fresh(), $dayNumber),
+            'celebration' => $celebration,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mapTodayProps(ReadingPlanSubscription $subscription, int $dayNumber, ?int $currentDay = null): array
+    {
+        $data = $this->getTodayViewData($subscription, $dayNumber, $currentDay);
+        $plan = $data['plan'];
+        $reading = $data['reading'];
+
+        return [
+            'plan' => ['name' => $plan->getShortName(), 'slug' => $plan->slug],
+            'subscription' => ['startDay' => $subscription->start_day],
+            'reading' => $reading ? [
+                'chapters' => collect($reading['chapters'])->map(fn (array $chapter): array => [
+                    'bookId' => (int) $chapter['book_id'],
+                    'bookName' => (string) $chapter['book_name'],
+                    'chapter' => (int) $chapter['chapter'],
+                    'completed' => (bool) $chapter['completed'],
+                ])->values()->all(),
+                'completedCount' => (int) $reading['completed_count'],
+                'totalCount' => (int) $reading['total_count'],
+                'allCompleted' => (bool) $reading['all_completed'],
+            ] : null,
+            'dayNumber' => (int) $data['day_number'],
+            'currentDay' => (int) $data['current_day'],
+            'totalDays' => (int) $data['total_days'],
+            'previousDay' => $data['previous_day'],
+            'nextDay' => $data['next_day'],
+            'progress' => (float) $data['progress'],
+            'isComplete' => (bool) $data['is_complete'],
+            'isActive' => (bool) $data['is_active'],
+            'isBeforeTracking' => (bool) $data['is_before_tracking'],
+            'hasOtherActivePlan' => (bool) $data['has_other_active_plan'],
+            'completedDaysCount' => (int) $data['completed_days_count'],
+            'trackedDaysCount' => (int) $data['tracked_days_count'],
+            'unlinkedTodayChaptersCount' => (int) $data['unlinked_today_chapters_count'],
+            'unlinkedTodayChaptersTotal' => (int) $data['unlinked_today_chapters_total'],
+            'urls' => [
+                'today' => route('plans.today', $plan),
+                'catalogue' => route('plans.index'),
+                'activate' => route('plans.activate', $plan),
+                'unsubscribe' => route('plans.unsubscribe', $plan),
+                'logChapter' => route('plans.logChapter', $plan),
+                'logAll' => route('plans.logAll', $plan),
+                'applyReadings' => route('plans.applyTodaysReadings', $plan),
+            ],
+            'achievementsUrl' => route('achievements.index'),
+            'achievementBadgeBaseUrl' => asset('images/achievements'),
+            'flash' => [
+                'success' => session()->pull('success'),
+                'info' => session()->pull('info'),
+                'error' => session()->pull('error'),
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $celebration
+     * @return array<string, mixed>|null
+     */
+    private function celebrationPayloadForResults(User $user, Collection $results): ?array
+    {
+        if ($results->isEmpty()) {
+            return null;
+        }
+
+        $awardedAchievements = $results->flatMap(fn ($result) => $result->awardedAchievements)->unique('id')->values();
         $lastResult = $results->last();
-
-        if (! $lastResult) {
-            return '';
-        }
-
         $isFirstReadingOfDay = $results->contains(fn ($result): bool => $result->isFirstReadingOfDay);
+        $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $lastResult->log, $isFirstReadingOfDay);
 
-        return $this->achievementCelebrationFragment($user, $awardedAchievements, $lastResult->log, $isFirstReadingOfDay);
-    }
-
-    private function achievementCelebrationFragment(User $user, Collection $awardedAchievements, ReadingLog $log, bool $isFirstReadingOfDay): string
-    {
-        $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $log, $isFirstReadingOfDay);
-
-        if (empty($payload['earned']) && empty($payload['record'])) {
-            return '';
-        }
-
-        return view('components.celebrations.achievement-unlocks', [
-            'payload' => $payload,
-        ])->render();
+        return empty($payload['earned']) && empty($payload['record']) ? null : $payload;
     }
 
     /**
@@ -506,11 +488,13 @@ class ReadingPlanController extends Controller
     }
 
     /**
-     * Get plans with subscription status for a user.
-     *
-     * @return array{plans: Collection, has_active_plan: bool}
+     * @return array{
+     *     plans: list<array<string, mixed>>,
+     *     hasActivePlan: bool,
+     *     flash: array{info: ?string, error: ?string, success: ?string}
+     * }
      */
-    private function getPlansWithStatus($user): array
+    private function catalogueProps(User $user): array
     {
         $plans = ReadingPlan::active()->availableTo($user)->get();
         $subscriptions = $user->readingPlanSubscriptions()
@@ -519,29 +503,64 @@ class ReadingPlanController extends Controller
             ->get()
             ->keyBy('reading_plan_id');
 
-        $plansWithStatus = $plans->map(function ($plan) use ($subscriptions) {
-            return [
-                'plan' => $plan,
-                'subscription' => $subscriptions->get($plan->id),
-                'is_subscribed' => $subscriptions->has($plan->id),
-            ];
-        });
-
         return [
-            'plans' => $plansWithStatus,
-            'has_active_plan' => $subscriptions->contains(fn ($sub) => $sub->is_active),
+            'plans' => $plans->map(function (ReadingPlan $plan) use ($subscriptions): array {
+                $subscription = $subscriptions->get($plan->id);
+                $canStart = $subscription === null && $plan->getDaysCount() > 0;
+
+                return [
+                    'slug' => $plan->slug,
+                    'name' => $plan->getShortName(),
+                    'description' => $plan->description,
+                    'daysCount' => $plan->getDaysCount(),
+                    'canStart' => $canStart,
+                    'firstDay' => $plan->getFirstDayNumber(),
+                    'subscribeUrl' => $canStart ? route('plans.subscribe', $plan) : null,
+                    'days' => $canStart
+                        ? collect($plan->days ?? [])->map(function (array $day): array {
+                            $dayNumber = (int) $day['day'];
+
+                            return [
+                                'day' => $dayNumber,
+                                'optionLabel' => $day['label'].' - Day '.$dayNumber,
+                            ];
+                        })->values()->all()
+                        : [],
+                    'subscription' => $subscription instanceof ReadingPlanSubscription ? [
+                        'active' => (bool) $subscription->is_active,
+                        'dayNumber' => $subscription->getDayNumber(),
+                        'lastDay' => $plan->getLastDayNumber(),
+                        'completedDays' => $subscription->getCompletedDaysCount(),
+                        'trackedDays' => $subscription->getTrackedDaysCount(),
+                        'progress' => $subscription->getProgress(),
+                        'todayUrl' => route('plans.today', $plan),
+                    ] : null,
+                ];
+            })->values()->all(),
+            'hasActivePlan' => $subscriptions->contains(fn (ReadingPlanSubscription $subscription): bool => (bool) $subscription->is_active),
+            'flash' => [
+                'info' => session('info'),
+                'error' => session('error'),
+                'success' => session('success'),
+            ],
         ];
+    }
+
+    private function redirectToCatalogue(Request $request, ?string $flashKey = null, ?string $flashMessage = null): RedirectResponse|Response
+    {
+        if ($flashKey !== null && $flashMessage !== null) {
+            $request->session()->flash($flashKey, $flashMessage);
+        }
+
+        if ($request->header('HX-Request')) {
+            return response('', 200)->header('HX-Redirect', route('plans.index'));
+        }
+
+        return redirect()->route('plans.index');
     }
 
     private function unavailablePlanResponse(Request $request): Response|RedirectResponse
     {
-        if ($request->header('HX-Request')) {
-            return response()
-                ->htmx('plans.index', 'content', $this->getPlansWithStatus($request->user()))
-                ->header('HX-Push-Url', route('plans.index'));
-        }
-
-        return redirect()->route('plans.index')
-            ->with('info', 'Enable deuterocanonical books in Settings to use this plan.');
+        return $this->redirectToCatalogue($request, 'info', 'Enable deuterocanonical books in Settings to use this plan.');
     }
 }

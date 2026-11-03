@@ -29,12 +29,11 @@ class ReadingLogChapterInputTest extends TestCase
             'date_read' => today()->toDateString(),
         ];
 
-        $response = $this->actingAs($user)->post('/logs', $readingData);
+        $response = $this->actingAs($user)->postJson('/logs', $readingData);
 
-        // Assert validation error - controller passes errors to view, not session
-        $response->assertViewHas('errors');
-        $errors = $response->viewData('errors');
-        $this->assertTrue($errors->has('start_chapter'));
+        // The Vue form receives field errors as JSON.
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors('start_chapter');
 
         // Ensure no log was created
         $this->assertDatabaseCount('reading_logs', 0);
@@ -54,7 +53,7 @@ class ReadingLogChapterInputTest extends TestCase
             'date_read' => today()->toDateString(),
         ];
 
-        $response = $this->actingAs($user)->post('/logs', $readingData);
+        $response = $this->actingAs($user)->postJson('/logs', $readingData);
         $response->assertStatus(200); // Success
 
         // Should be exactly one log
@@ -78,7 +77,7 @@ class ReadingLogChapterInputTest extends TestCase
             'date_read' => today()->subDay()->toDateString(),
         ]);
 
-        $response = $this->actingAs($user)->post('/logs', [
+        $response = $this->actingAs($user)->postJson('/logs', [
             'book_id' => 1,
             'start_chapter' => '2',
             'date_read' => today()->subDay()->toDateString(),
@@ -107,21 +106,19 @@ class ReadingLogChapterInputTest extends TestCase
             'date_read' => today()->subDay()->toDateString(),
         ]);
 
-        $response = $this->actingAs($user)->post('/logs', [
+        $response = $this->actingAs($user)->postJson('/logs', [
             'book_id' => 1,
             'start_chapter' => '1',
             'date_read' => today()->subDay()->toDateString(),
         ]);
 
-        $response->assertViewHas('errors');
-        $errors = $response->viewData('errors');
+        $response->assertUnprocessable();
 
         $this->assertEquals(
             'You have already logged one or more of these chapters for yesterday.',
-            $errors->first('start_chapter')
+            $response->json('errors.start_chapter.0')
         );
-        $this->assertMatchesRegularExpression('/<input[^>]+id="yesterday"[^>]+checked/s', $response->getContent());
-        $this->assertDoesNotMatchRegularExpression('/<input[^>]+id="today"[^>]+checked/s', $response->getContent());
+        $response->assertJsonPath('form.values.date_read', today()->subDay()->toDateString());
         $this->assertDatabaseCount('reading_logs', 1);
     }
 
@@ -144,32 +141,30 @@ class ReadingLogChapterInputTest extends TestCase
             }
         });
 
-        $response = $this->actingAs($user)->post('/logs', [
+        $response = $this->actingAs($user)->postJson('/logs', [
             'book_id' => 1,
             'start_chapter' => '1',
             'date_read' => today()->toDateString(),
         ]);
 
-        $response->assertSee('You have already logged one or more of these chapters for today.');
+        $response->assertUnprocessable()->assertJsonPath('errors.start_chapter.0', 'You have already logged one or more of these chapters for today.');
     }
 
     public function test_yesterday_selection_is_preserved_when_validation_fails(): void
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->post('/logs', [
+        $response = $this->actingAs($user)->postJson('/logs', [
             'book_id' => 1,
             'start_chapter' => '3',
             'end_chapter' => '2',
             'date_read' => today()->subDay()->toDateString(),
         ]);
 
-        $response->assertViewHas('errors');
-        $errors = $response->viewData('errors');
+        $response->assertUnprocessable();
 
-        $this->assertTrue($errors->has('start_chapter'));
-        $this->assertMatchesRegularExpression('/<input[^>]+id="yesterday"[^>]+checked/s', $response->getContent());
-        $this->assertDoesNotMatchRegularExpression('/<input[^>]+id="today"[^>]+checked/s', $response->getContent());
+        $response->assertJsonValidationErrors('start_chapter');
+        $response->assertJsonPath('form.values.date_read', today()->subDay()->toDateString());
         $this->assertDatabaseCount('reading_logs', 0);
     }
 
@@ -177,15 +172,14 @@ class ReadingLogChapterInputTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->post('/logs', [
+        $response = $this->actingAs($user)->postJson('/logs', [
             'book_id' => 1,
             'start_chapter' => '1',
             'date_read' => today()->subDays(2)->toDateString(),
         ]);
 
-        $response->assertViewHas('errors');
-        $errors = $response->viewData('errors');
-        $this->assertTrue($errors->has('date_read'));
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors('date_read');
         $this->assertDatabaseCount('reading_logs', 0);
     }
 
@@ -203,7 +197,7 @@ class ReadingLogChapterInputTest extends TestCase
             'date_read' => today()->toDateString(),
         ];
 
-        $response = $this->actingAs($user)->post('/logs', $readingData);
+        $response = $this->actingAs($user)->postJson('/logs', $readingData);
         $response->assertStatus(200); // Success
 
         // Should be 3 logs (10, 11, 12)
@@ -228,7 +222,7 @@ class ReadingLogChapterInputTest extends TestCase
             'date_read' => today()->toDateString(),
         ];
 
-        $response = $this->actingAs($user)->post('/logs', $readingData);
+        $response = $this->actingAs($user)->postJson('/logs', $readingData);
         $response->assertStatus(200);
 
         // Should be exactly one log
@@ -254,15 +248,14 @@ class ReadingLogChapterInputTest extends TestCase
             'date_read' => today()->toDateString(),
         ];
 
-        $response = $this->actingAs($user)->post('/logs', $readingData);
+        $response = $this->actingAs($user)->postJson('/logs', $readingData);
 
         // Assert validation error
-        $response->assertViewHas('errors');
-        $errors = $response->viewData('errors');
-        $this->assertTrue($errors->has('start_chapter'));
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors('start_chapter');
         $this->assertEquals(
             'Invalid chapter range for the selected book.',
-            $errors->first('start_chapter')
+            $response->json('errors.start_chapter.0')
         );
 
         // Ensure no log was created

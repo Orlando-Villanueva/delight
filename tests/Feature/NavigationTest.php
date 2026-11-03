@@ -9,13 +9,16 @@ use App\Models\User;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
+use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
 
 const AUTHENTICATED_SHELL_SCRIPT = 'js/components/authenticated-shell.js';
 
 beforeEach(function () {
-    $this->getDashboard = fn (?User $user = null) => $this->actingAs($user ?? User::factory()->create())->get('/dashboard');
+    Route::middleware(['web', 'auth'])->get('/_tests/legacy-shell', fn () => view('layouts.authenticated'));
+    $this->getLegacyShell = fn (?User $user = null) => $this->actingAs($user ?? User::factory()->create())->get('/_tests/legacy-shell');
     $this->getHtmx = fn (string $path, ?User $user = null) => $this->actingAs($user ?? User::factory()->create())->get($path, [
         'HX-Request' => 'true',
     ]);
@@ -23,7 +26,7 @@ beforeEach(function () {
 
 describe('Navigation Component Rendering', function () {
     it('renders desktop sidebar navigation for authenticated users', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
         $response->assertSee('Dashboard');
@@ -37,7 +40,7 @@ describe('Navigation Component Rendering', function () {
             'email' => 'john@example.com',
         ]);
 
-        $response = ($this->getDashboard)($user);
+        $response = ($this->getLegacyShell)($user);
 
         $response->assertSuccessful();
         $response->assertSee(config('app.name'));
@@ -47,7 +50,7 @@ describe('Navigation Component Rendering', function () {
     });
 
     it('renders mobile bottom navigation bar', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
         // Check for sr-only labels in mobile navigation
@@ -73,7 +76,7 @@ describe('Navigation Component Rendering', function () {
     });
 
     it('centers the log reading action in the mobile bottom navigation order', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $content = substr($response->getContent(), strpos($response->getContent(), 'id="mobile-bottom-navigation"'));
 
@@ -90,7 +93,7 @@ describe('Navigation Component Rendering', function () {
             'name' => 'Alice Smith',
         ]);
 
-        $response = ($this->getDashboard)($user);
+        $response = ($this->getLegacyShell)($user);
 
         $response->assertSuccessful();
         // Should display first letter of name
@@ -102,7 +105,7 @@ describe('Navigation Component Rendering', function () {
             'avatar_url' => 'https://example.com/avatar.jpg',
         ]);
 
-        $response = ($this->getDashboard)($user);
+        $response = ($this->getLegacyShell)($user);
 
         $response->assertSuccessful();
         $response->assertSee('https://example.com/avatar.jpg', false);
@@ -110,7 +113,7 @@ describe('Navigation Component Rendering', function () {
     });
 
     it('renders Log Reading button in desktop navbar', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
         $response->assertSee('Log Reading');
@@ -118,7 +121,7 @@ describe('Navigation Component Rendering', function () {
     });
 
     it('renders collapsible desktop sidebar controls without persisted browser storage', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
 
@@ -153,13 +156,17 @@ describe('HTMX Navigation Requests', function () {
         $response->assertDontSee('<html>', false);
         $response->assertDontSee('<!DOCTYPE', false);
     })->with([
-        'dashboard' => '/dashboard',
         'log reading form' => '/logs/create',
         'history' => '/logs',
     ]);
 
-    it('returns full layout for standard dashboard request', function () {
-        $response = ($this->getDashboard)();
+    it('redirects HTMX dashboard navigation to the Inertia page', function () {
+        ($this->getHtmx)('/dashboard')->assertOk()
+            ->assertHeader('HX-Redirect', route('dashboard'));
+    });
+
+    it('returns full layout for a standard legacy shell request', function () {
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
         // Standard requests should include full HTML layout
@@ -167,8 +174,8 @@ describe('HTMX Navigation Requests', function () {
         $response->assertSee('<!DOCTYPE', false);
     });
 
-    it('renders :dataset in the standard dashboard layout', function (array $expectedMarkup) {
-        $response = ($this->getDashboard)();
+    it('renders :dataset in the standard legacy shell layout', function (array $expectedMarkup) {
+        $response = ($this->getLegacyShell)();
         $response->assertSuccessful();
 
         foreach ($expectedMarkup as $markup) {
@@ -182,7 +189,7 @@ describe('HTMX Navigation Requests', function () {
     it('renders global page navigation loading feedback without replacing form save indicators', function () {
         $user = User::factory()->create();
 
-        $dashboardResponse = ($this->getDashboard)($user);
+        $dashboardResponse = ($this->getLegacyShell)($user);
 
         $dashboardResponse->assertSuccessful();
         $dashboardResponse->assertSee('<progress', false);
@@ -204,9 +211,8 @@ describe('HTMX Navigation Requests', function () {
         $response = $this->actingAs($user)->get(route('logs.create'));
 
         $response->assertSuccessful();
-        $response->assertSee('data-reading-log-island', false);
-        $response->assertSee('<form method="POST" action="'.route('logs.store').'"', false);
-        $response->assertSee('Log Reading', false);
+        $response->assertDontSee('data-reading-log-island', false);
+        expect(readingLogPageProps($response)['submitUrl'])->toBe(route('logs.store'));
     });
 
     it('wires offline retry buttons to reset scroll before reloading', function () {
@@ -229,7 +235,7 @@ describe('Navigation Routes', function () {
         $response = $this->actingAs($user)->get(route('dashboard'));
 
         $response->assertSuccessful();
-        $response->assertSee('Dashboard');
+        $response->assertInertia(fn (AssertableInertia $page) => $page->component('Dashboard', false));
     });
 
     it('navigates to log reading form successfully', function () {
@@ -238,50 +244,22 @@ describe('Navigation Routes', function () {
         $response = $this->actingAs($user)->get(route('logs.create'));
 
         $response->assertSuccessful();
-        $response->assertSee('Log Reading');
-        $response->assertSee("Record today's Bible reading.");
+        $response->assertInertia(fn (AssertableInertia $page) => $page->component('LogReading', false));
     });
 
-    it('always shows today and yesterday on the log form', function () {
-        $user = User::factory()->create([
-            'created_at' => today()->subMonth(),
-        ]);
-
-        $response = $this->actingAs($user)->get(route('logs.create'));
-
-        $response->assertSuccessful();
-        $response->assertSeeText('When did you read?');
-        $response->assertSeeText('Yesterday');
-        $response->assertSeeText('Today');
-        $response->assertSeeText('Forgot to log? Choose yesterday.');
-        $response->assertSee('data-reading-log-island', false);
-        $response->assertSee('name="date_read" value="'.today()->toDateString().'" checked', false);
-        $response->assertSee('name="date_read" value="'.today()->subDay()->toDateString().'"', false);
-        $response->assertDontSee('Logging for today', false);
-        $response->assertDontSee('Grace period help', false);
-        $response->assertSee('id="today"', false)->assertSee('id="yesterday"', false);
+    it('provides today and yesterday as reading date choices', function () {
+        $user = User::factory()->create(['reading_timezone' => 'UTC']);
+        $response = $this->actingAs($user)->get(route('logs.create'))->assertOk();
+        $config = readingLogPageProps($response);
+        expect($config['dates'])->toBe(['today' => today()->toDateString(), 'yesterday' => today()->subDay()->toDateString()])
+            ->and($config['values']['date_read'])->toBe(today()->toDateString());
     });
 
     it('keeps yesterday available when yesterday is already logged', function () {
-        $user = User::factory()->create([
-            'created_at' => today()->subMonth(),
-        ]);
-
-        ReadingLog::factory()->create([
-            'user_id' => $user->id,
-            'book_id' => 1,
-            'chapter' => 1,
-            'date_read' => today()->subDay()->toDateString(),
-        ]);
-
-        $response = $this->actingAs($user)->get(route('logs.create'));
-
-        $response->assertSuccessful();
-        $response->assertSeeText('When did you read?');
-        $response->assertSeeText('Yesterday');
-        $response->assertSeeText('Today');
-        $response->assertSeeText('Forgot to log? Choose yesterday.');
-        $response->assertDontSee('Logging for today', false);
+        $user = User::factory()->create(['reading_timezone' => 'UTC']);
+        ReadingLog::factory()->for($user)->create(['date_read' => today()->subDay()->toDateString()]);
+        $response = $this->actingAs($user)->get(route('logs.create'))->assertOk();
+        expect(readingLogPageProps($response)['dates']['yesterday'])->toBe(today()->subDay()->toDateString());
     });
 
     it('navigates to reading history successfully', function () {
@@ -290,8 +268,7 @@ describe('Navigation Routes', function () {
         $response = $this->actingAs($user)->get(route('logs.index'));
 
         $response->assertSuccessful();
-        $response->assertSee('Reading History');
-        $response->assertSee('Review and manage past readings.');
+        $response->assertInertia(fn ($page) => $page->component('History')->has('days')->has('today'));
     });
 });
 
@@ -306,7 +283,7 @@ describe('Navigation Logout Functionality', function () {
     });
 
     it('includes CSRF token in logout form', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
         $response->assertSee('name="_token"', false);
@@ -322,7 +299,7 @@ describe('Navigation Logout Functionality', function () {
 
 describe('Dark Mode Support', function () {
     it('includes dark mode classes for the :dataset', function (array $expectedClasses) {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
         $response->assertSuccessful();
 
         foreach ($expectedClasses as $class) {
@@ -331,13 +308,13 @@ describe('Dark Mode Support', function () {
     })->with([
         'desktop sidebar' => [['dark:bg-gray-800', 'dark:text-white', 'dark:hover:bg-gray-700']],
         'desktop navbar' => [['dark:bg-gray-800', 'dark:border-gray-700']],
-        'mobile bottom bar' => [['dark:bg-gray-700', 'dark:border-gray-600']],
+        'mobile bottom bar' => [['dark:bg-gray-800/80', 'dark:border-gray-700']],
     ]);
 });
 
 describe('Responsive Design', function () {
     it('renders the :dataset responsive class', function (string $responsiveClass) {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
         $response->assertSuccessful();
         $response->assertSee($responsiveClass, false);
     })->with([
@@ -347,7 +324,7 @@ describe('Responsive Design', function () {
     ]);
 
     it('defaults the desktop sidebar to a compact rail below xl and expanded at xl', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
 
@@ -361,7 +338,7 @@ describe('Responsive Design', function () {
     });
 
     it('keeps the desktop sidebar icon column fixed while labels animate', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
 
@@ -386,7 +363,7 @@ describe('Responsive Design', function () {
     });
 
     it('keeps the desktop active navigation state synchronized with HTMX history', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
 
@@ -415,7 +392,7 @@ describe('Responsive Design', function () {
             ->for($plan)
             ->create();
 
-        $response = ($this->getDashboard)($user);
+        $response = ($this->getLegacyShell)($user);
 
         $response->assertSuccessful();
 
@@ -430,7 +407,7 @@ describe('Responsive Design', function () {
 
 describe('Accessibility Features', function () {
     it('includes :dataset accessibility markup', function (string $markup) {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
         $response->assertSuccessful();
         $response->assertSee($markup, false);
     })->with([
@@ -439,7 +416,7 @@ describe('Accessibility Features', function () {
     ]);
 
     it('marks the active desktop navigation link accessibly and visually', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
 
@@ -453,7 +430,7 @@ describe('Accessibility Features', function () {
     });
 
     it('renders the sidebar toggle in a quiet utility row with consistent spacing', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
 
@@ -483,14 +460,14 @@ describe('Accessibility Features', function () {
     });
 
     it('includes aria-expanded attribute on dropdown button', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
         $response->assertSee('aria-expanded', false);
     });
 
     it('includes accessible label for dropdown button', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
         $response->assertSee('sr-only', false);
@@ -505,7 +482,7 @@ describe('Navigation URL Management', function () {
             'email' => $isAdmin ? 'admin@example.com' : 'reader@example.com',
         ]);
 
-        $response = ($this->getDashboard)($user);
+        $response = ($this->getLegacyShell)($user);
         $response->assertSuccessful();
         $adminUrl = route('filament.admin.pages.admin-home');
         $document = new DOMDocument;
@@ -526,7 +503,7 @@ describe('Navigation URL Management', function () {
     })->with(['admin' => true, 'reader' => false]);
 
     it('uses named routes for navigation links', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
         $response->assertSee(route('dashboard'));
@@ -535,7 +512,7 @@ describe('Navigation URL Management', function () {
     });
 
     it('preserves HTMX wiring on collapsible desktop sidebar links', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
 
@@ -555,7 +532,7 @@ describe('Navigation URL Management', function () {
 
 describe('Navigation Component Integration', function () {
     it('scopes HTMX history restoration to the page container', function () {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
 
         $response->assertSuccessful();
         $response->assertSee('id="page-container"', false);
@@ -565,7 +542,7 @@ describe('Navigation Component Integration', function () {
 
 describe('Brand Styling', function () {
     it('uses brand styling for the :dataset', function (array $expectedClasses) {
-        $response = ($this->getDashboard)();
+        $response = ($this->getLegacyShell)();
         $response->assertSuccessful();
 
         foreach ($expectedClasses as $class) {

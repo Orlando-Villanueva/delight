@@ -134,6 +134,7 @@ Route::middleware(['auth', EstablishReadingTimezone::class])->group(function () 
 
     // Reading Log Routes
     Route::get('/logs', [ReadingLogController::class, 'index'])->name('logs.index');
+    Route::get('/logs/older', [ReadingLogController::class, 'older'])->name('logs.older');
     Route::get('/logs/create', [ReadingLogController::class, 'create'])->name('logs.create');
     Route::post('/logs', [ReadingLogController::class, 'store'])->name('logs.store');
     Route::patch('/logs/{readingLog}/notes', [ReadingLogController::class, 'updateNotes'])->name('logs.notes.update');

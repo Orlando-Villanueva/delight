@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Middleware\HandleReaderInertiaRequests;
 use App\Http\Middleware\QueryLogger;
 use App\Http\Middleware\SecurityHeadersMiddleware;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -28,8 +30,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             SecurityHeadersMiddleware::class,
+            HandleReaderInertiaRequests::class,
             QueryLogger::class,
         ]);
+        $middleware->prependToPriorityList(AuthenticatesRequests::class, HandleReaderInertiaRequests::class);
         $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions) {

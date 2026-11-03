@@ -8,29 +8,38 @@ use App\Services\BibleReferenceService;
 use App\Services\BookProgressService;
 use App\Services\BookProgressSyncService;
 use App\Services\ReadingLogService;
-use App\View\Components\Bible\BookCompletionGrid;
 use Illuminate\Support\Facades\DB;
 
-it('uses supplied dashboard progress and serializes only the overall summary for the bar', function () {
-    $progress = [
-        'old_testament' => ['processed_books' => [['book_id' => 1, 'name' => 'Genesis']]],
-        'new_testament' => ['processed_books' => [['book_id' => 40, 'name' => 'Matthew']]],
-        'deuterocanonical' => null,
-        'bible_completions' => 2,
-        'book_completions' => 3,
-        'first_coverage_percent' => 100.0,
-        'next_completion_progress_percent' => 12.5,
-    ];
+it('exposes first and repeat book completion progress through the Dashboard contract', function () {
+    $user = User::factory()->create();
+    $genesis = app(BibleReferenceService::class)->getBibleBook(1);
 
-    $viewData = (new BookCompletionGrid($progress))->render()->getData();
-
-    expect($viewData['oldData'])->toBe($progress['old_testament'])
-        ->and($viewData['newData'])->toBe($progress['new_testament'])
-        ->and($viewData['overallData'])->toBe([
-            'bible_completions' => 2,
-            'first_coverage_percent' => 100.0,
-            'next_completion_progress_percent' => 12.5,
+    foreach (range(1, $genesis['chapters']) as $chapter) {
+        ReadingLog::factory()->for($user)->create([
+            'book_id' => 1,
+            'chapter' => $chapter,
+            'passage_text' => "Genesis {$chapter}",
+            'date_read' => '2026-09-01',
         ]);
+    }
+
+    foreach (range(1, 5) as $chapter) {
+        ReadingLog::factory()->for($user)->create([
+            'book_id' => 1,
+            'chapter' => $chapter,
+            'passage_text' => "Genesis {$chapter}",
+            'date_read' => '2026-09-02',
+        ]);
+    }
+
+    $this->actingAs($user)->getJson(route('dashboard'))
+        ->assertOk()
+        ->assertJsonPath('bookProgress.old_testament.processed_books.0.name', 'Genesis')
+        ->assertJsonPath('bookProgress.old_testament.processed_books.0.chapter_count', 50)
+        ->assertJsonPath('bookProgress.old_testament.processed_books.0.chapters_read', 50)
+        ->assertJsonPath('bookProgress.old_testament.processed_books.0.completed_count', 1)
+        ->assertJsonPath('bookProgress.old_testament.processed_books.0.next_completion_chapters', 5)
+        ->assertJsonPath('bookProgress.book_completions', 1);
 });
 
 it('uses canonical progress totals by default', function () {

@@ -5,6 +5,7 @@ use App\Models\ReadingPlan;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia as Assert;
 
 afterEach(function () {
     Carbon::setTestNow();
@@ -16,8 +17,12 @@ it('shows onboarding modal for new users on dashboard', function () {
     $this->actingAs($user)
         ->get('/dashboard')
         ->assertStatus(200)
-        ->assertSee('onboarding-modal')
-        ->assertSee('Welcome to Delight!');
+        ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('onboarding.show', true)
+            ->where('onboarding.canRemind', true)
+            ->where('onboarding.dismissUrl', route('onboarding.dismiss'))
+            ->where('onboarding.remindUrl', route('onboarding.remind'))
+            ->where('onboarding.plansUrl', route('plans.index')));
 });
 
 it('does not show onboarding for users with readings', function () {
@@ -30,7 +35,8 @@ it('does not show onboarding for users with readings', function () {
     $this->actingAs($user)
         ->get('/dashboard')
         ->assertStatus(200)
-        ->assertDontSee('onboarding-modal');
+        ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('onboarding.show', false));
 });
 
 it('dismisses onboarding and sets timestamp', function () {
@@ -45,6 +51,17 @@ it('dismisses onboarding and sets timestamp', function () {
         'user_id' => $user->id,
         'step' => 'dismissed',
     ]);
+});
+
+it('keeps onboarding actions compatible with JSON clients', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->withHeader('Accept', 'application/json')
+        ->post(route('onboarding.dismiss'))
+        ->assertNoContent();
+
+    expect($user->fresh()->onboarding_dismissed_at)->not->toBeNull();
 });
 
 it('stores onboarding reminder request for eligible users', function () {
@@ -222,27 +239,23 @@ it('shows reminder CTA for opted-in users and hides it for opted-out users', fun
     $this->actingAs($optedInUser)
         ->get('/dashboard')
         ->assertStatus(200)
-        ->assertSee('Remind me tomorrow');
+        ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('onboarding.canRemind', true));
 
     $this->actingAs($optedOutUser)
         ->get('/dashboard')
         ->assertStatus(200)
-        ->assertDontSee('Remind me tomorrow');
+        ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('onboarding.canRemind', false));
 });
 
-it('onboarding modal cannot be dismissed without action', function () {
+it('keeps onboarding server actions available to the client', function () {
     $user = User::factory()->create();
 
-    $response = $this->actingAs($user)
+    $this->actingAs($user)
         ->get('/dashboard')
-        ->assertStatus(200);
-
-    // Assert no X button (data-modal-hide attribute)
-    $response->assertDontSee('data-modal-hide="onboarding-modal"');
-
-    // Assert no ESC key handler (no onboarding.dismiss route in modal script)
-    $response->assertDontSee('onboarding.dismiss');
-
-    // Assert modal is configured as not closable
-    $response->assertSee('closable: false');
+        ->assertStatus(200)
+        ->assertInertia(fn (Assert $page) => $page->component('Dashboard', false)
+            ->where('onboarding.dismissUrl', route('onboarding.dismiss'))
+            ->where('onboarding.remindUrl', route('onboarding.remind')));
 });

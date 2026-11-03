@@ -32,7 +32,7 @@ class ReadingLogDayUpdateTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->withHeaders(['HX-Request' => 'true'])
+            ->withHeaders(['Accept' => 'application/json'])
             ->delete(route('logs.destroy', $log1));
 
         $response->assertSuccessful();
@@ -41,6 +41,6 @@ class ReadingLogDayUpdateTest extends TestCase
         $direct = $user->readingLogs()->whereDate('date_read', $date)->get();
         $this->assertTrue($direct->isNotEmpty(), 'Direct query should return remaining logs');
         $response->assertSee('Genesis 2', false);
-        $response->assertSee('id="reading-day-'.today()->format('Y-m-d').'"', false);
+        $response->assertJsonPath('day.date', $date)->assertJsonPath('day.groups.0.passage', 'Genesis 2');
     }
 }
