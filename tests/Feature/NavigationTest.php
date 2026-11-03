@@ -9,6 +9,7 @@ use App\Models\User;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
@@ -16,7 +17,8 @@ uses(RefreshDatabase::class);
 const AUTHENTICATED_SHELL_SCRIPT = 'js/components/authenticated-shell.js';
 
 beforeEach(function () {
-    $this->getLegacyShell = fn (?User $user = null) => $this->actingAs($user ?? User::factory()->create())->get(route('feedback.create'));
+    Route::middleware(['web', 'auth'])->get('/_tests/legacy-shell', fn () => view('layouts.authenticated'));
+    $this->getLegacyShell = fn (?User $user = null) => $this->actingAs($user ?? User::factory()->create())->get('/_tests/legacy-shell');
     $this->getHtmx = fn (string $path, ?User $user = null) => $this->actingAs($user ?? User::factory()->create())->get($path, [
         'HX-Request' => 'true',
     ]);

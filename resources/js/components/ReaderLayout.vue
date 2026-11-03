@@ -136,7 +136,7 @@
                                 </div>
                                 <div class="p-2">
                                     <component
-                                        :is="key === 'settings' ? Link : 'a'"
+                                        :is="key === 'settings' || key === 'feedback' ? Link : 'a'"
                                         v-for="key in accountLinks"
                                         :key="key"
                                         :href="reader.urls[key] ?? undefined"
