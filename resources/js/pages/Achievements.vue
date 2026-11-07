@@ -1,5 +1,5 @@
 <template>
-    <Head title="Achievements" />
+    <Head><title>Achievements</title></Head>
     <div class="mx-auto w-full max-w-7xl space-y-8">
         <header>
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Achievements</h1>

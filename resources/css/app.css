@@ -210,7 +210,7 @@ html {
 }
 
 /* High contrast mode support */
-@media (prefers-contrast: high) {
+@media (prefers-contrast: more) {
     .btn {
         border-width: 2px;
     }

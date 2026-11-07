@@ -1,5 +1,5 @@
 <template>
-    <Head title="Dashboard" />
+    <Head><title>Dashboard</title></Head>
     <div class="mx-auto w-full max-w-7xl space-y-4">
         <header><h1 class="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1></header>
         <p v-if="refreshing" role="status" class="text-sm text-gray-600 dark:text-gray-300">Updating your overview…</p>

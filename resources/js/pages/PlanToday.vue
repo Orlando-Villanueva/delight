@@ -1,5 +1,5 @@
 <template>
-    <Head :title="`${state.plan.name} · Day ${state.dayNumber}`" />
+    <Head><title>{{ state.plan.name }} · Day {{ state.dayNumber }}</title></Head>
     <div class="mx-auto w-full max-w-2xl space-y-4 sm:space-y-6">
         <section class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-6" aria-labelledby="plan-title">
             <div class="flex items-start justify-between gap-4">

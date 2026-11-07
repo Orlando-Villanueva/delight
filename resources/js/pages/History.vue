@@ -1,5 +1,5 @@
 <template>
-    <Head title="Reading History" />
+    <Head><title>Reading History</title></Head>
     <section class="mx-auto flex w-full max-w-4xl flex-col gap-6" aria-labelledby="reading-history-title">
         <header>
             <h1 id="reading-history-title" ref="heading" tabindex="-1" class="text-2xl font-bold text-gray-900 focus:outline-none dark:text-white">Reading History</h1>

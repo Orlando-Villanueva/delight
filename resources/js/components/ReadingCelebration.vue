@@ -1,6 +1,6 @@
 <template>
     <ReaderDialog labelledby="reading-celebration-title" close-label="Close celebration" size="lg" @close="emit('close')">
-        <template #overlay><canvas ref="confettiCanvas" aria-hidden="true" class="pointer-events-none fixed inset-0 z-20 h-full w-full"></canvas></template>
+        <template #overlay><div inert aria-hidden="true" class="pointer-events-none fixed inset-0 z-20 h-full w-full"><canvas ref="confettiCanvas" class="h-full w-full"></canvas></div></template>
                 <div class="px-6 pb-6 pt-8 sm:px-8">
                     <div class="mb-5 flex justify-center"><AchievementBadge :icon="heroIcon" :base-url="badgeBaseUrl" size="xl" /></div>
                     <div class="text-center">

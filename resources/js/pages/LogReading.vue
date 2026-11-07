@@ -1,5 +1,5 @@
 <template>
-    <Head title="Log Reading" />
+    <Head><title>Log Reading</title></Head>
     <section class="mx-auto w-full max-w-md" aria-labelledby="log-reading-title">
         <header class="mb-6">
             <h1 id="log-reading-title" class="text-2xl font-bold text-gray-900 dark:text-white">Log Reading</h1>

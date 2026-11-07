@@ -1,5 +1,5 @@
 <template>
-    <Head title="Settings" />
+    <Head><title>Settings</title></Head>
     <section class="mx-auto w-full max-w-3xl" aria-labelledby="settings-title">
         <header class="mb-6">
             <h1 id="settings-title" class="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>

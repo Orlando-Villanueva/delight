@@ -70,7 +70,7 @@ onMounted(() => {
     mounted = true;
     document.addEventListener('visibilitychange', syncVisibility);
     syncVisibility();
-    showMessage();
+    void showMessage();
 });
 
 onBeforeUnmount(() => {

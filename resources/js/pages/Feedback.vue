@@ -1,5 +1,5 @@
 <template>
-    <Head title="Feedback" />
+    <Head><title>Feedback</title></Head>
     <section class="mx-auto w-full max-w-3xl space-y-6" aria-labelledby="feedback-title">
         <header>
             <h1 id="feedback-title" class="text-2xl font-bold text-gray-900 dark:text-white">Feedback</h1>

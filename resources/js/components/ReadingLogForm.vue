@@ -278,8 +278,8 @@ function allowRetry() {
 
 onMounted(() => {
     document.addEventListener('click', outsideClick);
-    if (session.pending) handleOutcome(session.pending);
-    else if (session.outcome) handleOutcome(Promise.resolve(session.outcome));
+    if (session.pending) void handleOutcome(session.pending);
+    else if (session.outcome) void handleOutcome(Promise.resolve(session.outcome));
 });
 
 onBeforeUnmount(() => {

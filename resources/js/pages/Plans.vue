@@ -1,5 +1,5 @@
 <template>
-    <Head title="Reading Plans" />
+    <Head><title>Reading Plans</title></Head>
     <section class="mx-auto w-full max-w-3xl space-y-6" aria-labelledby="plans-title" :aria-busy="submitting || undefined">
         <header>
             <h1 id="plans-title" tabindex="-1" class="text-2xl font-bold text-gray-900 dark:text-white">Reading Plans</h1>

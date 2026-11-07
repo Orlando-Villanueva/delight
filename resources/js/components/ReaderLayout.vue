@@ -138,7 +138,7 @@
                                         >{{ m[key] }}</component
                                     >
                                     <form :action="reader.urls.logout" method="post">
-                                        <input type="hidden" name="_token" :value="reader.csrfToken" /><button
+                                        <input type="hidden" name="_token" :value="reader.csrfToken" /><button type="submit"
                                             class="w-full rounded-lg px-3 py-3 text-left text-sm text-destructive-600 dark:text-destructive-400"
                                         >
                                             {{ m.logout }}
