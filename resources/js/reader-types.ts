@@ -30,7 +30,7 @@ export type ReaderUrls = {
     achievements: string;
     recap: string;
     feedback: string;
-    notifications: string;
+    updates: string;
     logout: string;
     admin: string | null;
 };
@@ -41,6 +41,7 @@ export type ReaderProps = {
     user: { name: string; email: string; avatar: string | null };
     csrfToken: string;
     unreadCount: number;
+    announcements: { id: number; title: string; url: string; date: string | null; dateLabel: string | null; isRead: boolean }[];
     urls: ReaderUrls;
 };
 

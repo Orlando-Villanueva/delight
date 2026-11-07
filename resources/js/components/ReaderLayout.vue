@@ -36,7 +36,7 @@
         </aside>
         <div class="flex min-w-0 flex-1 flex-col lg:pt-[var(--reader-header-height)]">
             <header
-                class="z-stack-nav border-b border-gray-200/70 bg-white dark:border-gray-700/70 dark:bg-gray-800 lg:fixed lg:inset-x-0 lg:top-0 lg:h-[var(--reader-header-height)]"
+                class="relative z-stack-nav border-b border-gray-200/70 bg-white dark:border-gray-700/70 dark:bg-gray-800 lg:fixed lg:inset-x-0 lg:top-0 lg:h-[var(--reader-header-height)]"
             >
                 <div class="flex items-center justify-between gap-3 pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 lg:h-full lg:pl-0 lg:pr-5 lg:py-0">
                     <div class="flex min-w-0 items-center">
@@ -75,40 +75,33 @@
                             class="hidden rounded-full bg-accent-500 px-5 py-2 text-sm font-medium text-white hover:bg-accent-600 lg:inline-flex"
                             >{{ m.log }}</Link
                         >
-                        <details
-                            ref="notifications"
-                            class="relative"
-                            @toggle="loadNotifications"
-                        >
+                        <details ref="announcementsPanel" class="static sm:relative">
                             <summary
-                                class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full text-gray-500 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-gray-300"
-                                :aria-label="m.notifications"
+                                class="relative flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:text-gray-300 dark:hover:bg-gray-700"
+                                :aria-label="reader.unreadCount ? `What's new, ${reader.unreadCount} unread updates` : `What's new`"
                             >
-                                <svg
-                                    class="h-6 w-6"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    aria-hidden="true"
-                                >
-                                    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg
-                                ><span v-if="reader.unreadCount" class="absolute right-2 top-1 h-2 w-2 rounded-full bg-red-500" />
+                                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="m3 11 18-5v12L3 13v-2ZM7 14v7h4l-2-6" />
+                                </svg>
+                                <span v-if="reader.unreadCount" aria-hidden="true" class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary-600 dark:bg-primary-400" />
                             </summary>
-                            <div
-                                class="absolute right-0 z-10 mt-2 w-72 max-w-[85vw] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
-                            >
-                                <p v-if="notificationError" class="p-4" role="alert">
-                                    {{ m.navigation_error }}
-                                    <button class="underline" @click="loadNotifications">
-                                        {{ m.retry }}
-                                    </button>
-                                </p>
-                                <div v-else-if="notificationHtml" v-html="notificationHtml" />
-                                <p v-else class="p-4" role="status">
-                                    {{ m.loading }}
-                                </p>
-                            </div>
+                            <section aria-labelledby="whats-new-title" class="absolute inset-x-4 top-full z-10 mt-2 flex max-h-[calc(100dvh-11rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white text-gray-900 shadow-lg sm:left-auto sm:right-0 sm:w-80 sm:max-w-[calc(100vw-2rem)] lg:max-h-[calc(100dvh-6rem)] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                                <h2 id="whats-new-title" class="shrink-0 border-b border-gray-200 px-4 py-3 text-sm font-semibold dark:border-gray-700">What's new</h2>
+                                <ul v-if="reader.announcements.length" class="min-h-0 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                                    <li v-for="announcement in reader.announcements" :key="announcement.id">
+                                        <a :href="announcement.url" class="flex min-h-11 gap-3 px-4 py-3 hover:bg-gray-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-500 dark:hover:bg-gray-700" @click="closeNavigationMenus">
+                                            <span aria-hidden="true" class="mt-1.5 h-2 w-2 shrink-0 rounded-full" :class="announcement.isRead ? 'bg-transparent' : 'bg-primary-600 dark:bg-primary-400'" />
+                                            <span class="min-w-0">
+                                                <span v-if="!announcement.isRead" class="sr-only">Unread: </span>
+                                                <span class="block text-sm" :class="announcement.isRead ? 'font-normal text-gray-600 dark:text-gray-300' : 'font-semibold'">{{ announcement.title }}</span>
+                                                <time v-if="announcement.date" :datetime="announcement.date" class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ announcement.dateLabel }}</time>
+                                            </span>
+                                        </a>
+                                    </li>
+                                </ul>
+                                <p v-else class="px-4 py-6 text-sm text-gray-600 dark:text-gray-300">No updates yet.</p>
+                                <a :href="reader.urls.updates" class="inline-flex min-h-11 shrink-0 items-center justify-center border-t border-gray-200 px-4 py-3 text-sm font-medium text-primary-700 hover:bg-gray-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-500 dark:border-gray-700 dark:text-primary-300 dark:hover:bg-gray-700" @click="closeNavigationMenus">All updates</a>
+                            </section>
                         </details>
                         <details ref="profile" class="relative">
                             <summary
@@ -221,24 +214,18 @@ const m = {
     log: 'Log Reading',
     history: 'History',
     achievements: 'Achievements',
-    notifications: 'View notifications',
     user_menu: 'Open user menu',
     settings: 'Settings',
     recap: 'Annual Recap',
     feedback: 'Feedback',
     admin: 'Admin',
     logout: 'Sign out',
-    navigation_error: 'Notifications could not be loaded.',
-    retry: 'Try again',
-    loading: 'Loading…',
 };
 
 const collapsed = ref(false);
 const userToggled = ref(false);
 const profile = ref<HTMLDetailsElement | null>(null);
-const notifications = ref<HTMLDetailsElement | null>(null);
-const notificationHtml = ref('');
-const notificationError = ref(false);
+const announcementsPanel = ref<HTMLDetailsElement | null>(null);
 
 const accountLinks = computed(() => {
     const keys: ('settings' | 'recap' | 'feedback' | 'admin')[] = ['settings', 'recap', 'feedback'];
@@ -301,34 +288,19 @@ function isCurrent(link: { key: string; href: string }) {
     return current === pathname(link.href);
 }
 
-async function loadNotifications(event?: Event) {
-    if (event?.type === 'toggle' && event.target instanceof HTMLDetailsElement && !event.target.open) return;
-    notificationError.value = false;
-    try {
-        const response = await fetch(reader.value.urls.notifications, {
-            headers: { Accept: 'text/html' },
-            credentials: 'same-origin',
-        });
-        if (!response.ok || response.redirected) throw new Error();
-        notificationHtml.value = await response.text();
-    } catch {
-        notificationError.value = true;
-    }
-}
-
 function closeNavigationMenus() {
-    for (const menu of [profile.value, notifications.value]) if (menu) menu.open = false;
+    for (const menu of [profile.value, announcementsPanel.value]) if (menu) menu.open = false;
 }
 
 watch(() => page.url, closeNavigationMenus);
 
 function closeMenus(event: MouseEvent) {
-    for (const menu of [profile.value, notifications.value]) if (menu && !(event.target instanceof Node && menu.contains(event.target))) menu.open = false;
+    for (const menu of [profile.value, announcementsPanel.value]) if (menu && !(event.target instanceof Node && menu.contains(event.target))) menu.open = false;
 }
 
 function escapeMenus(event: KeyboardEvent) {
     if (event.key !== 'Escape') return;
-    for (const menu of [profile.value, notifications.value])
+    for (const menu of [profile.value, announcementsPanel.value])
         if (menu?.open) {
             menu.open = false;
             menu.querySelector('summary')?.focus();

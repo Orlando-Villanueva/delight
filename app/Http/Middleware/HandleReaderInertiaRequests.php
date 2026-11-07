@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Announcement;
 use App\Services\ReadingPlanService;
 use Closure;
 use Illuminate\Http\Request;
@@ -49,12 +50,27 @@ class HandleReaderInertiaRequests extends Middleware
                 'user' => ['name' => $user->name, 'email' => $user->email, 'avatar' => $user->avatar_url],
                 'csrfToken' => csrf_token(),
                 'unreadCount' => $user->unreadAnnouncements()->count(),
+                'announcements' => Announcement::visible()
+                    ->select(['id', 'slug', 'title', 'starts_at'])
+                    ->withExists(['users as is_read' => fn ($query) => $query->where('user_id', $user->id)])
+                    ->latest('starts_at')
+                    ->orderByDesc('id')
+                    ->limit(10)
+                    ->get()
+                    ->map(fn (Announcement $announcement): array => [
+                        'id' => $announcement->id,
+                        'title' => $announcement->title,
+                        'url' => route('announcements.show', $announcement->slug),
+                        'date' => $announcement->starts_at?->toIso8601String(),
+                        'dateLabel' => $announcement->starts_at?->diffForHumans(),
+                        'isRead' => (bool) $announcement->is_read,
+                    ]),
                 'urls' => [
                     'dashboard' => route('dashboard'), 'plans' => app(ReadingPlanService::class)->getSmartPlansUrl($user),
                     'log' => route('logs.create'), 'history' => route('logs.index'),
                     'settings' => route('settings.edit'), 'achievements' => route('achievements.index'),
                     'recap' => route('recap.show'), 'feedback' => route('feedback.create'),
-                    'notifications' => route('notifications.index'), 'logout' => route('logout'),
+                    'updates' => route('announcements.index'), 'logout' => route('logout'),
                     'admin' => $user->isAdmin() ? route('filament.admin.pages.admin-home') : null,
                 ],
             ] : null,
