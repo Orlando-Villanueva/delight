@@ -56,9 +56,12 @@
             <div class="space-y-3">
                 <button v-if="!notesOpen" type="button" class="inline-flex items-center gap-2 text-sm font-medium text-primary-600 transition hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300" @click="notesOpen = true; nextTick(() => form?.querySelector<HTMLTextAreaElement>('#notes_text')?.focus())"><span aria-hidden="true">+</span>{{ messages.add_note }}</button>
                 <div v-show="notesOpen" class="space-y-1">
-                    <div class="flex items-baseline justify-between gap-3">
+                    <div class="flex items-center justify-between gap-3">
                         <label for="notes_text" class="form-label">{{ messages.note }}</label>
-                        <span class="text-xs font-medium text-gray-500 tabular-nums dark:text-gray-400" aria-live="polite">{{ values.notes_text.length }}/1000</span>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-medium text-gray-500 tabular-nums dark:text-gray-400">{{ values.notes_text.length }}/1000</span>
+                            <button ref="expandNoteButton" type="button" class="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-primary-700 hover:bg-primary-50 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-primary-300 dark:hover:bg-gray-700" @click="noteExpanded = true">Expand</button>
+                        </div>
                     </div>
                     <textarea id="notes_text" v-model="values.notes_text" name="notes_text" rows="3" maxlength="1000" class="form-input resize-y" :placeholder="messages.note_placeholder" :aria-invalid="Boolean(errors.notes_text)" :aria-describedby="errors.notes_text ? 'notes_text-error' : undefined"></textarea>
                     <p v-if="errors.notes_text" id="notes_text-error" class="form-error" role="alert">{{ errors.notes_text[0] }}</p>
@@ -77,6 +80,7 @@
             </template>
         </div>
     </form>
+    <ReadingNoteDialog v-if="noteExpanded" v-model="values.notes_text" :title="messages.note" :label="messages.note" :placeholder="messages.note_placeholder" description="Draft for this reading. Return to the form to log it." draft @close="closeNoteEditor" @submit="closeNoteEditor" />
     <ReadingCelebration v-if="celebration" :payload="celebration" :achievements-url="config.achievementsUrl" :badge-base-url="config.achievementBadgeBaseUrl" @close="closeCelebration" />
     <TransientNotice :message="success" :suspended="Boolean(celebration)" :dismiss-label="messages.dismiss_success" @dismiss="dismissSuccess" />
 </template>
@@ -86,6 +90,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { consumeReadingLogOutcome, initializeReadingLogForm, setReadingLogUncertain, submitReadingLog, updateReadingLogSnapshot } from '@/components/reading-log-session.ts';
 import ReadingCelebration from '@/components/ReadingCelebration.vue';
 import TransientNotice from '@/components/TransientNotice.vue';
+import ReadingNoteDialog from '@/components/ReadingNoteDialog.vue';
 import type { BibleBook, ReadingCelebration as ReadingCelebrationPayload, ReadingFormConfig, ReadingOutcome, ReadingSession, ReadingValues } from '@/components/reading-log-types';
 
 const { config, session } = defineProps<{ config: ReadingFormConfig; session: ReadingSession }>();
@@ -104,6 +109,14 @@ const values = reactive({ ...initialForm.values });
 if (!books.value.some((book) => String(book.id) === String(values.book_id))) values.book_id = '';
 const collection = ref(books.value.find((book) => String(book.id) === String(values.book_id))?.testament ?? session.snapshot.collection);
 const notesOpen = ref(session.snapshot.notesOpen || Boolean(values.notes_text));
+const noteExpanded = ref(false);
+const expandNoteButton = ref<HTMLButtonElement | null>(null);
+
+async function closeNoteEditor() {
+    noteExpanded.value = false;
+    await nextTick();
+    expandNoteButton.value?.focus();
+}
 const errors = ref(config.errors);
 const errorScopes = ref(config.errorScopes ?? {});
 const rangeErrors = computed(() => errorScopes.value.start_chapter === 'chapter_range' ? (errors.value.start_chapter ?? []) : []);
