@@ -201,13 +201,7 @@ class ReadingPlanController extends Controller
 
         $result = $this->planService->logChapter($user, $subscription, $dayNumber, $chapter, $this->readingCalendar->todayFor($user)->toMutable());
 
-        $celebration = $this->achievementService->getCelebrationPayload($user, $result->awardedAchievements, $result->log, $result->isFirstReadingOfDay);
-
-        if (empty($celebration['earned']) && empty($celebration['record'])) {
-            $celebration = null;
-        }
-
-        return $this->todayMutationResponse($request, $subscription, $dayNumber, $celebration);
+        return $this->todayMutationResponse($request, $subscription, $dayNumber, $this->celebrationPayloadForResults($user, collect([$result])));
     }
 
     /**
@@ -356,6 +350,11 @@ class ReadingPlanController extends Controller
         $awardedAchievements = $results->flatMap(fn ($result) => $result->awardedAchievements)->unique('id')->values();
         $lastResult = $results->last();
         $isFirstReadingOfDay = $results->contains(fn ($result): bool => $result->isFirstReadingOfDay);
+
+        if ($awardedAchievements->isEmpty() && ! $isFirstReadingOfDay) {
+            return null;
+        }
+
         $payload = $this->achievementService->getCelebrationPayload($user, $awardedAchievements, $lastResult->log, $isFirstReadingOfDay);
 
         return empty($payload['earned']) && empty($payload['record']) ? null : $payload;

@@ -899,6 +899,78 @@ describe('Chapter Logging', function () {
             ->count())->toBe(3);
     });
 
+    it('avoids rebuilding celebration progress when a plan update has nothing to celebrate', function (string $action) {
+        $this->freezeTime();
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 1,
+            'chapter' => $action === 'applyTodaysReadings' ? 1 : 10,
+            'date_read' => Carbon::today(),
+        ]);
+        app(AchievementService::class)->evaluateAndAward($this->user);
+
+        $progressQueries = 0;
+        DB::listen(function ($query) use (&$progressQueries): void {
+            if (str_contains(strtolower($query->sql), 'count(*) as occurrences')) {
+                $progressQueries++;
+            }
+        });
+
+        $this->actingAs($this->user)
+            ->postJson(route('plans.'.$action, $this->plan), ['day' => 1, 'book_id' => 1, 'chapter' => 1])
+            ->assertOk()
+            ->assertJsonPath('today.reading.chapters.0.completed', true)
+            ->assertJsonPath('celebration', null);
+
+        // New readings still evaluate achievements once; linking existing logs needs no full-Bible aggregation.
+        expect($progressQueries)->toBe($action === 'applyTodaysReadings' ? 0 : 1);
+        $this->assertDatabaseHas('reading_plan_day_completions', [
+            'reading_plan_subscription_id' => $this->subscription->id,
+            'reading_plan_day' => 1,
+        ]);
+    })->with(['logChapter', 'logAll', 'applyTodaysReadings']);
+
+    it('retains a personal-best celebration on the first reading of the day without a new achievement', function () {
+        $this->freezeTime();
+        foreach ([Carbon::today()->subDays(7), Carbon::yesterday()] as $date) {
+            ReadingLog::factory()->create([
+                'user_id' => $this->user->id,
+                'book_id' => 1,
+                'chapter' => 10,
+                'date_read' => $date,
+            ]);
+        }
+        app(AchievementService::class)->evaluateAndAward($this->user);
+
+        $this->actingAs($this->user)
+            ->postJson(route('plans.logChapter', $this->plan), ['day' => 1, 'book_id' => 1, 'chapter' => 1])
+            ->assertOk()
+            ->assertJsonCount(0, 'celebration.earned')
+            ->assertJsonPath('celebration.record.title', 'Longest streak: 2 days');
+    });
+
+    it('retains a newly earned achievement after an earlier reading on the same day', function () {
+        $this->freezeTime();
+        ReadingLog::factory()->create([
+            'user_id' => $this->user->id,
+            'book_id' => 1,
+            'chapter' => 10,
+            'date_read' => Carbon::today(),
+        ]);
+        app(AchievementService::class)->evaluateAndAward($this->user);
+        $this->plan->update(['days' => [[
+            'day' => 1,
+            'label' => 'Obadiah 1',
+            'chapters' => [['book_id' => 31, 'book_name' => 'Obadiah', 'chapter' => 1]],
+        ]]]);
+
+        $this->actingAs($this->user)
+            ->postJson(route('plans.logChapter', $this->plan), ['day' => 1, 'book_id' => 31, 'chapter' => 1])
+            ->assertOk()
+            ->assertJsonPath('celebration.earned.0.display_name', 'Completed Obadiah')
+            ->assertJsonPath('celebration.record', null);
+    });
+
     it('rejects plan logging before the subscription starting day', function () {
         $this->subscription->update(['start_day' => 2]);
 

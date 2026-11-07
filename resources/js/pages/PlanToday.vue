@@ -44,12 +44,12 @@
                     <button type="button" class="inline-flex min-h-11 items-center font-medium text-primary-700 dark:text-primary-300" :disabled="Boolean(pending)" @click="mutate('applyReadings')">Apply to this day</button>
                 </div>
                 <ol class="space-y-2">
-                    <li v-for="chapter in state.reading.chapters" :key="`${chapter.bookId}-${chapter.chapter}`" class="flex min-h-14 items-center justify-between gap-3 rounded-lg p-3" :class="chapter.completed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-gray-50 dark:bg-gray-700/50'">
-                        <span class="flex min-w-0 items-center gap-3 font-medium" :class="chapter.completed ? 'text-green-800 dark:text-green-300' : 'text-gray-900 dark:text-white'">
-                            <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-full" :class="chapter.completed ? 'bg-green-500 text-white' : 'border-2 border-gray-300 dark:border-gray-600'" aria-hidden="true"><svg v-if="chapter.completed" class="size-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></span>
-                            <span>{{ chapter.bookName }} {{ chapter.chapter }}</span>
-                        </span>
-                        <button v-if="canLog && !chapter.completed" type="button" :disabled="Boolean(pending)" :aria-label="`Mark ${chapter.bookName} ${chapter.chapter} read`" class="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-sm font-medium text-primary-700 hover:bg-primary-50 focus-visible:outline-2 focus-visible:outline-primary-500 disabled:opacity-60 dark:text-primary-300 dark:hover:bg-primary-900/20" @click="mutate('logChapter', chapter)">{{ pending === 'logChapter' ? 'Saving…' : 'Mark read' }}</button>
+                    <li v-for="chapter in state.reading.chapters" :key="`${chapter.bookId}-${chapter.chapter}`" class="min-h-14 rounded-lg" :class="chapter.completed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-gray-50 dark:bg-gray-700/50'">
+                        <component :is="canLog && !chapter.completed ? 'button' : 'span'" :type="canLog && !chapter.completed ? 'button' : undefined" :disabled="canLog && !chapter.completed ? Boolean(pending) : undefined" :aria-label="canLog && !chapter.completed ? `Mark ${chapter.bookName} ${chapter.chapter} read` : undefined" class="flex min-h-14 w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-start font-medium" :class="[chapter.completed ? 'text-green-800 dark:text-green-300' : 'text-gray-900 dark:text-white', canLog && !chapter.completed ? 'hover:bg-primary-50 focus-visible:outline-2 focus-visible:outline-primary-500 disabled:cursor-wait disabled:opacity-60 dark:hover:bg-primary-900/20' : '']" @click="canLog && !chapter.completed && mutate('logChapter', chapter)">
+                            <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-full" :class="chapter.completed ? 'bg-green-500 text-white' : (pendingChapter === `${chapter.bookId}-${chapter.chapter}` ? 'border-2 border-primary-200 border-t-primary-600 motion-safe:animate-spin dark:border-primary-900 dark:border-t-primary-300' : 'border-2 border-gray-300 dark:border-gray-600')" aria-hidden="true"><svg v-if="chapter.completed" class="size-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></span>
+                            <span><span v-if="chapter.completed" class="sr-only">Completed: </span>{{ chapter.bookName }} {{ chapter.chapter }}</span>
+                            <span v-if="pendingChapter === `${chapter.bookId}-${chapter.chapter}`" role="status" class="sr-only">Saving…</span>
+                        </component>
                     </li>
                 </ol>
                 <p class="mt-4 border-t border-gray-200 pt-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">{{ state.reading.completedCount }} of {{ state.reading.totalCount }} chapters completed</p>
@@ -95,6 +95,7 @@ defineOptions({ inheritAttrs: false });
 const props = defineProps<PlanTodayPageProps>();
 const state = ref<PlanTodayState>(props);
 const pending = ref<'logChapter' | 'logAll' | 'applyReadings' | 'resume' | 'leave' | null>(null);
+const pendingChapter = ref<string | null>(null);
 const uncertain = ref(false);
 const errorMessage = ref('');
 const notice = ref(props.flash.success ?? props.flash.info ?? props.flash.error ?? '');
@@ -139,6 +140,7 @@ async function mutate(action: 'logChapter' | 'logAll' | 'applyReadings', chapter
     const generation = pageGeneration;
     const planDay = `${state.value.plan.slug}:${state.value.dayNumber}`;
     pending.value = action;
+    pendingChapter.value = action === 'logChapter' && chapter ? `${chapter.bookId}-${chapter.chapter}` : null;
     errorMessage.value = '';
     notice.value = '';
     const body: Record<string, number> = { day: state.value.dayNumber };
@@ -165,6 +167,7 @@ async function mutate(action: 'logChapter' | 'logAll' | 'applyReadings', chapter
         errorMessage.value = error instanceof Error && error.message !== 'Failed to fetch' ? `${error.message} Refresh the plan state before trying another action.` : 'We could not confirm whether the reading was saved. Refresh the plan state before trying another action.';
     } finally {
         pending.value = null;
+        pendingChapter.value = null;
     }
 }
 
