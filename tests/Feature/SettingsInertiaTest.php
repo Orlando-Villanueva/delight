@@ -50,6 +50,16 @@ it('takes an expired Inertia settings session to login', function () {
         ->assertStatus(409)->assertHeader('X-Inertia-Location', route('login'));
 });
 
+it('preserves the requested reader destination when an Inertia session has expired', function (string $path) {
+    $this->withHeader('X-Inertia', 'true')->get($path)
+        ->assertStatus(409)
+        ->assertHeader('X-Inertia-Location', route('login'))
+        ->assertSessionHas('url.intended', url($path));
+})->with([
+    '/dashboard', '/logs/create', '/logs', '/settings', '/achievements', '/feedback', '/plans',
+    '/plans/standard-canonical/today?day=4',
+]);
+
 it('serves the reading form through the Inertia reader shell', function () {
     $this->actingAs(User::factory()->create())->get(route('logs.create'))
         ->assertOk()->assertDontSee('htmx.min.js', false)

@@ -150,14 +150,19 @@ describe('Navigation Component Rendering', function () {
 });
 
 describe('HTMX Navigation Requests', function () {
-    it('returns partial content for :dataset requests', function (string $path) {
+    it('redirects legacy :dataset requests to the full Inertia document', function (string $path) {
         $response = ($this->getHtmx)($path);
-        $response->assertSuccessful();
+        $response->assertSuccessful()->assertHeader('HX-Redirect', url($path));
         $response->assertDontSee('<html>', false);
         $response->assertDontSee('<!DOCTYPE', false);
     })->with([
         'log reading form' => '/logs/create',
         'history' => '/logs',
+        'settings' => '/settings',
+        'achievements' => '/achievements',
+        'feedback' => '/feedback',
+        'plans catalogue' => '/plans',
+        'selected plan day' => '/plans/standard-canonical/today?day=4',
     ]);
 
     it('redirects HTMX dashboard navigation to the Inertia page', function () {

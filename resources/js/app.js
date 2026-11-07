@@ -199,41 +199,5 @@ if (typeof document !== 'undefined') {
             }
         });
 
-        const readingContent = document.getElementById('reading-content');
-        const loadingOverlay = document.getElementById('loading');
-
-        if (readingContent && loadingOverlay) {
-            const showLoadingOverlay = () => {
-                loadingOverlay.classList.remove('hidden');
-            };
-
-            const hideLoadingOverlay = () => {
-                loadingOverlay.classList.add('hidden');
-            };
-
-            const isReadingContentRequest = (event) => {
-                const triggerElement = event?.detail?.elt;
-
-                return Boolean(triggerElement && readingContent.contains(triggerElement));
-            };
-
-            document.body.addEventListener('htmx:beforeRequest', (event) => {
-                if (isReadingContentRequest(event)) {
-                    showLoadingOverlay();
-                }
-            });
-
-            const hideIfRelevant = (event) => {
-                if (isReadingContentRequest(event)) {
-                    hideLoadingOverlay();
-                }
-            };
-
-            document.body.addEventListener('htmx:afterSwap', hideIfRelevant);
-            document.body.addEventListener('htmx:afterSettle', hideIfRelevant);
-            document.body.addEventListener('htmx:responseError', hideIfRelevant);
-            document.body.addEventListener('htmx:sendError', hideIfRelevant);
-        }
-
     });
 }

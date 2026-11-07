@@ -31,7 +31,7 @@
             </figure>
         </div>
         <footer v-if="streak.presentation.message || streak.presentation.label || streak.presentation.showCta" class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-gray-200 px-5 py-2 dark:border-gray-700">
-            <p class="py-2 text-sm" :class="streak.presentation.tone === 'danger' ? 'text-accent-700 dark:text-accent-300' : 'text-gray-700 dark:text-gray-200'"><span v-if="streak.presentation.label" class="font-medium">{{ streak.presentation.label }} </span>{{ streak.presentation.message }}</p>
+            <p class="py-2 text-sm" :class="streak.presentation.tone === 'danger' ? 'text-accent-700 dark:text-accent-300' : 'text-gray-700 dark:text-gray-200'"><span v-if="streak.presentation.label" class="font-medium">{{ streak.presentation.label }}</span>{{ streak.presentation.label && streak.presentation.message ? ' ' : '' }}{{ streak.presentation.message }}</p>
             <Link v-if="streak.presentation.showCta" :href="logUrl" class="inline-flex min-h-11 items-center rounded-lg text-sm font-medium text-accent-700 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-accent-500 dark:text-accent-300">Log today</Link>
         </footer>
     </section>

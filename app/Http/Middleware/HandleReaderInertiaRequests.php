@@ -25,7 +25,7 @@ class HandleReaderInertiaRequests extends Middleware
         }
 
         if (! $request->user() && $request->header('X-Inertia')) {
-            $request->session()->put('url.intended', $request->url());
+            $request->session()->put('url.intended', $request->fullUrl());
 
             return Inertia::location(route('login'));
         }
