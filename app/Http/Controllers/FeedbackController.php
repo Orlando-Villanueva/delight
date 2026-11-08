@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Requests\FeedbackRequest;
 use App\Mail\FeedbackReceived;
 use App\Services\EmailService;
-use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Mail;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class FeedbackController extends Controller
 {
@@ -14,12 +16,12 @@ class FeedbackController extends Controller
         protected EmailService $emailService
     ) {}
 
-    public function create(Request $request)
+    public function create(): InertiaResponse
     {
-        return response()->htmx('feedback.create', 'page-content');
+        return Inertia::render('Feedback', ['submitUrl' => route('feedback.store')]);
     }
 
-    public function store(FeedbackRequest $request)
+    public function store(FeedbackRequest $request): RedirectResponse
     {
         $data = $request->validated();
 
@@ -31,14 +33,15 @@ class FeedbackController extends Controller
         // Use configured admin address
         $recipient = config('mail.admin_address');
 
-        $this->emailService->sendWithErrorHandling(function () use ($recipient, $data) {
+        $sent = $this->emailService->sendWithErrorHandling(function () use ($recipient, $data) {
             Mail::to($recipient)->send(new FeedbackReceived($data));
         }, 'feedback_submission');
 
-        if ($request->header('HX-Request')) {
-            return response()->htmx('feedback.create', 'success-message', ['success' => true]);
+        if (! $sent) {
+            return redirect()->route('feedback.create')
+                ->withErrors(['submission' => "We couldn't send your feedback. Please try again."]);
         }
 
-        return redirect()->route('dashboard')->with('success', 'Thank you for your feedback!');
+        return redirect()->route('feedback.create')->with('status', 'Thank you! Your feedback has been sent.');
     }
 }

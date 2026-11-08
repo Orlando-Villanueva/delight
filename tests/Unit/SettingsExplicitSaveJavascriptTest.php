@@ -3,9 +3,9 @@
 use Symfony\Component\Process\Process;
 
 it('keeps unsaved reminder choices intact when browser subscription status changes', function () {
-    $source = file_get_contents(__DIR__.'/../../resources/js/app.js');
-    $start = strpos($source, '            const applySubscriptionState =');
-    $end = strpos($source, '            const getCurrentPushSubscription', $start);
+    $source = file_get_contents(__DIR__.'/../../resources/js/components/browser-reminders.js');
+    $start = strpos($source, 'const applySubscriptionState =');
+    $end = strpos($source, 'const getCurrentPushSubscription', $start);
     $process = new Process(['node', '--input-type=module', '-e', <<<'JS'
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';

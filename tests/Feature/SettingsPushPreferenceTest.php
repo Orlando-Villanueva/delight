@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Inertia\Testing\AssertableInertia;
 
 it('shows reading reminder settings with explicit enable control and support guidance', function () {
     $user = User::factory()->create();
@@ -8,38 +9,11 @@ it('shows reading reminder settings with explicit enable control and support gui
     $response = $this->actingAs($user)->get(route('settings.edit'));
 
     $response->assertSuccessful()
-        ->assertSee('id="reading-reminders"', false)
-        ->assertSee('data-account-has-devices="false"', false)
-        ->assertSee('Web reading reminders')
-        ->assertSee('Beta')
-        ->assertSee('Beta: available as an opt-in while browser notification support is being tested.', false)
-        ->assertSee('These are browser notifications for this device; mobile notifications are separate.', false)
-        ->assertSee('Reading reminders for this browser')
-        ->assertSee('data-reading-reminders-toggle', false)
-        ->assertSee('role="switch"', false)
-        ->assertSee('aria-label="Reading reminders for this browser"', false)
-        ->assertDontSee('aria-label="Enable reading reminders for this browser"', false)
-        ->assertDontSee('aria-label="Disable reading reminders for this browser"', false)
-        ->assertSee('aria-checked="false"', false)
-        ->assertSee('data-reading-reminders-toggle-label class="sr-only"', false)
-        ->assertSee('data-reading-reminders-status hidden', false)
-        ->assertSee('Disabled')
-        ->assertSee('data-reading-reminders-progress hidden', false)
-        ->assertSee('data-reading-reminders-blocked hidden', false)
-        ->assertSee('data-reading-reminders-error hidden', false)
-        ->assertSee('data-reading-reminders-preference="daily_reading_reminder_enabled"', false)
-        ->assertSee('data-reading-reminders-preferences-status hidden', false)
-        ->assertSee('data-push-public-key', false)
-        ->assertSee('data-status-url', false)
-        ->assertSee('data-disconnect-all-url', false)
-        ->assertSee('data-reading-reminders-disconnect-all', false)
-        ->assertSee('Safari -> Add to Home Screen -> open Delight from the Home Screen icon -> enable notifications', false)
-        ->assertDontSee('Schedule')
-        ->assertDontSee('AMERICA/TORONTO')
-        ->assertSee('name="daily_reading_reminder_enabled" value="0"', false)
-        ->assertSee('name="streak_warning_enabled" value="0"', false)
-        ->assertDontSee('Browser notifications can remind you at 09:00', false)
-        ->assertDontSee('Both reminders are included when browser notifications are enabled.');
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Settings', false)
+            ->where('push.accountHasDevices', false)
+            ->where('push.statusUrl', route('push.subscriptions.status'))
+            ->where('values.daily_reading_reminder_enabled', false)
+            ->where('values.streak_warning_enabled', false)->etc());
 });
 
 it('updates reading reminder preferences without changing the deuterocanonical setting', function () {
@@ -98,50 +72,37 @@ it('does not render this browser as enabled from the account-level connected mar
 
     $this->actingAs($user)->get(route('settings.edit'))
         ->assertSuccessful()
-        ->assertSee('data-account-has-devices="true"', false)
-        ->assertSee('data-reading-reminders-status hidden', false)
-        ->assertSee('data-reading-reminders-toggle', false)
-        ->assertSee('aria-checked="false"', false)
-        ->assertSee('name="daily_reading_reminder_enabled" value="0"', false)
-        ->assertSee('name="streak_warning_enabled" value="0"', false)
-        ->assertSee('Disabled')
-        ->assertDontSee('This browser can receive reading reminders.');
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Settings', false)
+            ->where('push.accountHasDevices', true)
+            ->missing('push.deviceEnabled')
+            ->where('values.daily_reading_reminder_enabled', true)->etc());
 });
 
-it('shows the shared save button and confirmation with or without JavaScript', function () {
+it('provides the save confirmation to the JavaScript settings page', function () {
     $user = User::factory()->create();
 
     $this->withSession(['status' => 'Settings saved.'])
         ->actingAs($user)
         ->get(route('settings.edit'))
         ->assertSuccessful()
-        ->assertSee('role="status"', false)
-        ->assertSee('aria-live="polite"', false)
-        ->assertDontSee('<noscript>', false)
-        ->assertSeeInOrder([
-            'Settings saved.',
-            'Save settings',
-        ], false);
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Settings', false)
+            ->where('status', 'Settings saved.')->etc());
 });
 
 it('renders account preferences without individual autosave hooks', function () {
     $user = User::factory()->create();
 
-    $this->actingAs($user)
-        ->get(route('settings.edit'))
+    $this->actingAs($user)->get(route('settings.edit'))
         ->assertSuccessful()
-        ->assertDontSee('data-deuterocanonical-setting', false)
-        ->assertDontSee('data-deuterocanonical-toggle', false)
-        ->assertSee('aria-label="Include deuterocanonical books"', false)
-        ->assertDontSee('data-deuterocanonical-toggle-label class="sr-only"', false)
-        ->assertDontSee('data-deuterocanonical-status hidden', false)
-        ->assertSee('data-reading-reminders-preferences-status hidden', false)
-        ->assertDontSee('min-w-20', false)
-        ->assertDontSee('Settings saved.');
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Settings', false)
+            ->where('updateUrl', route('settings.update'))
+            ->where('values.include_deuterocanonical', false)
+            ->where('values.daily_reading_reminder_enabled', false)
+            ->where('values.streak_warning_enabled', false)->etc());
 });
 
 it('uses a single browser-state toggle for reminder visibility', function () {
-    $javascript = file_get_contents(resource_path('js/app.js'));
+    $javascript = file_get_contents(resource_path('js/components/browser-reminders.js'));
 
     expect($javascript)->toContain("reminderToggle.setAttribute('aria-checked'")
         ->and($javascript)->toContain("reminderToggle?.addEventListener('click'")

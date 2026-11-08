@@ -51,9 +51,7 @@ function something()
 }
 
 /** @return array<string, mixed> */
-function readingLogIslandProps(TestResponse $response): array
+function readingLogPageProps(TestResponse $response): array
 {
-    preg_match('/data-props="([^"]*)"/', $response->getContent(), $matches);
-
-    return json_decode(html_entity_decode($matches[1], ENT_QUOTES), true, flags: JSON_THROW_ON_ERROR);
+    return $response->inertiaProps('config');
 }

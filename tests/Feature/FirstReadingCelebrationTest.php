@@ -267,9 +267,8 @@ it('shows celebration when logging via reading plan', function () {
         ]);
 
     $response->assertOk()
-        ->assertSee('achievement-celebration-modal')
-        ->assertSee('Achievement unlocked')
-        ->assertSee('First reading');
+        ->assertJsonPath('celebration.earned.0.display_name', 'First reading')
+        ->assertJsonPath('today.reading.completedCount', 1);
 
     // Verify user was celebrated
     expect($user->fresh()->hasEverCelebratedFirstReading())->toBeTrue();
@@ -298,9 +297,8 @@ it('shows celebration when logging all chapters via reading plan', function () {
         ]);
 
     $response->assertOk()
-        ->assertSee('achievement-celebration-modal')
-        ->assertSee('Achievement unlocked')
-        ->assertSee('First reading');
+        ->assertJsonPath('celebration.earned.0.display_name', 'First reading')
+        ->assertJsonPath('today.reading.completedCount', 2);
 
     // Verify user was celebrated
     expect($user->fresh()->hasEverCelebratedFirstReading())->toBeTrue();

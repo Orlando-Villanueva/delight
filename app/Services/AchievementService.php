@@ -151,6 +151,7 @@ class AchievementService
                 'current' => $achievement['current'],
                 'target' => $achievement['target'],
                 'progress_percent' => $achievement['progress_percent'],
+                'unit' => str_starts_with($achievement['achievement_key'], 'bible_progress_') ? 'percent' : 'days',
             ])
             ->values()
             ->all();
@@ -167,7 +168,7 @@ class AchievementService
     }
 
     /**
-     * @return array{earned: Collection<string, Collection<int, array{achievement: UserAchievement, count: int, completion_dates: Collection<int, array{completed_on: ?Carbon, earned_at: ?Carbon}>}>>, locked: Collection<int, array<string, mixed>>, next_goals: array{books: Collection<int, array<string, mixed>>, progress: Collection<int, array<string, mixed>>}, recent: Collection<int, UserAchievement>}
+     * @return array{earned: Collection<string, Collection<int, array{achievement: UserAchievement, count: int, completion_dates: Collection<int, array{completed_on: ?Carbon, earned_at: ?Carbon}>}>>, locked: Collection<int, array<string, mixed>>, next_goals: array{books: Collection<int, array<string, mixed>>, progress: Collection<int, array<string, mixed>>}, recent: Collection<int, UserAchievement>, latest: ?UserAchievement}
      */
     public function getShelfData(User $user): array
     {
@@ -207,6 +208,10 @@ class AchievementService
             'locked' => $locked,
             'next_goals' => $this->nextGoals($overallProgress, $locked),
             'recent' => $earned->take(3),
+            'latest' => $earned
+                ->where('achievement_key', '!=', 'personal_best_streak')
+                ->sortBy([['earned_at', 'desc'], ['id', 'desc']])
+                ->first(),
         ];
     }
 
@@ -276,7 +281,7 @@ class AchievementService
         $latest = $user->achievements()
             ->where('achievement_key', '!=', 'personal_best_streak')
             ->latest('earned_at')
-            ->orderByDesc('sort_order')
+            ->orderByDesc('id')
             ->first();
 
         $earned = $user->achievements()->get();

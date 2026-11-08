@@ -42,8 +42,7 @@ it('prevents disabled users from logging deuterocanonical books', function () {
             'date_read' => today()->toDateString(),
         ]);
 
-    $response->assertSuccessful()
-        ->assertSee('The selected book id is invalid.');
+    $response->assertRedirect(route('logs.create'))->assertSessionHasErrors('book_id');
 
     $this->assertDatabaseMissing('reading_logs', [
         'user_id' => $user->id,
