@@ -57,6 +57,16 @@ These project-specific exceptions take precedence over the blanket test-change a
 - Admin Styling: Align all admin forms with the "Feedback Form" style found in `resources/views/partials/feedback-form.blade.php`.
 - Lean on Tailwind utilities; avoid custom CSS unless a technical constraint demands it.
 
+## Branch Selection and Hosted QA
+
+- Default to local QA. Before provisioning potentially billable hosted preview resources, obtain explicit user approval describing the verification purpose, resources, initial deployment and later update scope, and cleanup owner/plan. Creating a branch or PR does not authorize hosted provisioning or deployment.
+- Keep ordinary implementation branches under the existing branch-naming conventions. When hosted QA is approved before branch creation, use `codex/preview/<issue-or-purpose>` to opt into the preview automation. Do not use this prefix merely to categorize a feature: it can trigger paid resource creation when its PR opens.
+- Current Cloud configuration, verified November 8, 2026: PRs opened or reopened against `main` qualify for the automation only when their source branch **starts with** the literal prefix `codex/preview/`. This is a prefix rule, not a regex. Preview creation is automatic for eligible PRs; automatic deployment on creation is off; automatic environment/resource deletion on PR merge or close is on. Verify the live configuration before relying on these settings.
+- Disabling automatic deployment does not prevent resource provisioning or guarantee zero cost. Later pushes can also redeploy an existing preview if push-to-deploy is enabled; confirm that behavior and ensure the user's approval covers the intended updates.
+- If hosted QA becomes necessary after an ordinary branch exists, preserve that branch and propose a temporary manually configured environment with explicit cleanup ownership. Nonmatching branches are excluded from this automation, not from all hosted testing. Do not assume PR-preview auto-delete applies to manually created environments, or that renaming an already-open PR branch retriggers the automation.
+- Keep hosted test data and resources isolated from production. At handoff, report what was verified, remaining gaps, resource/deployment state, and cleanup completed or still owed. Obtain any additional deletion or deployment approval required by the applicable workflow.
+- During issue shaping, flag expected hosted QA needs when relevant. Do not require every issue to decide at creation time; implementers may reassess when local verification proves insufficient. The issue note does not itself authorize paid resources.
+
 ## Commit & Pull Request Guidelines
 - Messages start with the Linear ticket: `[DEL-###] Short imperative summary`; keep bodies intent-focused.
 - Squash noisy WIP commits before pushing and rebase onto `main` for clean history.
