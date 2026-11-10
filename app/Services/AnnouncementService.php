@@ -89,7 +89,7 @@ class AnnouncementService
             'delivery_due_at' => $announcement->starts_at?->toIso8601String(),
             ...($announcement->starts_at ? $this->deliveryService->estimateAudience($announcement->starts_at) : []),
             'audience_note' => 'Current estimates using the publication-time cutoff; authorization does not change an existing audience.',
-            'delivery_note' => 'Authorization permits the worker to process email once publication is due; it does not confirm sending.',
+            'delivery_note' => 'Authorization permits hourly processing once publication is due; it does not confirm sending.',
         ];
     }
 

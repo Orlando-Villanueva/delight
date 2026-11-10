@@ -8,11 +8,25 @@ use Illuminate\Support\Facades\Mail;
 
 class EmailService
 {
+    public ?string $capacityDeferral = null;
+
     /**
      * Send an email with error handling and logging.
      */
     public function sendWithErrorHandling(callable $mailCallback, string $context = 'email'): bool
     {
+        $this->capacityDeferral = null;
+
+        if ($context === 'onboarding-reminder' || str_starts_with($context, 'reading-log-reengagement-')) {
+            $this->capacityDeferral = app(AutomatedEmailCapacityService::class)->reserve($context);
+
+            if ($this->capacityDeferral !== null) {
+                Log::info('Automated email deferred for capacity.', ['context' => $context, 'reason' => $this->capacityDeferral]);
+
+                return false;
+            }
+        }
+
         try {
             $mailCallback();
 

@@ -64,6 +64,7 @@ class AnnouncementEmailDeliveryService
      *     sent: int,
      *     skipped: int,
      *     retryable: int,
+     *     deferred: int,
      *     failed: int,
      *     uncertain: int,
      *     broadcasts_completed: int
@@ -77,6 +78,7 @@ class AnnouncementEmailDeliveryService
             'sent' => 0,
             'skipped' => 0,
             'retryable' => 0,
+            'deferred' => 0,
             'failed' => 0,
             'uncertain' => $this->markInterruptedDeliveriesUncertain(),
             'broadcasts_completed' => 0,
@@ -146,6 +148,17 @@ class AnnouncementEmailDeliveryService
             ])->save();
 
             return 'skipped';
+        }
+
+        $deferral = app(AutomatedEmailCapacityService::class)->reserve('announcement');
+
+        if ($deferral !== null) {
+            $delivery->forceFill([
+                'next_attempt_at' => now()->addHour()->startOfHour(),
+                'failure_reason' => $deferral,
+            ])->save();
+
+            return 'deferred';
         }
 
         $messageId = $delivery->message_id ?: $this->messageIdFor($delivery);

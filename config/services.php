@@ -14,6 +14,10 @@ return [
     |
     */
 
+    'brevo' => [
+        'capacity_api_key' => env('BREVO_CAPACITY_API_KEY'),
+    ],
+
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),
     ],

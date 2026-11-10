@@ -41,7 +41,7 @@ Schedule::command(ProcessNativeReadingReminderReceipts::class)
     ->withoutOverlapping();
 
 $announcementSchedule = Schedule::command(SendPublishedAnnouncementEmails::class)
-    ->everyFiveMinutes()
+    ->hourly()
     ->onOneServer()
     ->withoutOverlapping(30)
     ->runInBackground();

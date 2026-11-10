@@ -106,6 +106,10 @@ class SendPublishedAnnouncementEmails extends Command
                 $pendingCount,
             ));
 
+            if ($summary['deferred'] > 0) {
+                $this->info("{$summary['deferred']} recipients deferred for capacity; no send attempt consumed.");
+            }
+
             if ($this->summaryHasActivity($summary)) {
                 Log::info('Announcement email processing run completed.', [
                     'duration_ms' => $durationMilliseconds,

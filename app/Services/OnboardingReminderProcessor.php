@@ -16,6 +16,8 @@ class OnboardingReminderProcessor
 
     public const STATUS_FAILED = 'failed';
 
+    public const STATUS_DEFERRED = 'deferred';
+
     public const STATUS_SENT = 'sent';
 
     public const STATUS_SKIPPED = 'skipped';
@@ -122,7 +124,7 @@ class OnboardingReminderProcessor
         if (! $sent) {
             $this->restoreReminderMarker($userId, $markerToRestore);
 
-            return self::STATUS_FAILED;
+            return $this->emailService->capacityDeferral !== null ? self::STATUS_DEFERRED : self::STATUS_FAILED;
         }
 
         if (! $mailSent) {

@@ -110,7 +110,7 @@ class ViewAnnouncement extends ViewRecord
                             ->state(fn (): int => $this->emailAuthorizationPreview['excluded_recipients'] ?? 0),
                     ]),
                     Text::make('Estimates may change. The worker finalizes the audience when processing starts.'),
-                    Text::make('Email processing can begin once publication is due. Authorization does not send immediately or confirm inbox delivery.'),
+                    Text::make('Email processing runs hourly once publication is due. Authorization does not send immediately or confirm inbox delivery.'),
                 ])
                 ->modalSubmitActionLabel('Authorize email')
                 ->action(function (Action $action, AnnouncementService $service): void {
@@ -127,7 +127,7 @@ class ViewAnnouncement extends ViewRecord
 
                     Notification::make()->success()
                         ->title($authorized ? 'Announcement email authorized.' : 'Announcement email already authorized.')
-                        ->body('The background worker will process email once publication is due. This does not confirm inbox delivery.')
+                        ->body('Email processing runs hourly once publication is due. This does not confirm inbox delivery.')
                         ->send();
                 }),
             Action::make('retryFailedRecipients')
@@ -138,7 +138,7 @@ class ViewAnnouncement extends ViewRecord
                 ->requiresConfirmation()
                 ->modalHeading('Retry failed recipients')
                 ->modalDescription(fn (AnnouncementEmailDeliveryService $service): string => sprintf(
-                    'Retry failed recipients for “%s”? Eligible recipients: %d. The background worker will process these retries. Submitted, skipped and uncertain recipients are excluded. This does not confirm inbox delivery.',
+                    'Retry failed recipients for “%s”? Eligible recipients: %d. The next hourly processing run will pick up these retries. Submitted, skipped and uncertain recipients are excluded. This does not confirm inbox delivery.',
                     $this->getRecord()->title,
                     $service->countRetryableFailures($this->getRecord()),
                 ))
