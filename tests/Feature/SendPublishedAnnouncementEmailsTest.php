@@ -11,6 +11,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Log\Logger as LaravelLogger;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Monolog\Handler\StreamHandler;
@@ -550,16 +551,117 @@ it('fails cleanly if an emergency retry delivery disappears before sending', fun
         ->assertFailed();
 });
 
-it('registers queue-less announcement delivery every five minutes with scheduler protection', function () {
+it('registers queue-less announcement delivery hourly with scheduler protection', function () {
     $event = collect(app(Schedule::class)->events())
         ->first(fn ($event): bool => str_contains((string) $event->command, 'announcements:send-published-emails'));
 
     expect($event)->not->toBeNull()
-        ->and($event->expression)->toBe('*/5 * * * *')
+        ->and($event->expression)->toBe('0 * * * *')
         ->and($event->onOneServer)->toBeTrue()
         ->and($event->withoutOverlapping)->toBeTrue()
         ->and($event->expiresAt)->toBe(30)
         ->and($event->runInBackground)->toBeTrue();
+});
+
+it('avoids announcement database work between hourly processing slots', function () {
+    config(['cache.default' => 'database']);
+    $event = collect(app(Schedule::class)->events())
+        ->first(fn ($event): bool => str_contains((string) $event->command, 'announcements:send-published-emails'));
+    $runs = 0;
+    DB::enableQueryLog();
+
+    try {
+        for ($minute = 0; $minute < 60; $minute++) {
+            $this->travelTo(Carbon::parse('2026-11-08 12:00:00')->addMinutes($minute));
+            DB::flushQueryLog();
+
+            if ($event->isDue(app())) {
+                $this->artisan('announcements:send-published-emails')->assertSuccessful();
+                $runs++;
+                expect(DB::getQueryLog())->not->toBeEmpty();
+            } else {
+                expect(DB::getQueryLog())->toBeEmpty();
+            }
+        }
+
+        expect($runs)->toBe(1);
+    } finally {
+        DB::disableQueryLog();
+    }
+});
+
+it('starts scheduled broadcasts at the next hourly slot without sending before publication', function (string $startsAt, string $firstSlot) {
+    Mail::fake();
+    $this->travelTo(Carbon::parse('2026-11-08 10:02:00'));
+    User::factory()->create(['created_at' => now()->subDay()]);
+    $announcement = Announcement::factory()->create([
+        'starts_at' => Carbon::parse($startsAt),
+        'email_broadcast_authorized_at' => now(),
+    ]);
+    $event = collect(app(Schedule::class)->events())
+        ->first(fn ($event): bool => str_contains((string) $event->command, 'announcements:send-published-emails'));
+
+    $this->travelTo(Carbon::parse($firstSlot)->subMinute());
+    expect($event->isDue(app()))->toBeFalse();
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+    expect($announcement->fresh()->email_broadcast_completed_at)->toBeNull();
+
+    $this->travelTo(Carbon::parse($firstSlot));
+    expect($event->isDue(app()))->toBeTrue();
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($announcement->fresh()->email_broadcast_completed_at)->not->toBeNull();
+    Mail::assertSentCount(1);
+})->with([
+    'future publication' => ['2026-11-08 11:59:30', '2026-11-08 12:00:00'],
+]);
+
+it('starts an immediately authorized broadcast within an hour and carries the remaining batch into the next run', function () {
+    Mail::fake();
+    $this->travelTo(Carbon::parse('2026-11-08 10:02:00'));
+    User::factory()->count(101)->create(['created_at' => now()->subDay()]);
+    $announcement = Announcement::factory()->create([
+        'starts_at' => now(),
+        'email_broadcast_authorized_at' => now(),
+    ]);
+    $event = collect(app(Schedule::class)->events())
+        ->first(fn ($event): bool => str_contains((string) $event->command, 'announcements:send-published-emails'));
+    expect($event->isDue(app()))->toBeFalse();
+
+    $this->travelTo(Carbon::parse('2026-11-08 11:00:00'));
+    expect($event->isDue(app()))->toBeTrue();
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+    expect($announcement->fresh()->email_broadcast_completed_at)->toBeNull();
+    Mail::assertSentCount(100);
+
+    $this->travelTo(Carbon::parse('2026-11-08 12:00:00'));
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($announcement->fresh()->email_broadcast_completed_at)->not->toBeNull()
+        ->and($announcement->emailDeliveries()->sum('attempt_count'))->toBe(101);
+    Mail::assertSentCount(101);
+});
+
+it('resumes a due persisted retry on the next hourly run without resetting its attempt history', function () {
+    Mail::fake();
+    $this->travelTo(Carbon::parse('2026-11-08 12:00:00'));
+    $delivery = pendingAnnouncementEmailDelivery([
+        'attempt_count' => 1,
+        'next_attempt_at' => now()->addMinutes(5),
+    ]);
+
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+    expect($delivery->fresh()->attempt_count)->toBe(1);
+    Mail::assertNothingSent();
+
+    $this->travelTo(Carbon::parse('2026-11-08 13:00:00'));
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+    $this->artisan('announcements:send-published-emails')->assertSuccessful();
+
+    expect($delivery->fresh()->attempt_count)->toBe(2)
+        ->and($delivery->fresh()->sent_at)->not->toBeNull();
+    Mail::assertSentCount(1);
 });
 
 it('does not register the obsolete bulk PWA announcement command', function () {

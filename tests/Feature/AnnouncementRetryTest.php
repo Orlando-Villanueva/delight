@@ -42,7 +42,7 @@ it('confirms retries before resetting only eligible failures and refreshing the 
         ->assertActionVisible('retryFailedRecipients')->mountAction('retryFailedRecipients')
         ->assertActionMounted('retryFailedRecipients');
     expect($page->instance()->getMountedAction()->getModalDescription())
-        ->toContain('Eligible recipients: 1', $announcement->title, 'background worker');
+        ->toContain('Eligible recipients: 1', $announcement->title, 'next hourly processing run');
     expect($failed->fresh()->getRawOriginal())->toBe($before);
 
     $page->callMountedAction()->assertNotified('1 failed recipient marked for retry.')

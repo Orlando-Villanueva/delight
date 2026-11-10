@@ -20,6 +20,7 @@ class SendOnboardingReminders extends Command
             OnboardingReminderProcessor::STATUS_SENT => 0,
             OnboardingReminderProcessor::STATUS_SKIPPED => 0,
             OnboardingReminderProcessor::STATUS_FAILED => 0,
+            OnboardingReminderProcessor::STATUS_DEFERRED => 0,
         ];
 
         User::query()
@@ -41,6 +42,9 @@ class SendOnboardingReminders extends Command
         );
 
         $this->info($message);
+        if ($summary[OnboardingReminderProcessor::STATUS_DEFERRED] > 0) {
+            $this->info($summary[OnboardingReminderProcessor::STATUS_DEFERRED].' onboarding reminders deferred for capacity.');
+        }
 
         Log::info($message, $summary);
 
