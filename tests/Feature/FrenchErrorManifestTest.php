@@ -55,8 +55,8 @@ it('uses saved account and visitor cookie languages on unmatched pages without i
 
 it('localizes compromised password validation', function () {
     $password = 'Compromised123';
-    // The Have I Been Pwned range protocol requires SHA-1; this is test fixture data, not password storage.
-    $hash = strtoupper(sha1($password));
+    // Fixed digest for the known test password, matching the breached-password range API.
+    $hash = '042CBE131449EB3558B59F74676FB2EA12230FE5';
     Http::fake(['api.pwnedpasswords.com/*' => Http::response(substr($hash, 5).':5')]);
     $this->withHeader('Accept-Language', 'fr')->postJson('/register', [
         'name' => 'Reader', 'email' => 'new@example.test', 'password' => $password, 'password_confirmation' => $password,
