@@ -146,7 +146,7 @@ class StreakStateService
             $currentTime,
         );
         $tone = 'default';
-        $label = $hasReadToday ? 'Today complete' : 'Start a streak';
+        $label = $hasReadToday ? __('streak.labels.today_complete') : __('streak.labels.start');
         $showCta = ! $hasReadToday;
 
         if (! $hasReadToday && $currentStreak > 0) {
@@ -154,7 +154,7 @@ class StreakStateService
                 return [
                     'message' => '',
                     'tone' => 'danger',
-                    'label' => 'Streak at risk',
+                    'label' => __('streak.labels.at_risk'),
                     'show_cta' => true,
                 ];
             }
@@ -162,7 +162,7 @@ class StreakStateService
             return [
                 'message' => '',
                 'tone' => 'pending',
-                'label' => 'Not read today',
+                'label' => __('streak.labels.not_read'),
                 'show_cta' => true,
             ];
         }
@@ -175,9 +175,9 @@ class StreakStateService
         $normalizedRecordStatus = strtolower($recordStatus);
 
         if ($normalizedRecordStatus === 'tied' && $currentStreak > 0) {
-            $message = "You've matched your best streak of {$currentStreak} days. Read tomorrow to set a new best.";
+            $message = trans_choice('streak.records.tied', $currentStreak, ['days' => $currentStreak]);
         } elseif ($normalizedRecordStatus === 'record' && $recordJustBroken) {
-            $message = "New best! Your {$currentStreak}-day streak is now the one to beat.";
+            $message = trans_choice('streak.records.record', $currentStreak, ['days' => $currentStreak]);
             $tone = 'accent';
         }
 
@@ -208,14 +208,14 @@ class StreakStateService
         // Check if this is a milestone day first
         $milestoneMessages = config('streak_messages.milestone.'.$currentStreak);
         if ($milestoneMessages) {
-            return $this->rotateMessage($milestoneMessages, 'milestone_'.$currentStreak);
+            return $this->rotateMessage($milestoneMessages, 'milestone_'.$currentStreak, $currentStreak);
         }
 
         // Otherwise use regular range-based messages
         $range = $this->getStreakRange($currentStreak);
         $messages = config('streak_messages.active.'.$range);
 
-        return $this->rotateMessage($messages, 'active_'.$range);
+        return $this->rotateMessage($messages, 'active_'.$range, $currentStreak);
     }
 
     /**
@@ -224,7 +224,7 @@ class StreakStateService
     private function selectWarningMessage(int $currentStreak): string
     {
         $messages = config('streak_messages.warning');
-        $message = $this->rotateMessage($messages, 'warning');
+        $message = $this->rotateMessage($messages, 'warning', $currentStreak);
 
         // Replace {streak} placeholder with actual streak value
         return str_replace('{streak}', $currentStreak, $message);
@@ -262,7 +262,7 @@ class StreakStateService
      * Rotate between messages to prevent user desensitization
      * Uses a simple hash-based rotation to ensure consistency per user/day
      */
-    private function rotateMessage(array $messages, string $context): string
+    private function rotateMessage(array $messages, string $context, ?int $days = null): string
     {
         // Create a seed based on current date and context to ensure same message per day
         // but different messages across days and contexts
@@ -270,7 +270,22 @@ class StreakStateService
         $seed = hash('crc32b', $dateString.'_'.$context);
         $index = hexdec(substr($seed, 0, 8)) % count($messages);
 
-        return $messages[$index];
+        if (app()->getLocale() !== 'fr') {
+            return $messages[$index];
+        }
+
+        $translationContext = match (true) {
+            str_starts_with($context, 'inactive_') => 'inactive',
+            str_starts_with($context, 'milestone_') => 'milestone',
+            str_starts_with($context, 'active_') => 'active',
+            $context === 'warning' => 'warning',
+            $context === 'acknowledge' => 'acknowledge',
+            default => null,
+        };
+
+        return $translationContext === null
+            ? $messages[$index]
+            : trans_choice('streak.messages.'.$translationContext.'.'.$index, $days ?? 0, ['days' => $days ?? 0]);
     }
 
     /**

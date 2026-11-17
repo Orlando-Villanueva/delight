@@ -8,14 +8,14 @@
     </div>
 
     <!-- Success Message -->
-    <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Reading Logged Successfully! 🎉</h3>
+    <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">{{ __('reading-log.success_title') }} 🎉</h3>
     <p class="text-gray-600 dark:text-gray-300 mb-2">
-        <strong>{{ $log->passage_text }}</strong> recorded for {{ $log->date_read->format('M d, Y') }}
+        <strong>{{ $displayPassage }}</strong> {{ __('reading-log.recorded_date', ['date' => $displayDate]) }}
     </p>
 
     @if ($log->notes_text)
         <p class="text-sm text-gray-500 dark:text-gray-400 italic mb-4">
-            Notes: {{ Str::limit($log->notes_text, 60) }}
+            {{ __('reading-log.note_prefix') }} {{ Str::limit($log->notes_text, 60) }}
         </p>
     @endif
 
@@ -26,18 +26,18 @@
 
     @if ($isRange)
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            💡 <em>Multiple chapters logged as separate entries for detailed progress tracking</em>
+            💡 <em>{{ __('reading-log.multi_chapter_success') }}</em>
         </p>
     @endif
 
     <!-- Auto-close Countdown -->
     <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
         <span x-show="!isPaused">
-            Modal will close in <span x-text="countdown" class="font-semibold text-primary-600 dark:text-primary-400 text-base"></span>
-            second<span x-show="countdown !== 1">s</span>...
+            {{ __('reading-log.modal_closing') }} <span x-text="countdown" class="font-semibold text-primary-600 dark:text-primary-400 text-base"></span>
+            {{ __('reading-log.seconds') }}...
         </span>
         <span x-show="isPaused" x-cloak class="text-yellow-600 dark:text-yellow-400 font-medium">
-            ⏸️ Auto-close paused (hover away to resume)
+            ⏸️ {{ __('reading-log.auto_close_paused') }}
         </span>
     </p>
 
@@ -48,7 +48,7 @@
             size="default"
             @click="$dispatch('close-modal')"
         >
-            Close
+            {{ __('reading-log.close') }}
         </x-ui.button>
 
         <x-ui.button 
@@ -59,7 +59,7 @@
             hx-swap="innerHTML" 
             hx-indicator="#modal-loading"
         >
-            Log Another Reading
+            {{ __('reading-log.log_another') }}
         </x-ui.button>
     </div>
 </div>

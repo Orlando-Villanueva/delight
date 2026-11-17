@@ -66,3 +66,17 @@ test('older-day loading can retry the same cursor after failure and merge withou
 test('invalid append data never becomes an empty success that hides recovery', async () => {
     await assert.rejects(loadHistorySlice('/logs/older', new AbortController().signal, async () => response(200, { days: [{}], nextUrl: null, hasLogs: true })));
 });
+
+test('history network errors use localized copy without exposing browser errors', async () => {
+    const messages = { expired: 'Session expirée', load: 'Chargement impossible', changed: 'Lecture modifiée', checkChanges: 'Vérifiez vos modifications', cannotChange: 'Modification impossible', uncertain: 'Résultat incertain' };
+    await assert.rejects(loadHistorySlice('/logs/older', new AbortController().signal, async () => { throw new TypeError('Failed to fetch'); }, messages), { message: 'Chargement impossible' });
+    await assert.rejects(loadHistorySlice('/logs/older', new AbortController().signal, async () => response(419, {}), messages), { message: 'Session expirée' });
+});
+
+
+test('malformed or null history responses use localized recovery copy', async () => {
+    const messages = { expired: 'Session expirée', load: 'Chargement impossible' };
+    for (const body of ['<html>', 'null']) {
+        await assert.rejects(loadHistorySlice('/logs/older', new AbortController().signal, async () => new Response(body), messages), { message: messages.load });
+    }
+});

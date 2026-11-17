@@ -11,6 +11,13 @@ export type BibleBook = { id: number; name: string; chapters: number; testament:
 export type ReadingErrors = Partial<Record<keyof ReadingValues | 'chapter_range', string[]>>;
 export type ReadingErrorScopes = Partial<Record<keyof ReadingValues, string>>;
 export type ReadingSnapshot = { values: ReadingValues; collection: string; notesOpen: boolean };
+export type ReadingSubmissionContext = {
+    userId: number;
+    locale: string;
+    timeZone: string;
+    includeDeuterocanonical: boolean;
+    submittedValues: ReadingValues;
+};
 
 export type CelebrationAchievement = {
     id: number;
@@ -44,8 +51,8 @@ export type ReadingSuccess = {
 };
 
 export type ReadingOutcome =
-    | { kind: 'success'; data: ReadingSuccess }
-    | { kind: 'validation'; errors: ReadingErrors; errorScopes: ReadingErrorScopes }
+    | { kind: 'success'; data: ReadingSuccess; submission: ReadingSubmissionContext }
+    | { kind: 'validation'; errors: ReadingErrors; errorScopes: ReadingErrorScopes; submission: ReadingSubmissionContext }
     | { kind: 'session' | 'uncertain' | 'failure' };
 
 export type ReadingSession = {
@@ -53,6 +60,8 @@ export type ReadingSession = {
     pending: Promise<ReadingOutcome> | null;
     outcome: ReadingOutcome | null;
     dateContext: ReadingDates | null;
+    dateTimeZone: string | null;
+    submissionContext: ReadingSubmissionContext | null;
     uncertain: boolean;
 };
 

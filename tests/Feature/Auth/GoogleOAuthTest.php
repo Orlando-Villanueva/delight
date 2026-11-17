@@ -63,9 +63,11 @@ it('returns to login when the shared Google identity lock times out', function (
     Sleep::fake(syncWithCarbon: true);
 
     try {
-        $this->get('/auth/google/callback')
+        $this->withCookie('delight_locale', 'fr')->get('/auth/google/callback')
             ->assertRedirect(route('login'))
-            ->assertSessionHasErrors('oauth');
+            ->assertSessionHasErrors([
+                'oauth' => 'Nous n’avons pas pu terminer la connexion avec Google. Veuillez réessayer.',
+            ]);
     } finally {
         $emailLock->release();
     }
@@ -109,11 +111,26 @@ it('rejects a web Google subject that conflicts with an existing email binding',
         'avatar' => 'https://example.com/avatar.png',
     ]));
 
-    $this->get('/auth/google/callback')
+    $this->withCookie('delight_locale', 'fr')->get('/auth/google/callback')
         ->assertRedirect(route('login'))
-        ->assertSessionHasErrors('oauth');
+        ->assertSessionHasErrors([
+            'oauth' => 'Nous n’avons pas pu terminer la connexion avec Google. Veuillez utiliser votre méthode de connexion habituelle.',
+        ]);
 
     $this->assertGuest();
 
     expect($user->fresh()->google_subject)->toBe('google-subject-1');
+});
+
+it('shows the French Google callback message when the provider response has no email', function (): void {
+    Socialite::fake('google', SocialiteUser::fake([
+        'id' => 'google-subject-1',
+        'email' => null,
+        'name' => 'Delight Reader',
+    ]));
+
+    $this->withCookie('delight_locale', 'fr')
+        ->get('/auth/google/callback')
+        ->assertUnprocessable()
+        ->assertSee('Impossible de terminer la connexion sans adresse courriel.');
 });

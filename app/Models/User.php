@@ -5,9 +5,11 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Notifications\CustomResetPasswordNotification;
 use App\Services\EmailService;
+use App\Services\LocaleResolver;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -15,7 +17,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, HasLocalePreference
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasPushSubscriptions, Notifiable;
@@ -39,6 +41,7 @@ class User extends Authenticatable implements FilamentUser
         'daily_reading_reminder_enabled_at',
         'streak_warning_enabled_at',
         'reading_timezone',
+        'preferred_locale',
     ];
 
     /**
@@ -70,6 +73,11 @@ class User extends Authenticatable implements FilamentUser
             'daily_reading_reminder_enabled_at' => 'datetime',
             'streak_warning_enabled_at' => 'datetime',
         ];
+    }
+
+    public function preferredLocale(): string
+    {
+        return app(LocaleResolver::class)->normalize($this->preferred_locale) ?? config('localization.fallback');
     }
 
     /**

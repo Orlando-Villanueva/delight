@@ -10,7 +10,7 @@ it('serves settings as an Inertia page without loading legacy frontend runtimes'
         ->assertInertia(fn (AssertableInertia $page) => $page->component('Settings', false)
             ->where('reader.user.name', $user->name)
             ->missing('reader.user.password')
-            ->missing('values.preferred_locale')->etc())
+            ->where('values.preferred_locale', 'en')->etc())
         ->assertDontSee('htmx.min.js', false)
         ->assertDontSee('alpinejs', false)
         ->assertDontSee('<form', false);

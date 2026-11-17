@@ -6,10 +6,12 @@ use App\Models\User;
 use App\Models\UserAchievement;
 use App\Services\AchievementService;
 use App\Services\AnnualRecapService;
+use App\Services\BibleReferenceService;
 use App\Services\ReadingCalendarService;
 use App\Services\ReadingFormService;
 use App\Services\StreakStateService;
 use App\Services\UserStatisticsService;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,7 +26,8 @@ class DashboardController extends Controller
         private StreakStateService $streakStateService,
         private ReadingCalendarService $readingCalendar,
         private AnnualRecapService $recapService,
-        private AchievementService $achievementService
+        private AchievementService $achievementService,
+        private BibleReferenceService $bibleReferenceService
     ) {}
 
     /**
@@ -84,14 +87,14 @@ class DashboardController extends Controller
                 'elapsedDays' => (int) $stats['reading_summary']['days_since_first_reading'],
             ],
             'calendar' => $this->normalizeCalendar($calendarData, $accountNow),
-            'bookProgress' => $stats['book_progress'],
+            'bookProgress' => $this->localizedBookProgress($stats['book_progress'], $user),
             'recentActivity' => collect($stats['recent_activity'])
                 ->take(10)
                 ->map(fn (array $reading): array => [
                     'id' => (int) $reading['id'],
-                    'passageText' => (string) $reading['passage_text'],
+                    'passageText' => $this->localizedRecentPassage($reading, $user),
                     'dateRead' => $this->dateString($reading['date_read']),
-                    'timeAgo' => (string) $reading['time_ago'],
+                    'timeAgo' => $this->localizedTimeAgo((string) $reading['time_ago']),
                 ])
                 ->values()
                 ->all(),
@@ -142,7 +145,8 @@ class DashboardController extends Controller
         $today = $accountNow->toDateString();
 
         return [
-            'monthName' => (string) $calendarData['monthName'],
+            'monthName' => Carbon::createFromDate((int) $calendarData['year'], (int) $calendarData['month'], 1)
+                ->locale(app()->getLocale())->isoFormat('MMMM YYYY'),
             'days' => collect($calendarData['calendar'])
                 ->map(function (?array $day) use ($today): ?array {
                     if ($day === null) {
@@ -179,16 +183,16 @@ class DashboardController extends Controller
 
         return [
             'latest' => $latest instanceof UserAchievement ? [
-                'displayName' => (string) $latest->display_name,
-                'description' => (string) $latest->description,
+                'displayName' => $this->achievementService->localizedCopy($latest)['display_name'],
+                'description' => $this->achievementService->localizedCopy($latest)['description'],
                 'icon' => (string) $latest->icon,
                 'earnedAt' => $latest->earned_at?->toIso8601String(),
             ] : null,
             'milestone' => $milestone['milestone'] === null ? null : [
                 'key' => (string) $milestone['milestone']['achievement_key'],
                 'contextKey' => (string) $milestone['milestone']['context_key'],
-                'displayName' => (string) $milestone['milestone']['display_name'],
-                'description' => (string) $milestone['milestone']['description'],
+                'displayName' => $this->achievementService->localizedPayload($milestone['milestone'])['display_name'],
+                'description' => $this->achievementService->localizedPayload($milestone['milestone'])['description'],
                 'icon' => (string) $milestone['milestone']['icon'],
                 'style' => (string) $milestone['milestone']['style'],
                 'current' => (int) $milestone['milestone']['current'],
@@ -201,5 +205,75 @@ class DashboardController extends Controller
     private function dateString(mixed $date): string
     {
         return $date instanceof CarbonInterface ? $date->toDateString() : (string) $date;
+    }
+
+    private function localizedBookProgress(array $progress, User $user): array
+    {
+        foreach (['old_testament', 'new_testament', 'deuterocanonical'] as $testamentKey) {
+            if (! is_array($progress[$testamentKey] ?? null)) {
+                continue;
+            }
+
+            if (app()->getLocale() === 'fr') {
+                $progress[$testamentKey]['testament'] = match ($testamentKey) {
+                    'old_testament' => __('reader.testaments.old'),
+                    'new_testament' => __('reader.testaments.new'),
+                    default => __('reader.testaments.deuterocanonical'),
+                };
+            }
+            $progress[$testamentKey]['processed_books'] = collect($progress[$testamentKey]['processed_books'] ?? [])
+                ->map(function (array $book) use ($user): array {
+                    if (app()->getLocale() === 'fr') {
+                        $book['name'] = $this->bibleReferenceService->getBibleBook(
+                            (int) $book['book_id'], 'fr', $user->includesDeuterocanonicalBooks() || (int) $book['book_id'] > 66
+                        )['name'] ?? $book['name'];
+                    }
+
+                    return $book;
+                })->all();
+        }
+
+        return $progress;
+    }
+
+    private function localizedRecentPassage(array $reading, User $user): string
+    {
+        if (app()->getLocale() !== 'fr') {
+            return (string) $reading['passage_text'];
+        }
+
+        preg_match('/(\d+)(?:\s*[-–]\s*(\d+))?\s*$/u', (string) $reading['passage_text'], $chapters);
+        $start = isset($chapters[1]) ? (int) $chapters[1] : (int) $reading['chapter'];
+        $end = isset($chapters[2]) ? (int) $chapters[2] : $start;
+
+        return $this->bibleReferenceService->formatBibleReferenceRange(
+            (int) $reading['book_id'],
+            $start,
+            $end,
+            'fr',
+            $user->includesDeuterocanonicalBooks() || (int) $reading['book_id'] > 66
+        );
+    }
+
+    private function localizedTimeAgo(string $timeAgo): string
+    {
+        if (app()->getLocale() !== 'fr') {
+            return $timeAgo;
+        }
+
+        if ($timeAgo === 'just now') {
+            $timeAgo = __('reader.time_ago.just_now');
+        } elseif (preg_match('/^(\d+) (minute|minutes|hour|hours|day|days) ago$/', $timeAgo, $matches)) {
+            $singular = in_array($matches[2], ['minute', 'hour', 'day'], true);
+            $unit = match (true) {
+                str_starts_with($matches[2], 'minute') => $singular ? 'minute' : 'minutes',
+                str_starts_with($matches[2], 'hour') => $singular ? 'hour' : 'hours',
+                default => $singular ? 'day' : 'days',
+            };
+
+            $timeAgo = __('reader.time_ago.'.$unit, ['count' => $matches[1]]);
+        }
+
+        return $timeAgo;
     }
 }

@@ -16,6 +16,8 @@ class MarketingPreferencesController extends Controller
      */
     public function show(User $user): View
     {
+        app()->setLocale($user->preferredLocale());
+
         return view('marketing.unsubscribe', [
             'user' => $user,
             'isOptedOut' => ! is_null($user->marketing_emails_opted_out_at),
@@ -29,11 +31,13 @@ class MarketingPreferencesController extends Controller
      */
     public function store(User $user): RedirectResponse
     {
+        app()->setLocale($user->preferredLocale());
+
         if (is_null($user->marketing_emails_opted_out_at)) {
             $user->update(['marketing_emails_opted_out_at' => now()]);
         }
 
-        return back()->with('status', 'You have been unsubscribed from marketing emails.');
+        return back()->with('status', __('You have been unsubscribed from marketing emails.'));
     }
 
     public function oneClick(User $user): Response

@@ -13,9 +13,12 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useReaderCopy } from '@/reader-copy';
 
-const props = withDefaults(defineProps<{ labelledby: string; describedby?: string; closeLabel?: string; busy?: boolean; dismissible?: boolean; initialFocus?: string; size?: 'md' | 'lg'; editor?: boolean; expanded?: boolean }>(), { closeLabel: 'Close dialog', busy: false, dismissible: true, size: 'md', editor: false, expanded: false });
+const props = withDefaults(defineProps<{ labelledby: string; describedby?: string; closeLabel?: string; busy?: boolean; dismissible?: boolean; initialFocus?: string; size?: 'md' | 'lg'; editor?: boolean; expanded?: boolean }>(), { busy: false, dismissible: true, size: 'md', editor: false, expanded: false });
+const copy = useReaderCopy();
+const closeLabel = computed(() => props.closeLabel ?? copy.value.closeDialog);
 const emit = defineEmits<{ close: [] }>();
 const dialog = ref<HTMLDialogElement | null>(null);
 const closeButton = ref<HTMLButtonElement | null>(null);

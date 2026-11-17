@@ -39,9 +39,9 @@ class FeedbackController extends Controller
 
         if (! $sent) {
             return redirect()->route('feedback.create')
-                ->withErrors(['submission' => "We couldn't send your feedback. Please try again."]);
+                ->withErrors(['submission' => __('reader.feedback.failed')]);
         }
 
-        return redirect()->route('feedback.create')->with('status', 'Thank you! Your feedback has been sent.');
+        return redirect()->route('feedback.create')->with('status', __('reader.feedback.sent'));
     }
 }

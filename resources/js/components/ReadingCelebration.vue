@@ -1,5 +1,5 @@
 <template>
-    <ReaderDialog labelledby="reading-celebration-title" close-label="Close celebration" size="lg" @close="emit('close')">
+    <ReaderDialog labelledby="reading-celebration-title" :close-label="copy.celebration.close" size="lg" @close="emit('close')">
         <template #overlay><div inert aria-hidden="true" class="pointer-events-none fixed inset-0 z-20 h-full w-full"><canvas ref="confettiCanvas" class="h-full w-full"></canvas></div></template>
                 <div class="px-6 pb-6 pt-8 sm:px-8">
                     <div class="mb-5 flex justify-center"><AchievementBadge :icon="heroIcon" :base-url="badgeBaseUrl" size="xl" /></div>
@@ -7,7 +7,7 @@
                         <p class="text-xs font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">{{ eyebrow }}</p>
                         <h2 id="reading-celebration-title" class="mt-2 text-2xl font-bold leading-tight text-balance sm:text-3xl">{{ title }}</h2>
                         <p v-if="heroDescription" class="mx-auto mt-3 max-w-sm text-sm leading-6 text-gray-700 dark:text-gray-300">{{ heroDescription }}</p>
-                        <p v-if="payload.reading.passage && payload.reading.date" class="mt-3 text-sm text-gray-500 dark:text-gray-400">{{ payload.reading.passage }} recorded for {{ payload.reading.date }}.</p>
+                        <p v-if="payload.reading.passage && payload.reading.date" class="mt-3 text-sm text-gray-500 dark:text-gray-400">{{ copy.celebration.recorded(payload.reading.passage, payload.reading.date) }}</p>
                     </div>
                 </div>
                 <div v-if="payload.earned.length > 1 || (payload.record && payload.earned.length) || payload.progress.length" class="space-y-5 px-6 pb-6 sm:px-8">
@@ -33,7 +33,7 @@
                         </div>
                     </article>
                     <section v-if="payload.progress.length" class="border-t border-gray-200 pt-5 dark:border-gray-700" aria-labelledby="reading-next-up-title">
-                        <h3 id="reading-next-up-title" class="text-sm font-semibold">Next up</h3>
+                        <h3 id="reading-next-up-title" class="text-sm font-semibold">{{ copy.celebration.nextUp }}</h3>
                         <div class="mt-4 space-y-5">
                             <div v-for="next in payload.progress" :key="next.display_name" class="flex items-center gap-3">
                                 <AchievementBadge :icon="next.icon" :base-url="badgeBaseUrl" size="xs" locked />
@@ -51,8 +51,8 @@
                     </section>
                 </div>
                 <div class="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-6 py-5 dark:border-gray-700 dark:bg-gray-900/30 sm:flex-row-reverse sm:px-8">
-                    <button type="button" class="min-h-11 w-full rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:bg-primary-500 dark:hover:bg-primary-600 sm:w-auto" @click="emit('close')">Keep reading</button>
-                    <Link v-if="payload.earned.length" :href="achievementsUrl" class="inline-flex min-h-11 w-full items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-gray-200 dark:hover:bg-gray-700 sm:w-auto">View trophy shelf</Link>
+                    <button type="button" class="min-h-11 w-full rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:bg-primary-500 dark:hover:bg-primary-600 sm:w-auto" @click="emit('close')">{{ copy.celebration.keepReading }}</button>
+                    <Link v-if="payload.earned.length" :href="achievementsUrl" class="inline-flex min-h-11 w-full items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-gray-200 dark:hover:bg-gray-700 sm:w-auto">{{ copy.celebration.trophyShelf }}</Link>
                 </div>
     </ReaderDialog>
 </template>
@@ -63,8 +63,10 @@ import { Link } from '@inertiajs/vue3';
 import AchievementBadge from '@/components/AchievementBadge.vue';
 import ReaderDialog from '@/components/ReaderDialog.vue';
 import type { CelebrationAchievement, ReadingCelebration } from '@/components/reading-log-types';
+import { useReaderCopy } from '@/reader-copy';
 
 const { payload } = defineProps<{ payload: ReadingCelebration; achievementsUrl: string; badgeBaseUrl: string }>();
+const copy = useReaderCopy();
 const emit = defineEmits<{ close: [] }>();
 const confettiCanvas = ref<HTMLCanvasElement | null>(null);
 const progressReady = ref(false);
@@ -77,8 +79,14 @@ const heroDescription = computed(() => single.value
     ? achievementDescription(single.value)
     : (!payload.earned.length ? payload.record?.description : ''));
 const heroIcon = computed(() => single.value?.icon ?? payload.record?.icon ?? 'trophy');
-const eyebrow = computed(() => payload.earned.length ? (single.value ? 'Achievement unlocked' : 'Achievements unlocked') : (payload.record?.eyebrow ?? 'Personal best'));
-const title = computed(() => payload.earned.length ? (single.value ? single.value.display_name : `${payload.earned.length} achievements unlocked`) : payload.record?.title);
+const eyebrow = computed(() => {
+    if (!payload.earned.length) return payload.record?.eyebrow ?? copy.value.celebration.personalBest;
+    return single.value ? copy.value.celebration.unlocked : copy.value.celebration.unlockPlural;
+});
+const title = computed(() => {
+    if (!payload.earned.length) return payload.record?.title;
+    return single.value ? single.value.display_name : copy.value.celebration.unlockedCount(payload.earned.length);
+});
 
 function achievementDescription(achievement: CelebrationAchievement) {
     return achievement.icon === 'book-open' && !achievement.is_repeat_book_completion ? '' : achievement.description;

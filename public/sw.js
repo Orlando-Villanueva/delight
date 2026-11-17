@@ -1,7 +1,9 @@
 // Service Worker for Delight PWA
 // Version 1.0 - Basic PWA installation support
 
-const CACHE_NAME = 'delight-v5';
+const CACHE_NAME = 'delight-v6';
+const LOCALE_CACHE_NAME = 'delight-locale-v1';
+const LOCALE_CACHE_URL = '/__offline-locale';
 const STATIC_CACHE_URLS = [
   '/favicon-app.ico',
   '/images/logo-64.png',
@@ -165,7 +167,7 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
 </body>
 </html>`;
 const OFFLINE_FALLBACK_FRAGMENT = `
-<section class="mx-auto max-w-xl rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800">
+<section lang="en" class="mx-auto max-w-xl rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800">
   <div class="flex items-center justify-center gap-3">
     <img src="/images/logo-64.png" alt="" width="32" height="32" class="h-8 w-8 rounded-xl">
     <p class="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">Delight</p>
@@ -174,6 +176,29 @@ const OFFLINE_FALLBACK_FRAGMENT = `
   <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">Delight needs a connection to load readings and save new logs. Reconnect, then retry this page.</p>
   <button type="button" data-offline-retry class="mt-5 inline-block rounded-lg border-0 bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800">Try again</button>
 </section>`;
+
+// Persist only a language code; readings, notes and page responses never enter this cache.
+self.addEventListener('message', (event) => {
+  if (event.origin !== self.location.origin || event.data?.type !== 'DELIGHT_LOCALE' || !['en', 'fr'].includes(event.data.locale)) return;
+  event.waitUntil(caches.open(LOCALE_CACHE_NAME)
+    .then((cache) => cache.put(LOCALE_CACHE_URL, new Response(event.data.locale)))
+    .catch(() => { /* The offline page falls back to English if locale storage fails. */ }));
+});
+
+async function offlineBody(body) {
+  let locale = 'en';
+  try {
+    const cache = await caches.open(LOCALE_CACHE_NAME);
+    locale = await (await cache.match(LOCALE_CACHE_URL))?.text() ?? 'en';
+  } catch (_) {
+    // English remains available when the locale cache cannot be read.
+  }
+  if (locale !== 'fr') return body;
+  return body.replaceAll('lang="en"', 'lang="fr"')
+    .replaceAll('Delight is offline', 'Delight est hors ligne')
+    .replaceAll('Delight needs a connection to load readings and save new logs. Reconnect, then retry this page.', 'Delight a besoin d’une connexion pour charger vos lectures et en enregistrer de nouvelles. Reconnectez-vous, puis réessayez.')
+    .replaceAll('Try again', 'Réessayer');
+}
 
 function offlineFallbackHeaders() {
   return {
@@ -218,7 +243,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName !== CACHE_NAME && cacheName !== LOCALE_CACHE_NAME) {
             return caches.delete(cacheName);
           }
         })
@@ -250,8 +275,8 @@ self.addEventListener('fetch', (event) => {
 
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return offlineDocumentResponse(OFFLINE_FALLBACK_HTML);
+      fetch(event.request).catch(async () => {
+        return offlineDocumentResponse(await offlineBody(OFFLINE_FALLBACK_HTML));
       })
     );
 
@@ -260,8 +285,8 @@ self.addEventListener('fetch', (event) => {
 
   if (isPageContainerHtmxRequest(event.request)) {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return offlineHtmxResponse(OFFLINE_FALLBACK_FRAGMENT);
+      fetch(event.request).catch(async () => {
+        return offlineHtmxResponse(await offlineBody(OFFLINE_FALLBACK_FRAGMENT));
       })
     );
   }

@@ -50,8 +50,8 @@
                             type="button"
                             class="ml-2 hidden h-11 w-11 shrink-0 lg:inline-flex items-center justify-center rounded-lg text-gray-600 hover:bg-primary-50 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-gray-300 dark:hover:bg-gray-700"
                             :aria-expanded="!collapsed"
-                            :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-                            :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                                :aria-label="collapsed ? m.expandSidebar : m.collapseSidebar"
+                            :title="collapsed ? m.expandSidebar : m.collapseSidebar"
                             aria-controls="reader-sidebar-navigation"
                             @click="
                                 userToggled = true;
@@ -78,7 +78,7 @@
                         <details ref="announcementsPanel" class="static sm:relative">
                             <summary
                                 class="relative flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:text-gray-300 dark:hover:bg-gray-700"
-                                :aria-label="reader.unreadCount ? `What's new, ${reader.unreadCount} unread updates` : `What's new`"
+                                :aria-label="reader.unreadCount ? `${m.whatsNew}, ${copy.unreadCount(reader.unreadCount)}` : m.whatsNew"
                             >
                                 <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <path d="m3 11 18-5v12L3 13v-2ZM7 14v7h4l-2-6" />
@@ -86,21 +86,21 @@
                                 <span v-if="reader.unreadCount" aria-hidden="true" class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary-600 dark:bg-primary-400" />
                             </summary>
                             <section aria-labelledby="whats-new-title" class="absolute inset-x-4 top-full z-10 mt-2 flex max-h-[calc(100dvh-11rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white text-gray-900 shadow-lg sm:left-auto sm:right-0 sm:w-80 sm:max-w-[calc(100vw-2rem)] lg:max-h-[calc(100dvh-6rem)] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
-                                <h2 id="whats-new-title" class="shrink-0 border-b border-gray-200 px-4 py-3 text-sm font-semibold dark:border-gray-700">What's new</h2>
+                                <h2 id="whats-new-title" class="shrink-0 border-b border-gray-200 px-4 py-3 text-sm font-semibold dark:border-gray-700">{{ m.whatsNew }}</h2>
                                 <ul v-if="reader.announcements.length" class="min-h-0 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
                                     <li v-for="announcement in reader.announcements" :key="announcement.id">
                                         <a :href="announcement.url" class="flex min-h-11 gap-3 px-4 py-3 hover:bg-gray-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-500 dark:hover:bg-gray-700" @click="closeNavigationMenus">
                                             <span aria-hidden="true" class="mt-1.5 h-2 w-2 shrink-0 rounded-full" :class="announcement.isRead ? 'bg-transparent' : 'bg-primary-600 dark:bg-primary-400'" />
                                             <span class="min-w-0">
-                                                <span v-if="!announcement.isRead" class="sr-only">Unread: </span>
+                                                <span v-if="!announcement.isRead" class="sr-only">{{ m.unread }}</span>
                                                 <span class="block text-sm" :class="announcement.isRead ? 'font-normal text-gray-600 dark:text-gray-300' : 'font-semibold'">{{ announcement.title }}</span>
                                                 <time v-if="announcement.date" :datetime="announcement.date" class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ announcement.dateLabel }}</time>
                                             </span>
                                         </a>
                                     </li>
                                 </ul>
-                                <p v-else class="px-4 py-6 text-sm text-gray-600 dark:text-gray-300">No updates yet.</p>
-                                <a :href="reader.urls.updates" class="inline-flex min-h-11 shrink-0 items-center justify-center border-t border-gray-200 px-4 py-3 text-sm font-medium text-primary-700 hover:bg-gray-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-500 dark:border-gray-700 dark:text-primary-300 dark:hover:bg-gray-700" @click="closeNavigationMenus">All updates</a>
+                                <p v-else class="px-4 py-6 text-sm text-gray-600 dark:text-gray-300">{{ m.noUpdates }}</p>
+                                <a :href="reader.urls.updates" class="inline-flex min-h-11 shrink-0 items-center justify-center border-t border-gray-200 px-4 py-3 text-sm font-medium text-primary-700 hover:bg-gray-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-500 dark:border-gray-700 dark:text-primary-300 dark:hover:bg-gray-700" @click="closeNavigationMenus">{{ m.allUpdates }}</a>
                             </section>
                         </details>
                         <details ref="profile" class="relative">
@@ -197,9 +197,11 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import type { ReaderPageProps } from '@/reader-types';
+import { useReaderCopy } from '@/reader-copy';
 
 const page = usePage<ReaderPageProps>();
 const reader = computed(() => page.props.reader);
+const copy = useReaderCopy();
 
 const stopPlanHistoryRefresh = router.on('navigate', event => {
     if (event.detail.type === 'history' && event.detail.page.component === 'PlanToday') {
@@ -207,20 +209,26 @@ const stopPlanHistoryRefresh = router.on('navigate', event => {
     }
 });
 
-const m = {
-    navigation: 'Main navigation',
-    dashboard: 'Dashboard',
-    plans: 'Plans',
-    log: 'Log Reading',
-    history: 'History',
-    achievements: 'Achievements',
-    user_menu: 'Open user menu',
-    settings: 'Settings',
-    recap: 'Annual Recap',
-    feedback: 'Feedback',
-    admin: 'Admin',
-    logout: 'Sign out',
-};
+const m = computed(() => ({
+    navigation: copy.value.navigation,
+    dashboard: copy.value.dashboard,
+    plans: copy.value.plans,
+    log: copy.value.logReading,
+    history: copy.value.history,
+    achievements: copy.value.achievements,
+    user_menu: copy.value.userMenu,
+    settings: copy.value.settings,
+    recap: copy.value.recap,
+    feedback: copy.value.feedback,
+    admin: copy.value.admin,
+    logout: copy.value.signOut,
+    whatsNew: copy.value.whatsNew,
+    unread: copy.value.unread,
+    noUpdates: copy.value.noUpdates,
+    allUpdates: copy.value.allUpdates,
+    expandSidebar: copy.value.expandSidebar,
+    collapseSidebar: copy.value.collapseSidebar,
+}));
 
 const collapsed = ref(false);
 const userToggled = ref(false);
@@ -236,31 +244,31 @@ const accountLinks = computed(() => {
 const links = computed<{ key: 'dashboard' | 'plans' | 'log' | 'history' | 'achievements'; mobileLabel: string; href: string; icon: string }[]>(() => [
     {
         key: 'dashboard',
-        mobileLabel: 'Home',
+        mobileLabel: copy.value.home,
         href: reader.value.urls.dashboard,
         icon: 'M3 15v4m6-6v6m6-4v4m6-6v6M3 11l6-5 6 5 5.5-5.5',
     },
     {
         key: 'plans',
-        mobileLabel: 'Plans',
+        mobileLabel: copy.value.plans,
         href: reader.value.urls.plans,
         icon: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4',
     },
     {
         key: 'log',
-        mobileLabel: 'Log',
+        mobileLabel: copy.value.log,
         href: reader.value.urls.log,
         icon: 'M12 7.757v8.486M7.757 12h8.486M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
     },
     {
         key: 'history',
-        mobileLabel: 'History',
+        mobileLabel: copy.value.history,
         href: reader.value.urls.history,
         icon: 'M12 8v4l3 3M3.22302 14C4.13247 18.008 7.71683 21 12 21c4.9706 0 9-4.0294 9-9 0-4.97056-4.0294-9-9-9-3.72916 0-6.92858 2.26806-8.29409 5.5M7 9H3V5',
     },
     {
         key: 'achievements',
-        mobileLabel: 'Awards',
+        mobileLabel: copy.value.awards,
         href: reader.value.urls.achievements,
         icon: 'M15.477 12.89 17 22l-5-3-5 3 1.523-9.11',
     },
@@ -293,6 +301,12 @@ function closeNavigationMenus() {
 }
 
 watch(() => page.url, closeNavigationMenus);
+watch(() => reader.value.locale, (locale) => {
+    document.documentElement.lang = locale.toLowerCase().startsWith('fr') ? 'fr' : 'en';
+    if ('serviceWorker' in navigator) navigator.serviceWorker.ready.then((registration) => {
+        registration.active?.postMessage({ type: 'DELIGHT_LOCALE', locale: document.documentElement.lang });
+    }).catch(() => {});
+}, { immediate: true });
 
 function closeMenus(event: MouseEvent) {
     for (const menu of [profile.value, announcementsPanel.value]) if (menu && !(event.target instanceof Node && menu.contains(event.target))) menu.open = false;

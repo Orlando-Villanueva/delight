@@ -35,8 +35,20 @@ class WelcomeNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $locale = method_exists($notifiable, 'preferredLocale')
+            ? $notifiable->preferredLocale()
+            : config('localization.fallback');
+        $previousLocale = app()->getLocale();
+        app()->setLocale($locale);
+
+        try {
+            $subject = __('Welcome to Delight!');
+        } finally {
+            app()->setLocale($previousLocale);
+        }
+
         return (new MailMessage)
-            ->subject('Welcome to Delight!')
+            ->subject($subject)
             ->view('emails.welcome', [
                 'user' => $notifiable,
             ]);

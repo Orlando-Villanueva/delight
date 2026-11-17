@@ -10,11 +10,13 @@ use App\Http\Controllers\Auth\GoogleOAuthController;
 use App\Http\Controllers\Dashboard\NotificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedbackController;
+use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\MarketingPreferencesController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PublicAnnouncementController;
 use App\Http\Controllers\PushPreferenceController;
 use App\Http\Controllers\PushSubscriptionController;
+use App\Http\Controllers\PwaManifestController;
 use App\Http\Controllers\ReadingLogController;
 use App\Http\Controllers\ReadingPlanController;
 use App\Http\Controllers\SettingsController;
@@ -23,6 +25,8 @@ use App\Http\Middleware\EnsureAdminOrAnalyticsToken;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EstablishReadingTimezone;
 use Illuminate\Support\Facades\Route;
+
+Route::post('/language', LanguageController::class)->middleware('guest')->name('language.update');
 
 // Development Routes (Local Development Only)
 if (app()->environment('local') || app()->environment('staging')) {
@@ -50,18 +54,7 @@ Route::view('/android', 'android-download')->name('android.download');
 // XML Sitemap
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
-Route::get('/pwa.webmanifest', function () {
-    $manifestPath = config('app.pwa_manifest_path', public_path('site.webmanifest'));
-
-    abort_unless(is_file($manifestPath) && is_readable($manifestPath), 404);
-
-    $manifest = file_get_contents($manifestPath);
-
-    abort_if($manifest === false, 500);
-
-    return response($manifest, 200)
-        ->header('Content-Type', 'application/manifest+json');
-})->name('pwa.manifest');
+Route::get('/pwa.webmanifest', PwaManifestController::class)->name('pwa.manifest');
 
 // Legal Pages
 Route::get('/privacy-policy', function () {

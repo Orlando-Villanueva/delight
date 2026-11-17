@@ -1,25 +1,31 @@
 <template>
-    <Head><title>Log Reading</title></Head>
+    <Head><title>{{ copy.logReading }}</title></Head>
     <section class="mx-auto w-full max-w-md" aria-labelledby="log-reading-title">
         <header class="mb-6">
-            <h1 id="log-reading-title" class="text-2xl font-bold text-gray-900 dark:text-white">Log Reading</h1>
-            <p class="mt-1 text-gray-600 dark:text-gray-400">Record today's Bible reading.</p>
+            <h1 id="log-reading-title" class="text-2xl font-bold text-gray-900 dark:text-white">{{ copy.logReading }}</h1>
+            <p class="mt-1 text-gray-600 dark:text-gray-400">{{ copy.recordToday }}</p>
         </header>
-        <ReadingLogForm :config="config" :session="session" @leave-warning="needsWarning = $event" />
+        <ReadingLogForm :key="page.props.reader.user.id" :config="config" :session="session" @leave-warning="needsWarning = $event" />
     </section>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, usePage } from '@inertiajs/vue3';
 import ReadingLogForm from '@/components/ReadingLogForm.vue';
-import { createReadingLogSession } from '@/components/reading-log-session';
+import { readingDraftForReader } from '@/reading-drafts';
+import type { ReaderPageProps } from '@/reader-types';
 import { useLeaveWarning } from '@/useLeaveWarning';
 import type { ReadingFormConfig } from '@/components/reading-log-types';
+import { useReaderCopy } from '@/reader-copy';
 
-const { config } = defineProps<{ config: ReadingFormConfig }>();
-const session = createReadingLogSession({ values: { ...config.values }, collection: 'old', notesOpen: false });
+const copy = useReaderCopy();
+const props = defineProps<{ config: ReadingFormConfig }>();
+const page = usePage<ReaderPageProps>();
+const reader = computed(() => page.props.reader);
+const config = computed(() => props.config);
+const session = readingDraftForReader(reader, config);
 const needsWarning = ref(false);
 
-useLeaveWarning(() => needsWarning.value, 'Discard this unfinished reading? If a save is still running, it may finish after you leave.');
+useLeaveWarning(() => needsWarning.value, () => copy.value.discardReading, () => Boolean(session.value.pending) || session.value.uncertain);
 </script>

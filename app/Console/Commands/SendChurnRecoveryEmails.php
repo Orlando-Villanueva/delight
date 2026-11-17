@@ -285,8 +285,16 @@ class SendChurnRecoveryEmails extends Command
             }
 
             $success = $emailService->sendWithErrorHandling(function () use ($user, $emailNumber): void {
+                $lastReadingLog = $user->latestReadingLog;
+
                 Mail::to($user->email)->send(
-                    new ChurnRecoveryEmailMailable($user, $emailNumber, $user->latestReadingLog?->passage_text)
+                    new ChurnRecoveryEmailMailable(
+                        $user,
+                        $emailNumber,
+                        $lastReadingLog?->passage_text,
+                        $lastReadingLog?->book_id,
+                        $lastReadingLog?->chapter,
+                    )
                 );
             }, "reading-log-reengagement-{$emailNumber}");
 

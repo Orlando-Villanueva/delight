@@ -133,7 +133,7 @@ class AchievementService
                     'category' => $achievement->category,
                     'is_repeat_book_completion' => $achievement->achievement_key === 'book_completed'
                         && (int) ($achievement->metadata['completion_number'] ?? 1) > 1,
-                    'earned_at' => $achievement->earned_at?->format('M j, Y'),
+                    'earned_at' => $achievement->earned_at?->locale(app()->getLocale())->isoFormat(app()->getLocale() === 'fr' ? 'D MMM YYYY' : 'MMM D, YYYY'),
                 ];
             })
             ->values()
@@ -144,8 +144,7 @@ class AchievementService
             3
         )
             ->map(fn (array $achievement): array => [
-                'display_name' => $achievement['display_name'],
-                'description' => $achievement['description'],
+                ...$this->localizedPayload($achievement),
                 'icon' => $achievement['icon'],
                 'style' => $achievement['style'],
                 'current' => $achievement['current'],
@@ -159,12 +158,217 @@ class AchievementService
         return [
             'earned' => $earned,
             'progress' => $progress,
-            'record' => $isFirstReadingOfDay ? $this->recordCelebrationPayload($user) : null,
+            'record' => $isFirstReadingOfDay ? $this->localizedRecordPayload($user) : null,
             'reading' => [
-                'passage' => $log->passage_text,
-                'date' => $log->date_read->format('M j, Y'),
+                'passage' => $this->localizedPassage($log, $user),
+                'date' => $log->date_read->locale(app()->getLocale())->isoFormat(app()->getLocale() === 'fr' ? 'D MMM YYYY' : 'MMM D, YYYY'),
             ],
         ];
+    }
+
+    /** Return locale-aware achievement copy without changing persisted award data. */
+    public function localizedCopy(UserAchievement $achievement): array
+    {
+        if (app()->getLocale() !== 'fr') {
+            return ['display_name' => $achievement->display_name, 'description' => $achievement->description];
+        }
+
+        $metadata = $achievement->metadata ?? [];
+        $key = $achievement->achievement_key;
+        $threshold = $this->achievementThreshold($key);
+        $bookId = isset($metadata['book_id']) ? (int) $metadata['book_id'] : null;
+        if ($bookId === null && preg_match('/^book:(\d+)(?:$|:)/', $achievement->context_key, $bookMatch)) {
+            $bookId = (int) $bookMatch[1];
+        }
+        $bookName = $bookId !== null ? $this->localizedBookName($bookId) : null;
+        $completion = (int) ($metadata['completion_number'] ?? 1);
+        $copy = match (true) {
+            $key === 'first_reading' => __('achievements.copy.first_reading'),
+            $key === 'first_month' => __('achievements.copy.first_month'),
+            $key === 'book_completed' => [
+                'name' => $completion > 1 ? __('achievements.dynamic.book_repeat', ['book' => $bookName, 'ordinal' => $this->frenchOrdinal($completion)]) : __('achievements.dynamic.book', ['book' => $bookName]),
+                'description' => $completion > 1 ? __('achievements.dynamic.book_repeat_description', ['book' => $bookName, 'count' => $completion]) : __('achievements.dynamic.book_description', ['book' => $bookName]),
+            ],
+            $key === 'testament_completed' => $this->localizedTestamentCopy((string) ($metadata['testament'] ?? $achievement->context_key)),
+            $key === 'bible_completed' => [
+                'name' => __('achievements.dynamic.bible'),
+                'description' => __('achievements.dynamic.bible_description', ['collection' => ($metadata['collection_key'] ?? null) === 'with-deuterocanonical' ? __('achievements.dynamic.catholic_collection') : __('achievements.dynamic.bible')]),
+            ],
+            str_starts_with($key, 'reading_streak_') => ['name' => __('achievements.dynamic.streak', ['days' => $threshold]), 'description' => __('achievements.dynamic.streak_description', ['days' => $threshold])],
+            str_starts_with($key, 'bible_progress_') => ['name' => __('achievements.dynamic.progress', ['percent' => $threshold]), 'description' => __('achievements.dynamic.progress_description', ['percent' => $threshold])],
+            $key === 'personal_best_streak' => $this->localizedPersonalBestCopy($metadata),
+            default => null,
+        };
+
+        return $copy === null || ($key === 'book_completed' && $bookName === null)
+            ? ['display_name' => $achievement->display_name, 'description' => $achievement->description]
+            : ['display_name' => $copy['name'], 'description' => $copy['description']];
+    }
+
+    public function localizedBookName(int $bookId): ?string
+    {
+        return $this->bibleReferenceService->getBibleBook($bookId, app()->getLocale(), true)['name'] ?? null;
+    }
+
+    public function localizedReadingPassage(array $metadata, User $user): string
+    {
+        $bookId = (int) ($metadata['book_id'] ?? 0);
+        $chapter = (int) ($metadata['chapter'] ?? 0);
+        if (app()->getLocale() !== 'fr' || $bookId < 1 || $chapter < 1) {
+            return (string) ($metadata['passage'] ?? '');
+        }
+
+        $storedPassage = (string) ($metadata['passage'] ?? '');
+        $englishBook = $this->bibleReferenceService->getBibleBook($bookId, 'en', $user->includesDeuterocanonicalBooks() || $bookId > 66)['name'] ?? null;
+        $frenchBook = $this->localizedBookName($bookId);
+        if ($englishBook && $frenchBook && str_starts_with($storedPassage, $englishBook)) {
+            return $frenchBook.substr($storedPassage, strlen($englishBook));
+        }
+
+        return $this->bibleReferenceService->formatBibleReferenceRange($bookId, $chapter, $chapter, 'fr', $user->includesDeuterocanonicalBooks() || $bookId > 66);
+    }
+
+    private function localizedRecordPayload(User $user): ?array
+    {
+        $record = $this->recordCelebrationPayload($user);
+        if ($record === null || app()->getLocale() !== 'fr') {
+            return $record;
+        }
+
+        return [
+            ...$record,
+            'eyebrow' => __('achievements.record.eyebrow'),
+            'title' => __('achievements.record.title'),
+            'description' => trans_choice('achievements.record.description', (int) $record['previous_best'], ['days' => $record['current_streak'], 'previous' => $record['previous_best']]),
+        ];
+    }
+
+    private function localizedPassage(ReadingLog $log, User $user): string
+    {
+        $englishBook = $this->bibleReferenceService->getBibleBook(
+            (int) $log->book_id,
+            'en',
+            $user->includesDeuterocanonicalBooks()
+        )['name'] ?? null;
+        $localizedBook = $this->localizedBookName((int) $log->book_id);
+
+        return $englishBook && $localizedBook
+            ? preg_replace('/^'.preg_quote($englishBook, '/').'\b/u', $localizedBook, $log->passage_text) ?? $log->passage_text
+            : $log->passage_text;
+    }
+
+    public function localizedPayload(array $achievement): array
+    {
+        $key = (string) $achievement['achievement_key'];
+        $definition = $this->definitions()[$key] ?? null;
+        if (app()->getLocale() !== 'fr' || ($key !== 'bible_completion' && $definition === null)) {
+            return ['display_name' => $achievement['display_name'], 'description' => $achievement['description']];
+        }
+
+        if ($key === 'bible_completion') {
+            $remaining = max(0, (int) ($achievement['target'] ?? 0) - (int) ($achievement['current'] ?? 0));
+
+            return [
+                'display_name' => __('achievements.dynamic.bible_goal'),
+                'description' => trans_choice('achievements.dynamic.bible_goal_description', $remaining, ['count' => $remaining]),
+            ];
+        }
+
+        $threshold = (int) ($definition['threshold'] ?? $this->achievementThreshold($key));
+        $current = (int) ($achievement['current'] ?? 0);
+        $target = (int) ($achievement['target'] ?? $threshold);
+        $copy = match (true) {
+            $key === 'first_reading' => ['name' => __('achievements.copy.first_reading.name'), 'description' => __('achievements.locked.first_reading')],
+            $key === 'first_month' => ['name' => __('achievements.copy.first_month.name'), 'description' => __('achievements.locked.first_month', ['current' => $current, 'target' => $target])],
+            str_starts_with($key, 'reading_streak_') => ['name' => __('achievements.dynamic.streak', ['days' => $threshold]), 'description' => __('achievements.locked.streak', ['current' => $current, 'target' => $target])],
+            str_starts_with($key, 'bible_progress_') => ['name' => __('achievements.dynamic.progress', ['percent' => $threshold]), 'description' => __('achievements.locked.progress', ['current' => $current, 'target' => $target])],
+            $key === 'book_completed' => $this->localizedBookGoal($achievement),
+            $key === 'testament_completed' => $this->localizedTestamentGoal($achievement),
+            default => null,
+        };
+
+        return $copy === null ? ['display_name' => $achievement['display_name'], 'description' => $achievement['description']] : [
+            'display_name' => $copy['name'], 'description' => $copy['description'],
+        ];
+    }
+
+    private function localizedBookGoal(array $achievement): array
+    {
+        preg_match('/^book:(\d+)/', (string) ($achievement['context_key'] ?? ''), $matches);
+        $bookName = isset($matches[1]) ? $this->localizedBookName((int) $matches[1]) : '';
+        $remaining = max(0, (int) ($achievement['target'] ?? 0) - (int) ($achievement['current'] ?? 0));
+
+        return [
+            'name' => ($achievement['metadata']['completion_count'] ?? 0) > 0
+                ? __('achievements.dynamic.book_goal_repeat', ['book' => $bookName])
+                : __('achievements.dynamic.book_goal', ['book' => $bookName]),
+            'description' => trans_choice('achievements.dynamic.book_goal_description', $remaining, ['count' => $remaining, 'book' => $bookName]),
+        ];
+    }
+
+    private function localizedTestamentGoal(array $achievement): array
+    {
+        preg_match('/^testament:(.+)$/', (string) ($achievement['context_key'] ?? ''), $matches);
+        $testamentKey = $this->testamentKey((string) ($matches[1] ?? ''));
+        $remaining = max(0, (int) ($achievement['target'] ?? 0) - (int) ($achievement['current'] ?? 0));
+
+        return [
+            'name' => __('achievements.dynamic.testament_goal.'.$testamentKey),
+            'description' => trans_choice('achievements.dynamic.testament_goal_description.'.$testamentKey, $remaining, ['count' => $remaining]),
+        ];
+    }
+
+    private function localizedTestamentCopy(string $key): ?array
+    {
+        $testamentKey = $this->testamentKey($key);
+        if ($testamentKey === null) {
+            return null;
+        }
+
+        return [
+            'name' => __('achievements.dynamic.testament_complete.'.$testamentKey),
+            'description' => __('achievements.dynamic.testament_complete_description.'.$testamentKey),
+        ];
+    }
+
+    private function testamentKey(string $testament): ?string
+    {
+        $normalizedTestament = strtolower($testament);
+
+        return match (true) {
+            str_contains($normalizedTestament, 'old') => 'old',
+            str_contains($normalizedTestament, 'new') => 'new',
+            str_contains($normalizedTestament, 'deuterocanonical') => 'deuterocanonical',
+            default => null,
+        };
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function localizedPersonalBestCopy(array $metadata): ?array
+    {
+        if (! isset($metadata['previous_best'])) {
+            return null;
+        }
+
+        $previousBest = (int) $metadata['previous_best'];
+
+        return [
+            'name' => __('achievements.dynamic.record'),
+            'description' => trans_choice('achievements.dynamic.record_description', $previousBest, [
+                'days' => $metadata['current_streak'] ?? $previousBest + 1,
+                'previous' => $previousBest,
+            ]),
+        ];
+    }
+
+    private function achievementThreshold(string $key): int
+    {
+        return (int) (preg_match('/_(\d+)$/', $key, $matches) ? $matches[1] : ($this->definitions()[$key]['threshold'] ?? 0));
+    }
+
+    private function frenchOrdinal(int $number): string
+    {
+        return $number === 1 ? '1re' : $number.'e';
     }
 
     /**
@@ -364,7 +568,8 @@ class AchievementService
                 current: $book['chapters_read'],
                 target: $book['total_chapters'],
                 priority: 10,
-                sortOrder: 100 + (int) $book['book_id']
+                sortOrder: 100 + (int) $book['book_id'],
+                metadata: ['book_id' => (int) $book['book_id'], 'completion_count' => (int) $book['completed_count']]
             )));
 
         $this->testamentProgressGoals($overallProgress)
@@ -504,6 +709,10 @@ class AchievementService
      */
     private function celebrationCopy(UserAchievement $achievement): array
     {
+        if (app()->getLocale() === 'fr') {
+            return $this->localizedCopy($achievement);
+        }
+
         $completionNumber = (int) ($achievement->metadata['completion_number'] ?? 1);
 
         if ($achievement->achievement_key !== 'book_completed' || $completionNumber < 2) {
@@ -1344,7 +1553,8 @@ class AchievementService
         int $current,
         int $target,
         int $priority,
-        int $sortOrder
+        int $sortOrder,
+        array $metadata = []
     ): array {
         $current = min($current, $target);
 
@@ -1361,6 +1571,7 @@ class AchievementService
             'remaining' => max(0, $target - $current),
             'priority' => $priority,
             'sort_order' => $sortOrder,
+            'metadata' => $metadata,
         ];
     }
 

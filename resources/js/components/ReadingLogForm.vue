@@ -26,10 +26,12 @@
                     <div class="relative min-w-0 flex-1 focus-within:z-20">
                         <select id="book_id" v-model="values.book_id" name="book_id" required class="form-input -ml-px w-full rounded-s-none shadow-none" :aria-label="messages.book_label" :aria-invalid="Boolean(errors.book_id)" :aria-describedby="errors.book_id ? 'book_id-error' : undefined">
                             <option value="">{{ messages.select_book }}</option>
+                            <option v-if="bookUnavailable" :value="values.book_id">{{ copy.unavailableBook }}</option>
                             <option v-for="book in visibleBooks" :key="book.id" :value="String(book.id)">{{ book.name }}</option>
                         </select>
                     </div>
                 </div>
+                <output v-if="bookUnavailable" class="block text-sm text-gray-600 dark:text-gray-400">{{ copy.unavailableBookHelp }}</output>
                 <div v-if="recentBooks.length" data-recent-books class="recent-books-rail -mt-1 flex max-w-full items-center gap-2 overflow-x-auto py-1 [-webkit-overflow-scrolling:touch]" :class="{ 'is-scrolling': isScrolling }" @scroll.passive="recentScroll">
                     <p id="recent-books-label" class="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">{{ messages.recent }}</p>
                     <div class="flex min-w-0 flex-nowrap gap-2" role="group" aria-labelledby="recent-books-label">
@@ -60,7 +62,7 @@
                         <label for="notes_text" class="form-label">{{ messages.note }}</label>
                         <div class="flex items-center gap-3">
                             <span class="text-xs font-medium text-gray-500 tabular-nums dark:text-gray-400">{{ values.notes_text.length }}/1000</span>
-                            <button ref="expandNoteButton" type="button" class="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-primary-700 hover:bg-primary-50 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-primary-300 dark:hover:bg-gray-700" @click="noteExpanded = true">Expand</button>
+                            <button ref="expandNoteButton" type="button" class="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-primary-700 hover:bg-primary-50 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-primary-300 dark:hover:bg-gray-700" @click="noteExpanded = true">{{ copy.expand }}</button>
                         </div>
                     </div>
                     <textarea id="notes_text" v-model="values.notes_text" name="notes_text" rows="3" maxlength="1000" class="form-input resize-y" :placeholder="messages.note_placeholder" :aria-invalid="Boolean(errors.notes_text)" :aria-describedby="errors.notes_text ? 'notes_text-error' : undefined"></textarea>
@@ -80,22 +82,28 @@
             </template>
         </div>
     </form>
-    <ReadingNoteDialog v-if="noteExpanded" v-model="values.notes_text" :title="messages.note" :label="messages.note" :placeholder="messages.note_placeholder" description="Draft for this reading. Return to the form to log it." draft @close="closeNoteEditor" @submit="closeNoteEditor" />
+    <ReadingNoteDialog v-if="noteExpanded" v-model="values.notes_text" :title="messages.note" :label="messages.note" :placeholder="messages.note_placeholder" :description="copy.noteDraftDescription" draft @close="closeNoteEditor" @submit="closeNoteEditor" />
     <ReadingCelebration v-if="celebration" :payload="celebration" :achievements-url="config.achievementsUrl" :badge-base-url="config.achievementBadgeBaseUrl" @close="closeCelebration" />
     <TransientNotice :message="success" :suspended="Boolean(celebration)" :dismiss-label="messages.dismiss_success" @dismiss="dismissSuccess" />
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { consumeReadingLogOutcome, initializeReadingLogForm, setReadingLogUncertain, submitReadingLog, updateReadingLogSnapshot } from '@/components/reading-log-session.ts';
+import { consumeReadingLogOutcome, initializeReadingLogForm, readingSuccessPresentation, readingValidationPresentation, setReadingLogUncertain, submitReadingLog, updateReadingLogDateContext, updateReadingLogSnapshot } from '@/components/reading-log-session.ts';
 import ReadingCelebration from '@/components/ReadingCelebration.vue';
 import TransientNotice from '@/components/TransientNotice.vue';
 import ReadingNoteDialog from '@/components/ReadingNoteDialog.vue';
 import type { BibleBook, ReadingCelebration as ReadingCelebrationPayload, ReadingFormConfig, ReadingOutcome, ReadingSession, ReadingValues } from '@/components/reading-log-types';
+import { useReaderCopy } from '@/reader-copy';
+import { isReadingBookAvailable, refreshReadingDates } from '@/reading-drafts';
+import type { ReaderPageProps } from '@/reader-types';
+import { usePage } from '@inertiajs/vue3';
 
 const { config, session } = defineProps<{ config: ReadingFormConfig; session: ReadingSession }>();
 const emit = defineEmits<{ leaveWarning: [needed: boolean] }>();
-const messages = config.messages;
+const messages = computed(() => config.messages);
+const copy = useReaderCopy();
+const page = usePage<ReaderPageProps>();
 
 const initialForm = initializeReadingLogForm(session, config);
 const form = ref<HTMLFormElement | null>(null);
@@ -105,8 +113,18 @@ const menuOpen = ref(false);
 const books = ref(config.books);
 const recentBooks = ref(config.recentBooks);
 const dates = ref(initialForm.dates);
+watch(() => config, (confirmed) => {
+    books.value = confirmed.books;
+    recentBooks.value = confirmed.recentBooks;
+    if (!session.pending && !session.uncertain) {
+        refreshReadingDates(session, confirmed.dates, page.props.reader.readingTimezone);
+        dates.value = { ...confirmed.dates };
+        values.date_read = session.snapshot.values.date_read;
+        errors.value = confirmed.errors;
+        errorScopes.value = confirmed.errorScopes;
+    }
+});
 const values = reactive({ ...initialForm.values });
-if (!books.value.some((book) => String(book.id) === String(values.book_id))) values.book_id = '';
 const collection = ref(books.value.find((book) => String(book.id) === String(values.book_id))?.testament ?? session.snapshot.collection);
 const notesOpen = ref(session.snapshot.notesOpen || Boolean(values.notes_text));
 const noteExpanded = ref(false);
@@ -128,7 +146,7 @@ function chapterDescription(field: keyof ReadingValues) {
 const saving = ref(Boolean(session.pending));
 const success = ref(config.successMessage);
 const celebration = ref<ReadingCelebrationPayload | null>(null);
-const notice = ref(session.uncertain ? messages.uncertain_error : '');
+const notice = ref(session.uncertain ? messages.value.uncertain_error : '');
 const uncertain = ref(session.uncertain);
 const isScrolling = ref(false);
 const needsLeaveWarning = computed(() => saving.value || uncertain.value || Boolean(values.book_id || values.start_chapter || values.end_chapter || values.notes_text || values.date_read !== dates.value.today));
@@ -137,12 +155,13 @@ watch(needsLeaveWarning, needed => emit('leaveWarning', needed), { immediate: tr
 let scrollTimer: ReturnType<typeof setTimeout> | undefined;
 let active = true;
 
-const collections = computed(() => Object.entries(messages.collections).filter(([key]) => books.value.some((book) => book.testament === key)));
+const collections = computed(() => Object.entries(messages.value.collections).filter(([key]) => books.value.some((book) => book.testament === key)));
 const visibleBooks = computed(() => books.value.filter((book) => book.testament === collection.value));
 const selectedBook = computed(() => books.value.find((book) => String(book.id) === String(values.book_id)));
+const bookUnavailable = computed(() => Boolean(values.book_id) && !isReadingBookAvailable(values.book_id, books.value));
 const chapterNote = computed(() => {
-    if (selectedBook.value?.id === 17 && selectedBook.value.chapters === 16) return messages.chapter_notes.esther_additions;
-    if (selectedBook.value?.id === 27 && selectedBook.value.chapters === 14) return messages.chapter_notes.daniel_additions;
+    if (selectedBook.value?.id === 17 && selectedBook.value.chapters === 16) return messages.value.chapter_notes.esther_additions;
+    if (selectedBook.value?.id === 27 && selectedBook.value.chapters === 14) return messages.value.chapter_notes.daniel_additions;
     return '';
 });
 
@@ -201,44 +220,67 @@ function recentScroll() {
     scrollTimer = setTimeout(() => { isScrolling.value = false; }, 700);
 }
 
+function handleSuccess(outcome: Extract<ReadingOutcome, { kind: 'success' }>) {
+    const data = outcome.data;
+    const currentContext = {
+        userId: page.props.reader.user.id,
+        locale: config.locale,
+        timeZone: page.props.reader.readingTimezone,
+        includeDeuterocanonical: page.props.reader.includeDeuterocanonical,
+    };
+    const presentation = readingSuccessPresentation(outcome, currentContext, {
+        books: config.books,
+        recentBooks: config.recentBooks,
+        dates: dates.value,
+        values: config.values,
+    });
+    books.value = presentation.books;
+    recentBooks.value = presentation.recentBooks;
+    dates.value = { ...presentation.dates };
+    Object.assign(values, presentation.values);
+    collection.value = 'old';
+    notesOpen.value = false;
+    errors.value = {};
+    errorScopes.value = {};
+    notice.value = '';
+    uncertain.value = false;
+    celebration.value = presentation.current && (data.celebration.earned.length || data.celebration.record) ? presentation.celebration : null;
+    const submitted = outcome.submission.submittedValues;
+    const latestDates = presentation.dates;
+    const dateLabel = new Intl.DateTimeFormat(config.locale ?? 'en', {
+        month: 'short', day: 'numeric', timeZone: 'UTC',
+    }).format(new Date(`${submitted.date_read}T12:00:00Z`));
+    success.value = presentation.reference ? messages.value.saved.replace(':passage', presentation.reference).replace(':date', dateLabel) : copy.value.readingSaved;
+    updateReadingLogDateContext(session, latestDates, currentContext.timeZone);
+    snapshot();
+}
+
+async function handleValidation(outcome: Extract<ReadingOutcome, { kind: 'validation' }>) {
+    const refreshedForm = initializeReadingLogForm(session, { dates: dates.value });
+    dates.value = refreshedForm.dates;
+    values.date_read = refreshedForm.values.date_read;
+    const presentation = readingValidationPresentation(outcome, config.locale, copy.value.validationRetry);
+    errors.value = presentation.errors;
+    errorScopes.value = presentation.errorScopes;
+    if (errors.value.notes_text) notesOpen.value = true;
+    notice.value = presentation.notice;
+    await nextTick();
+    form.value?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+}
+
 async function handleOutcome(pending: Promise<ReadingOutcome>) {
     const settledOutcome = await pending;
     if (!active) return;
     const outcome = consumeReadingLogOutcome(session) ?? settledOutcome;
     saving.value = false;
     if (outcome.kind === 'success') {
-        const data = outcome.data;
-        const refreshedForm = initializeReadingLogForm(session, { dates: dates.value });
-        books.value = data.form.books;
-        recentBooks.value = data.form.recent_books;
-        dates.value = refreshedForm.dates;
-        Object.assign(values, refreshedForm.values);
-        collection.value = 'old';
-        notesOpen.value = false;
-        errors.value = {};
-        errorScopes.value = {};
-        notice.value = '';
-        uncertain.value = false;
-        celebration.value = data.celebration.earned.length || data.celebration.record ? data.celebration : null;
-        const dateLabel = new Intl.DateTimeFormat(config.locale ?? 'en', {
-            month: 'short', day: 'numeric', timeZone: 'UTC',
-        }).format(new Date(`${data.reading.date_read}T12:00:00Z`));
-        success.value = messages.saved.replace(':passage', data.reading.passage_text).replace(':date', dateLabel);
-        snapshot();
+        handleSuccess(outcome);
     } else if (outcome.kind === 'validation') {
-        const refreshedForm = initializeReadingLogForm(session, { dates: dates.value });
-        dates.value = refreshedForm.dates;
-        values.date_read = refreshedForm.values.date_read;
-        errors.value = outcome.errors;
-        errorScopes.value = outcome.errorScopes;
-        if (errors.value.notes_text) notesOpen.value = true;
-        notice.value = '';
-        await nextTick();
-        form.value?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+        await handleValidation(outcome);
     } else {
         uncertain.value = outcome.kind === 'uncertain';
-        notice.value = outcome.kind === 'session' ? messages.session_error
-            : uncertain.value ? messages.uncertain_error : messages.request_error;
+        if (outcome.kind === 'session') notice.value = messages.value.session_error;
+        else notice.value = uncertain.value ? messages.value.uncertain_error : messages.value.request_error;
     }
 }
 
@@ -252,6 +294,12 @@ async function submit() {
     success.value = '';
     await handleOutcome(submitReadingLog(session, values, {
         url: config.submitUrl, csrfToken: config.csrfToken,
+        context: {
+            userId: page.props.reader.user.id,
+            locale: config.locale,
+            timeZone: page.props.reader.readingTimezone,
+            includeDeuterocanonical: page.props.reader.includeDeuterocanonical,
+        },
         onSaved: () => document.body.dispatchEvent(new CustomEvent('readingLogAdded', { bubbles: true })),
     }));
 }

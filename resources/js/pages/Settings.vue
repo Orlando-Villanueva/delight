@@ -1,9 +1,9 @@
 <template>
-    <Head><title>Settings</title></Head>
+    <Head><title>{{ copy.settingsTitle }}</title></Head>
     <section class="mx-auto w-full max-w-3xl" aria-labelledby="settings-title">
         <header class="mb-6">
-            <h1 id="settings-title" class="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
-            <p class="mt-1 text-gray-600 dark:text-gray-400">Manage your reading preferences.</p>
+            <h1 id="settings-title" class="text-2xl font-bold text-gray-900 dark:text-white">{{ copy.settingsTitle }}</h1>
+            <p class="mt-1 text-gray-600 dark:text-gray-400">{{ copy.settingsDescription }}</p>
         </header>
         <form
             ref="element"
@@ -12,19 +12,30 @@
             @submit.prevent="save"
         >
             <fieldset :disabled="form.processing || deviceBusy" class="space-y-6">
-                <label class="flex min-h-11 items-start justify-between gap-4">
+                <div class="space-y-6">
+                <section aria-labelledby="language-title" class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-center">
+                    <div class="space-y-2">
+                    <label id="language-title" for="preferred_locale" class="block text-lg font-semibold text-gray-900 dark:text-white">{{ copy.language }}</label>
+                    <p id="language-help" class="text-sm leading-6 text-gray-600 dark:text-gray-400">{{ copy.languageHelp }}</p>
+                    </div>
+                    <div>
+                    <select id="preferred_locale" v-model="form.preferred_locale" name="preferred_locale" aria-describedby="language-help preferred_locale-error" :aria-invalid="form.errors.preferred_locale ? 'true' : undefined" class="form-input w-full rounded-lg">
+                        <option value="en">English</option>
+                        <option value="fr">Français</option>
+                    </select>
+                    <p v-if="form.errors.preferred_locale" id="preferred_locale-error" role="alert" class="text-sm text-red-700 dark:text-red-300">{{ form.errors.preferred_locale }}</p>
+                    </div>
+                </section>
+                <label class="flex min-h-11 items-start justify-between gap-6 border-t border-gray-200 pt-6 dark:border-gray-700">
                     <span class="space-y-2">
-                        <span class="block text-lg font-semibold text-gray-900 dark:text-white">Deuterocanonical books</span>
-                        <span id="canon-help" class="block text-sm leading-6 text-gray-600 dark:text-gray-400"
-                            >Include Tobit, Judith, Wisdom, Sirach, Baruch, 1-2 Maccabees, and the Catholic-integrated additions to Esther
-                            and Daniel when logging readings.</span
-                        >
+                        <span class="block text-lg font-semibold text-gray-900 dark:text-white">{{ copy.deuterocanonical }}</span>
+                        <span id="canon-help" class="block text-sm leading-6 text-gray-600 dark:text-gray-400">{{ copy.deuterocanonicalHelp }}</span>
                     </span>
                     <input
                         v-model="form.include_deuterocanonical"
                         type="checkbox"
                         name="include_deuterocanonical"
-                        aria-label="Include deuterocanonical books"
+                        :aria-label="copy.includeDeuterocanonical"
                         aria-describedby="canon-help"
                         class="peer sr-only"
                     />
@@ -32,10 +43,11 @@
                         class="relative mt-1 h-6 w-11 shrink-0 rounded-full bg-gray-200 after:absolute after:start-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all peer-checked:bg-primary-600 peer-checked:after:translate-x-full peer-focus:ring-4 peer-focus:ring-primary-300 dark:bg-gray-700 dark:peer-focus:ring-primary-800"
                     ></span>
                 </label>
-                <BrowserReminders :config="push" :csrf-token="page.props.reader.csrfToken" @busy="deviceBusy = $event" />
+                </div>
+                <BrowserReminders :key="page.props.reader.locale" :config="push" :csrf-token="page.props.reader.csrfToken" @busy="deviceBusy = $event" />
                 <section aria-labelledby="reminder-schedule-title" class="border-t border-gray-200 pt-6 dark:border-gray-700">
-                    <h2 id="reminder-schedule-title" class="text-lg font-semibold text-gray-900 dark:text-white">Reminder schedule</h2>
-                    <p class="mt-2 mb-3 text-sm text-gray-600 dark:text-gray-400">Save changes below.</p>
+                    <h2 id="reminder-schedule-title" class="text-lg font-semibold text-gray-900 dark:text-white">{{ copy.reminderSchedule }}</h2>
+                    <p class="mt-2 mb-3 text-sm text-gray-600 dark:text-gray-400">{{ copy.saveChangesBelow }}</p>
                     <div class="divide-y divide-gray-200 dark:divide-gray-700">
                         <label v-for="preference in reminders" :key="preference.name" class="flex min-h-11 items-start gap-3 py-3">
                             <input
@@ -55,11 +67,8 @@
                     </div>
                 </section>
                 <div class="space-y-3 border-t border-gray-200 pt-6 dark:border-gray-700">
-                    <label for="reading_timezone" class="text-lg font-semibold text-gray-900 dark:text-white">Time zone</label>
-                    <p id="timezone-help" class="text-sm leading-6 text-gray-600 dark:text-gray-400">
-                        Used for your reading days, streaks, and reminders. Set automatically and stays the same when you travel. Offsets
-                        shown are current.
-                    </p>
+                    <label for="reading_timezone" class="text-lg font-semibold text-gray-900 dark:text-white">{{ copy.timeZone }}</label>
+                    <p id="timezone-help" class="text-sm leading-6 text-gray-600 dark:text-gray-400">{{ copy.timeZoneHelp }}</p>
                     <select
                         id="reading_timezone"
                         v-model="form.reading_timezone"
@@ -81,14 +90,14 @@
                     class="grid gap-4 border-t border-gray-200 pt-6 dark:border-gray-700 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                 >
                     <p role="status" aria-live="polite" class="text-sm font-medium text-success-600 dark:text-success-400">
-                        {{ form.isDirty ? 'Unsaved changes' : page.props.status }}
+                        {{ form.isDirty ? '' : page.props.status }}
                     </p>
                     <button
                         type="submit"
                         :disabled="form.processing || deviceBusy || !form.isDirty"
                         class="min-h-11 justify-self-end rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-accent-600 focus-visible:outline-2 focus-visible:outline-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        {{ form.processing ? 'Saving…' : 'Save settings' }}
+                        {{ form.processing ? copy.savingSettings : copy.saveSettings }}
                     </button>
                 </div>
             </fieldset>
@@ -97,28 +106,39 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { useLeaveWarning } from '@/useLeaveWarning';
 import BrowserReminders from '@/components/BrowserReminders.vue';
 import type { ReaderPageProps, SettingsProps } from '@/reader-types';
+import { useReaderCopy } from '@/reader-copy';
+import { reconcileSettings } from '@/settings-state';
 
 const props = defineProps<SettingsProps>();
 const page = usePage<ReaderPageProps>();
+const copy = useReaderCopy();
 const form = useForm({ ...props.values });
+const confirmedValues = ref({ ...props.values });
+
+watch(() => props.values, (confirmed) => {
+    if (form.processing) return;
+    const reconciled = reconcileSettings(form.data(), confirmedValues.value, confirmed);
+    form.defaults({ ...confirmed });
+    Object.assign(form, reconciled);
+    confirmedValues.value = { ...confirmed };
+});
 const element = ref<HTMLFormElement | null>(null);
 const deviceBusy = ref(false);
 
-const reminders: { name: 'daily_reading_reminder_enabled' | 'streak_warning_enabled'; label: string; help: string }[] = [
-    { name: 'daily_reading_reminder_enabled', label: '09:00 daily reminder', help: 'Sends only when today has no reading log.' },
+const reminders = computed(() => [
+    { name: 'daily_reading_reminder_enabled' as const, label: copy.value.dailyReminder, help: copy.value.dailyReminderHelp },
     {
-        name: 'streak_warning_enabled',
-        label: '18:00 streak warning',
-        help: 'Sends only when yesterday was read and today is still unread.',
+        name: 'streak_warning_enabled' as const,
+        label: copy.value.streakWarning,
+        help: copy.value.streakWarningHelp,
     },
-];
-const otherErrors = computed(() => Object.fromEntries(Object.entries(form.errors).filter(([field]) => field !== 'reading_timezone')));
-
+]);
+const otherErrors = computed(() => Object.fromEntries(Object.entries(form.errors).filter(([field]) => !['reading_timezone', 'preferred_locale'].includes(field))));
 function save() {
     if (form.processing || deviceBusy.value) return;
     form.patch(props.updateUrl, {
@@ -126,6 +146,7 @@ function save() {
         onSuccess: () => {
             Object.assign(form, props.values);
             form.defaults({ ...props.values });
+            confirmedValues.value = { ...props.values };
         },
         onError: async () => {
             await nextTick();
@@ -134,5 +155,5 @@ function save() {
     });
 }
 
-useLeaveWarning(() => form.isDirty || form.processing || deviceBusy.value, 'Leave without saving your settings?');
+useLeaveWarning(() => form.isDirty || form.processing || deviceBusy.value, () => copy.value.leaveSettings);
 </script>

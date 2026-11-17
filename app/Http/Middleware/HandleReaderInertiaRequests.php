@@ -46,8 +46,11 @@ class HandleReaderInertiaRequests extends Middleware
             'status' => fn () => $request->session()->get('status'),
             'reader' => fn () => $user ? [
                 'appName' => config('app.name'),
+                'locale' => app()->getLocale(),
+                'readingTimezone' => $user->reading_timezone ?? config('app.timezone'),
+                'includeDeuterocanonical' => $user->includesDeuterocanonicalBooks(),
                 'logoUrl' => asset('images/logo-64.png').'?v='.config('app.asset_version'),
-                'user' => ['name' => $user->name, 'email' => $user->email, 'avatar' => $user->avatar_url],
+                'user' => ['id' => (int) $user->id, 'name' => $user->name, 'email' => $user->email, 'avatar' => $user->avatar_url],
                 'csrfToken' => csrf_token(),
                 'unreadCount' => $user->unreadAnnouncements()->count(),
                 'announcements' => Announcement::visible()

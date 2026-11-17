@@ -1,7 +1,7 @@
 import { onBeforeUnmount, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 
-export function useLeaveWarning(needed: () => boolean, message: string) {
+export function useLeaveWarning(needed: () => boolean, message: string | (() => string), warnOnVisit: () => boolean = needed) {
     let removeBeforeVisit: (() => void) | undefined;
 
     function beforeUnload(event: BeforeUnloadEvent) {
@@ -13,7 +13,8 @@ export function useLeaveWarning(needed: () => boolean, message: string) {
     onMounted(() => {
         window.addEventListener('beforeunload', beforeUnload);
         removeBeforeVisit = router.on('before', event => {
-            if (event.detail.visit.method === 'get' && needed() && !window.confirm(message)) event.preventDefault();
+            const prompt = typeof message === 'function' ? message() : message;
+            if (event.detail.visit.method === 'get' && warnOnVisit() && !window.confirm(prompt)) event.preventDefault();
         });
     });
 

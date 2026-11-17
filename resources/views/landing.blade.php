@@ -6,15 +6,17 @@
         return file_exists($absolutePath) ? $url.'?v='.filemtime($absolutePath) : $url;
     };
 
-    $desktopScreenshot = $versionedAsset('images/screenshots/desktop-v3.png');
+    $screenshotLocale = app()->getLocale() === 'fr' ? 'fr' : 'en';
+    [$desktopWidth, $desktopHeight] = getimagesize(public_path("images/screenshots/dashboard-web-{$screenshotLocale}.jpg"));
+    $desktopScreenshot = $versionedAsset("images/screenshots/dashboard-web-{$screenshotLocale}.jpg");
     $androidScreenshot = $versionedAsset('images/screenshots/android-home-v1.png');
     $linkPreviewScreenshot = $versionedAsset('images/screenshots/link-preview.png');
-    $landingDescription = 'Track Bible chapters, see your progress, and choose optional native reading reminders in Delight for Android. Browser reminders are available on supported web devices.';
-    $landingShareDescription = 'A free Bible reading tracker with progress, streaks, and optional native Android reminders. Browser reminders are available on supported devices.';
+    $landingDescription = __('Track Bible chapters, see your progress, and choose optional native reading reminders in Delight for Android. Browser reminders are available on supported web devices.');
+    $landingShareDescription = __('A free Bible reading tracker with progress, streaks, and optional native Android reminders. Browser reminders are available on supported devices.');
     $structuredData = [
         '@context' => 'https://schema.org',
         '@type' => 'WebApplication',
-        'name' => 'Delight - Bible Reading Tracker',
+        'name' => __('Delight - Bible Reading Tracker'),
         'description' => $landingShareDescription,
         'url' => config('app.url'),
         'applicationCategory' => 'LifestyleApplication',
@@ -31,27 +33,29 @@
             '@type' => 'Organization',
             'name' => 'Delight',
         ],
-        'keywords' => 'bible reading plan, bible reading plan app, bible tracking app, bible reading tracker, bible habit tracker',
+        'keywords' => app()->getLocale() === 'fr'
+            ? 'plan de lecture biblique, application de suivi biblique, suivi des chapitres de la Bible, habitudes de lecture biblique'
+            : 'bible reading plan, bible reading plan app, bible tracking app, bible reading tracker, bible habit tracker',
         'screenshot' => [
             $desktopScreenshot,
             $androidScreenshot,
         ],
         'featureList' => [
-            'Reading Plans',
-            'Daily Streak Tracking',
-            'Daily Reading Log',
-            'Optional Native Android and Browser Reading Reminders',
-            'Book Completion Grid',
-            'Optional Catholic 73-Book Support',
-            'Reading Statistics',
-            'Permanent Achievement Shelf',
-            'Next Milestone Guidance',
+            __('Reading Plans'),
+            __('Daily Streak Tracking'),
+            __('Daily Reading Log'),
+            __('Optional Native Android and Browser Reading Reminders'),
+            __('Book Completion Grid'),
+            __('Optional Catholic 73-Book Support'),
+            __('Reading Statistics'),
+            __('Permanent Achievement Shelf'),
+            __('Next Milestone Guidance'),
         ],
     ];
 @endphp
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}">
 
 <head>
     <meta charset="utf-8">
@@ -59,7 +63,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- SEO Meta Tags -->
-    <title>{{ config('app.name', 'Delight') }} - Bible Reading Tracker</title>
+    <title>{{ config('app.name', 'Delight') }} - {{ __('Bible Reading Tracker') }}</title>
     <meta name="description" content="{{ $landingDescription }}">
     <meta name="keywords"
         content="bible reading plan, bible reading plan app, bible tracking app, bible reading tracker, bible habit tracker, bible reading accountability, scripture reading app, daily bible reading, bible progress tracker">
@@ -68,7 +72,7 @@
     <link rel="canonical" href="{{ config('app.url') }}">
 
     <!-- Additional SEO Meta Tags -->
-    <meta name="language" content="English">
+    <meta name="language" content="{{ app()->getLocale() === 'fr' ? 'French' : 'English' }}">
     <meta name="revisit-after" content="7 days">
     <meta name="distribution" content="web">
     <meta name="rating" content="general">
@@ -79,7 +83,7 @@
     <link rel="sitemap" type="application/xml" title="Sitemap" href="{{ config('app.url') }}/sitemap.xml">
 
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Delight - Bible Reading Tracker">
+    <meta property="og:title" content="{{ __('Delight - Bible Reading Tracker') }}">
     <meta property="og:description" content="{{ $landingShareDescription }}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ config('app.url') }}">
@@ -88,14 +92,14 @@
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Delight - Bible Reading Tracker">
+    <meta name="twitter:title" content="{{ __('Delight - Bible Reading Tracker') }}">
     <meta name="twitter:description" content="{{ $landingShareDescription }}">
     <meta name="twitter:image" content="{{ $linkPreviewScreenshot }}">
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon-app.ico') }}?v={{ config('app.asset_version') }}">
     <link rel="apple-touch-icon" sizes="192x192" href="{{ asset('images/app-icon-v2-192.png') }}?v={{ config('app.asset_version') }}">
-    <link rel="manifest" href="{{ route('pwa.manifest', ['v' => config('app.asset_version')]) }}">
+    <link rel="manifest" crossorigin="use-credentials" href="{{ route('pwa.manifest', ['v' => config('app.asset_version')]) }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
@@ -117,32 +121,32 @@
     <!-- Skip to main content link for screen readers -->
     <a href="#main-content"
         class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-blue-600 text-white px-4 py-2 rounded-md z-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-        Skip to main content
+        {{ __("Skip to main content") }}
     </a>
 
     <!-- Navigation -->
-    <nav class="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100" role="navigation"
-        aria-label="Main navigation">
+    <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100" role="navigation"
+        aria-label="{{ __("Main navigation") }}">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
+            <div class="flex flex-wrap justify-between items-center gap-x-3 gap-y-2 py-3">
                 <!-- Brand Logo -->
                 <div class="flex-shrink-0">
                     <a href="{{ route('landing') }}"
                         class="flex items-center space-x-2 text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md"
-                        aria-label="Delight - Go to homepage">
+                        aria-label="{{ __("Delight - Go to homepage") }}">
                         <img src="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}"
                             srcset="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }} 1x, {{ asset('images/logo-64-2x.png') }}?v={{ config('app.asset_version') }} 2x"
-                            alt="Delight logo - Bible reading habit tracker" class="w-8 h-8" width="32"
+                            alt="{{ __('Delight logo - Bible reading habit tracker') }}" class="w-8 h-8" width="32"
                             height="32" loading="eager" decoding="async" />
                         <span>Delight</span>
                     </a>
                 </div>
 
                 <!-- Navigation Actions -->
-                <div class="flex items-center space-x-4" role="group" aria-label="Account actions">
+                <div class="ml-auto flex items-center gap-2 sm:gap-4">
                     <div class="hidden sm:block">
                         <x-ui.button variant="ghost" href="{{ route('android.download') }}"
-                            aria-label="Get Delight for Android" class="gap-1.5">
+                            aria-label="{{ __('Get Delight for Android') }}" class="gap-1.5">
                             <img src="{{ asset('images/android-robot-head.svg') }}" alt="" width="24" height="15" class="h-auto w-5">
                             Android
                         </x-ui.button>
@@ -150,24 +154,27 @@
                     @auth
                         <a href="{{ route('dashboard') }}"
                             class="text-gray-700 hover:text-blue-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-2 py-1"
-                            aria-label="Go to your dashboard">
-                            Dashboard
+                            aria-label="{{ __("Dashboard") }}: {{ __("Go to your dashboard") }}">
+                            {{ __("Dashboard") }}
                         </a>
                     @else
-                        <x-ui.button variant="ghost" href="{{ route('login') }}" aria-label="Sign in to your account">
-                            Sign In
+                        <x-ui.button variant="ghost" href="{{ route('login') }}" aria-label="{{ __('Sign in to your account') }}">
+                            {{ __("Sign In") }}
                         </x-ui.button>
-                        <x-ui.button variant="accent" href="{{ route('register') }}" aria-label="Create a new account">
-                            Get Started
+                        <x-ui.button variant="accent" href="{{ route('register') }}" aria-label="{{ __('Create a new account') }}">
+                            {{ __("Get Started") }}
                         </x-ui.button>
                     @endauth
+                </div>
+                <div class="flex shrink-0 justify-end">
+                    <x-language-switcher />
                 </div>
             </div>
         </div>
     </nav>
 
     <!-- Main Content -->
-    <main class="pt-16" id="main-content" role="main">
+    <main id="main-content" role="main">
         <!-- Hero Section -->
         <section class="relative bg-gradient-to-bl from-blue-50 to-white py-12 sm:py-20 lg:py-32"
             aria-labelledby="hero-heading">
@@ -176,26 +183,28 @@
                     <!-- Hero Content -->
                     <div class="text-center lg:text-left lg:pr-24">
                         <h1 id="hero-heading" class="text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-6">
-                            Keep your Bible reading going, wherever you read
+                            {{ __("Keep your Bible reading going, wherever you read") }}
                         </h1>
                         <p class="text-xl text-gray-600 mb-6 leading-relaxed">
-                            Read from your Bible or favorite app. Log chapters in Delight, see your progress, and choose a
-                            gentle reminder when you need one.
+                            {{ __("Read from your Bible or favorite app. Log chapters in Delight, see your progress, and choose a gentle reminder when you need one.") }}
                         </p>
 
                         <!-- Primary CTA -->
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-center lg:justify-start gap-4">
                             <x-ui.button variant="accent" size="lg" href="{{ route('register') }}"
                                 class="whitespace-normal sm:whitespace-nowrap">
-                                Create Your Free Account
+                                {{ __("Create Your Free Account") }}
                             </x-ui.button>
                             <x-ui.button variant="primary" size="lg" href="{{ route('android.download') }}"
-                                aria-label="Get Delight for Android"
+                                aria-label="{{ __('Get Delight for Android') }}"
                                 class="whitespace-normal sm:whitespace-nowrap">
                                 <img src="{{ asset('images/android-robot-head.svg') }}" alt="" width="24" height="15" class="h-auto w-5">
-                                Get Delight for Android
+                                {{ __("Get Delight for Android") }}
                             </x-ui.button>
                         </div>
+                        @if (app()->getLocale() === 'fr')
+                            <p class="mt-3 text-sm text-gray-500">{{ __('The Android app is currently in English.') }}</p>
+                        @endif
                     </div>
 
                     <!-- Hero Visual -->
@@ -204,8 +213,8 @@
                         <div class="hidden lg:block bg-white rounded-2xl shadow-2xl p-0 transform rotate-1">
                             <div class="rounded-lg overflow-hidden">
                                 <img src="{{ $desktopScreenshot }}"
-                                    alt="Delight desktop dashboard showing daily streak, next milestone, summary stats, calendar, and reading progress grid"
-                                    class="w-full h-auto max-w-full" width="3456" height="1924" loading="eager"
+                                    alt="{{ __('Delight desktop dashboard showing daily streak, next milestone, summary stats, calendar, and reading progress grid') }}"
+                                    class="w-full h-auto max-w-full" width="{{ $desktopWidth }}" height="{{ $desktopHeight }}" loading="eager"
                                     fetchpriority="high" decoding="async" />
                             </div>
                         </div>
@@ -215,7 +224,7 @@
                             <div class="w-full max-w-60 rounded-2xl border-4 border-gray-950 bg-white shadow-2xl">
                                 <div class="rounded-xl overflow-hidden">
                                     <img src="{{ $androidScreenshot }}"
-                                        alt="Delight native Android home screen showing a logged reading, reading streak, and 14-day reading rhythm"
+                                        alt="{{ __('Delight native Android home screen showing a logged reading, reading streak, and 14-day reading rhythm') }}"
                                         class="w-full h-auto" width="1080" height="2183" loading="lazy"
                                         decoding="async" />
                                 </div>
@@ -227,7 +236,7 @@
                             class="hidden lg:block absolute -bottom-6 -right-6 w-36 sm:w-40 lg:w-48 rounded-xl border-4 border-gray-950 bg-white shadow-xl transform rotate-6">
                             <div class="rounded-lg overflow-hidden">
                                 <img src="{{ $androidScreenshot }}"
-                                    alt="Delight native Android home screen showing a logged reading, reading streak, and 14-day reading rhythm"
+                                    alt="{{ __('Delight native Android home screen showing a logged reading, reading streak, and 14-day reading rhythm') }}"
                                     class="w-full h-auto max-w-full" width="1080" height="2183" loading="lazy"
                                     decoding="async" fetchpriority="low" />
                             </div>
@@ -241,27 +250,27 @@
         <section class="bg-white py-12 sm:py-20" aria-labelledby="steps-heading">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="mx-auto max-w-3xl text-center">
-                    <h2 id="steps-heading" class="text-3xl font-bold text-gray-900 md:text-4xl">Your reading, clearly recorded</h2>
-                    <p class="mt-4 text-lg leading-relaxed text-gray-600">Keep using the Bible you love. Delight helps you remember what you read and see your progress grow.</p>
+                    <h2 id="steps-heading" class="text-3xl font-bold text-gray-900 md:text-4xl">{{ __("Your reading, clearly recorded") }}</h2>
+                    <p class="mt-4 text-lg leading-relaxed text-gray-600">{{ __("Keep using the Bible you love. Delight helps you remember what you read and see your progress grow.") }}</p>
                 </div>
-                <ol class="mt-10 grid gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 md:grid-cols-3" aria-label="How Delight works">
+                <ol class="mt-10 grid gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 md:grid-cols-3" aria-label="{{ __('How Delight works') }}">
                     <li class="bg-white p-6 md:p-7">
                         <span class="text-sm font-bold text-primary-700">01</span>
-                        <h3 class="mt-3 text-xl font-semibold text-gray-900">Read where you prefer</h3>
-                        <p class="mt-2 leading-relaxed text-gray-600">Use your paper Bible or favorite Bible app.</p>
+                        <h3 class="mt-3 text-xl font-semibold text-gray-900">{{ __("Read where you prefer") }}</h3>
+                        <p class="mt-2 leading-relaxed text-gray-600">{{ __("Use your paper Bible or favorite Bible app.") }}</p>
                     </li>
                     <li class="bg-white p-6 md:p-7">
                         <span class="text-sm font-bold text-accent-700">02</span>
-                        <h3 class="mt-3 text-xl font-semibold text-gray-900">Log your chapters</h3>
-                        <p class="mt-2 leading-relaxed text-gray-600">Record what you read, with or without a plan.</p>
+                        <h3 class="mt-3 text-xl font-semibold text-gray-900">{{ __("Log your chapters") }}</h3>
+                        <p class="mt-2 leading-relaxed text-gray-600">{{ __("Record what you read, with or without a plan.") }}</p>
                     </li>
                     <li class="bg-white p-6 md:p-7">
                         <span class="text-sm font-bold text-success-700">03</span>
-                        <h3 class="mt-3 text-xl font-semibold text-gray-900">See your progress</h3>
-                        <p class="mt-2 leading-relaxed text-gray-600">Return to your history, streaks, and milestones.</p>
+                        <h3 class="mt-3 text-xl font-semibold text-gray-900">{{ __("See your progress") }}</h3>
+                        <p class="mt-2 leading-relaxed text-gray-600">{{ __("Return to your history, streaks, and milestones.") }}</p>
                     </li>
                 </ol>
-                <p class="mt-6 text-center leading-relaxed text-gray-600">Reading from a paper Bible? <a href="{{ route('guides.paper-bible') }}" class="font-semibold text-blue-700 underline underline-offset-4 hover:text-blue-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">See how to track it</a>.</p>
+                <p class="mt-6 text-center leading-relaxed text-gray-600">{{ __("Reading from a paper Bible?") }} <a href="{{ route('guides.paper-bible') }}" class="font-semibold text-blue-700 underline underline-offset-4 hover:text-blue-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">{{ __("See how to track it") }}</a>.</p>
             </div>
         </section>
 
@@ -270,16 +279,16 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-16">
                     <h2 id="features-heading" class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                        Tools for your reading routine
+                        {{ __("Tools for your reading routine") }}
                     </h2>
                     <p class="text-xl text-gray-600 max-w-3xl mx-auto">
-                        Log what you read, see your progress, and get encouragement when it helps.
+                        {{ __("Log what you read, see your progress, and get encouragement when it helps.") }}
                     </p>
                 </div>
 
                 <!-- Features Grid -->
                 <ul class="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-                    aria-label="Key features of Delight">
+                    aria-label="{{ __('Key features of Delight') }}">
                     <!-- Feature 1: Daily streak tracking -->
                     <li class="order-2">
                         <x-ui.card class="h-full shadow-none">
@@ -293,18 +302,18 @@
                                                     d="M216 23.86c0-23.8-30.65-32.77-44.15-13.04C48 191.85 224 200 224 288c0 35.63-29.11 64.46-64.85 63.99-35.17-.45-63.15-29.77-63.15-64.94v-85.51c0-21.7-26.47-32.4-41.6-16.9C21.22 216.4 0 268.2 0 320c0 105.87 86.13 192 192 192s192-86.13 192-192c0-170.29-168-193.17-168-296.14z" />
                                             </svg>
                                         </span>
-                                        <x-ui.card-title class="mb-0">Daily Streak Tracking</x-ui.card-title>
+                                        <x-ui.card-title class="mb-0">{{ __("Daily Streak Tracking") }}</x-ui.card-title>
                                     </div>
                                 </div>
-                                <p class="text-gray-400 text-xs">Watch consistency grow</p>
+                                <p class="text-gray-400 text-xs">{{ __("Watch consistency grow") }}</p>
 
                                 <!-- Mini preview: mirrors streak-counter component states -->
                                 <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2"
-                                    aria-label="Preview of daily streak widget">
+                                    aria-label="{{ __('Preview of daily streak widget') }}">
                                     <div class="flex items-center justify-between text-sm text-gray-800">
-                                        <span class="font-semibold">43 days</span>
+                                        <span class="font-semibold">{{ __("43 days") }}</span>
                                         <span
-                                            class="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-gradient-to-r from-accent-500 to-amber-400 px-2 py-1 rounded-full">Record</span>
+                                            class="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-gradient-to-r from-accent-500 to-amber-400 px-2 py-1 rounded-full">{{ app()->getLocale() === 'fr' ? __('Best streak') : 'Record' }}</span>
                                     </div>
                                     <div class="relative h-12 overflow-hidden">
                                         <div class="absolute inset-x-0 bottom-2 h-1 bg-orange-200/70 rounded-full">
@@ -318,8 +327,7 @@
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    See your current and longest streaks as your reading days add up. Keep your reading
-                                    rhythm in view and celebrate the consistency you build.
+                                    {{ __("See your current and longest streaks as your reading days add up. Keep your reading rhythm in view and celebrate the consistency you build.") }}
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
@@ -338,16 +346,16 @@
                                                 d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" />
                                         </svg>
                                     </span>
-                                    <x-ui.card-title class="mb-0">Reading Plans</x-ui.card-title>
+                                    <x-ui.card-title class="mb-0">{{ __("Reading Plans") }}</x-ui.card-title>
                                 </div>
-                                <p class="text-gray-400 text-xs">Structured daily guidance</p>
+                                <p class="text-gray-400 text-xs">{{ __("Structured daily guidance") }}</p>
 
                                 <!-- Mini preview: reading plan progress -->
                                 <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2"
-                                    aria-label="Preview of reading plans feature">
+                                    aria-label="{{ __('Preview of reading plans feature') }}">
                                     <div class="flex items-center justify-between text-sm text-gray-800">
-                                        <span class="font-semibold">Day 42</span>
-                                        <span class="text-indigo-600 font-medium">11.5%</span>
+                                        <span class="font-semibold">{{ __("Day 42") }}</span>
+                                        <span class="text-indigo-600 font-medium">{{ app()->getLocale() === 'fr' ? '11,5 %' : '11.5%' }}</span>
                                     </div>
                                     <div class="w-full bg-indigo-100 rounded-full h-2">
                                         <div class="bg-indigo-500 h-2 rounded-full" style="width: 11.5%"></div>
@@ -361,13 +369,12 @@
                                                     clip-rule="evenodd" />
                                             </svg>
                                         </span>
-                                        <span>Genesis 1-3</span>
+                                        <span>{{ __("Genesis 1-3") }}</span>
                                     </div>
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    Follow structured reading plans to guide your Bible journey. Track daily
-                                    progress, mark chapters complete, and never lose your place.
+                                    {{ __("Follow structured reading plans to guide your Bible journey. Track daily progress, mark chapters complete, and never lose your place.") }}
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
@@ -386,32 +393,31 @@
                                                 d="M12 6.03v13m0-13c-2.819-.831-4.715-1.076-8.029-1.023A.99.99 0 0 0 3 6v11c0 .563.466 1.014 1.03 1.007 3.122-.043 5.018.212 7.97 1.023m0-13c2.819-.831 4.715-1.076 8.029-1.023A.99.99 0 0 1 21 6v11c0 .563-.466 1.014-1.03 1.007-3.122-.043-5.018.212-7.97 1.023" />
                                         </svg>
                                     </span>
-                                    <x-ui.card-title class="mb-0">Daily Reading Log</x-ui.card-title>
+                                    <x-ui.card-title class="mb-0">{{ __("Daily Reading Log") }}</x-ui.card-title>
                                 </div>
-                                <p class="text-gray-400 text-xs">Never lose your place</p>
+                                <p class="text-gray-400 text-xs">{{ __("Never lose your place") }}</p>
 
                                 <!-- Mini preview: compact form footprint -->
                                 <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2"
-                                    aria-label="Preview of reading log form">
+                                    aria-label="{{ __('Preview of reading log form') }}">
                                     <div class="grid grid-cols-2 gap-2 text-sm text-gray-700">
-                                        <div class="rounded-lg border border-gray-200 px-3 py-2 bg-gray-50">Book</div>
+                                        <div class="rounded-lg border border-gray-200 px-3 py-2 bg-gray-50">{{ __("Book") }}</div>
                                         <div class="rounded-lg border border-gray-200 px-3 py-2 bg-gray-50 text-right">
-                                            Chapter</div>
+                                            {{ __('Chapter') }}</div>
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <div
                                             class="flex-1 rounded-lg border border-gray-200 px-3 py-2 bg-white text-sm text-gray-500">
-                                            Notes (optional)</div>
+                                            {{ __('Notes (optional)') }}</div>
                                         <span
                                             class="inline-flex items-center justify-center text-white bg-accent-500 hover:bg-accent-600 focus:outline-none focus:ring-4 focus:ring-accent-300 font-medium rounded-full text-sm px-5 py-2 dark:bg-accent-600 dark:hover:bg-accent-700 dark:focus:ring-accent-800">
-                                            Log
+                                            {{ __('Log') }}
                                         </span>
                                     </div>
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    Log your daily reading in seconds with our intuitive book and chapter selector.
-                                    Simple tracking that fits seamlessly into your routine.
+                                    {{ __("Log your daily reading in seconds with our intuitive book and chapter selector. Simple tracking that fits seamlessly into your routine.") }}
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
@@ -430,13 +436,13 @@
                                                 d="M9.143 4H4.857A.857.857 0 0 0 4 4.857v4.286c0 .473.384.857.857.857h4.286A.857.857 0 0 0 10 9.143V4.857A.857.857 0 0 0 9.143 4Zm10 0h-4.286a.857.857 0 0 0-.857.857v4.286c0 .473.384.857.857.857h4.286A.857.857 0 0 0 20 9.143V4.857A.857.857 0 0 0 19.143 4Zm-10 10H4.857a.857.857 0 0 0-.857.857v4.286c0 .473.384.857.857.857h4.286a.857.857 0 0 0 .857-.857v-4.286A.857.857 0 0 0 9.143 14Zm10 0h-4.286a.857.857 0 0 0-.857.857v4.286c0 .473.384.857.857.857h4.286a.857.857 0 0 0 .857-.857v-4.286a.857.857 0 0 0-.857-.857Z" />
                                         </svg>
                                     </span>
-                                    <x-ui.card-title class="mb-0">Book Completion Grid</x-ui.card-title>
+                                    <x-ui.card-title class="mb-0">{{ __("Book Completion Grid") }}</x-ui.card-title>
                                 </div>
-                                <p class="text-gray-400 text-xs">Journey comes alive visually</p>
+                                <p class="text-gray-400 text-xs">{{ __("Journey comes alive visually") }}</p>
 
                                 <!-- Mini preview: mirrors book-progress cards -->
                                 <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-2"
-                                    aria-label="Preview of book completion grid">
+                                    aria-label="{{ __('Preview of book completion grid') }}">
                                     <div class="grid grid-cols-6 gap-1">
                                         @php
                                             $colors = [
@@ -452,18 +458,16 @@
                                     </div>
                                     <div class="flex items-center justify-between text-[11px] text-gray-500">
                                         <span class="inline-flex items-center gap-1"><span
-                                                class="w-3 h-3 bg-success-500 rounded-sm border border-success-500"></span>Completed</span>
+                                                class="w-3 h-3 bg-success-500 rounded-sm border border-success-500"></span>{{ __("Completed") }}</span>
                                         <span class="inline-flex items-center gap-1"><span
-                                                class="w-3 h-3 bg-primary-500 rounded-sm border border-primary-500"></span>In
-                                            progress</span>
+                                                class="w-3 h-3 bg-primary-500 rounded-sm border border-primary-500"></span>{{ __('In progress') }}</span>
                                         <span class="inline-flex items-center gap-1"><span
-                                                class="w-3 h-3 bg-white rounded-sm border border-gray-300"></span>Not
-                                            started</span>
+                                                class="w-3 h-3 bg-white rounded-sm border border-gray-300"></span>{{ __('Not started') }}</span>
                                     </div>
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    Visualize your Scripture journey across the 66-book canon by default, with optional Catholic 73-book deuterocanonical support available when enabled in Settings.
+                                    {{ __("Visualize your Scripture journey across the 66-book canon by default, with optional Catholic 73-book deuterocanonical support available when enabled in Settings.") }}
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
@@ -483,38 +487,37 @@
                                                 d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
                                         </svg>
                                     </span>
-                                    <x-ui.card-title class="mb-0">Achievements</x-ui.card-title>
+                                    <x-ui.card-title class="mb-0">{{ __("Achievements") }}</x-ui.card-title>
                                 </div>
-                                <p class="text-gray-400 text-xs">Keep the milestones you earn</p>
+                                <p class="text-gray-400 text-xs">{{ __("Keep the milestones you earn") }}</p>
 
                                 <!-- Mini preview: mirrors the durable achievement shelf categories -->
                                 <div class="rounded-xl border border-gray-100 bg-white p-3 space-y-3"
-                                    aria-label="Preview of permanent achievements">
+                                    aria-label="{{ __('Preview of permanent achievements') }}">
                                     <div class="grid grid-cols-3 gap-2">
                                         <div class="rounded-lg border border-gray-100 bg-gray-50 p-3 text-center">
                                             <img src="{{ asset('images/achievements/badge-streak.png') }}" alt=""
                                                 class="mx-auto h-10 w-10" loading="lazy" decoding="async">
-                                            <span class="mt-2 block text-xs font-semibold text-gray-700">Streaks</span>
+                                            <span class="mt-2 block text-xs font-semibold text-gray-700">{{ __("Streaks") }}</span>
                                             <span class="mt-0.5 block text-[11px] text-gray-500">7, 30, 100</span>
                                         </div>
                                         <div class="rounded-lg border border-gray-100 bg-gray-50 p-3 text-center">
                                             <img src="{{ asset('images/achievements/badge-library.png') }}" alt=""
                                                 class="mx-auto h-10 w-10" loading="lazy" decoding="async">
-                                            <span class="mt-2 block text-xs font-semibold text-gray-700">Books</span>
-                                            <span class="mt-0.5 block text-[11px] text-gray-500">Completed</span>
+                                            <span class="mt-2 block text-xs font-semibold text-gray-700">{{ __("Books") }}</span>
+                                            <span class="mt-0.5 block text-[11px] text-gray-500">{{ __("Completed") }}</span>
                                         </div>
                                         <div class="rounded-lg border border-gray-100 bg-gray-50 p-3 text-center">
                                             <img src="{{ asset('images/achievements/badge-progress.png') }}" alt=""
                                                 class="mx-auto h-10 w-10" loading="lazy" decoding="async">
-                                            <span class="mt-2 block text-xs font-semibold text-gray-700">Progress</span>
+                                            <span class="mt-2 block text-xs font-semibold text-gray-700">{{ __("Progress") }}</span>
                                             <span class="mt-0.5 block text-[11px] text-gray-500">25-100%</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    Unlock lasting milestones for streak thresholds, completed books, and Bible
-                                    progress. Earned achievements stay on your shelf even as live goals change.
+                                    {{ __("Unlock lasting milestones for streak thresholds, completed books, and Bible progress. Earned achievements stay on your shelf even as live goals change.") }}
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
@@ -532,25 +535,24 @@
                                                 d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" />
                                         </svg>
                                     </span>
-                                    <x-ui.card-title class="mb-0">Reading Reminders</x-ui.card-title>
+                                    <x-ui.card-title class="mb-0">{{ __("Reading Reminders") }}</x-ui.card-title>
                                 </div>
-                                <p class="text-gray-400 text-xs">A nudge when you need one</p>
+                                <p class="text-gray-400 text-xs">{{ __("A nudge when you need one") }}</p>
 
                                 <div class="space-y-2 rounded-xl border border-gray-100 bg-white p-3"
-                                    aria-label="When reading reminders can help">
+                                    aria-label="{{ __('When reading reminders can help') }}">
                                     <div class="flex items-center justify-between gap-3 rounded-lg bg-primary-50 px-3 py-2 text-sm">
-                                        <span class="font-semibold text-gray-800">Morning</span>
-                                        <span class="text-right text-gray-600">No reading logged today</span>
+                                        <span class="font-semibold text-gray-800">{{ __("Morning") }}</span>
+                                        <span class="text-right text-gray-600">{{ __("No reading logged today") }}</span>
                                     </div>
                                     <div class="flex items-center justify-between gap-3 rounded-lg bg-primary-50 px-3 py-2 text-sm">
-                                        <span class="font-semibold text-gray-800">Evening</span>
-                                        <span class="text-right text-gray-600">Active streak at risk</span>
+                                        <span class="font-semibold text-gray-800">{{ __("Evening") }}</span>
+                                        <span class="text-right text-gray-600">{{ __("Active streak at risk") }}</span>
                                     </div>
                                 </div>
 
                                 <p class="text-gray-600 leading-relaxed">
-                                    Opt into native notifications in Delight for Android. Browser reminders are also
-                                    available in beta on supported devices. Both follow your reading timezone.
+                                    {{ __("Opt into native notifications in Delight for Android. Browser reminders are also available in beta on supported devices. Both follow your reading timezone.") }}
                                 </p>
                             </x-ui.card-content>
                         </x-ui.card>
@@ -563,57 +565,57 @@
         <section class="py-20 bg-white" aria-labelledby="questions-heading">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center">
-                    <h2 id="questions-heading" class="text-3xl md:text-4xl font-bold text-gray-900">Frequently asked questions</h2>
-                    <p class="mt-4 text-lg text-gray-600">A few practical details before you get started.</p>
+                    <h2 id="questions-heading" class="text-3xl md:text-4xl font-bold text-gray-900">{{ __("Frequently asked questions") }}</h2>
+                    <p class="mt-4 text-lg text-gray-600">{{ __("A few practical details before you get started.") }}</p>
                 </div>
 
                 <div class="mt-12 overflow-hidden rounded-xl border border-gray-200 bg-white">
                     <details class="group open:bg-primary-50/40">
                         <summary class="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-lg font-semibold text-gray-900 marker:content-none hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset group-open:hover:bg-primary-50/40">
-                            What does Delight cost?
+                            {{ __("What does Delight cost?") }}
                             <svg class="h-5 w-5 shrink-0 text-primary-600 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
                             </svg>
                         </summary>
-                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">Delight is currently free to use.</p>
+                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">{{ __("Delight is currently free to use.") }}</p>
                     </details>
                     <details class="group border-t border-gray-200 open:bg-primary-50/40">
                         <summary class="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-lg font-semibold text-gray-900 marker:content-none hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset group-open:hover:bg-primary-50/40">
-                            Where can I use it?
+                            {{ __('Where can I use it?') }}
                             <svg class="h-5 w-5 shrink-0 text-primary-600 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
                             </svg>
                         </summary>
                         <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">
-                            Delight is available in your web browser. Android users can also <a href="{{ route('android.download') }}" class="font-medium text-primary-700 underline hover:text-primary-800">download the native app</a> directly from mydelight.app while Google Play availability remains in testing.
+                            {{ __("Delight is available in your web browser. Android users can also") }} <a href="{{ route('android.download') }}" class="font-medium text-primary-700 underline hover:text-primary-800">{{ __("download the native app") }}</a> {{ __("directly from mydelight.app while Google Play availability remains in testing.") }}
                         </p>
                     </details>
                     <details class="group border-t border-gray-200 open:bg-primary-50/40">
                         <summary class="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-lg font-semibold text-gray-900 marker:content-none hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset group-open:hover:bg-primary-50/40">
-                            Do I need an account or a reading plan?
+                            {{ __("Do I need an account or a reading plan?") }}
                             <svg class="h-5 w-5 shrink-0 text-primary-600 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
                             </svg>
                         </summary>
-                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">Create an account to save your reading history. A reading plan is optional; you can log chapters without one.</p>
+                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">{{ __("Create an account to save your reading history. A reading plan is optional; you can log chapters without one.") }}</p>
                     </details>
                     <details class="group border-t border-gray-200 open:bg-primary-50/40">
                         <summary class="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-lg font-semibold text-gray-900 marker:content-none hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset group-open:hover:bg-primary-50/40">
-                            Where do reading reminders work?
+                            {{ __('Where do reading reminders work?') }}
                             <svg class="h-5 w-5 shrink-0 text-primary-600 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
                             </svg>
                         </summary>
-                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">Native reminders are available in the Android app. Optional browser reminders are in beta on supported web devices. On iPhone and iPad, web notifications require adding Delight to the Home Screen from Safari. You can enable reminders in Settings after creating an account.</p>
+                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">{{ __("Native reminders are available in the Android app. Optional browser reminders are in beta on supported web devices. On iPhone and iPad, web notifications require adding Delight to the Home Screen from Safari. You can enable reminders in Settings after creating an account.") }}</p>
                     </details>
                     <details class="group border-t border-gray-200 open:bg-primary-50/40">
                         <summary class="flex cursor-pointer items-center justify-between gap-4 px-6 py-5 text-lg font-semibold text-gray-900 marker:content-none hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset group-open:hover:bg-primary-50/40">
-                            What should I expect when I am offline?
+                            {{ __("What should I expect when I am offline?") }}
                             <svg class="h-5 w-5 shrink-0 text-primary-600 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
                             </svg>
                         </summary>
-                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">Delight needs a connection to load your readings and save new logs.</p>
+                        <p class="border-t border-gray-200 px-6 py-5 leading-relaxed text-gray-600">{{ __("Delight needs a connection to load your readings and save new logs.") }}</p>
                     </details>
                 </div>
             </div>
@@ -623,76 +625,71 @@
         <section class="py-20 bg-gradient-to-br from-[#3366CC] to-[#2952A3]" aria-labelledby="final-cta-heading">
             <div class="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
                 <h2 id="final-cta-heading" class="text-3xl md:text-4xl font-bold text-white mb-6">
-                    Ready to keep a clearer reading record?
+                    {{ __("Ready to keep a clearer reading record?") }}
                 </h2>
                 <p class="text-xl text-white mb-8">
-                    Create a free account, log what you read, and watch your progress grow. Reminders are there if you want them.
+                    {{ __("Create a free account, log what you read, and watch your progress grow. Reminders are there if you want them.") }}
                 </p>
                 <x-ui.button variant="accent" size="lg" href="{{ route('register') }}">
-                    Create Your Free Account
+                    {{ __("Create Your Free Account") }}
                 </x-ui.button>
             </div>
         </section>
     </main>
 
     <!-- Footer -->
-    <footer class="bg-gray-900 text-white py-12" role="contentinfo" aria-label="Site footer">
+    <footer class="bg-gray-900 text-white py-12" role="contentinfo" aria-label="{{ __('Site footer') }}">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid gap-8 md:grid-cols-3 lg:grid-cols-5">
                 <!-- Brand -->
                 <div class="md:col-span-3 lg:col-span-2">
                     <h3 class="text-2xl font-bold mb-4">Delight</h3>
                     <p class="text-gray-300 leading-relaxed">
-                        Your Bible reading tracker for building consistent Scripture habits through simple logging,
-                        streak tracking, and motivating progress visualization.
+                        {{ __("Your Bible reading tracker for building consistent Scripture habits through simple logging, streak tracking, and motivating progress visualization.") }}
                     </p>
                 </div>
 
                 <!-- Quick Links -->
                 <nav aria-labelledby="quick-links-heading">
-                    <h4 id="quick-links-heading" class="font-semibold mb-4">Quick Links</h4>
+                    <h4 id="quick-links-heading" class="font-semibold mb-4">{{ __("Quick Links") }}</h4>
                     <ul class="space-y-2">
                         <li><a href="{{ route('register') }}"
-                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Get
-                                Started</a></li>
+                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">{{ __("Get Started") }}</a></li>
                         <li><a href="{{ route('login') }}"
-                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Sign
-                                In</a></li>
+                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">{{ __("Sign In") }}</a></li>
                         <li><a href="{{ route('announcements.index') }}"
-                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Updates</a>
+                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">{{ __("Updates") }}</a>
                         </li>
                         <li><a href="{{ route('android.download') }}"
-                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Android app</a>
+                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">{{ __("Android app") }}</a>
                         </li>
                     </ul>
                 </nav>
 
                 <!-- Legal -->
                 <nav aria-labelledby="legal-links-heading">
-                    <h4 id="legal-links-heading" class="font-semibold mb-4">Legal</h4>
+                    <h4 id="legal-links-heading" class="font-semibold mb-4">{{ __("Legal") }}</h4>
                     <ul class="space-y-2">
                         <li><a href="{{ route('privacy-policy') }}"
-                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Privacy
-                                Policy</a></li>
+                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">{{ __("Privacy Policy") }}</a></li>
                         <li><a href="{{ route('terms-of-service') }}"
-                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Terms
-                                of Service</a></li>
+                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">{{ __("Terms of Service") }}</a></li>
                     </ul>
                 </nav>
 
                 <!-- Social Links -->
                 <nav aria-labelledby="social-links-heading">
-                    <h4 id="social-links-heading" class="font-semibold mb-4">Follow</h4>
+                    <h4 id="social-links-heading" class="font-semibold mb-4">{{ __("Follow") }}</h4>
                     <ul class="space-y-2">
                         <li>
                             <a href="https://x.com/TheDelightApp" target="_blank" rel="noopener noreferrer"
-                                aria-label="Follow Delight on X (opens in a new tab)"
-                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">X</a>
+                                aria-label="{{ __('X') }}: {{ __('Follow Delight on X (opens in a new tab)') }}"
+                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">{{ __("X") }}</a>
                         </li>
                         <li>
                             <a href="https://www.instagram.com/thedelightapp/" target="_blank" rel="noopener noreferrer"
-                                aria-label="Follow Delight on Instagram (opens in a new tab)"
-                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">Instagram</a>
+                                aria-label="{{ __('Instagram') }}: {{ __('Follow Delight on Instagram (opens in a new tab)') }}"
+                                class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">{{ __("Instagram") }}</a>
                         </li>
                     </ul>
                 </nav>
@@ -701,11 +698,12 @@
             <!-- Copyright -->
             <div class="border-t border-gray-800 mt-8 pt-8 text-center">
                 <p class="text-gray-300">
-                    © {{ date('Y') }} Delight. All rights reserved.
+                    © {{ date('Y') }} Delight. {{ __('All rights reserved.') }}
                 </p>
             </div>
         </div>
     </footer>
+    <script src="{{ asset('offline-locale.js') }}" defer></script>
 </body>
 
 </html>

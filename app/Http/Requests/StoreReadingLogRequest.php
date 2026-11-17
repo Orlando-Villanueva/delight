@@ -53,7 +53,7 @@ class StoreReadingLogRequest extends FormRequest
                 if ($start > $end || ! $bibleReferenceService->validateChapterRange(
                     $this->input('book_id'), $start, $end, $this->user()->includesDeuterocanonicalBooks()
                 )) {
-                    $validator->errors()->add('chapter_range', 'Invalid chapter range for the selected book.');
+                    $validator->errors()->add('chapter_range', __('reader.errors.invalid_chapter_range'));
                 }
             },
         ];

@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -17,12 +18,16 @@ class PasswordResetMail extends Mailable
      */
     public string $resetUrl;
 
+    private string $emailLocale;
+
     /**
      * Create a new message instance.
      */
-    public function __construct(string $resetUrl)
+    public function __construct(string $resetUrl, string $locale = 'en')
     {
         $this->resetUrl = $resetUrl;
+        $this->emailLocale = $locale;
+        $this->locale($locale);
     }
 
     /**
@@ -31,7 +36,7 @@ class PasswordResetMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Reset Your Password - Delight',
+            subject: $this->localized('Reset Your Password - Delight'),
         );
     }
 
@@ -51,10 +56,22 @@ class PasswordResetMail extends Mailable
     /**
      * Get the attachments for the message.
      *
-     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
+     * @return array<int, Attachment>
      */
     public function attachments(): array
     {
         return [];
+    }
+
+    private function localized(string $key): string
+    {
+        $previousLocale = app()->getLocale();
+        app()->setLocale($this->emailLocale);
+
+        try {
+            return __($key);
+        } finally {
+            app()->setLocale($previousLocale);
+        }
     }
 }

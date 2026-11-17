@@ -1,5 +1,7 @@
 <?php
 
+use App\Exceptions\LocalizedWebExceptionRenderer;
+use App\Http\Middleware\ApplyWebLocale;
 use App\Http\Middleware\HandleReaderInertiaRequests;
 use App\Http\Middleware\QueryLogger;
 use App\Http\Middleware\SecurityHeadersMiddleware;
@@ -30,13 +32,16 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             SecurityHeadersMiddleware::class,
+            ApplyWebLocale::class,
             HandleReaderInertiaRequests::class,
             QueryLogger::class,
         ]);
         $middleware->prependToPriorityList(AuthenticatesRequests::class, HandleReaderInertiaRequests::class);
+        $middleware->prependToPriorityList(HandleReaderInertiaRequests::class, ApplyWebLocale::class);
         $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->dontFlash(['expo_push_token']);
+        $exceptions->render(app(LocalizedWebExceptionRenderer::class));
         Integration::handles($exceptions);
     })->create();

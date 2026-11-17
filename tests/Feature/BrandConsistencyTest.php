@@ -102,7 +102,7 @@ test('landing page publishes valid web and Android structured data', function ()
         ->toBe(1);
 
     $structuredData = json_decode($matches[1], true, flags: JSON_THROW_ON_ERROR);
-    $desktopScreenshot = asset('images/screenshots/desktop-v3.png').'?v='.filemtime(public_path('images/screenshots/desktop-v3.png'));
+    $desktopScreenshot = asset('images/screenshots/dashboard-web-en.jpg').'?v='.filemtime(public_path('images/screenshots/dashboard-web-en.jpg'));
     $androidScreenshot = asset('images/screenshots/android-home-v1.png').'?v='.filemtime(public_path('images/screenshots/android-home-v1.png'));
 
     expect($structuredData['name'])->toBe('Delight - Bible Reading Tracker')
@@ -144,8 +144,8 @@ test('landing page footer links app social profiles', function () {
     $response->assertSeeText('Follow');
     $response->assertSee('href="https://x.com/TheDelightApp"', false);
     $response->assertSee('href="https://www.instagram.com/thedelightapp/"', false);
-    $response->assertSee('aria-label="Follow Delight on X (opens in a new tab)"', false);
-    $response->assertSee('aria-label="Follow Delight on Instagram (opens in a new tab)"', false);
+    $response->assertSee('aria-label="X: Follow Delight on X (opens in a new tab)"', false);
+    $response->assertSee('aria-label="Instagram: Follow Delight on Instagram (opens in a new tab)"', false);
     $response->assertSee('target="_blank" rel="noopener noreferrer"', false);
 });
 

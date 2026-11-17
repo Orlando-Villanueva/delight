@@ -18,6 +18,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -67,7 +68,7 @@ class ReadingPlanController extends Controller
         }
 
         return redirect()->route('plans.today', $plan)
-            ->with('success', "You've subscribed to {$plan->name}!");
+            ->with('success', __('reader.plan_messages.subscribed', ['plan' => $this->localizedPlanName($plan)]));
     }
 
     /**
@@ -78,7 +79,7 @@ class ReadingPlanController extends Controller
         $user = $request->user();
         $this->planService->unsubscribe($user, $plan);
 
-        return $this->redirectToCatalogue($request, 'success', "You have unsubscribed from {$plan->getShortName()}.");
+        return $this->redirectToCatalogue($request, 'success', __('reader.plan_messages.unsubscribed', ['plan' => $this->localizedPlanName($plan)]));
     }
 
     /**
@@ -97,7 +98,7 @@ class ReadingPlanController extends Controller
             ->first();
 
         if (! $subscription) {
-            return $this->redirectToCatalogue($request, 'error', 'Subscription not found.');
+            return $this->redirectToCatalogue($request, 'error', __('reader.errors.subscription_missing'));
         }
 
         $this->planService->activate($subscription);
@@ -107,7 +108,7 @@ class ReadingPlanController extends Controller
         }
 
         return redirect()->route('plans.today', $plan)
-            ->with('success', "You've resumed {$plan->name}!");
+            ->with('success', __('reader.plan_messages.resumed', ['plan' => $this->localizedPlanName($plan)]));
     }
 
     /**
@@ -126,7 +127,7 @@ class ReadingPlanController extends Controller
             ->first();
 
         if (! $subscription) {
-            return $this->redirectToCatalogue($request, 'info', 'Subscribe to this plan to see your daily reading.');
+            return $this->redirectToCatalogue($request, 'info', __('reader.errors.subscribe_first'));
         }
 
         $currentDay = $subscription->getDayNumber();
@@ -147,56 +148,20 @@ class ReadingPlanController extends Controller
      */
     public function logChapter(Request $request, ReadingPlan $plan)
     {
-        $user = $request->user();
+        $result = $this->getValidatedDayReading($request, $plan, withChapter: true);
 
-        if (! $plan->isAvailableTo($user)) {
-            return response()->json(['error' => 'This plan is not available for your selected canon'], 403);
+        if ($result instanceof JsonResponse) {
+            return $result;
         }
 
-        $subscription = $user->readingPlanSubscriptions()
-            ->where('reading_plan_id', $plan->id)
-            ->first();
-
-        if (! $subscription) {
-            return response()->json(['error' => 'No subscription found'], 400);
-        }
-
-        if (! $subscription->is_active) {
-            return response()->json(['error' => 'Cannot log to inactive subscription'], 403);
-        }
-
-        $minDay = $plan->getFirstDayNumber();
-        $maxDay = $plan->getLastDayNumber();
-        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
-        $validated = $request->validate([
-            'book_id' => [
-                'required',
-                'integer',
-                Rule::in(collect($this->bibleReferenceService->listBibleBooks(includeDeuterocanonical: $includeDeuterocanonical))->pluck('id')->all()),
-            ],
-            'chapter' => 'required|integer|min:1',
-            'day' => 'required|integer|min:'.$minDay.'|max:'.$maxDay,
-        ]);
-
-        $dayNumber = $validated['day'];
-
-        if ($subscription->isBeforeTracking($dayNumber)) {
-            return response()->json(['error' => 'Cannot log a plan day from before tracking began'], 403);
-        }
-
+        ['user' => $user, 'subscription' => $subscription, 'dayNumber' => $dayNumber, 'reading' => $reading, 'validated' => $validated] = $result;
         $chapter = [
             'book_id' => $validated['book_id'],
             'chapter' => $validated['chapter'],
         ];
 
-        $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
-
-        if (! $reading) {
-            return response()->json(['error' => 'Invalid plan day'], 404);
-        }
-
         if ($reading && $reading['all_completed']) {
-            return response()->json(['error' => 'Plan day already complete'], 409);
+            return response()->json(['error' => __('reader.errors.day_complete')], 409);
         }
 
         $result = $this->planService->logChapter($user, $subscription, $dayNumber, $chapter, $this->readingCalendar->todayFor($user)->toMutable());
@@ -218,7 +183,7 @@ class ReadingPlanController extends Controller
         ['user' => $user, 'subscription' => $subscription, 'dayNumber' => $dayNumber, 'reading' => $reading] = $result;
 
         if ($reading['all_completed']) {
-            return response()->json(['error' => 'Plan day already complete'], 409);
+            return response()->json(['error' => __('reader.errors.day_complete')], 409);
         }
 
         $chaptersToLog = array_filter(
@@ -291,12 +256,12 @@ class ReadingPlanController extends Controller
         $reading = $data['reading'];
 
         return [
-            'plan' => ['name' => $plan->getShortName(), 'slug' => $plan->slug],
+            'plan' => ['name' => $this->localizedPlanName($plan), 'slug' => $plan->slug],
             'subscription' => ['startDay' => $subscription->start_day],
             'reading' => $reading ? [
                 'chapters' => collect($reading['chapters'])->map(fn (array $chapter): array => [
                     'bookId' => (int) $chapter['book_id'],
-                    'bookName' => (string) $chapter['book_name'],
+                    'bookName' => $this->localizedChapterBookName($chapter),
                     'chapter' => (int) $chapter['chapter'],
                     'completed' => (bool) $chapter['completed'],
                 ])->values()->all(),
@@ -365,12 +330,12 @@ class ReadingPlanController extends Controller
      *
      * @return array{user: User, subscription: ReadingPlanSubscription, dayNumber: int, reading: array}|JsonResponse
      */
-    private function getValidatedDayReading(Request $request, ReadingPlan $plan): array|JsonResponse
+    private function getValidatedDayReading(Request $request, ReadingPlan $plan, bool $withChapter = false): array|JsonResponse
     {
         $user = $request->user();
 
         if (! $plan->isAvailableTo($user)) {
-            return response()->json(['error' => 'This plan is not available for your selected canon'], 403);
+            return response()->json(['error' => __('reader.errors.plan_unavailable')], 403);
         }
 
         $subscription = $user->readingPlanSubscriptions()
@@ -378,31 +343,39 @@ class ReadingPlanController extends Controller
             ->first();
 
         if (! $subscription) {
-            return response()->json(['error' => 'No subscription found'], 400);
+            return response()->json(['error' => __('reader.errors.subscription_missing')], 400);
         }
 
         if (! $subscription->is_active) {
-            return response()->json(['error' => 'Cannot log to inactive subscription'], 403);
+            return response()->json(['error' => __('reader.errors.inactive_subscription')], 403);
         }
 
         $minDay = $plan->getFirstDayNumber();
         $maxDay = $plan->getLastDayNumber();
-        $validated = $request->validate([
-            'day' => 'required|integer|min:'.$minDay.'|max:'.$maxDay,
-        ]);
+        $rules = [];
+        if ($withChapter) {
+            $rules['book_id'] = [
+                'required',
+                'integer',
+                Rule::in(collect($this->bibleReferenceService->listBibleBooks(includeDeuterocanonical: $user->includesDeuterocanonicalBooks()))->pluck('id')->all()),
+            ];
+            $rules['chapter'] = 'required|integer|min:1';
+        }
+        $rules['day'] = 'required|integer|min:'.$minDay.'|max:'.$maxDay;
+        $validated = $request->validate($rules);
         $dayNumber = $validated['day'];
 
         if ($subscription->isBeforeTracking($dayNumber)) {
-            return response()->json(['error' => 'Cannot log a plan day from before tracking began'], 403);
+            return response()->json(['error' => __('reader.errors.before_tracking')], 403);
         }
 
         $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
 
         if (! $reading) {
-            return response()->json(['error' => 'Invalid plan day'], 404);
+            return response()->json(['error' => __('reader.errors.invalid_day')], 404);
         }
 
-        return compact('user', 'subscription', 'dayNumber', 'reading');
+        return compact('user', 'subscription', 'dayNumber', 'reading', 'validated');
     }
 
     /**
@@ -503,25 +476,27 @@ class ReadingPlanController extends Controller
             ->keyBy('reading_plan_id');
 
         return [
-            'plans' => $plans->map(function (ReadingPlan $plan) use ($subscriptions): array {
+            'plans' => $plans->map(function (ReadingPlan $plan) use ($subscriptions, $user): array {
                 $subscription = $subscriptions->get($plan->id);
                 $canStart = $subscription === null && $plan->getDaysCount() > 0;
 
                 return [
                     'slug' => $plan->slug,
-                    'name' => $plan->getShortName(),
-                    'description' => $plan->description,
+                    'name' => $this->localizedPlanName($plan),
+                    'description' => $this->localizedPlanDescription($plan),
                     'daysCount' => $plan->getDaysCount(),
                     'canStart' => $canStart,
                     'firstDay' => $plan->getFirstDayNumber(),
                     'subscribeUrl' => $canStart ? route('plans.subscribe', $plan) : null,
                     'days' => $canStart
-                        ? collect($plan->days ?? [])->map(function (array $day): array {
+                        ? collect($plan->days ?? [])->map(function (array $day) use ($user): array {
                             $dayNumber = (int) $day['day'];
 
                             return [
                                 'day' => $dayNumber,
-                                'optionLabel' => $day['label'].' - Day '.$dayNumber,
+                                'optionLabel' => app()->getLocale() === 'fr'
+                                    ? __('reader.day_label', ['label' => $this->localizedDayLabel($day, $user), 'day' => $dayNumber])
+                                    : $day['label'].' - Day '.$dayNumber,
                             ];
                         })->values()->all()
                         : [],
@@ -560,6 +535,57 @@ class ReadingPlanController extends Controller
 
     private function unavailablePlanResponse(Request $request): Response|RedirectResponse
     {
-        return $this->redirectToCatalogue($request, 'info', 'Enable deuterocanonical books in Settings to use this plan.');
+        return $this->redirectToCatalogue($request, 'info', __('reader.errors.enable_catholic_canon'));
+    }
+
+    private function localizedPlanName(ReadingPlan $plan): string
+    {
+        return app()->getLocale() === 'fr' && Lang::has('reader.plans.'.$plan->slug.'.name', 'fr')
+            ? __('reader.plans.'.$plan->slug.'.name')
+            : $plan->getShortName();
+    }
+
+    private function localizedPlanDescription(ReadingPlan $plan): string
+    {
+        return app()->getLocale() === 'fr' && Lang::has('reader.plans.'.$plan->slug.'.description', 'fr')
+            ? __('reader.plans.'.$plan->slug.'.description')
+            : $plan->description;
+    }
+
+    private function localizedDayLabel(array $day, User $user): string
+    {
+        return collect($day['chapters'] ?? [])->groupBy('book_id')->map(function ($chapters, $bookId) use ($user): string {
+            $numbers = $chapters->pluck('chapter')->map(fn ($chapter): int => (int) $chapter)->sort()->values();
+            if ($numbers->isEmpty()) {
+                return '';
+            }
+
+            $ranges = collect();
+            $start = $end = $numbers->first();
+            foreach ($numbers->slice(1) as $number) {
+                if ($number === $end + 1) {
+                    $end = $number;
+
+                    continue;
+                }
+
+                $ranges->push([$start, $end]);
+                $start = $end = $number;
+            }
+            $ranges->push([$start, $end]);
+
+            return $ranges->map(fn (array $range): string => $this->bibleReferenceService->formatBibleReferenceRange(
+                (int) $bookId, $range[0], $range[1], 'fr', $user->includesDeuterocanonicalBooks()
+            ))->implode(', ');
+        })->filter()->implode('; ');
+    }
+
+    private function localizedChapterBookName(array $chapter): string
+    {
+        if (app()->getLocale() === 'fr') {
+            return $this->bibleReferenceService->getBibleBook((int) $chapter['book_id'], 'fr', true)['name'] ?? (string) $chapter['book_name'];
+        }
+
+        return (string) $chapter['book_name'];
     }
 }

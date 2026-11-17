@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -280,7 +280,7 @@
         <!-- Header -->
         <div class="header">
             <a href="{{ url('/') }}" class="logo">
-                <img src="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}" width="32" height="32" alt="Delight Logo">
+                <img src="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}" width="32" height="32" alt="{{ __('Delight Logo') }}">
                 <span>Delight</span>
             </a>
         </div>
@@ -293,11 +293,11 @@
         <!-- Footer -->
         <div class="footer">
             <p class="footer-text">
-                &copy; {{ date('Y') }} Delight. All rights reserved.
+                &copy; {{ date('Y') }} Delight. {{ __('All rights reserved.') }}
             </p>
             <p class="footer-text">
-                Have ideas to improve Delight?
-                <a href="{{ url('/feedback') }}" class="link">Send us Feedback</a>
+                {{ __('Have ideas to improve Delight?') }}
+                <a href="{{ url('/feedback') }}" class="link">{{ __('Send us Feedback') }}</a>
             </p>
             @yield('footer-extra')
         </div>

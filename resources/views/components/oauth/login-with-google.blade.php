@@ -12,6 +12,6 @@
     </svg>
 
     <span class="text-sm font-semibold text-gray-600 dark:text-white">
-        Continue with Google
+        {{ __("Continue with Google") }}
     </span>
 </a>
