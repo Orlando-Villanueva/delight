@@ -22,6 +22,12 @@ export function readingDraftForReader(
     return computed(() => readingDraftFor(reader.value.user.id, config.value, reader.value.readingTimezone));
 }
 
+function dateAfterTimeZoneChange(selected: string, previous: ReadingDates, dates: ReadingDates): string {
+    if (selected === previous.today) return dates.today;
+    if (selected === previous.yesterday) return dates.yesterday;
+    return [dates.today, dates.yesterday].includes(selected) ? selected : dates.today;
+}
+
 export function refreshReadingDates(session: ReadingSession, dates: ReadingDates, timeZone = session.dateTimeZone ?? '') {
     if (session.pending || session.uncertain) return;
     const previous = session.dateContext;
@@ -29,14 +35,11 @@ export function refreshReadingDates(session: ReadingSession, dates: ReadingDates
     const timeZoneChanged = Boolean(session.dateTimeZone && timeZone && session.dateTimeZone !== timeZone);
     if (!timeZoneChanged && previous && dates.today < previous.today) return;
     if (timeZoneChanged && previous) {
-        session.snapshot.values.date_read = selected === previous.today ? dates.today
-            : selected === previous.yesterday ? dates.yesterday
-                : [dates.today, dates.yesterday].includes(selected) ? selected : dates.today;
+        session.snapshot.values.date_read = dateAfterTimeZoneChange(selected, previous, dates);
     } else if (![dates.today, dates.yesterday].includes(selected)) {
         session.snapshot.values.date_read = dates.today;
     }
-    updateReadingLogDateContext(session, dates);
-    if (timeZone) session.dateTimeZone = timeZone;
+    updateReadingLogDateContext(session, dates, timeZone || undefined);
 }
 
 export function readingDraftFor(userId: number, config: ReadingFormConfig, timeZone = ''): ReadingSession {

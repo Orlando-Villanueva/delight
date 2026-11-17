@@ -14,12 +14,15 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
+const LOCALE_JOHN_ONE = 'John 1';
+const FRENCH_SEVEN_DAY_STREAK = '7 jours de lecture consécutifs';
+
 it('localizes cached English dashboard records from IDs without changing stored reading data', function () {
     $user = User::factory()->create(['preferred_locale' => 'en']);
     $log = ReadingLog::factory()->for($user)->create([
         'book_id' => 43,
         'chapter' => 1,
-        'passage_text' => 'John 1',
+        'passage_text' => LOCALE_JOHN_ONE,
         'notes_text' => 'A saved note',
         'date_read' => today()->toDateString(),
     ]);
@@ -34,7 +37,7 @@ it('localizes cached English dashboard records from IDs without changing stored 
         ->where('calendar.monthName', now()->locale('fr')->isoFormat('MMMM YYYY'))
     );
 
-    expect($log->fresh()->passage_text)->toBe('John 1')
+    expect($log->fresh()->passage_text)->toBe(LOCALE_JOHN_ONE)
         ->and($log->fresh()->notes_text)->toBe('A saved note');
 });
 
@@ -166,7 +169,7 @@ it('maps earned achievement copy from keys and metadata rather than stored Engli
         ->component('Achievements')
         ->where('categories.0.achievements.0.name', 'Livre terminé pour la 2e fois : Jean')
         ->where('categories.1.achievements.0.name', 'Ancien Testament terminé')
-        ->where('categories.2.achievements.0.name', '7 jours de lecture consécutifs')
+        ->where('categories.2.achievements.0.name', FRENCH_SEVEN_DAY_STREAK)
     );
 });
 
@@ -210,19 +213,19 @@ it('localizes locked goals, dashboard milestone, celebration and streak messages
         'earned_at' => now(),
     ]);
     $log = ReadingLog::factory()->for($user)->create([
-        'book_id' => 43, 'chapter' => 1, 'passage_text' => 'John 1', 'date_read' => today()->toDateString(),
+        'book_id' => 43, 'chapter' => 1, 'passage_text' => LOCALE_JOHN_ONE, 'date_read' => today()->toDateString(),
     ]);
 
     $page = $this->actingAs($user)->get(route('achievements.index'));
     $page->assertInertia(fn (Assert $assert) => $assert->component('Achievements')
-        ->where('categories.0.achievements.0.name', '7 jours de lecture consécutifs')
+        ->where('categories.0.achievements.0.name', FRENCH_SEVEN_DAY_STREAK)
         ->where('nextGoals.progress.0.name', 'Première lecture')
         ->where('nextGoals.progress.0.description', 'Ajoutez votre première lecture de la Bible.')
     );
 
     app()->setLocale('fr');
     $payload = app(AchievementService::class)->getCelebrationPayload($user, collect([$achievement]), $log, false);
-    expect($payload['earned'][0]['display_name'])->toBe('7 jours de lecture consécutifs')
+    expect($payload['earned'][0]['display_name'])->toBe(FRENCH_SEVEN_DAY_STREAK)
         ->and($payload['reading']['passage'])->toBe('Jean 1');
 
     $streak = app(StreakStateService::class);

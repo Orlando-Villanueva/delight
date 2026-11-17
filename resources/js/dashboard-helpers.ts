@@ -23,9 +23,8 @@ export function milestoneProgress(goal: DashboardGoal, locale = 'en') {
 
 export function bookDetails(book: BookProgress, locale = 'en') {
     if (locale.startsWith('fr')) {
-        return book.completed_count > 0
-            ? `${book.name} : terminé ${book.completed_count} fois; ${book.next_completion_chapters} chapitre${book.next_completion_chapters > 1 ? 's' : ''} sur ${book.chapter_count} avant la prochaine réussite`
-            : `${book.name} : ${book.chapters_read} chapitre${book.chapters_read > 1 ? 's' : ''} sur ${book.chapter_count} lu${book.chapters_read > 1 ? 's' : ''} au moins une fois (${book.percentage} %)`;
+        if (book.completed_count > 0) return `${book.name} : terminé ${book.completed_count} fois; ${book.next_completion_chapters} chapitre${book.next_completion_chapters > 1 ? 's' : ''} sur ${book.chapter_count} avant la prochaine réussite`;
+        return `${book.name} : ${book.chapters_read} chapitre${book.chapters_read > 1 ? 's' : ''} sur ${book.chapter_count} lu${book.chapters_read > 1 ? 's' : ''} au moins une fois (${book.percentage} %)`;
     }
     return book.completed_count > 0
         ? `${book.name}: completed ${book.completed_count} ${book.completed_count === 1 ? 'time' : 'times'}; ${book.next_completion_chapters} of ${book.chapter_count} chapters toward the next completion`

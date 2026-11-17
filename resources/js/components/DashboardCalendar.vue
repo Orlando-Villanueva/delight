@@ -40,6 +40,8 @@ function dayClass(day: CalendarDay) {
 function dayLabel(day: CalendarDay) {
     const [year, month, date] = day.date.split('-').map(Number);
     const label = new Intl.DateTimeFormat(pageLocale.value, { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(year!, month! - 1, date!));
-    return `${label}${day.isToday ? `, ${copy.value.today}` : ''}: ${day.isFuture ? copy.value.futureDate : copy.value.loggedChapterCount(day.readingCount)}`;
+    const todayLabel = day.isToday ? `, ${copy.value.today}` : '';
+    const readingLabel = day.isFuture ? copy.value.futureDate : copy.value.loggedChapterCount(day.readingCount);
+    return `${label}${todayLabel}: ${readingLabel}`;
 }
 </script>

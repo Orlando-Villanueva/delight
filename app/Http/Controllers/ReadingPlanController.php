@@ -148,53 +148,17 @@ class ReadingPlanController extends Controller
      */
     public function logChapter(Request $request, ReadingPlan $plan)
     {
-        $user = $request->user();
+        $result = $this->getValidatedDayReading($request, $plan, withChapter: true);
 
-        if (! $plan->isAvailableTo($user)) {
-            return response()->json(['error' => __('reader.errors.plan_unavailable')], 403);
+        if ($result instanceof JsonResponse) {
+            return $result;
         }
 
-        $subscription = $user->readingPlanSubscriptions()
-            ->where('reading_plan_id', $plan->id)
-            ->first();
-
-        if (! $subscription) {
-            return response()->json(['error' => __('reader.errors.subscription_missing')], 400);
-        }
-
-        if (! $subscription->is_active) {
-            return response()->json(['error' => __('reader.errors.inactive_subscription')], 403);
-        }
-
-        $minDay = $plan->getFirstDayNumber();
-        $maxDay = $plan->getLastDayNumber();
-        $includeDeuterocanonical = $user->includesDeuterocanonicalBooks();
-        $validated = $request->validate([
-            'book_id' => [
-                'required',
-                'integer',
-                Rule::in(collect($this->bibleReferenceService->listBibleBooks(includeDeuterocanonical: $includeDeuterocanonical))->pluck('id')->all()),
-            ],
-            'chapter' => 'required|integer|min:1',
-            'day' => 'required|integer|min:'.$minDay.'|max:'.$maxDay,
-        ]);
-
-        $dayNumber = $validated['day'];
-
-        if ($subscription->isBeforeTracking($dayNumber)) {
-            return response()->json(['error' => __('reader.errors.before_tracking')], 403);
-        }
-
+        ['user' => $user, 'subscription' => $subscription, 'dayNumber' => $dayNumber, 'reading' => $reading, 'validated' => $validated] = $result;
         $chapter = [
             'book_id' => $validated['book_id'],
             'chapter' => $validated['chapter'],
         ];
-
-        $reading = $this->planService->getTodaysReadingWithStatus($subscription, $dayNumber);
-
-        if (! $reading) {
-            return response()->json(['error' => __('reader.errors.invalid_day')], 404);
-        }
 
         if ($reading && $reading['all_completed']) {
             return response()->json(['error' => __('reader.errors.day_complete')], 409);
@@ -297,9 +261,7 @@ class ReadingPlanController extends Controller
             'reading' => $reading ? [
                 'chapters' => collect($reading['chapters'])->map(fn (array $chapter): array => [
                     'bookId' => (int) $chapter['book_id'],
-                    'bookName' => app()->getLocale() === 'fr'
-                        ? ($this->bibleReferenceService->getBibleBook((int) $chapter['book_id'], 'fr', true)['name'] ?? (string) $chapter['book_name'])
-                        : (string) $chapter['book_name'],
+                    'bookName' => $this->localizedChapterBookName($chapter),
                     'chapter' => (int) $chapter['chapter'],
                     'completed' => (bool) $chapter['completed'],
                 ])->values()->all(),
@@ -368,7 +330,7 @@ class ReadingPlanController extends Controller
      *
      * @return array{user: User, subscription: ReadingPlanSubscription, dayNumber: int, reading: array}|JsonResponse
      */
-    private function getValidatedDayReading(Request $request, ReadingPlan $plan): array|JsonResponse
+    private function getValidatedDayReading(Request $request, ReadingPlan $plan, bool $withChapter = false): array|JsonResponse
     {
         $user = $request->user();
 
@@ -390,9 +352,17 @@ class ReadingPlanController extends Controller
 
         $minDay = $plan->getFirstDayNumber();
         $maxDay = $plan->getLastDayNumber();
-        $validated = $request->validate([
-            'day' => 'required|integer|min:'.$minDay.'|max:'.$maxDay,
-        ]);
+        $rules = [];
+        if ($withChapter) {
+            $rules['book_id'] = [
+                'required',
+                'integer',
+                Rule::in(collect($this->bibleReferenceService->listBibleBooks(includeDeuterocanonical: $user->includesDeuterocanonicalBooks()))->pluck('id')->all()),
+            ];
+            $rules['chapter'] = 'required|integer|min:1';
+        }
+        $rules['day'] = 'required|integer|min:'.$minDay.'|max:'.$maxDay;
+        $validated = $request->validate($rules);
         $dayNumber = $validated['day'];
 
         if ($subscription->isBeforeTracking($dayNumber)) {
@@ -405,7 +375,7 @@ class ReadingPlanController extends Controller
             return response()->json(['error' => __('reader.errors.invalid_day')], 404);
         }
 
-        return compact('user', 'subscription', 'dayNumber', 'reading');
+        return compact('user', 'subscription', 'dayNumber', 'reading', 'validated');
     }
 
     /**
@@ -608,5 +578,14 @@ class ReadingPlanController extends Controller
                 (int) $bookId, $range[0], $range[1], 'fr', $user->includesDeuterocanonicalBooks()
             ))->implode(', ');
         })->filter()->implode('; ');
+    }
+
+    private function localizedChapterBookName(array $chapter): string
+    {
+        if (app()->getLocale() === 'fr') {
+            return $this->bibleReferenceService->getBibleBook((int) $chapter['book_id'], 'fr', true)['name'] ?? (string) $chapter['book_name'];
+        }
+
+        return (string) $chapter['book_name'];
     }
 }

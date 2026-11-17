@@ -146,7 +146,7 @@ class DashboardController extends Controller
 
         return [
             'monthName' => Carbon::createFromDate((int) $calendarData['year'], (int) $calendarData['month'], 1)
-                ->locale(app()->getLocale())->isoFormat(app()->getLocale() === 'fr' ? 'MMMM YYYY' : 'MMMM YYYY'),
+                ->locale(app()->getLocale())->isoFormat('MMMM YYYY'),
             'days' => collect($calendarData['calendar'])
                 ->map(function (?array $day) use ($today): ?array {
                     if ($day === null) {
@@ -262,10 +262,8 @@ class DashboardController extends Controller
         }
 
         if ($timeAgo === 'just now') {
-            return __('reader.time_ago.just_now');
-        }
-
-        if (preg_match('/^(\d+) (minute|minutes|hour|hours|day|days) ago$/', $timeAgo, $matches)) {
+            $timeAgo = __('reader.time_ago.just_now');
+        } elseif (preg_match('/^(\d+) (minute|minutes|hour|hours|day|days) ago$/', $timeAgo, $matches)) {
             $singular = in_array($matches[2], ['minute', 'hour', 'day'], true);
             $unit = match (true) {
                 str_starts_with($matches[2], 'minute') => $singular ? 'minute' : 'minutes',
@@ -273,7 +271,7 @@ class DashboardController extends Controller
                 default => $singular ? 'day' : 'days',
             };
 
-            return __('reader.time_ago.'.$unit, ['count' => $matches[1]]);
+            $timeAgo = __('reader.time_ago.'.$unit, ['count' => $matches[1]]);
         }
 
         return $timeAgo;

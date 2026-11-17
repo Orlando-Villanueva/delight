@@ -143,9 +143,8 @@ function showDescription(achievement: EarnedAchievement) {
 
 function achievementDate(achievement: EarnedAchievement) {
     const latest = achievement.completions.at(-1);
-    const label = latest?.completedOn
-        ? (achievement.count > 1 ? copy.value.latestCompletion : copy.value.completedOn)
-        : (achievement.count > 1 ? copy.value.latestAward : copy.value.earned);
+    let label: string = achievement.count > 1 ? copy.value.latestAward : copy.value.earned;
+    if (latest?.completedOn) label = achievement.count > 1 ? copy.value.latestCompletion : copy.value.completedOn;
     return `${label} ${formatDate(latest?.completedOn ?? latest?.earnedOn ?? achievement.earnedOn)}`;
 }
 

@@ -123,11 +123,7 @@ class ChurnRecoveryEmail extends Mailable
 
     private function localizedPassage(?string $passage, ?int $bookId, ?int $chapter): ?string
     {
-        if ($passage === null || $this->emailLocale !== 'fr' || $bookId === null || $chapter === null) {
-            return $passage;
-        }
-
-        if ($chapter < 1) {
+        if ($passage === null || $this->emailLocale !== 'fr' || $bookId === null || $chapter === null || $chapter < 1) {
             return $passage;
         }
 

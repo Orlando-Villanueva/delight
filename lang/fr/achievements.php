@@ -1,5 +1,8 @@
 <?php
 
+$completedBible = 'Bible terminée';
+$personalBest = 'Nouveau record personnel';
+
 return [
     'categories' => [
         'firsts' => 'Premières étapes',
@@ -14,7 +17,7 @@ return [
         'first_month' => ['name' => '30 jours de lecture', 'description' => 'Vous avez enregistré 30 jours de lecture distincts.'],
         'book_completed' => ['name' => 'Livre terminé : :book', 'description' => 'Vous avez terminé :book.'],
         'testament_completed' => ['name' => 'Testament terminé', 'description' => 'Vous avez terminé tous les livres du :testament.'],
-        'bible_completed' => ['name' => 'Bible terminée', 'description' => 'Vous avez terminé tous les livres de votre Bible.'],
+        'bible_completed' => ['name' => $completedBible, 'description' => 'Vous avez terminé tous les livres de votre Bible.'],
         'reading_streak_7' => ['name' => '7 jours de lecture consécutifs', 'description' => 'Vous avez lu pendant 7 jours consécutifs.'],
         'reading_streak_30' => ['name' => '30 jours de lecture consécutifs', 'description' => 'Vous avez lu pendant 30 jours consécutifs.'],
         'reading_streak_100' => ['name' => '100 jours de lecture consécutifs', 'description' => 'Vous avez lu pendant 100 jours consécutifs.'],
@@ -22,8 +25,8 @@ return [
         'bible_progress_25' => ['name' => '25 % de la Bible', 'description' => 'Vous avez lu 25 % des chapitres de la Bible.'],
         'bible_progress_50' => ['name' => '50 % de la Bible', 'description' => 'Vous avez lu 50 % des chapitres de la Bible.'],
         'bible_progress_75' => ['name' => '75 % de la Bible', 'description' => 'Vous avez lu 75 % des chapitres de la Bible.'],
-        'bible_progress_100' => ['name' => 'Bible terminée', 'description' => 'Vous avez lu tous les chapitres de la Bible.'],
-        'personal_best_streak' => ['name' => 'Nouveau record personnel', 'description' => 'Vous avez dépassé votre meilleur résultat précédent.'],
+        'bible_progress_100' => ['name' => $completedBible, 'description' => 'Vous avez lu tous les chapitres de la Bible.'],
+        'personal_best_streak' => ['name' => $personalBest, 'description' => 'Vous avez dépassé votre meilleur résultat précédent.'],
     ],
     'dynamic' => [
         'book' => 'Livre terminé : :book',
@@ -32,14 +35,14 @@ return [
         'book_repeat_description' => 'Vous avez terminé :book :count fois.',
         'testament_complete' => ['old' => 'Ancien Testament terminé', 'new' => 'Nouveau Testament terminé', 'deuterocanonical' => 'Livres deutérocanoniques terminés'],
         'testament_complete_description' => ['old' => 'Vous avez terminé tous les livres de l’Ancien Testament.', 'new' => 'Vous avez terminé tous les livres du Nouveau Testament.', 'deuterocanonical' => 'Vous avez terminé tous les livres deutérocanoniques.'],
-        'bible' => 'Bible terminée',
+        'bible' => $completedBible,
         'bible_description' => 'Vous avez terminé tous les livres de votre Bible.',
         'catholic_collection' => 'Bible avec les livres deutérocanoniques',
         'streak' => ':days jours de lecture consécutifs',
         'streak_description' => 'Vous avez lu pendant :days jours consécutifs.',
         'progress' => ':percent % de la Bible',
         'progress_description' => 'Vous avez lu :percent % des chapitres de la Bible.',
-        'record' => 'Nouveau record personnel',
+        'record' => $personalBest,
         'record_description' => 'Vous avez dépassé votre meilleur résultat précédent de :previous jour.|Vous avez dépassé votre meilleur résultat précédent de :previous jours.',
         'book_goal' => 'Terminer :book',
         'book_goal_repeat' => 'Terminer :book à nouveau',
@@ -60,7 +63,7 @@ return [
         'progress' => ':current % sur :target % de progression biblique.',
     ],
     'record' => [
-        'eyebrow' => 'Nouveau record personnel',
+        'eyebrow' => $personalBest,
         'title' => 'Votre meilleure série',
         'description' => 'Votre série de :days jours dépasse votre record précédent de :previous jour.|Votre série de :days jours dépasse votre record précédent de :previous jours.',
     ],

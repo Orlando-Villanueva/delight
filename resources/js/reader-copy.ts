@@ -327,7 +327,10 @@ const fr = {
     foundChapters: (count: number, total: number) => `${count} chapitres lus aujourd’hui sur ${total} ont été trouvés.`,
     thisCannotBeUndone: 'Cette action est irréversible.', deleting: 'Suppression…',
     selectedCount: (count: number) => `${count} chapitre${count > 1 ? 's' : ''} sélectionné${count > 1 ? 's' : ''}`,
-    deleteSelected: (count: number) => count ? `Supprimer ${count} chapitre${count > 1 ? 's' : ''}` : 'Supprimer les chapitres sélectionnés',
+    deleteSelected: (count: number) => {
+        if (!count) return 'Supprimer les chapitres sélectionnés';
+        return `Supprimer ${count} chapitre${count > 1 ? 's' : ''}`;
+    },
     discardNote: 'Abandonner cette note en cours ?', closeDeleteConfirmation: 'Fermer la confirmation de suppression',
     selectAll: 'Tout sélectionner', deselectAll: 'Tout désélectionner',
     modified: 'Modifié', changedSettings: (count: number) => `${count} paramètre${count > 1 ? 's' : ''} modifié${count > 1 ? 's' : ''}`,

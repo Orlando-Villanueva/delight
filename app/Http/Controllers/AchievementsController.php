@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Services\AchievementService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -25,44 +26,7 @@ class AchievementsController extends Controller
 
         foreach ($categoryLabels as $key => $label) {
             $achievements = $earnedByCategory->get($key, collect())
-                ->map(function (array $group) use ($user): array {
-                    $achievement = $group['achievement'];
-                    $metadata = $achievement->metadata ?? [];
-                    $completionDates = $group['completion_dates'];
-                    $passage = trim((string) ($metadata['passage'] ?? ''));
-                    $readingDate = $metadata['date_read'] ?? null;
-                    $groupKey = match ($achievement->achievement_key) {
-                        'book_completed' => 'book:'.($metadata['book_id'] ?? $achievement->context_key),
-                        'testament_completed' => 'testament:'.($metadata['testament'] ?? $achievement->context_key),
-                        'bible_completed' => 'bible:'.($metadata['collection_key'] ?? $achievement->context_key),
-                        default => $achievement->context_key,
-                    };
-                    $reading = $achievement->achievement_key === 'first_reading' && $passage !== '' && $readingDate
-                        ? [
-                            'passage' => app()->getLocale() === 'fr'
-                                ? $this->achievementService->localizedReadingPassage($metadata, $user)
-                                : $passage,
-                            'date' => Carbon::parse($readingDate)->toDateString(),
-                        ]
-                        : null;
-
-                    return [
-                        'id' => $achievement->achievement_key.':'.$groupKey,
-                        'key' => $achievement->achievement_key,
-                        'name' => app()->getLocale() === 'fr' ? $this->achievementService->localizedCopy($achievement)['display_name'] : $achievement->display_name,
-                        'description' => app()->getLocale() === 'fr' ? $this->achievementService->localizedCopy($achievement)['description'] : $achievement->description,
-                        'icon' => $achievement->icon,
-                        'count' => $group['count'],
-                        'earnedOn' => $achievement->earned_at->toDateString(),
-                        'reading' => $reading,
-                        'completions' => $completionDates
-                            ->map(fn (array $completion): array => [
-                                'completedOn' => $completion['completed_on']?->toDateString(),
-                                'earnedOn' => $completion['earned_at']->toDateString(),
-                            ])
-                            ->all(),
-                    ];
-                })
+                ->map(fn (array $group): array => $this->mapAchievement($group, $user))
                 ->values()
                 ->all();
 
@@ -79,9 +43,7 @@ class AchievementsController extends Controller
             'books' => collect($shelf['next_goals']['books'])
                 ->map(fn (array $goal): array => [
                     'key' => 'book:'.$goal['book_id'],
-                    'name' => app()->getLocale() === 'fr'
-                        ? ($this->achievementService->localizedBookName((int) $goal['book_id']) ?? $goal['book_name'])
-                        : $goal['book_name'],
+                    'name' => $this->localizedGoalBookName($goal),
                     'chaptersRead' => $goal['chapters_read'],
                     'totalChapters' => $goal['total_chapters'],
                     'chaptersRemaining' => $goal['chapters_remaining'],
@@ -111,15 +73,68 @@ class AchievementsController extends Controller
                 ->all(),
         ];
 
+        $latestAchievement = null;
+        if ($latest) {
+            $latestAchievement = [
+                'name' => app()->getLocale() === 'fr' ? $this->achievementService->localizedCopy($latest)['display_name'] : $latest->display_name,
+                'icon' => $latest->icon,
+                'earnedOn' => $latest->earned_at->toDateString(),
+            ];
+        }
+
         return Inertia::render('Achievements', [
             'badgeBaseUrl' => asset('images/achievements'),
             'categories' => $categories,
             'nextGoals' => $nextGoals,
-            'latestAchievement' => $latest ? [
-                'name' => app()->getLocale() === 'fr' ? $this->achievementService->localizedCopy($latest)['display_name'] : $latest->display_name,
-                'icon' => $latest->icon,
-                'earnedOn' => $latest->earned_at->toDateString(),
-            ] : null,
+            'latestAchievement' => $latestAchievement,
         ]);
+    }
+
+    private function mapAchievement(array $group, User $user): array
+    {
+        $achievement = $group['achievement'];
+        $metadata = $achievement->metadata ?? [];
+        $completionDates = $group['completion_dates'];
+        $passage = trim((string) ($metadata['passage'] ?? ''));
+        $readingDate = $metadata['date_read'] ?? null;
+        $groupKey = match ($achievement->achievement_key) {
+            'book_completed' => 'book:'.($metadata['book_id'] ?? $achievement->context_key),
+            'testament_completed' => 'testament:'.($metadata['testament'] ?? $achievement->context_key),
+            'bible_completed' => 'bible:'.($metadata['collection_key'] ?? $achievement->context_key),
+            default => $achievement->context_key,
+        };
+        $reading = null;
+        if ($achievement->achievement_key === 'first_reading' && $passage !== '' && $readingDate) {
+            $reading = [
+                'passage' => app()->getLocale() === 'fr' ? $this->achievementService->localizedReadingPassage($metadata, $user) : $passage,
+                'date' => Carbon::parse($readingDate)->toDateString(),
+            ];
+        }
+
+        return [
+            'id' => $achievement->achievement_key.':'.$groupKey,
+            'key' => $achievement->achievement_key,
+            'name' => app()->getLocale() === 'fr' ? $this->achievementService->localizedCopy($achievement)['display_name'] : $achievement->display_name,
+            'description' => app()->getLocale() === 'fr' ? $this->achievementService->localizedCopy($achievement)['description'] : $achievement->description,
+            'icon' => $achievement->icon,
+            'count' => $group['count'],
+            'earnedOn' => $achievement->earned_at->toDateString(),
+            'reading' => $reading,
+            'completions' => $completionDates
+                ->map(fn (array $completion): array => [
+                    'completedOn' => $completion['completed_on']?->toDateString(),
+                    'earnedOn' => $completion['earned_at']->toDateString(),
+                ])
+                ->all(),
+        ];
+    }
+
+    private function localizedGoalBookName(array $goal): string
+    {
+        if (app()->getLocale() === 'fr') {
+            return $this->achievementService->localizedBookName((int) $goal['book_id']) ?? $goal['book_name'];
+        }
+
+        return $goal['book_name'];
     }
 }

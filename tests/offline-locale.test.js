@@ -18,15 +18,15 @@ function worker(stores = new Map()) {
         },
     };
     runInNewContext(source, {
-        self: { addEventListener: (type, handler) => listeners.set(type, handler) },
+        self: { location: { origin: 'https://delight.test' }, addEventListener: (type, handler) => listeners.set(type, handler) },
         caches: cacheApi, URL, Response,
         fetch: async () => { throw new Error('offline'); },
     });
     return {
         stores,
-        locale: async (locale) => {
+        locale: async (locale, origin = 'https://delight.test') => {
             let pending;
-            listeners.get('message')({ data: { type: 'DELIGHT_LOCALE', locale }, waitUntil: (value) => { pending = value; } });
+            listeners.get('message')({ origin, data: { type: 'DELIGHT_LOCALE', locale }, waitUntil: (value) => { pending = value; } });
             await pending;
         },
         offline: async (fragment = false) => {
@@ -89,4 +89,15 @@ test('page language is republished to a newly controlling worker and uses the cu
     listeners.get('controllerchange')();
     assert.equal(messages.at(-1).locale, 'en');
     assert.deepEqual(Object.keys(messages.at(-1)), ['type', 'locale']);
+});
+
+
+test('offline locale ignores foreign-origin messages', async () => {
+    const instance = worker();
+    await instance.locale('fr', 'https://untrusted.example');
+    assert.equal(instance.stores.size, 0);
+    assert.match(await (await instance.offline()).text(), /<html lang="en">/);
+    await instance.locale('fr');
+    await instance.locale('en', 'https://untrusted.example');
+    assert.match(await (await instance.offline()).text(), /<html lang="fr">/);
 });

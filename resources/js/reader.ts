@@ -18,7 +18,6 @@ window.addEventListener('pagehide', () => { clearReadingDraft(); router.clearHis
 window.addEventListener('beforeunload', (event) => {
     if (!hasReadingDraft()) return;
     event.preventDefault();
-    event.returnValue = '';
 });
 
 createInertiaApp({

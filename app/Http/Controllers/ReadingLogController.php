@@ -17,6 +17,7 @@ use App\Services\ReadingFormService;
 use App\Services\ReadingHistoryDayData;
 use App\Services\ReadingLogService;
 use App\Services\UserStatisticsService;
+use Illuminate\Contracts\View\View;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -78,77 +79,7 @@ class ReadingLogController extends Controller
     public function store(StoreReadingLogRequest $request)
     {
         try {
-            $validated = $request->validated();
-            $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
-            $start = (int) $validated['start_chapter'];
-            $end = isset($validated['end_chapter']) ? (int) $validated['end_chapter'] : $start;
-
-            // Format passage text using service
-            $validated['passage_text'] = $this->bibleReferenceService->formatBibleReferenceRange(
-                $validated['book_id'],
-                $start,
-                $end,
-                includeDeuterocanonical: $includeDeuterocanonical
-            );
-
-            // Add chapter data for service
-            if ($start !== $end) {
-                $validated['chapters'] = range($start, $end);
-            } else {
-                $validated['chapter'] = $start;
-            }
-
-            $user = $request->user();
-
-            // Create reading log using service
-            $result = $this->readingLogService->logReadingWithResult($user, $validated);
-            $log = $result->log;
-            $displayPassage = $this->bibleReferenceService->formatBibleReferenceRange(
-                (int) $validated['book_id'], $start, $end, app()->getLocale(), $includeDeuterocanonical
-            );
-            $displayDate = $log->date_read->locale(app()->getLocale())->isoFormat(app()->getLocale() === 'fr' ? 'D MMM YYYY' : 'MMM D, YYYY');
-
-            if ($request->wantsJson()) {
-                $formContext = $this->readingFormService->getFormContextData($user);
-                $celebration = $this->achievementService->getCelebrationPayload($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay);
-
-                return response()->json([
-                    'message' => __('reading-log.recorded', ['passage' => $displayPassage, 'date' => $displayDate]),
-                    'reading' => [
-                        'passage_text' => $displayPassage,
-                        'date_read' => $log->date_read->toDateString(),
-                    ],
-                    'form' => [
-                        'books' => $this->bibleReferenceService->listBibleBooks(null, app()->getLocale(), $includeDeuterocanonical),
-                        'recent_books' => $formContext['recentBooks'],
-                        'dates' => [
-                            'today' => $this->readingCalendar->todayFor($user)->toDateString(),
-                            'yesterday' => $this->readingCalendar->yesterdayFor($user)->toDateString(),
-                        ],
-                        'values' => [
-                            'book_id' => '',
-                            'start_chapter' => '',
-                            'end_chapter' => '',
-                            'date_read' => $this->readingCalendar->todayFor($user)->toDateString(),
-                            'notes_text' => '',
-                        ],
-                    ],
-                    'celebration' => $celebration,
-                ]);
-            }
-
-            // Check if this is an HTMX request for the form replacement
-            if ($request->header('HX-Request')) {
-                $content = view('partials.reading-log-success-message', compact('log', 'displayPassage', 'displayDate'))->render();
-
-                $content .= $this->achievementCelebrationFragment($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay);
-
-                return response($content)->header('HX-Trigger', 'readingLogAdded');
-            } else {
-                // For non-HTMX requests (tests, direct submissions), return the success message
-                // This maintains backwards compatibility with existing tests
-                return view('partials.reading-log-success-message', compact('log', 'displayPassage', 'displayDate'));
-            }
+            return $this->storeValidated($request);
         } catch (ValidationException $e) {
             return $request->validationResponse($e->errors());
         } catch (InvalidArgumentException $e) {
@@ -160,12 +91,88 @@ class ReadingLogController extends Controller
 
             $yesterday = $this->readingCalendar->yesterdayFor($request->user())->toDateString();
             $dateLabel = $request->input('date_read') === $yesterday ? 'yesterday' : 'today';
+            if (app()->getLocale() === 'fr') {
+                $dateLabel = __('reading-log.'.$dateLabel);
+            }
 
             return $request->validationResponse([
-                'chapter_range' => [__('reader.errors.duplicate_reading', ['date' => app()->getLocale() === 'fr'
-                    ? ($dateLabel === 'yesterday' ? __('reading-log.yesterday') : __('reading-log.today'))
-                    : $dateLabel])],
+                'chapter_range' => [__('reader.errors.duplicate_reading', ['date' => $dateLabel])],
             ]);
+        }
+    }
+
+    private function storeValidated(StoreReadingLogRequest $request): Response|View
+    {
+        $validated = $request->validated();
+        $includeDeuterocanonical = $request->user()->includesDeuterocanonicalBooks();
+        $start = (int) $validated['start_chapter'];
+        $end = isset($validated['end_chapter']) ? (int) $validated['end_chapter'] : $start;
+
+        // Format passage text using service
+        $validated['passage_text'] = $this->bibleReferenceService->formatBibleReferenceRange(
+            $validated['book_id'],
+            $start,
+            $end,
+            includeDeuterocanonical: $includeDeuterocanonical
+        );
+
+        // Add chapter data for service
+        if ($start !== $end) {
+            $validated['chapters'] = range($start, $end);
+        } else {
+            $validated['chapter'] = $start;
+        }
+
+        $user = $request->user();
+
+        // Create reading log using service
+        $result = $this->readingLogService->logReadingWithResult($user, $validated);
+        $log = $result->log;
+        $displayPassage = $this->bibleReferenceService->formatBibleReferenceRange(
+            (int) $validated['book_id'], $start, $end, app()->getLocale(), $includeDeuterocanonical
+        );
+        $displayDate = $log->date_read->locale(app()->getLocale())->isoFormat(app()->getLocale() === 'fr' ? 'D MMM YYYY' : 'MMM D, YYYY');
+
+        if ($request->wantsJson()) {
+            $formContext = $this->readingFormService->getFormContextData($user);
+            $celebration = $this->achievementService->getCelebrationPayload($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay);
+
+            return response()->json([
+                'message' => __('reading-log.recorded', ['passage' => $displayPassage, 'date' => $displayDate]),
+                'reading' => [
+                    'passage_text' => $displayPassage,
+                    'date_read' => $log->date_read->toDateString(),
+                ],
+                'form' => [
+                    'books' => $this->bibleReferenceService->listBibleBooks(null, app()->getLocale(), $includeDeuterocanonical),
+                    'recent_books' => $formContext['recentBooks'],
+                    'dates' => [
+                        'today' => $this->readingCalendar->todayFor($user)->toDateString(),
+                        'yesterday' => $this->readingCalendar->yesterdayFor($user)->toDateString(),
+                    ],
+                    'values' => [
+                        'book_id' => '',
+                        'start_chapter' => '',
+                        'end_chapter' => '',
+                        'date_read' => $this->readingCalendar->todayFor($user)->toDateString(),
+                        'notes_text' => '',
+                    ],
+                ],
+                'celebration' => $celebration,
+            ]);
+        }
+
+        // Check if this is an HTMX request for the form replacement
+        if ($request->header('HX-Request')) {
+            $content = view('partials.reading-log-success-message', compact('log', 'displayPassage', 'displayDate'))->render();
+
+            $content .= $this->achievementCelebrationFragment($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay);
+
+            return response($content)->header('HX-Trigger', 'readingLogAdded');
+        } else {
+            // For non-HTMX requests (tests, direct submissions), return the success message
+            // This maintains backwards compatibility with existing tests
+            return view('partials.reading-log-success-message', compact('log', 'displayPassage', 'displayDate'));
         }
     }
 

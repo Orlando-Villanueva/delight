@@ -179,10 +179,10 @@ const OFFLINE_FALLBACK_FRAGMENT = `
 
 // Persist only a language code; readings, notes and page responses never enter this cache.
 self.addEventListener('message', (event) => {
-  if (event.data?.type !== 'DELIGHT_LOCALE' || !['en', 'fr'].includes(event.data.locale)) return;
+  if (event.origin !== self.location.origin || event.data?.type !== 'DELIGHT_LOCALE' || !['en', 'fr'].includes(event.data.locale)) return;
   event.waitUntil(caches.open(LOCALE_CACHE_NAME)
     .then((cache) => cache.put(LOCALE_CACHE_URL, new Response(event.data.locale)))
-    .catch(() => {}));
+    .catch(() => { /* The offline page falls back to English if locale storage fails. */ }));
 });
 
 async function offlineBody(body) {
@@ -190,7 +190,9 @@ async function offlineBody(body) {
   try {
     const cache = await caches.open(LOCALE_CACHE_NAME);
     locale = await (await cache.match(LOCALE_CACHE_URL))?.text() ?? 'en';
-  } catch (_) {}
+  } catch (_) {
+    // English remains available when the locale cache cannot be read.
+  }
   if (locale !== 'fr') return body;
   return body.replaceAll('lang="en"', 'lang="fr"')
     .replaceAll('Delight is offline', 'Delight est hors ligne')

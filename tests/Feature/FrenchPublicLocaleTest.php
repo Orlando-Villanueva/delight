@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 
+const FRENCH_RESET_SUBJECT = 'Réinitialiser votre mot de passe – Delight';
+const LOCALE_JOHN_THREE = 'John 3';
+
 it('renders French public entry, guide, and legal pages with a guest language selector', function (string $url, string $copy) {
     $this->withHeader('Accept-Language', 'fr-CA')->get($url)
         ->assertOk()
@@ -111,7 +114,7 @@ it('localizes lifecycle email subjects and bodies using each recipient preferenc
         ->and($onboarding->render())->toContain('Pour commencer, essayez Jean 1');
 
     $resetNotice = (new CustomResetPasswordNotification('opaque-token'))->toMail($user);
-    expect($resetNotice->subject)->toBe('Réinitialiser votre mot de passe – Delight');
+    expect($resetNotice->subject)->toBe(FRENCH_RESET_SUBJECT);
 
     foreach ([
         1 => ['Tenez votre historique de lecture à jour', 'Ajouter une lecture'],
@@ -126,7 +129,7 @@ it('localizes lifecycle email subjects and bodies using each recipient preferenc
     $readingLog = ReadingLog::factory()->for($user)->create([
         'book_id' => 43,
         'chapter' => 3,
-        'passage_text' => 'John 3',
+        'passage_text' => LOCALE_JOHN_THREE,
     ]);
     $lastReading = (new ChurnRecoveryEmail(
         $user,
@@ -135,8 +138,8 @@ it('localizes lifecycle email subjects and bodies using each recipient preferenc
         $readingLog->book_id,
         $readingLog->chapter,
     ))->render();
-    expect($lastReading)->toContain('Jean 3')->not->toContain('John 3')
-        ->and($readingLog->fresh()->passage_text)->toBe('John 3');
+    expect($lastReading)->toContain('Jean 3')->not->toContain(LOCALE_JOHN_THREE)
+        ->and($readingLog->fresh()->passage_text)->toBe(LOCALE_JOHN_THREE);
 
     app()->setLocale('fr');
     $englishUser = User::factory()->create(['preferred_locale' => 'en']);
@@ -150,7 +153,7 @@ it('localizes lifecycle email subjects and bodies using each recipient preferenc
     app()->setLocale('en');
 
     expect((new PasswordResetMail('https://example.test/reset', 'fr'))->envelope()->subject)
-        ->toBe('Réinitialiser votre mot de passe – Delight');
+        ->toBe(FRENCH_RESET_SUBJECT);
 
     expect(app()->getLocale())->toBe('en');
 });
@@ -169,7 +172,7 @@ it('renders notification mail in the recipient language when the ambient languag
 
     Notification::sendNow($frenchUser, new CustomResetPasswordNotification('opaque-token'));
     $frenchReset = $transport->messages()->last()->getOriginalMessage();
-    expect($frenchReset->getSubject())->toBe('Réinitialiser votre mot de passe – Delight')
+    expect($frenchReset->getSubject())->toBe(FRENCH_RESET_SUBJECT)
         ->and($frenchReset->getHtmlBody())->toContain('Bonjour! Nous avons reçu une demande de réinitialisation du mot de passe de votre compte Delight.')
         ->and($frenchReset->getHtmlBody())->not->toContain('This password reset link will expire in');
 

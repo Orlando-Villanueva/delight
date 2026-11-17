@@ -29,12 +29,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import AchievementBadge from '@/components/AchievementBadge.vue';
 import { milestoneProgress } from '@/dashboard-helpers';
 import type { DashboardMilestone } from '@/dashboard-types';
 import { useReaderCopy } from '@/reader-copy';
-import { usePage } from '@inertiajs/vue3';
 import type { ReaderPageProps } from '@/reader-types';
 
 const { milestone } = defineProps<{ milestone: DashboardMilestone; badgeBaseUrl: string; achievementsUrl: string }>();

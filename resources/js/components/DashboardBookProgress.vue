@@ -35,10 +35,9 @@
 
 <script setup lang="ts">
 import { computed, toRef, unref, watch } from 'vue';
-import { useRemember } from '@inertiajs/vue3';
+import { usePage, useRemember } from '@inertiajs/vue3';
 import { bookDetails, ordinal } from '@/dashboard-helpers';
 import { useReaderCopy } from '@/reader-copy';
-import { usePage } from '@inertiajs/vue3';
 import type { ReaderPageProps } from '@/reader-types';
 import type { BibleProgress } from '@/dashboard-types';
 

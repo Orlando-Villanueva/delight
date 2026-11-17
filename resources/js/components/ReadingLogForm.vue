@@ -31,7 +31,7 @@
                         </select>
                     </div>
                 </div>
-                <p v-if="bookUnavailable" role="status" class="text-sm text-gray-600 dark:text-gray-400">{{ copy.unavailableBookHelp }}</p>
+                <output v-if="bookUnavailable" class="block text-sm text-gray-600 dark:text-gray-400">{{ copy.unavailableBookHelp }}</output>
                 <div v-if="recentBooks.length" data-recent-books class="recent-books-rail -mt-1 flex max-w-full items-center gap-2 overflow-x-auto py-1 [-webkit-overflow-scrolling:touch]" :class="{ 'is-scrolling': isScrolling }" @scroll.passive="recentScroll">
                     <p id="recent-books-label" class="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">{{ messages.recent }}</p>
                     <div class="flex min-w-0 flex-nowrap gap-2" role="group" aria-labelledby="recent-books-label">
@@ -220,62 +220,69 @@ function recentScroll() {
     scrollTimer = setTimeout(() => { isScrolling.value = false; }, 700);
 }
 
+function handleSuccess(outcome: Extract<ReadingOutcome, { kind: 'success' }>) {
+    const data = outcome.data;
+    const currentContext = {
+        userId: page.props.reader.user.id,
+        locale: config.locale,
+        timeZone: page.props.reader.readingTimezone,
+        includeDeuterocanonical: page.props.reader.includeDeuterocanonical,
+    };
+    const presentation = readingSuccessPresentation(outcome, currentContext, {
+        books: config.books,
+        recentBooks: config.recentBooks,
+        dates: config.dates,
+        values: config.values,
+    });
+    books.value = presentation.books;
+    recentBooks.value = presentation.recentBooks;
+    dates.value = { ...presentation.dates };
+    Object.assign(values, presentation.values);
+    collection.value = 'old';
+    notesOpen.value = false;
+    errors.value = {};
+    errorScopes.value = {};
+    notice.value = '';
+    uncertain.value = false;
+    celebration.value = presentation.current && (data.celebration.earned.length || data.celebration.record) ? presentation.celebration : null;
+    const submitted = outcome.submission.submittedValues;
+    const latestDates = presentation.dates;
+    const dateLabel = new Intl.DateTimeFormat(config.locale ?? 'en', {
+        month: 'short', day: 'numeric', timeZone: 'UTC',
+    }).format(new Date(`${submitted.date_read}T12:00:00Z`));
+    success.value = presentation.reference ? messages.value.saved.replace(':passage', presentation.reference).replace(':date', dateLabel) : copy.value.readingSaved;
+    if (!presentation.current) {
+        updateReadingLogDateContext(session, latestDates, currentContext.timeZone);
+    }
+    snapshot();
+}
+
+async function handleValidation(outcome: Extract<ReadingOutcome, { kind: 'validation' }>) {
+    const refreshedForm = initializeReadingLogForm(session, { dates: dates.value });
+    dates.value = refreshedForm.dates;
+    values.date_read = refreshedForm.values.date_read;
+    const presentation = readingValidationPresentation(outcome, config.locale, copy.value.validationRetry);
+    errors.value = presentation.errors;
+    errorScopes.value = presentation.errorScopes;
+    if (errors.value.notes_text) notesOpen.value = true;
+    notice.value = presentation.notice;
+    await nextTick();
+    form.value?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+}
+
 async function handleOutcome(pending: Promise<ReadingOutcome>) {
     const settledOutcome = await pending;
     if (!active) return;
     const outcome = consumeReadingLogOutcome(session) ?? settledOutcome;
     saving.value = false;
     if (outcome.kind === 'success') {
-        const data = outcome.data;
-        const currentContext = {
-            userId: page.props.reader.user.id,
-            locale: config.locale,
-            timeZone: page.props.reader.readingTimezone,
-            includeDeuterocanonical: page.props.reader.includeDeuterocanonical,
-        };
-        const presentation = readingSuccessPresentation(outcome, currentContext, {
-            books: config.books,
-            recentBooks: config.recentBooks,
-            dates: config.dates,
-            values: config.values,
-        });
-        books.value = presentation.books;
-        recentBooks.value = presentation.recentBooks;
-        dates.value = { ...presentation.dates };
-        Object.assign(values, presentation.values);
-        collection.value = 'old';
-        notesOpen.value = false;
-        errors.value = {};
-        errorScopes.value = {};
-        notice.value = '';
-        uncertain.value = false;
-        celebration.value = presentation.current && (data.celebration.earned.length || data.celebration.record) ? presentation.celebration : null;
-        const submitted = outcome.submission.submittedValues;
-        const latestDates = presentation.dates;
-        const dateLabel = new Intl.DateTimeFormat(config.locale ?? 'en', {
-            month: 'short', day: 'numeric', timeZone: 'UTC',
-        }).format(new Date(`${submitted.date_read}T12:00:00Z`));
-        success.value = presentation.reference ? messages.value.saved.replace(':passage', presentation.reference).replace(':date', dateLabel) : copy.value.readingSaved;
-        if (!presentation.current) {
-            updateReadingLogDateContext(session, latestDates);
-            session.dateTimeZone = currentContext.timeZone;
-        }
-        snapshot();
+        handleSuccess(outcome);
     } else if (outcome.kind === 'validation') {
-        const refreshedForm = initializeReadingLogForm(session, { dates: dates.value });
-        dates.value = refreshedForm.dates;
-        values.date_read = refreshedForm.values.date_read;
-        const presentation = readingValidationPresentation(outcome, config.locale, copy.value.validationRetry);
-        errors.value = presentation.errors;
-        errorScopes.value = presentation.errorScopes;
-        if (errors.value.notes_text) notesOpen.value = true;
-        notice.value = presentation.notice;
-        await nextTick();
-        form.value?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+        await handleValidation(outcome);
     } else {
         uncertain.value = outcome.kind === 'uncertain';
-        notice.value = outcome.kind === 'session' ? messages.value.session_error
-            : uncertain.value ? messages.value.uncertain_error : messages.value.request_error;
+        if (outcome.kind === 'session') notice.value = messages.value.session_error;
+        else notice.value = uncertain.value ? messages.value.uncertain_error : messages.value.request_error;
     }
 }
 

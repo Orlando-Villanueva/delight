@@ -79,8 +79,14 @@ const heroDescription = computed(() => single.value
     ? achievementDescription(single.value)
     : (!payload.earned.length ? payload.record?.description : ''));
 const heroIcon = computed(() => single.value?.icon ?? payload.record?.icon ?? 'trophy');
-const eyebrow = computed(() => payload.earned.length ? (single.value ? copy.value.celebration.unlocked : copy.value.celebration.unlockPlural) : (payload.record?.eyebrow ?? copy.value.celebration.personalBest));
-const title = computed(() => payload.earned.length ? (single.value ? single.value.display_name : copy.value.celebration.unlockedCount(payload.earned.length)) : payload.record?.title);
+const eyebrow = computed(() => {
+    if (!payload.earned.length) return payload.record?.eyebrow ?? copy.value.celebration.personalBest;
+    return single.value ? copy.value.celebration.unlocked : copy.value.celebration.unlockPlural;
+});
+const title = computed(() => {
+    if (!payload.earned.length) return payload.record?.title;
+    return single.value ? single.value.display_name : copy.value.celebration.unlockedCount(payload.earned.length);
+});
 
 function achievementDescription(achievement: CelebrationAchievement) {
     return achievement.icon === 'book-open' && !achievement.is_repeat_book_completion ? '' : achievement.description;

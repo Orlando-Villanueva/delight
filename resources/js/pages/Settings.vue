@@ -110,7 +110,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { useLeaveWarning } from '@/useLeaveWarning';
 import BrowserReminders from '@/components/BrowserReminders.vue';
-import type { ReaderPageProps, SettingsProps, SettingsValues } from '@/reader-types';
+import type { ReaderPageProps, SettingsProps } from '@/reader-types';
 import { useReaderCopy } from '@/reader-copy';
 import { reconcileSettings } from '@/settings-state';
 

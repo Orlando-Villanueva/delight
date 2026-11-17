@@ -143,7 +143,7 @@
                 </div>
 
                 <!-- Navigation Actions -->
-                <div class="ml-auto flex items-center gap-2 sm:gap-4" role="group" aria-label="{{ __("Account actions") }}">
+                <div class="ml-auto flex items-center gap-2 sm:gap-4">
                     <div class="hidden sm:block">
                         <x-ui.button variant="ghost" href="{{ route('android.download') }}"
                             aria-label="{{ __('Get Delight for Android') }}" class="gap-1.5">
@@ -154,7 +154,7 @@
                     @auth
                         <a href="{{ route('dashboard') }}"
                             class="text-gray-700 hover:text-blue-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-2 py-1"
-                            aria-label="{{ __("Go to your dashboard") }}">
+                            aria-label="{{ __("Dashboard") }}: {{ __("Go to your dashboard") }}">
                             {{ __("Dashboard") }}
                         </a>
                     @else
@@ -683,12 +683,12 @@
                     <ul class="space-y-2">
                         <li>
                             <a href="https://x.com/TheDelightApp" target="_blank" rel="noopener noreferrer"
-                                aria-label="{{ __('Follow Delight on X (opens in a new tab)') }}"
+                                aria-label="{{ __('X') }}: {{ __('Follow Delight on X (opens in a new tab)') }}"
                                 class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">{{ __("X") }}</a>
                         </li>
                         <li>
                             <a href="https://www.instagram.com/thedelightapp/" target="_blank" rel="noopener noreferrer"
-                                aria-label="{{ __('Follow Delight on Instagram (opens in a new tab)') }}"
+                                aria-label="{{ __('Instagram') }}: {{ __('Follow Delight on Instagram (opens in a new tab)') }}"
                                 class="text-gray-300 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900 rounded-sm">{{ __("Instagram") }}</a>
                         </li>
                     </ul>

@@ -39,11 +39,10 @@
 
 <script setup lang="ts">
 import { computed, useId } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { readingChart } from '@/dashboard-helpers';
 import type { DashboardStreak } from '@/dashboard-types';
 import { useReaderCopy } from '@/reader-copy';
-import { usePage } from '@inertiajs/vue3';
 import type { ReaderPageProps } from '@/reader-types';
 
 const { streak } = defineProps<{ streak: DashboardStreak; logUrl: string }>();

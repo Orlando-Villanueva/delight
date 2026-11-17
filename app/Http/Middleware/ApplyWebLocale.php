@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Services\LocaleResolver;
 use Closure;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 class ApplyWebLocale
@@ -28,7 +29,10 @@ class ApplyWebLocale
             if ($shouldInitialize && $response->isSuccessful()) {
                 $established = $this->locales->establishLocale($user, $request);
                 if ($established !== $locale) {
-                    $response = redirect($request->fullUrl());
+                    $route = $request->route();
+                    $path = $route?->getName() ? route($route->getName(), $route->originalParameters(), false) : route('dashboard', absolute: false);
+                    $query = http_build_query($request->query(), '', '&', PHP_QUERY_RFC3986);
+                    $response = new RedirectResponse($path.($query !== '' ? '?'.$query : ''));
                     app()->setLocale($established);
                 }
             }

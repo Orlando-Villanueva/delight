@@ -259,11 +259,12 @@ class AchievementService
 
     public function localizedPayload(array $achievement): array
     {
-        if (app()->getLocale() !== 'fr') {
+        $key = (string) $achievement['achievement_key'];
+        $definition = $this->definitions()[$key] ?? null;
+        if (app()->getLocale() !== 'fr' || ($key !== 'bible_completion' && $definition === null)) {
             return ['display_name' => $achievement['display_name'], 'description' => $achievement['description']];
         }
 
-        $key = (string) $achievement['achievement_key'];
         if ($key === 'bible_completion') {
             $remaining = max(0, (int) ($achievement['target'] ?? 0) - (int) ($achievement['current'] ?? 0));
 
@@ -271,11 +272,6 @@ class AchievementService
                 'display_name' => __('achievements.dynamic.bible_goal'),
                 'description' => trans_choice('achievements.dynamic.bible_goal_description', $remaining, ['count' => $remaining]),
             ];
-        }
-
-        $definition = $this->definitions()[$key] ?? null;
-        if ($definition === null) {
-            return ['display_name' => $achievement['display_name'], 'description' => $achievement['description']];
         }
 
         $threshold = (int) ($definition['threshold'] ?? $this->achievementThreshold($key));

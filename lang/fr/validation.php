@@ -1,5 +1,7 @@
 <?php
 
+$invalidSelection = 'La valeur sélectionnée pour :attribute est invalide.';
+
 return [
     'accepted' => 'Le champ :attribute doit être accepté.',
     'active_url' => 'Le champ :attribute doit être une URL valide.',
@@ -22,14 +24,14 @@ return [
     'digits' => 'Le champ :attribute doit contenir :digits chiffres.',
     'email' => 'Le champ :attribute doit être une adresse courriel valide.',
     'ends_with' => 'Le champ :attribute doit se terminer par une des valeurs suivantes : :values.',
-    'exists' => 'La valeur sélectionnée pour :attribute est invalide.',
+    'exists' => $invalidSelection,
     'file' => 'Le champ :attribute doit être un fichier.',
     'filled' => 'Le champ :attribute est obligatoire lorsqu’il est présent.',
-    'in' => 'La valeur sélectionnée pour :attribute est invalide.',
+    'in' => $invalidSelection,
     'integer' => 'Le champ :attribute doit être un nombre entier.',
     'max' => ['array' => 'Le champ :attribute ne peut pas contenir plus de :max éléments.', 'file' => 'Le fichier :attribute ne peut pas dépasser :max kilo-octets.', 'numeric' => 'Le champ :attribute doit être inférieur ou égal à :max.', 'string' => 'Le champ :attribute ne peut pas dépasser :max caractères.'],
     'min' => ['array' => 'Le champ :attribute doit contenir au moins :min éléments.', 'file' => 'Le fichier :attribute doit peser au moins :min kilo-octets.', 'numeric' => 'Le champ :attribute doit être supérieur ou égal à :min.', 'string' => 'Le champ :attribute doit contenir au moins :min caractères.'],
-    'not_in' => 'La valeur sélectionnée pour :attribute est invalide.',
+    'not_in' => $invalidSelection,
     'numeric' => 'Le champ :attribute doit être un nombre.',
     'password' => [
         'numbers' => 'Le champ :attribute doit contenir au moins un chiffre.',

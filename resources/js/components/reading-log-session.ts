@@ -8,8 +8,9 @@ export function updateReadingLogSnapshot(session: ReadingSession, snapshot: Read
     session.snapshot = { ...snapshot, values: { ...snapshot.values } };
 }
 
-export function updateReadingLogDateContext(session: ReadingSession, dates: ReadingDates) {
+export function updateReadingLogDateContext(session: ReadingSession, dates: ReadingDates, timeZone?: string) {
     session.dateContext = { ...dates };
+    if (timeZone !== undefined) session.dateTimeZone = timeZone;
 }
 
 export function initializeReadingLogForm(session: ReadingSession, config: { dates: ReadingDates }) {
