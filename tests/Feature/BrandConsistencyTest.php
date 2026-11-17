@@ -144,8 +144,8 @@ test('landing page footer links app social profiles', function () {
     $response->assertSeeText('Follow');
     $response->assertSee('href="https://x.com/TheDelightApp"', false);
     $response->assertSee('href="https://www.instagram.com/thedelightapp/"', false);
-    $response->assertSee('aria-label="Follow Delight on X (opens in a new tab)"', false);
-    $response->assertSee('aria-label="Follow Delight on Instagram (opens in a new tab)"', false);
+    $response->assertSee('aria-label="X: Follow Delight on X (opens in a new tab)"', false);
+    $response->assertSee('aria-label="Instagram: Follow Delight on Instagram (opens in a new tab)"', false);
     $response->assertSee('target="_blank" rel="noopener noreferrer"', false);
 });
 
