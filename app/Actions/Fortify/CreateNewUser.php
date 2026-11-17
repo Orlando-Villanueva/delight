@@ -3,6 +3,7 @@
 namespace App\Actions\Fortify;
 
 use App\Models\User;
+use App\Services\LocaleResolver;
 use Closure;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -31,7 +32,7 @@ class CreateNewUser implements CreatesNewUsers
                 'max:255',
                 function (string $attribute, mixed $value, Closure $fail): void {
                     if (User::query()->whereRaw('LOWER(email) = ?', [Str::lower((string) $value)])->exists()) {
-                        $fail('The email has already been taken.');
+                        $fail(__('The email has already been taken.'));
                     }
                 },
             ],
@@ -42,6 +43,7 @@ class CreateNewUser implements CreatesNewUsers
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
+            'preferred_locale' => app(LocaleResolver::class)->resolve(request()),
         ]);
     }
 }

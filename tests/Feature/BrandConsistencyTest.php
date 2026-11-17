@@ -102,7 +102,7 @@ test('landing page publishes valid web and Android structured data', function ()
         ->toBe(1);
 
     $structuredData = json_decode($matches[1], true, flags: JSON_THROW_ON_ERROR);
-    $desktopScreenshot = asset('images/screenshots/desktop-v3.png').'?v='.filemtime(public_path('images/screenshots/desktop-v3.png'));
+    $desktopScreenshot = asset('images/screenshots/dashboard-web-en.jpg').'?v='.filemtime(public_path('images/screenshots/dashboard-web-en.jpg'));
     $androidScreenshot = asset('images/screenshots/android-home-v1.png').'?v='.filemtime(public_path('images/screenshots/android-home-v1.png'));
 
     expect($structuredData['name'])->toBe('Delight - Bible Reading Tracker')

@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateSettingsRequest extends FormRequest
 {
@@ -26,6 +27,7 @@ class UpdateSettingsRequest extends FormRequest
             'include_deuterocanonical' => ['nullable', 'boolean'],
             'daily_reading_reminder_enabled' => ['nullable', 'boolean'],
             'streak_warning_enabled' => ['nullable', 'boolean'],
+            'preferred_locale' => ['sometimes', 'required', 'string', Rule::in(array_keys(config('localization.supported')))],
             'reading_timezone' => ['sometimes', 'required', 'string', 'timezone:all_with_bc'],
         ];
     }

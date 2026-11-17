@@ -55,6 +55,23 @@ it('renders up to three distinct recent books ordered by latest reading recency'
 
 });
 
+it('localizes new book payloads and existing history labels without changing stored readings', function () {
+    $user = User::factory()->create(['preferred_locale' => 'fr']);
+    createRecentBookLog($user, 43, '2026-06-23', '2026-06-23 09:00:00', 1);
+    $user->readingLogs()->first()->update(['notes_text' => 'Keep this note unchanged.']);
+
+    $formResponse = $this->actingAs($user)->get(route('logs.create'))->assertSuccessful();
+    expect(array_column(readingLogPageProps($formResponse)['books'], 'name'))->toContain('Jean');
+
+    $historyResponse = $this->get(route('logs.index'))->assertSuccessful();
+    $historyResponse->assertInertia(fn ($page) => $page
+        ->component('History')
+        ->where('days.0.groups.0.passage', 'Jean 1')
+        ->where('days.0.groups.0.notes', 'Keep this note unchanged.')
+    );
+    expect($user->readingLogs()->first()->passage_text)->toBe('Book 43 1');
+});
+
 it('renders only the available recent books when fewer than three distinct books exist', function () {
     $user = User::factory()->create();
 

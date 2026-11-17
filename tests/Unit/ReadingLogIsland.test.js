@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { consumeReadingLogOutcome, createReadingLogSession, initializeReadingLogForm, submitReadingLog } from '../../resources/js/components/reading-log-session.ts';
 
 const draft = () => ({ values: { book_id: '43', start_chapter: '3', end_chapter: '1', date_read: '2026-10-14', notes_text: 'Private draft' }, collection: 'new', notesOpen: true });
-const success = () => ({ message: 'John 1 recorded', form: { values: { book_id: '', start_chapter: '', end_chapter: '', date_read: '2026-10-14', notes_text: '' }, dates: { today: '2026-10-14', yesterday: '2026-10-13' }, books: [], recent_books: [] }, celebration: { earned: [], progress: [], record: null, reading: { passage: 'John 1', date: 'Oct 14, 2026' } } });
+const success = () => ({ message: 'John 1 recorded', reading: { passage_text: 'John 1', date_read: '2026-10-14' }, form: { values: { book_id: '', start_chapter: '', end_chapter: '', date_read: '2026-10-14', notes_text: '' }, dates: { today: '2026-10-14', yesterday: '2026-10-13' }, books: [], recent_books: [] }, celebration: { earned: [], progress: [], record: null, reading: { passage: 'John 1', date: 'Oct 14, 2026' } } });
 const response = (status, data) => ({ status, ok: status >= 200 && status < 300, json: async () => data });
 const options = (fetcher) => ({ url: '/logs', csrfToken: 'test-csrf', fetcher });
 
@@ -41,7 +41,9 @@ test('retains the draft and field errors after server validation', async () => {
     const session = createReadingLogSession(draft());
     const errors = { start_chapter: ['Invalid chapter range for the selected book.'] };
     const outcome = await submitReadingLog(session, session.snapshot.values, options(async () => response(422, { errors })));
-    assert.deepEqual(outcome, { kind: 'validation', errors, errorScopes: {} });
+    assert.equal(outcome.kind, 'validation');
+    assert.deepEqual(outcome.errors, errors);
+    assert.deepEqual(outcome.errorScopes, {});
     assert.deepEqual(session.snapshot, draft());
     assert.equal(session.uncertain, false);
 });
@@ -50,6 +52,7 @@ for (const [label, fetcher] of [
     ['lost response', async () => { throw new TypeError('Network failure'); }],
     ['server error', async () => response(500, {})],
     ['malformed success', async () => response(200, {})],
+    ['missing reading data', async () => response(200, { ...success(), reading: undefined })],
     ['missing celebration data', async () => response(200, { ...success(), celebration: undefined })],
 ]) {
     test(`requires an explicit decision before retrying an uncertain ${label}`, async () => {
@@ -177,7 +180,9 @@ test('preserves shared error scope metadata alongside the existing field error c
     const errors = { start_chapter: ['Invalid chapter range for the selected book.'] };
     const error_scopes = { start_chapter: 'chapter_range' };
     const outcome = await submitReadingLog(session, session.snapshot.values, options(async () => response(422, { errors, error_scopes })));
-    assert.deepEqual(outcome, { kind: 'validation', errors, errorScopes: error_scopes });
+    assert.equal(outcome.kind, 'validation');
+    assert.deepEqual(outcome.errors, errors);
+    assert.deepEqual(outcome.errorScopes, error_scopes);
     assert.deepEqual(session.snapshot, draft());
 });
 

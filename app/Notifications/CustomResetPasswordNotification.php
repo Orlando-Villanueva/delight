@@ -55,8 +55,20 @@ class CustomResetPasswordNotification extends Notification
         $url = $this->resetUrl($notifiable);
 
         // Use MailMessage for notifications - this is the standard Laravel approach
+        $locale = method_exists($notifiable, 'preferredLocale')
+            ? $notifiable->preferredLocale()
+            : config('localization.fallback');
+        $previousLocale = app()->getLocale();
+        app()->setLocale($locale);
+
+        try {
+            $subject = __('Reset Your Password - Delight');
+        } finally {
+            app()->setLocale($previousLocale);
+        }
+
         return (new MailMessage)
-            ->subject('Reset Your Password - Delight')
+            ->subject($subject)
             ->view('emails.password-reset', [
                 'resetUrl' => $url,
             ]);
@@ -74,6 +86,9 @@ class CustomResetPasswordNotification extends Notification
         return url(route('password.reset', [
             'token' => $this->token,
             'email' => $notifiable->getEmailForPasswordReset(),
+            'locale' => method_exists($notifiable, 'preferredLocale')
+                ? $notifiable->preferredLocale()
+                : config('localization.fallback'),
         ], false));
     }
 

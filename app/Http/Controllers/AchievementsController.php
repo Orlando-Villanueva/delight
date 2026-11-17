@@ -16,7 +16,8 @@ class AchievementsController extends Controller
 
     public function index(Request $request): InertiaResponse
     {
-        $shelf = $this->achievementService->getShelfData($request->user());
+        $user = $request->user();
+        $shelf = $this->achievementService->getShelfData($user);
         $latest = $shelf['latest'];
         $categoryLabels = config('achievements.categories', []);
         $earnedByCategory = $shelf['earned'];
@@ -24,7 +25,7 @@ class AchievementsController extends Controller
 
         foreach ($categoryLabels as $key => $label) {
             $achievements = $earnedByCategory->get($key, collect())
-                ->map(function (array $group): array {
+                ->map(function (array $group) use ($user): array {
                     $achievement = $group['achievement'];
                     $metadata = $achievement->metadata ?? [];
                     $completionDates = $group['completion_dates'];
@@ -38,7 +39,9 @@ class AchievementsController extends Controller
                     };
                     $reading = $achievement->achievement_key === 'first_reading' && $passage !== '' && $readingDate
                         ? [
-                            'passage' => $passage,
+                            'passage' => app()->getLocale() === 'fr'
+                                ? $this->achievementService->localizedReadingPassage($metadata, $user)
+                                : $passage,
                             'date' => Carbon::parse($readingDate)->toDateString(),
                         ]
                         : null;
@@ -46,8 +49,8 @@ class AchievementsController extends Controller
                     return [
                         'id' => $achievement->achievement_key.':'.$groupKey,
                         'key' => $achievement->achievement_key,
-                        'name' => $achievement->display_name,
-                        'description' => $achievement->description,
+                        'name' => app()->getLocale() === 'fr' ? $this->achievementService->localizedCopy($achievement)['display_name'] : $achievement->display_name,
+                        'description' => app()->getLocale() === 'fr' ? $this->achievementService->localizedCopy($achievement)['description'] : $achievement->description,
                         'icon' => $achievement->icon,
                         'count' => $group['count'],
                         'earnedOn' => $achievement->earned_at->toDateString(),
@@ -66,7 +69,7 @@ class AchievementsController extends Controller
             if ($achievements !== []) {
                 $categories[] = [
                     'key' => $key,
-                    'label' => $label,
+                    'label' => app()->getLocale() === 'fr' ? __('achievements.categories.'.$key) : $label,
                     'achievements' => $achievements,
                 ];
             }
@@ -76,7 +79,9 @@ class AchievementsController extends Controller
             'books' => collect($shelf['next_goals']['books'])
                 ->map(fn (array $goal): array => [
                     'key' => 'book:'.$goal['book_id'],
-                    'name' => $goal['book_name'],
+                    'name' => app()->getLocale() === 'fr'
+                        ? ($this->achievementService->localizedBookName((int) $goal['book_id']) ?? $goal['book_name'])
+                        : $goal['book_name'],
                     'chaptersRead' => $goal['chapters_read'],
                     'totalChapters' => $goal['total_chapters'],
                     'chaptersRemaining' => $goal['chapters_remaining'],
@@ -89,8 +94,8 @@ class AchievementsController extends Controller
             'progress' => collect($shelf['next_goals']['progress'])
                 ->map(fn (array $goal): array => [
                     'key' => $goal['achievement_key'],
-                    'name' => $goal['display_name'],
-                    'description' => $goal['description'],
+                    'name' => $this->achievementService->localizedPayload($goal)['display_name'],
+                    'description' => $this->achievementService->localizedPayload($goal)['description'],
                     'icon' => $goal['icon'],
                     'current' => $goal['current'],
                     'target' => $goal['target'],
@@ -111,7 +116,7 @@ class AchievementsController extends Controller
             'categories' => $categories,
             'nextGoals' => $nextGoals,
             'latestAchievement' => $latest ? [
-                'name' => $latest->display_name,
+                'name' => app()->getLocale() === 'fr' ? $this->achievementService->localizedCopy($latest)['display_name'] : $latest->display_name,
                 'icon' => $latest->icon,
                 'earnedOn' => $latest->earned_at->toDateString(),
             ] : null,

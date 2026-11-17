@@ -1,4 +1,5 @@
 export type SettingsValues = {
+    preferred_locale: 'en' | 'fr';
     include_deuterocanonical: boolean;
     daily_reading_reminder_enabled: boolean;
     streak_warning_enabled: boolean;
@@ -36,9 +37,12 @@ export type ReaderUrls = {
 };
 
 export type ReaderProps = {
+    locale: string;
     appName: string;
     logoUrl: string;
-    user: { name: string; email: string; avatar: string | null };
+    readingTimezone: string;
+    includeDeuterocanonical: boolean;
+    user: { id: number; name: string; email: string; avatar: string | null };
     csrfToken: string;
     unreadCount: number;
     announcements: { id: number; title: string; url: string; date: string | null; dateLabel: string | null; isRead: boolean }[];

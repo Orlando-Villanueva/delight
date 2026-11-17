@@ -10,6 +10,7 @@ use App\Http\Controllers\Auth\GoogleOAuthController;
 use App\Http\Controllers\Dashboard\NotificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedbackController;
+use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\MarketingPreferencesController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PublicAnnouncementController;
@@ -23,6 +24,8 @@ use App\Http\Middleware\EnsureAdminOrAnalyticsToken;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EstablishReadingTimezone;
 use Illuminate\Support\Facades\Route;
+
+Route::post('/language', LanguageController::class)->middleware('guest')->name('language.update');
 
 // Development Routes (Local Development Only)
 if (app()->environment('local') || app()->environment('staging')) {
@@ -59,8 +62,31 @@ Route::get('/pwa.webmanifest', function () {
 
     abort_if($manifest === false, 500);
 
+    $data = json_decode($manifest, true);
+
+    if (is_array($data) && app()->getLocale() === 'fr') {
+        $data['lang'] = 'fr';
+        if (isset($data['description'])) {
+            $data['description'] = __($data['description']);
+        }
+        foreach ($data['shortcuts'] ?? [] as $index => $shortcut) {
+            foreach (['name', 'short_name', 'description'] as $field) {
+                if (isset($shortcut[$field])) {
+                    $data['shortcuts'][$index][$field] = __($shortcut[$field]);
+                }
+            }
+        }
+        foreach ($data['screenshots'] ?? [] as $index => $screenshot) {
+            if (isset($screenshot['label'])) {
+                $data['screenshots'][$index]['label'] = __($screenshot['label']);
+            }
+        }
+        $manifest = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    }
+
     return response($manifest, 200)
-        ->header('Content-Type', 'application/manifest+json');
+        ->header('Content-Type', 'application/manifest+json')
+        ->header('Cache-Control', 'private, no-store');
 })->name('pwa.manifest');
 
 // Legal Pages

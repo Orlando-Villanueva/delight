@@ -4,7 +4,23 @@
  * @param {(busy: boolean) => void} [onBusy]
  * @returns {() => void}
  */
-export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
+export function installBrowserReminders(root, csrfToken, onBusy = () => {}, localizedCopy = {}) {
+    const copy = {
+        canReceive: 'This browser can receive reading reminders.', turnOn: 'Turn on to connect this browser to Delight reminders.',
+        enabled: 'Enabled', disabled: 'Disabled', unavailable: 'Unavailable', blocked: 'Blocked', blockedStatus: 'Notifications are blocked for this browser.',
+        allowedConnect: 'Notifications are allowed. Turn this on to connect this browser to Delight reminders.', setupError: 'Reminder setup could not finish. Refresh the page and try again.',
+        braveMessage: 'Brave could not connect to its push service. In Brave, enable Settings > Privacy and security > Use Google services for push messaging, then reload Delight and try again.',
+        braveStatus: 'Brave could not connect to its push service.',
+        pushMessage: 'This browser allowed notifications, but could not create a push subscription. Reload Delight and try again. If it repeats, the browser push service may be blocked or unavailable for this profile or network.',
+        pushStatus: 'Browser could not create a push subscription.', permissionTimeout: 'The browser permission prompt did not finish.', statusError: 'Current browser reminder status could not be loaded.',
+        statusCheckError: 'Delight could not check this browser reminder status. Refresh and try again.', statusCheckShort: 'Reminder status could not be checked.',
+        notConfigured: 'Push reminders are not configured yet.', permissionWait: 'Waiting for browser permission.', permissionMissing: 'Choose Allow in the browser permission prompt, then try again.', permissionOff: 'Browser permission was not enabled.',
+        savingBrowser: 'Saving this browser for reminders.', saveSubscription: 'Delight could not save this browser subscription. Refresh and try again.', subscriptionFailed: 'Subscription could not be saved.',
+        saved: 'Saved', setupStillError: 'Notifications were allowed, but Delight could not finish setup. Refresh and try again.', updateFailed: 'Reminder preferences could not be updated. Try again.',
+        offAllConfirm: 'Turn off reading reminders on every device?', saving: 'Saving...', disconnected: 'Reminder devices could not be disconnected.', offAllFailed: 'Could not turn off reminders everywhere. Try again.',
+        stillWaiting: 'Still waiting for browser permission.', setupDidNotFinish: 'Reminder setup did not finish.', unsupported: 'This browser does not support web push reminders.',
+        ...localizedCopy,
+    };
     const controller = new AbortController();
     const timers = new Set();
     const delay = (callback, milliseconds) => {
@@ -146,12 +162,12 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
                 reminderToggle.setAttribute('aria-checked', deviceEnabled ? 'true' : 'false');
                 reminderToggle.disabled = false;
                 reminderToggle.title = deviceEnabled
-                    ? 'This browser can receive reading reminders.'
-                    : 'Turn on to connect this browser to Delight reminders.';
+                    ? copy.canReceive
+                    : copy.turnOn;
             }
 
             if (reminderToggleLabel) {
-                reminderToggleLabel.textContent = deviceEnabled ? 'Enabled' : 'Disabled';
+                reminderToggleLabel.textContent = deviceEnabled ? copy.enabled : copy.disabled;
             }
 
             if (disconnectAllButton) {
@@ -170,10 +186,10 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
 
             if (reminderToggleLabel) {
                 reminderToggleLabel.textContent = busy
-                    ? 'Saving...'
+                    ? copy.saving
                     : reminderSettings.dataset.deviceEnabled === 'true'
-                      ? 'Enabled'
-                      : 'Disabled';
+                      ? copy.enabled
+                      : copy.disabled;
             }
         };
 
@@ -188,12 +204,12 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
             }
 
             if (reminderToggleLabel) {
-                reminderToggleLabel.textContent = 'Unavailable';
+                reminderToggleLabel.textContent = copy.unavailable;
             }
         };
 
         const showBlocked = () => {
-            setStatus('Notifications are blocked for this browser.', true);
+            setStatus(copy.blockedStatus, true);
 
             setNotice(blockedNotice);
 
@@ -203,7 +219,7 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
             }
 
             if (reminderToggleLabel) {
-                reminderToggleLabel.textContent = 'Blocked';
+                reminderToggleLabel.textContent = copy.blocked;
             }
         };
 
@@ -212,10 +228,10 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
                 return;
             }
 
-            setStatus('Notifications are allowed. Turn this on to connect this browser to Delight reminders.', true);
+            setStatus(copy.allowedConnect, true);
         };
 
-        const showError = (message = 'Reminder setup could not finish. Refresh the page and try again.', statusMessage = message) => {
+        const showError = (message = copy.setupError, statusMessage = message) => {
             setStatus(statusMessage, true);
 
             setNotice(errorNotice, message);
@@ -225,22 +241,22 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
             if (await isBraveBrowser()) {
                 return {
                     message:
-                        'Brave could not connect to its push service. In Brave, enable Settings > Privacy and security > Use Google services for push messaging, then reload Delight and try again.',
-                    statusMessage: 'Brave could not connect to its push service.',
+                        copy.braveMessage,
+                    statusMessage: copy.braveStatus,
                 };
             }
 
             return {
                 message:
-                    'This browser allowed notifications, but could not create a push subscription. Reload Delight and try again. If it repeats, the browser push service may be blocked or unavailable for this profile or network.',
-                statusMessage: 'Browser could not create a push subscription.',
+                    copy.pushMessage,
+                statusMessage: copy.pushStatus,
             };
         };
 
         const requestPermissionWithTimeout = () =>
             new Promise((resolve, reject) => {
                 const timeout = delay(() => {
-                    reject(new Error('The browser permission prompt did not finish.'));
+                    reject(new Error(copy.permissionTimeout));
                 }, 20000);
 
                 Notification.requestPermission()
@@ -309,7 +325,7 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
             });
 
             if (!response.ok) {
-                throw new Error('Current browser reminder status could not be loaded.');
+                throw new Error(copy.statusError);
             }
 
             applySubscriptionState(await response.json());
@@ -330,10 +346,10 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
             }
 
             if (reminderToggleLabel) {
-                reminderToggleLabel.textContent = 'Unavailable';
+                reminderToggleLabel.textContent = copy.unavailable;
             }
         } else if (!isPushCapable()) {
-            showUnsupported('This browser does not support web push reminders.');
+            showUnsupported(copy.unsupported);
         } else if (Notification.permission === 'denied') {
             showBlocked();
         } else {
@@ -341,8 +357,8 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
                 syncCurrentDeviceState().catch((error) => {
                     console.error('Reading reminder status failed', error);
                     showError(
-                        'Delight could not check this browser reminder status. Refresh and try again.',
-                        'Reminder status could not be checked.'
+                        copy.statusCheckError,
+                        copy.statusCheckShort
                     );
                 });
             }
@@ -353,7 +369,7 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
 
                 if (!publicKey) {
                     setEnabledState(false, previousAccountHasDevices);
-                    showError('Push reminders are not configured yet.');
+                    showError(copy.notConfigured);
 
                     return;
                 }
@@ -361,7 +377,7 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
                 setBusy(true);
                 setNotice(progressNotice);
 
-                setStatus('Waiting for browser permission.', true);
+                setStatus(copy.permissionWait, true);
 
                 try {
                     const permission = await requestPermissionWithTimeout();
@@ -374,15 +390,15 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
                             showBlocked();
                         } else {
                             showError(
-                                'Choose Allow in the browser permission prompt, then try again.',
-                                'Browser permission was not enabled.'
+                                copy.permissionMissing,
+                                copy.permissionOff
                             );
                         }
 
                         return;
                     }
 
-                    setStatus('Saving this browser for reminders.', true);
+                    setStatus(copy.savingBrowser, true);
 
                     const subscription = await getOrCreatePushSubscription(publicKey);
                     currentPushSubscription = subscription;
@@ -401,8 +417,8 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
                         });
                         setEnabledState(false, previousAccountHasDevices);
                         showError(
-                            'Delight could not save this browser subscription. Refresh and try again.',
-                            'Subscription could not be saved.'
+                            copy.saveSubscription,
+                            copy.subscriptionFailed
                         );
 
                         return;
@@ -410,7 +426,7 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
 
                     setNotice(null);
                     applySubscriptionState(await response.json());
-                    setPreferenceStatus('Saved', 'success', 2200);
+                    setPreferenceStatus(copy.saved, 'success', 2200);
                 } catch (error) {
                     console.error('Reading reminder setup failed', error);
 
@@ -430,11 +446,11 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
                         return;
                     }
 
-                    if (error?.message === 'The browser permission prompt did not finish.') {
+                    if (error?.message === copy.permissionTimeout) {
                         setEnabledState(false, previousAccountHasDevices);
                         showError(
-                            'Choose Allow in the browser permission prompt, then try again.',
-                            'Still waiting for browser permission.'
+                            copy.permissionMissing,
+                            copy.stillWaiting
                         );
 
                         return;
@@ -442,8 +458,8 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
 
                     setEnabledState(false, previousAccountHasDevices);
                     showError(
-                        'Notifications were allowed, but Delight could not finish setup. Refresh and try again.',
-                        'Reminder setup did not finish.'
+                        copy.setupStillError,
+                        copy.setupDidNotFinish
                     );
                 } finally {
                     setBusy(false);
@@ -473,7 +489,7 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
 
                     if (!response.ok) {
                         setEnabledState(previousDeviceEnabled, previousAccountHasDevices);
-                        showError('Reminder preferences could not be updated. Try again.');
+                        showError(copy.updateFailed);
 
                         return;
                     }
@@ -481,14 +497,14 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
                     setNotice(null);
                     applySubscriptionState(await response.json());
                     currentPushSubscription = null;
-                    setPreferenceStatus('Saved', 'success', 2200);
+                    setPreferenceStatus(copy.saved, 'success', 2200);
 
                     if (isPushCapable() && Notification.permission === 'denied') {
                         showBlocked();
                     }
                 } catch (error) {
                     setEnabledState(previousDeviceEnabled, previousAccountHasDevices);
-                    showError('Reminder preferences could not be updated. Try again.');
+                    showError(copy.updateFailed);
                 } finally {
                     setBusy(false);
                 }
@@ -505,26 +521,26 @@ export function installBrowserReminders(root, csrfToken, onBusy = () => {}) {
             });
 
             disconnectAllButton?.addEventListener('click', async () => {
-                if (!window.confirm('Turn off reading reminders on every device?')) {
+                if (!window.confirm(copy.offAllConfirm)) {
                     return;
                 }
 
                 setBusy(true);
                 disconnectAllButton.disabled = true;
-                setPreferenceStatus('Saving...');
+                setPreferenceStatus(copy.saving);
 
                 try {
                     const response = await postJson(reminderSettings.dataset.disconnectAllUrl, 'DELETE');
 
                     if (!response.ok) {
-                        throw new Error('Reminder devices could not be disconnected.');
+                        throw new Error(copy.disconnected);
                     }
 
                     currentPushSubscription = null;
                     applySubscriptionState(await response.json());
-                    setPreferenceStatus('Saved', 'success', 2200);
+                    setPreferenceStatus(copy.saved, 'success', 2200);
                 } catch (error) {
-                    setPreferenceStatus('Could not turn off reminders everywhere. Try again.', 'error');
+                    setPreferenceStatus(copy.offAllFailed, 'error');
                 } finally {
                     setBusy(false);
                     disconnectAllButton.disabled = false;

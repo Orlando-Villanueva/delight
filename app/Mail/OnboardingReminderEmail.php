@@ -21,11 +21,16 @@ class OnboardingReminderEmail extends Mailable
 
     public string $oneClickUnsubscribeUrl;
 
+    private string $emailLocale;
+
     /**
      * Create a new message instance.
      */
     public function __construct(public User $user)
     {
+        $this->emailLocale = $user->preferredLocale();
+        $this->locale($this->emailLocale);
+
         $this->unsubscribeUrl = URL::signedRoute(
             'marketing.unsubscribe',
             ['user' => $user],
@@ -46,7 +51,7 @@ class OnboardingReminderEmail extends Mailable
     {
         return new Envelope(
             from: new Address(config('mail.updates_from.address'), config('mail.updates_from.name')),
-            subject: 'A gentle reminder from Delight',
+            subject: $this->localized('A gentle reminder from Delight'),
         );
     }
 
@@ -84,5 +89,17 @@ class OnboardingReminderEmail extends Mailable
     public function attachments(): array
     {
         return [];
+    }
+
+    private function localized(string $key): string
+    {
+        $previousLocale = app()->getLocale();
+        app()->setLocale($this->emailLocale);
+
+        try {
+            return __($key);
+        } finally {
+            app()->setLocale($previousLocale);
+        }
     }
 }

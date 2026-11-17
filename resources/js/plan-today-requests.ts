@@ -1,6 +1,13 @@
 import type { PlanTodayMutation, PlanTodayState } from './plan-today-types.ts';
 
 export type PlanReadingOutcome = { kind: 'success'; data: PlanTodayMutation } | { kind: 'failure' | 'refresh'; message: string };
+export type PlanTodayMessages = { expired: string; changed: string; cannotSave: string; uncertain: string };
+const englishMessages: PlanTodayMessages = {
+    expired: 'Your session has expired. Refresh the plan to sign in again.',
+    changed: 'This plan has changed or is no longer available. Refresh the plan before continuing.',
+    cannotSave: 'The reading could not be saved. Check your connection and access, then try again.',
+    uncertain: 'We could not confirm whether the reading was saved. Refresh the plan state before trying another action.',
+};
 
 function isToday(value: unknown): value is PlanTodayState {
     if (!value || typeof value !== 'object') return false;
@@ -26,21 +33,21 @@ function isMutation(value: unknown): value is PlanTodayMutation {
         && (celebration.record === null || typeof celebration.record?.title === 'string')));
 }
 
-export async function mutatePlanReading(url: string, body: Record<string, number>, csrfToken: string, fetcher = globalThis.fetch): Promise<PlanReadingOutcome> {
+export async function mutatePlanReading(url: string, body: Record<string, number>, csrfToken: string, fetcher = globalThis.fetch, messages: PlanTodayMessages = englishMessages): Promise<PlanReadingOutcome> {
     try {
         const response = await fetcher(url, {
             method: 'POST', credentials: 'same-origin',
             headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
             body: JSON.stringify(body),
         });
-        if (response.redirected || [401, 419].includes(response.status)) return { kind: 'refresh', message: 'Your session has expired. Refresh the plan to sign in again.' };
-        if ([400, 403, 404, 409].includes(response.status)) return { kind: 'refresh', message: 'This plan has changed or is no longer available. Refresh the plan before continuing.' };
+        if (response.redirected || [401, 419].includes(response.status)) return { kind: 'refresh', message: messages.expired };
+        if ([400, 403, 404, 409].includes(response.status)) return { kind: 'refresh', message: messages.changed };
         if (response.status >= 500) throw new Error('Unconfirmed save');
-        if (!response.ok) return { kind: 'failure', message: 'The reading could not be saved. Check your connection and access, then try again.' };
+        if (!response.ok) return { kind: 'failure', message: messages.cannotSave };
         const payload: unknown = await response.json();
         if (!isMutation(payload) || payload.today.dayNumber !== body.day) throw new Error('Unrecognized save');
         return { kind: 'success', data: payload };
     } catch {
-        return { kind: 'refresh', message: 'We could not confirm whether the reading was saved. Refresh the plan state before trying another action.' };
+        return { kind: 'refresh', message: messages.uncertain };
     }
 }

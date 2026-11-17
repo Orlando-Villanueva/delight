@@ -45,6 +45,7 @@ class ReadingFormService
     public function getRecentBooksForForm(User $user): array
     {
         $books = collect($this->bibleReferenceService->listBibleBooks(
+            locale: app()->getLocale(),
             includeDeuterocanonical: $user->includesDeuterocanonicalBooks()
         ))->keyBy('id');
 

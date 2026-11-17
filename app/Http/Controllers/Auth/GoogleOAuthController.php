@@ -6,6 +6,7 @@ use App\Exceptions\GoogleIdentityConflictException;
 use App\Http\Controllers\Controller;
 use App\Services\GoogleIdentityLockService;
 use App\Services\GoogleTokenExchangeService;
+use App\Services\LocaleResolver;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
@@ -44,7 +45,7 @@ class GoogleOAuthController extends Controller
             return redirect()
                 ->route('login')
                 ->withErrors([
-                    'oauth' => 'We could not complete Google sign in. Please try again or use your email and password.',
+                    'oauth' => __('We could not complete Google sign in. Please try again or use your email and password.'),
                 ]);
         } catch (Throwable $exception) {
             Log::error('Unexpected Google OAuth callback failure.', [
@@ -54,13 +55,13 @@ class GoogleOAuthController extends Controller
             return redirect()
                 ->route('login')
                 ->withErrors([
-                    'oauth' => 'We hit an unexpected error while contacting Google. Please try again.',
+                    'oauth' => __('We hit an unexpected error while contacting Google. Please try again.'),
                 ]);
         }
 
         $googleEmail = $googleUser->getEmail();
 
-        abort_if(blank($googleEmail), 422, 'Unable to complete sign in without an email address.');
+        abort_if(blank($googleEmail), 422, __('Unable to complete sign in without an email address.'));
 
         $googleDisplayName = $googleUser->getName() ?? $googleUser->getNickname() ?? $googleEmail;
         $googleAvatar = $googleUser->getAvatar();
@@ -78,7 +79,7 @@ class GoogleOAuthController extends Controller
             return redirect()
                 ->route('login')
                 ->withErrors([
-                    'oauth' => 'We could not complete Google sign in. Please try again.',
+                    'oauth' => __('We could not complete Google sign in. Please try again.'),
                 ]);
         } catch (GoogleIdentityConflictException) {
             Log::warning('Google OAuth callback rejected.', ['reason' => 'identity_conflict']);
@@ -86,7 +87,7 @@ class GoogleOAuthController extends Controller
             return redirect()
                 ->route('login')
                 ->withErrors([
-                    'oauth' => 'We could not complete Google sign in. Please use your existing sign-in method.',
+                    'oauth' => __('We could not complete Google sign in. Please use your existing sign-in method.'),
                 ]);
         }
 
@@ -103,6 +104,8 @@ class GoogleOAuthController extends Controller
         if (! empty($updates)) {
             $user->forceFill($updates)->save();
         }
+
+        app(LocaleResolver::class)->establishLocale($user, $request);
 
         Auth::login($user);
 

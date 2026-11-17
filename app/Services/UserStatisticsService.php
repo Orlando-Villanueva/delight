@@ -195,7 +195,7 @@ class UserStatisticsService
         // Apply limit at database level to avoid loading all records into memory
         // Use a more efficient query with specific index
         $recentReadings = $user->readingLogs()
-            ->select('id', 'passage_text', 'date_read', 'notes_text', 'created_at')
+            ->select('id', 'book_id', 'chapter', 'passage_text', 'date_read', 'notes_text', 'created_at')
             ->orderBy('date_read', 'desc')
             ->orderBy('created_at', 'desc')
             ->limit($limit * 3) // Get more records to account for potential duplicates
@@ -209,6 +209,8 @@ class UserStatisticsService
         return $recentReadings->map(function ($reading) use ($user) {
             return [
                 'id' => $reading->id,
+                'book_id' => (int) $reading->book_id,
+                'chapter' => (int) $reading->chapter,
                 'passage_text' => $reading->passage_text,
                 'date_read' => $reading->date_read,
                 'notes_text' => $reading->notes_text,
@@ -448,7 +450,9 @@ class UserStatisticsService
         $currentMonth = $this->readingCalendar->nowFor($user)->format('Y-m');
 
         // Clear all user-specific caches
-        Cache::forget($this->readingCalendar->dashboardStatisticsCacheKey($user));
+        foreach (array_keys(config('localization.supported')) as $locale) {
+            Cache::forget($this->readingCalendar->dashboardStatisticsCacheKey($user, $locale));
+        }
         Cache::forget($this->readingCalendar->cacheKey($user, "user_current_streak_{$user->id}"));
         Cache::forget($this->readingCalendar->cacheKey($user, "user_longest_streak_{$user->id}"));
         Cache::forget($this->readingCalendar->cacheKey($user, "user_current_streak_series_{$user->id}"));

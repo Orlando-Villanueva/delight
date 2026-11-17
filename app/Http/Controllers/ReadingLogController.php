@@ -57,7 +57,7 @@ class ReadingLogController extends Controller
                 'achievementsUrl' => route('achievements.index'),
                 'achievementBadgeBaseUrl' => asset('images/achievements'),
                 'csrfToken' => csrf_token(),
-                'books' => $this->bibleReferenceService->listBibleBooks(null, 'en', $user->includesDeuterocanonicalBooks()),
+                'books' => $this->bibleReferenceService->listBibleBooks(null, app()->getLocale(), $user->includesDeuterocanonicalBooks()),
                 'recentBooks' => $this->readingFormService->getRecentBooksForForm($user),
                 'dates' => ['today' => $today->toDateString(), 'yesterday' => $today->subDay()->toDateString()],
                 'values' => [
@@ -103,19 +103,23 @@ class ReadingLogController extends Controller
             // Create reading log using service
             $result = $this->readingLogService->logReadingWithResult($user, $validated);
             $log = $result->log;
+            $displayPassage = $this->bibleReferenceService->formatBibleReferenceRange(
+                (int) $validated['book_id'], $start, $end, app()->getLocale(), $includeDeuterocanonical
+            );
+            $displayDate = $log->date_read->locale(app()->getLocale())->isoFormat(app()->getLocale() === 'fr' ? 'D MMM YYYY' : 'MMM D, YYYY');
 
             if ($request->wantsJson()) {
                 $formContext = $this->readingFormService->getFormContextData($user);
                 $celebration = $this->achievementService->getCelebrationPayload($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay);
 
                 return response()->json([
-                    'message' => "{$log->passage_text} recorded for {$log->date_read->format('M d, Y')}",
+                    'message' => __('reading-log.recorded', ['passage' => $displayPassage, 'date' => $displayDate]),
                     'reading' => [
-                        'passage_text' => $log->passage_text,
+                        'passage_text' => $displayPassage,
                         'date_read' => $log->date_read->toDateString(),
                     ],
                     'form' => [
-                        'books' => $this->bibleReferenceService->listBibleBooks(null, 'en', $includeDeuterocanonical),
+                        'books' => $this->bibleReferenceService->listBibleBooks(null, app()->getLocale(), $includeDeuterocanonical),
                         'recent_books' => $formContext['recentBooks'],
                         'dates' => [
                             'today' => $this->readingCalendar->todayFor($user)->toDateString(),
@@ -135,7 +139,7 @@ class ReadingLogController extends Controller
 
             // Check if this is an HTMX request for the form replacement
             if ($request->header('HX-Request')) {
-                $content = view('partials.reading-log-success-message', compact('log'))->render();
+                $content = view('partials.reading-log-success-message', compact('log', 'displayPassage', 'displayDate'))->render();
 
                 $content .= $this->achievementCelebrationFragment($user, $result->awardedAchievements, $log, $result->isFirstReadingOfDay);
 
@@ -143,12 +147,12 @@ class ReadingLogController extends Controller
             } else {
                 // For non-HTMX requests (tests, direct submissions), return the success message
                 // This maintains backwards compatibility with existing tests
-                return view('partials.reading-log-success-message', compact('log'));
+                return view('partials.reading-log-success-message', compact('log', 'displayPassage', 'displayDate'));
             }
         } catch (ValidationException $e) {
             return $request->validationResponse($e->errors());
         } catch (InvalidArgumentException $e) {
-            return $request->validationResponse(['chapter_range' => [$e->getMessage()]]);
+            return $request->validationResponse(['chapter_range' => [__('reader.errors.invalid_chapter_range')]]);
         } catch (QueryException $e) {
             if (! in_array((string) $e->getCode(), ['23000', '23505'], true)) {
                 throw $e;
@@ -158,7 +162,9 @@ class ReadingLogController extends Controller
             $dateLabel = $request->input('date_read') === $yesterday ? 'yesterday' : 'today';
 
             return $request->validationResponse([
-                'chapter_range' => ["You have already logged one or more of these chapters for {$dateLabel}."],
+                'chapter_range' => [__('reader.errors.duplicate_reading', ['date' => app()->getLocale() === 'fr'
+                    ? ($dateLabel === 'yesterday' ? __('reading-log.yesterday') : __('reading-log.today'))
+                    : $dateLabel])],
             ]);
         }
     }
@@ -216,7 +222,7 @@ class ReadingLogController extends Controller
 
         return redirect()
             ->route('logs.index')
-            ->with('success', 'Reading note updated successfully.');
+            ->with('success', __('reader.reading.note_updated'));
     }
 
     /**
@@ -226,7 +232,7 @@ class ReadingLogController extends Controller
     {
         // Authorize the deletion
         if ($request->user()->id !== $readingLog->user_id) {
-            abort(403, 'Unauthorized to delete this reading log.');
+            abort(403, __('reader.reading.unauthorized_delete'));
         }
 
         $user = $request->user();
@@ -240,7 +246,7 @@ class ReadingLogController extends Controller
         }
 
         // For non-HTMX requests, redirect back
-        return redirect()->route('logs.index')->with('success', 'Reading log deleted successfully.');
+        return redirect()->route('logs.index')->with('success', __('reader.reading.deleted'));
     }
 
     /**
@@ -257,7 +263,7 @@ class ReadingLogController extends Controller
             return $this->historyMutationResponse($user, $date);
         }
 
-        return redirect()->route('logs.index')->with('success', 'Selected readings deleted successfully.');
+        return redirect()->route('logs.index')->with('success', __('reader.reading.selected_deleted'));
     }
 
     private function historyMutationResponse(User $user, string $date): JsonResponse

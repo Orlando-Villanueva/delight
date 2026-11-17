@@ -79,9 +79,9 @@ class ReadingCalendarService
         return $key.':'.$this->timezoneFor($user).':'.$this->todayFor($user)->toDateString();
     }
 
-    public function dashboardStatisticsCacheKey(User $user): string
+    public function dashboardStatisticsCacheKey(User $user, ?string $locale = null): string
     {
-        return $this->cacheKey($user, "user_dashboard_stats_v2_{$user->id}");
+        return $this->cacheKey($user, "user_dashboard_stats_v2_{$user->id}").':'.($locale ?? app()->getLocale());
     }
 
     private function isValidTimezone(?string $timezone): bool

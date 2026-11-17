@@ -40,6 +40,7 @@ class SettingsController extends Controller
 
         return Inertia::render('Settings', [
             'values' => [
+                'preferred_locale' => $user->preferred_locale === null ? app()->getLocale() : $user->preferredLocale(),
                 'include_deuterocanonical' => $user->includesDeuterocanonicalBooks(),
                 'daily_reading_reminder_enabled' => $user->hasDailyReadingReminderEnabled(),
                 'streak_warning_enabled' => $user->hasStreakWarningEnabled(),
@@ -86,6 +87,10 @@ class SettingsController extends Controller
             $updates['streak_warning_enabled_at'] = $request->boolean('streak_warning_enabled') ? now() : null;
         }
 
+        if (array_key_exists('preferred_locale', $validated)) {
+            $updates['preferred_locale'] = $validated['preferred_locale'];
+        }
+
         if ($updates !== []) {
             $user->forceFill($updates)->save();
         }
@@ -96,9 +101,13 @@ class SettingsController extends Controller
             $this->userStatistics->invalidateUserCache($user);
         }
 
-        Cache::forget($this->readingCalendar->dashboardStatisticsCacheKey($user));
+        foreach (array_keys(config('localization.supported')) as $locale) {
+            Cache::forget($this->readingCalendar->dashboardStatisticsCacheKey($user, $locale));
+        }
 
         $freshUser = $user->fresh();
+        app()->setLocale($freshUser->preferredLocale());
+        $this->userStatistics->invalidateUserCache($freshUser);
         $pausedCatholicCanonicalPlan = false;
 
         $readingTimezoneChanged = $wasReadingTimezone !== $freshUser->reading_timezone;
@@ -143,6 +152,7 @@ class SettingsController extends Controller
 
         if ($request->expectsJson() && ! $request->header('X-Inertia')) {
             $response = [
+                'preferred_locale' => $freshUser->preferredLocale(),
                 'include_deuterocanonical' => $freshUser->includesDeuterocanonicalBooks(),
                 'daily_reading_reminder_enabled' => $freshUser->hasDailyReadingReminderEnabled(),
                 'streak_warning_enabled' => $freshUser->hasStreakWarningEnabled(),
@@ -158,9 +168,9 @@ class SettingsController extends Controller
 
         if ($pausedCatholicCanonicalPlan) {
             return redirect()->route('settings.edit')
-                ->with('status', 'Settings saved. Your Catholic Canonical reading plan has been paused.');
+                ->with('status', __('reader.settings.saved_plan_paused'));
         }
 
-        return redirect()->route('settings.edit')->with('status', 'Settings saved.');
+        return redirect()->route('settings.edit')->with('status', __('reader.settings.saved'));
     }
 }

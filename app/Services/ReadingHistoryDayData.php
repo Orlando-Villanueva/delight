@@ -26,7 +26,7 @@ final class ReadingHistoryDayData
                 'notes' => $log->notes_text,
                 'chapterCount' => (int) ($log->chapters_count ?? $chapters->count()),
                 'loggedAt' => $log->created_at->toISOString(),
-                'timeLabel' => $log->created_at->format('g:i A'),
+                'timeLabel' => $log->created_at->locale(app()->getLocale())->isoFormat(app()->getLocale() === 'fr' ? 'HH:mm' : 'h:mm A'),
                 'chapters' => $chapters->map(fn (ReadingLog $chapter): array => [
                     'id' => (int) $chapter->id,
                     'chapter' => (int) $chapter->chapter,
@@ -39,7 +39,7 @@ final class ReadingHistoryDayData
 
         return [
             'date' => $date,
-            'label' => $day->format('M j, Y'),
+            'label' => $day->isoFormat(app()->getLocale() === 'fr' ? 'D MMM YYYY' : 'MMM D, YYYY'),
             'groups' => $groups,
         ];
     }

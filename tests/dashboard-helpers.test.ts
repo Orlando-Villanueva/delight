@@ -87,3 +87,15 @@ test('loadDashboard distinguishes expired sessions, HTTP failures, malformed res
     assert.equal(attempts, 2);
     assert.equal(retried.hasReadToday, false);
 });
+
+test('network failures use localized dashboard copy', async () => {
+    const messages = { expired: 'Session expirée', unable: 'Mise à jour impossible', tryAgain: 'Veuillez réessayer' };
+    await assert.rejects(loadDashboard('/dashboard', new AbortController().signal, async () => { throw new TypeError('Failed to fetch'); }, messages), { message: 'Veuillez réessayer' });
+    await assert.rejects(loadDashboard('/dashboard', new AbortController().signal, async () => response({}, { status: 419 }), messages), { message: 'Session expirée' });
+});
+
+
+test('malformed JSON uses localized dashboard recovery copy', async () => {
+    const messages = { expired: 'Session expirée', unable: 'Échec', tryAgain: 'Veuillez réessayer' };
+    await assert.rejects(loadDashboard('/dashboard', new AbortController().signal, async () => new Response('<html>'), messages), { message: messages.tryAgain });
+});

@@ -29,7 +29,9 @@ class ReadingReminderPushNotification extends Notification
 
     public function toWebPush(object $notifiable, Notification $notification): WebPushMessage
     {
-        [$title, $body] = $this->copy();
+        [$title, $body] = $this->copy(method_exists($notifiable, 'preferredLocale')
+            ? $notifiable->preferredLocale()
+            : app()->getLocale());
 
         return (new WebPushMessage)
             ->title($title)
@@ -62,18 +64,19 @@ class ReadingReminderPushNotification extends Notification
     /**
      * @return array{0: string, 1: string}
      */
-    private function copy(): array
+    private function copy(string $locale): array
     {
-        if ($this->reminderType === ReadingReminderType::StreakRisk->value) {
-            return [
-                'Your streak needs today\'s reading',
-                'Open Delight and log a reading tonight to keep your streak alive.',
-            ];
-        }
+        $previousLocale = app()->getLocale();
+        app()->setLocale($locale);
 
-        return [
-            "Time for today's reading",
-            'Open Delight and log one chapter when you are ready.',
-        ];
+        try {
+            if ($this->reminderType === ReadingReminderType::StreakRisk->value) {
+                return [__('Your streak needs today\'s reading'), __('Open Delight and log a reading tonight to keep your streak alive.')];
+            }
+
+            return [__('Time for today\'s reading'), __('Open Delight and log one chapter when you are ready.')];
+        } finally {
+            app()->setLocale($previousLocale);
+        }
     }
 }

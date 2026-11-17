@@ -88,7 +88,7 @@
                 <!-- Logo -->
                 <div class="flex items-center">
                     <a href="{{ route('landing') }}" class="flex items-center gap-2">
-                        <img src="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}" alt="Delight Logo" class="w-8 h-8">
+                        <img src="{{ asset('images/logo-64.png') }}?v={{ config('app.asset_version') }}" alt="{{ __('Delight Logo') }}" class="w-8 h-8">
                         <span class="{{ $logoTextClasses }}">Delight</span>
                     </a>
 
@@ -96,7 +96,7 @@
                         <span class="{{ $separatorClasses }}"></span>
 
                         <a href="{{ route('announcements.index') }}" class="{{ $updatesLinkClasses }}">
-                            Updates
+                            {{ __('Updates') }}
                         </a>
                     @endif
                 </div>
@@ -105,16 +105,17 @@
                 <div class="flex items-center gap-3">
                     @auth
                         <a href="{{ route('dashboard') }}" class="{{ $navLinkClasses }}">
-                            Dashboard
+                            {{ __('Dashboard') }}
                         </a>
                     @else
                         <a href="{{ route('login') }}" class="{{ $navLinkClasses }}">
-                            Sign In
+                            {{ __('Sign In') }}
                         </a>
                         <a href="{{ route('register') }}" class="{{ $primaryButtonClasses }}">
-                            Get Started
+                            {{ __('Get Started') }}
                         </a>
                     @endauth
+                    <x-language-switcher />
                 </div>
             </div>
         </div>
@@ -131,14 +132,15 @@
     <footer class="{{ $footerClasses }}">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
             <p class="{{ $footerTextClasses }}">
-                &copy; {{ date('Y') }} Delight. All rights reserved.
+                &copy; {{ date('Y') }} Delight. {{ __('All rights reserved.') }}
             </p>
             <div class="flex gap-4">
-                <a href="{{ route('landing') }}" class="{{ $footerLinkClasses }}">Home</a>
-                <a href="{{ route('dashboard') }}" class="{{ $footerLinkClasses }}">App</a>
+                <a href="{{ route('landing') }}" class="{{ $footerLinkClasses }}">{{ __('Home') }}</a>
+                <a href="{{ route('dashboard') }}" class="{{ $footerLinkClasses }}">{{ __('App') }}</a>
             </div>
         </div>
     </footer>
+    <script src="{{ asset('offline-locale.js') }}" defer></script>
 </body>
 
 </html>

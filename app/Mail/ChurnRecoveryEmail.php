@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\User;
+use App\Services\BibleReferenceService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -24,11 +25,19 @@ class ChurnRecoveryEmail extends Mailable
 
     public string $ctaUrl;
 
+    public ?string $lastReadingPassage;
+
+    private string $emailLocale;
+
     public function __construct(
         public User $user,
         public int $emailNumber,
-        public ?string $lastReadingPassage = null
+        ?string $lastReadingPassage = null,
+        ?int $lastReadingBookId = null,
+        ?int $lastReadingChapter = null,
     ) {
+        $this->emailLocale = $user->preferredLocale();
+        $this->locale($this->emailLocale);
         $this->assertValidEmailNumber();
 
         $this->unsubscribeUrl = URL::signedRoute(
@@ -44,6 +53,7 @@ class ChurnRecoveryEmail extends Mailable
         );
 
         $this->ctaUrl = route('logs.create');
+        $this->lastReadingPassage = $this->localizedPassage($lastReadingPassage, $lastReadingBookId, $lastReadingChapter);
     }
 
     public function envelope(): Envelope
@@ -92,10 +102,44 @@ class ChurnRecoveryEmail extends Mailable
 
     private function emailSubject(): string
     {
-        return [
+        return $this->localized([
             1 => 'Keep your reading history up to date',
             2 => 'A quick check-in from Delight',
             3 => 'Add your latest reading to Delight',
-        ][$this->emailNumber];
+        ][$this->emailNumber]);
+    }
+
+    private function localized(string $subject): string
+    {
+        $previousLocale = app()->getLocale();
+        app()->setLocale($this->emailLocale);
+
+        try {
+            return __($subject);
+        } finally {
+            app()->setLocale($previousLocale);
+        }
+    }
+
+    private function localizedPassage(?string $passage, ?int $bookId, ?int $chapter): ?string
+    {
+        if ($passage === null || $this->emailLocale !== 'fr' || $bookId === null || $chapter === null) {
+            return $passage;
+        }
+
+        if ($chapter < 1) {
+            return $passage;
+        }
+
+        $references = app(BibleReferenceService::class);
+        $includeDeuterocanonical = $this->user->includesDeuterocanonicalBooks() || $bookId > 66;
+        $englishBook = $references->getBibleBook($bookId, 'en', $includeDeuterocanonical)['name'] ?? null;
+        $frenchBook = $references->getBibleBook($bookId, 'fr', $includeDeuterocanonical)['name'] ?? null;
+
+        if ($englishBook === null || $frenchBook === null) {
+            return $passage;
+        }
+
+        return preg_replace('/^'.preg_quote($englishBook, '/').'(?=\s)/u', $frenchBook, $passage) ?? $passage;
     }
 }

@@ -22,8 +22,8 @@ it('serves the approved guide in initial HTML to guests with an account CTA and 
         ->assertSee('src="'.asset('images/guide-paper-bible-hero.jpg').'"', false)
         ->assertSee('href="'.route('android.download').'"', false)
         ->assertSeeText('download the native Android app')
-        ->assertSee('guide-reading-form.png')
-        ->assertSee('guide-reading-calendar.png');
+        ->assertSee('guide-reading-form-en.jpg')
+        ->assertSee('guide-reading-calendar-en.jpg');
 
     expect(preg_match('/<script type="application\/ld\+json">(.*?)<\/script>/s', $response->getContent(), $matches))->toBe(1);
     $schema = json_decode($matches[1], true, flags: JSON_THROW_ON_ERROR);

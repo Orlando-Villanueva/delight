@@ -48,6 +48,7 @@
 </head>
 
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen font-sans">
+    <x-language-switcher standalone />
     @if(request()->routeIs('login') || request()->routeIs('register') || request()->routeIs('password.*'))
         <!-- Full-height auth layout -->
         <div class="min-h-screen">
@@ -72,22 +73,22 @@
                             @auth
                                 <a href="{{ url('/dashboard') }}"
                                     class="rounded-lg bg-primary-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-600">
-                                    Dashboard
+                                    {{ __('Dashboard') }}
                                 </a>
                             @else
                                 <a href="{{ url('/') }}"
                                     class="rounded-lg px-3 py-2 text-sm font-medium transition {{ request()->routeIs('landing') ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white' }}">
-                                    Welcome
+                                    {{ __('Welcome') }}
                                 </a>
                                 <a href="{{ route('login') }}"
                                     class="rounded-lg px-3 py-2 text-sm font-medium transition {{ request()->routeIs('login') || request()->routeIs('password.*') ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white' }}">
-                                    Log in
+                                    {{ __('Log in') }}
                                 </a>
 
                                 @if (Route::has('register'))
                                     <a href="{{ route('register') }}"
                                         class="rounded-lg bg-primary-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-primary-600">
-                                        Register
+                                        {{ __('Register') }}
                                     </a>
                                 @endif
                             @endauth
@@ -103,24 +104,12 @@
 
             <footer
                 class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
-                <p>&copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved.</p>
+                <p>&copy; {{ date('Y') }} {{ config('app.name') }}. {{ __('All rights reserved.') }}</p>
             </footer>
         </div>
     @endif
 
-    <!-- PWA Service Worker Registration -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    }, function(err) {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
-    </script>
+    <script src="{{ asset('offline-locale.js') }}" defer></script>
 </body>
 
 </html>

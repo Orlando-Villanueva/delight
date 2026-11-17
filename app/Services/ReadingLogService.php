@@ -617,7 +617,9 @@ class ReadingLogService
         $currentMonth = $this->readingCalendar->nowFor($user)->format('Y-m');
 
         // Always invalidate - these change on every reading
-        Cache::forget($this->readingCalendar->dashboardStatisticsCacheKey($user));
+        foreach (array_keys(config('localization.supported')) as $locale) {
+            Cache::forget($this->readingCalendar->dashboardStatisticsCacheKey($user, $locale));
+        }
         Cache::forget($this->readingCalendar->cacheKey($user, "user_calendar_{$user->id}_{$currentYear}"));
         Cache::forget($this->readingCalendar->cacheKey($user, "user_calendar_{$user->id}_{$previousYear}"));
         Cache::forget($this->readingCalendar->cacheKey($user, "user_monthly_calendar_{$user->id}_{$currentMonth}"));
@@ -1014,7 +1016,7 @@ class ReadingLogService
             return $segments->map(function (Collection $segment) {
                 $displayLog = $segment->first();
                 $displayLog->all_logs = $segment->values();
-                $displayLog->display_passage_text = $this->formatSegmentPassage($segment);
+                $displayLog->display_passage_text = $this->formatSegmentPassage($segment, app()->getLocale());
                 $displayLog->chapters_count = $segment->count();
 
                 return $displayLog;
