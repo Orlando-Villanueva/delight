@@ -96,3 +96,16 @@ it('does not initialize a language from a matched failed page request', function
         ->assertStatus(429)->assertHeader('Retry-After', '23')->assertHeader('Content-Language', 'fr');
     expect($user->fresh()->preferred_locale)->toBeNull();
 });
+
+it('requests the manifest with visitor credentials on public pages', function (string $path) {
+    $this->withCookie('delight_locale', 'fr')->withHeader('Accept-Language', 'en')->get($path)
+        ->assertOk()->assertSee('<link rel="manifest" crossorigin="use-credentials"', false);
+    $this->get(LOCALE_MANIFEST_PATH)->assertOk()->assertJsonPath('lang', 'fr');
+})->with(['/', '/login']);
+
+it('requests the manifest with account credentials in the reader', function () {
+    $reader = User::factory()->create(['preferred_locale' => 'fr']);
+    $this->actingAs($reader)->withHeader('Accept-Language', 'en')->get('/logs/create')
+        ->assertOk()->assertSee('<link rel="manifest" crossorigin="use-credentials"', false);
+    $this->get(LOCALE_MANIFEST_PATH)->assertOk()->assertJsonPath('lang', 'fr');
+});

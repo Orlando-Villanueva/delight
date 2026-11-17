@@ -55,6 +55,8 @@ export function readingValidationPresentation(outcome: Extract<ReadingOutcome, {
 
 export function readingSuccessPresentation(outcome: Extract<ReadingOutcome, { kind: 'success' }>, current: Omit<ReadingSubmissionContext, 'submittedValues'>, latest: { books: BibleBook[]; recentBooks: BibleBook[]; dates: ReadingDates; values: ReadingValues }) {
     const currentPresentation = isReadingPresentationCurrent(outcome.submission, current);
+    const useResponseCalendar = currentPresentation && outcome.data.form.dates.today >= latest.dates.today;
+    const dates = useResponseCalendar ? outcome.data.form.dates : latest.dates;
     const books = currentPresentation ? outcome.data.form.books : latest.books;
     const submitted = outcome.submission.submittedValues;
     const book = books.find((item) => String(item.id) === String(submitted.book_id));
@@ -63,13 +65,13 @@ export function readingSuccessPresentation(outcome: Extract<ReadingOutcome, { ki
         current: currentPresentation,
         books,
         recentBooks: currentPresentation ? outcome.data.form.recent_books : latest.recentBooks,
-        dates: currentPresentation ? outcome.data.form.dates : latest.dates,
-        values: currentPresentation ? outcome.data.form.values : {
+        dates,
+        values: useResponseCalendar ? outcome.data.form.values : {
             ...latest.values,
             book_id: '',
             start_chapter: '',
             end_chapter: '',
-            date_read: latest.dates.today,
+            date_read: dates.today,
             notes_text: '',
         },
         celebration: currentPresentation ? outcome.data.celebration : null,

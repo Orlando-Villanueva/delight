@@ -218,3 +218,32 @@ test('reactive Inertia form props initialize and refresh an independent draft wi
     assert.notEqual(session.dateContext, props.dates);
     clearReadingDraft();
 });
+
+test('retained success keeps the newer confirmed calendar and resets the next reading to Today', async () => {
+    const values = { book_id: '43', start_chapter: '1', end_chapter: '', date_read: '2026-11-12', notes_text: 'Saved note' };
+    const context = { userId: 1, locale: 'en', timeZone: 'UTC', includeDeuterocanonical: false };
+    const reset = { ...values, book_id: '', start_chapter: '', notes_text: '' };
+    const oldDates = { today: '2026-11-12', yesterday: '2026-11-11' };
+    const newDates = { today: '2026-11-13', yesterday: '2026-11-12' };
+    const books = [{ id: 43, name: 'John', chapters: 21, testament: 'new' }];
+    const data = { message: 'Saved', reading: { passage_text: 'John 1', date_read: values.date_read },
+        form: { values: reset, dates: oldDates, books, recent_books: books },
+        celebration: { earned: [], progress: [], record: null, reading: { passage: 'John 1', date: values.date_read } } };
+    const session = createReadingLogSession({ values, collection: 'new', notesOpen: true });
+    await submitReadingLog(session, values, { url: '/reading', csrfToken: 'token', context,
+        fetcher: async () => ({ redirected: false, status: 200, ok: true, json: async () => data }) });
+    refreshReadingDates(session, newDates, 'UTC');
+    const outcome = consumeReadingLogOutcome(session);
+
+    const presentation = readingSuccessPresentation(outcome, context, { books, recentBooks: [], dates: newDates, values: reset });
+
+    assert.equal(presentation.current, true);
+    assert.deepEqual(presentation.dates, newDates);
+    assert.equal(presentation.values.date_read, newDates.today);
+    assert.equal(presentation.values.notes_text, '');
+    assert.equal(outcome.submission.submittedValues.date_read, '2026-11-12');
+    const newerResponse = { ...outcome, data: { ...data, form: { ...data.form, dates: newDates, values: { ...reset, date_read: newDates.today } } } };
+    const fresh = readingSuccessPresentation(newerResponse, context, { books, recentBooks: [], dates: oldDates, values: reset });
+    assert.deepEqual(fresh.dates, newDates);
+    assert.equal(fresh.values.date_read, newDates.today);
+});

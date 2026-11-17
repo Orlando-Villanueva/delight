@@ -10,7 +10,7 @@
     <title>{{ config('app.name') }}</title>
     <link rel="icon" href="{{ asset('favicon-app.ico') }}?v={{ config('app.asset_version') }}" type="image/x-icon">
     <link rel="apple-touch-icon" href="{{ asset('images/app-icon-v2-192.png') }}">
-    <link rel="manifest" href="{{ route('pwa.manifest', ['v' => config('app.asset_version')]) }}">
+    <link rel="manifest" crossorigin="use-credentials" href="{{ route('pwa.manifest', ['v' => config('app.asset_version')]) }}">
     <meta name="theme-color" content="#3366CC">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">

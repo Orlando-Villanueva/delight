@@ -231,7 +231,7 @@ function handleSuccess(outcome: Extract<ReadingOutcome, { kind: 'success' }>) {
     const presentation = readingSuccessPresentation(outcome, currentContext, {
         books: config.books,
         recentBooks: config.recentBooks,
-        dates: config.dates,
+        dates: dates.value,
         values: config.values,
     });
     books.value = presentation.books;
@@ -251,9 +251,7 @@ function handleSuccess(outcome: Extract<ReadingOutcome, { kind: 'success' }>) {
         month: 'short', day: 'numeric', timeZone: 'UTC',
     }).format(new Date(`${submitted.date_read}T12:00:00Z`));
     success.value = presentation.reference ? messages.value.saved.replace(':passage', presentation.reference).replace(':date', dateLabel) : copy.value.readingSaved;
-    if (!presentation.current) {
-        updateReadingLogDateContext(session, latestDates, currentContext.timeZone);
-    }
+    updateReadingLogDateContext(session, latestDates, currentContext.timeZone);
     snapshot();
 }
 
