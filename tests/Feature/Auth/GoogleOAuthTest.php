@@ -2,9 +2,50 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Sleep;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
+
+it('creates a Google account with a long avatar URL', function (): void {
+    $avatarUrl = 'https://example.com/'.str_repeat('a', 1100);
+    Socialite::fake('google', SocialiteUser::fake([
+        'id' => 'google-subject-1',
+        'email' => 'reader@example.com',
+        'name' => 'Delight Reader',
+        'avatar' => $avatarUrl,
+    ]));
+
+    $this->get('/auth/google/callback')
+        ->assertRedirect('/dashboard');
+
+    $user = User::query()->where('email', 'reader@example.com')->firstOrFail();
+    $this->assertAuthenticatedAs($user);
+
+    expect($user->avatar_url)->toBe($avatarUrl);
+    expect(Schema::getColumnType('users', 'avatar_url'))->toBe('text');
+});
+
+it('signs in an existing Google user and refreshes their long avatar URL', function (): void {
+    $user = User::factory()->create([
+        'google_subject' => 'google-subject-1',
+        'avatar_url' => 'https://example.com/old.png',
+    ]);
+    $avatarUrl = 'https://example.com/'.str_repeat('a', 1100);
+    Socialite::fake('google', SocialiteUser::fake([
+        'id' => $user->google_subject,
+        'email' => $user->email,
+        'name' => $user->name,
+        'avatar' => $avatarUrl,
+    ]));
+
+    $this->get('/auth/google/callback')
+        ->assertRedirect('/dashboard');
+
+    $this->assertAuthenticatedAs($user);
+
+    expect($user->fresh()->avatar_url)->toBe($avatarUrl);
+});
 
 it('preserves web Google sign-in and records a compatible stable subject', function (): void {
     $user = User::factory()->create(['email' => 'reader@gmail.com']);
