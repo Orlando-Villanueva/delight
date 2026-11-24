@@ -14,11 +14,11 @@
     >
         <div class="flex items-start justify-between gap-4">
             <div class="min-w-0 space-y-2">
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    {{ copy.browserReminders.title }}
+                <h2 class="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-semibold text-gray-900 dark:text-white">
+                    <span>{{ copy.browserReminders.title }}</span>
                     <span
-                            :title="copy.browserReminders.betaTitle"
-                            class="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:border-primary-400/40 dark:bg-primary-900/60 dark:text-primary-200"
+                        :title="copy.browserReminders.betaTitle"
+                        class="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:border-primary-400/40 dark:bg-primary-900/60 dark:text-primary-200"
                     >{{ copy.browserReminders.beta }}</span>
                 </h2>
                 <p class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ copy.browserReminders.browserNow }}</p>
